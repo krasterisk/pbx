@@ -1,0 +1,36 @@
+TAP version 13
+# Subtest: postgres: I2 backup/restore matrix (postgres:17.11-bookworm)
+    # Subtest: backup then restore keeps schema, ledger, jobs, assets, licenses, objects
+    ok 1 - backup then restore keeps schema, ledger, jobs, assets, licenses, objects
+      ---
+      duration_ms: 2802.690297
+      type: 'test'
+      ...
+    # Subtest: restore without key leaves ciphertext unread and fails closed
+    ok 2 - restore without key leaves ciphertext unread and fails closed
+      ---
+      duration_ms: 3064.113646
+      type: 'test'
+      ...
+    # Subtest: cross-engine restore is refused
+    ok 3 - cross-engine restore is refused
+      ---
+      duration_ms: 1.100949
+      type: 'test'
+      ...
+    1..3
+ok 1 - postgres: I2 backup/restore matrix (postgres:17.11-bookworm)
+  ---
+  duration_ms: 17197.181011
+  type: 'test'
+  ...
+# {"image":"postgres:17.11-bookworm","server":"PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit"}
+1..1
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17205.484875

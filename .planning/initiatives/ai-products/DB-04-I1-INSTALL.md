@@ -47,4 +47,4 @@ node harness/database/run-i1-install.cjs mysql
 node harness/database/run-i1-install.cjs postgres
 ```
 
-I2 backup/restore, I3 N-1 upgrade, and I4 ODBC apply are not this slice.
+I2 backup/restore: [DB-04-I2-RESTORE](DB-04-I2-RESTORE.md). I3 N-1 upgrade and I4 ODBC apply are not this slice.

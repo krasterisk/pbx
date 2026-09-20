@@ -6,11 +6,11 @@
 |---|---|
 | Updated | 2026-09-20 |
 | Mode | `codex-direct` |
-| Coordination status | `active` — DB-04 I1 implemented; I2–I4 gated |
+| Coordination status | `active` — DB-04 I2 implemented; I3–I4 gated |
 | Active implementation coordinator | `/root` |
-| Active PLAN / revision | [DB-04-PLAN](DB-04-PLAN.md) I1, SHA-256 `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` |
-| Active workers / owned paths | `harness/database/clean-install.cjs`, `run-i1-install.cjs`, install docs/evidence. Wrap `run-migrations` / `seed-ci` / standalone-provision. No I2 restore, no I3 upgrade packs, no I4 ODBC apply, no autodial/`xray-ui`, no production DB |
-| Next action | DB-04 I2 backup/restore only if separately assigned. I3 upgrade and I4 ODBC remain gated |
+| Active PLAN / revision | [DB-04-PLAN](DB-04-PLAN.md) I2, SHA-256 `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` |
+| Active workers / owned paths | `harness/database/backup-restore.cjs`, `run-i2-restore.cjs`, restore docs/evidence. SQL dump + object fixture + encryption sidecar. No I3 upgrade packs, no I4 ODBC apply, no autodial/`xray-ui`, no production DB, no live secrets |
+| Next action | DB-04 I3 N-1 upgrade only if separately assigned. I4 ODBC remains gated |
 | Implementation state | Product runtime computed, default env `not-installed`. No live charge of real tenants. `cloud_wallet` usage off unless both flags |
 
 ## Следующее исполнение
@@ -60,6 +60,7 @@ Design only: COM1–COM4 / 10A / 10R и I1–I4. Не active implementation; н�
 
 | Assignment | Executor identity | PLAN / task IDs / revision | Owned paths | Status / evidence |
 |---|---|---|---|---|
+| DB-04-I2-restore | `/root`, текущая задача | DB-04 I2, SHA-256 `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` | backup-restore harness: SQL dump/restore, object-storage fixture, encryption key sidecar, missing-key fail-closed, DBR-07 dialect-switch refuse. Wrap I1 clean-install. No I3/I4, no autodial/`xray-ui`, no production DB, no live secret copy | **closed**: [SUMMARY](DB-04-I2-SUMMARY.md), [VERIFICATION](DB-04-I2-VERIFICATION.md), [RESTORE](DB-04-I2-RESTORE.md), [evidence/i2](evidence/i2/REMOTE-MATRIX.md). MySQL **4/4** + PG **4/4**. I3–I4 not this slice |
 | DB-04-I1-install | `/root`, текущая задача | DB-04 I1, SHA-256 `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` | clean-install harness wrapping run-migrations/seed-ci; profile matrix; dirty/wrong-profile refuse; community composition check; docs. No I2/I3/I4, no autodial/`xray-ui`, no production DB | **closed**: [SUMMARY](DB-04-I1-SUMMARY.md), [VERIFICATION](DB-04-I1-VERIFICATION.md), [INSTALL](DB-04-I1-INSTALL.md), [evidence/i1](evidence/i1/REMOTE-MATRIX.md). MySQL **5/5** + PG **5/5**. I2–I4 not this slice |
 | AI-10-10A-analytics | `/root`, текущая задача | AI-10 10A, SHA-256 `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` | analytics onboarding engine/tests, retention/export/offboarding receipts, public analysis curl docs, bounded standalone UX. No I1, no PBX/AMI/ARI, no live tenant debit | **implemented locally**: [SUMMARY](AI-10-10A-SUMMARY.md), [VERIFICATION](AI-10-10A-VERIFICATION.md), [PUBLIC-ANALYSIS](AI-10-10A-PUBLIC-ANALYSIS.md). Live disposable API / installer smoke gated |
 | AI-10-10R-robots | `/root`, текущая задача | AI-10 10R, SHA-256 `7D50CE43333E27871882DE59DD7BF09DE899F65B8837FE82B89F23B5DDA3AE4A` | robots onboarding, SIP publish gates, drain-on-expiry, `/api/v1/ai-voice` docs. No I1, no I4 native CDR claim, no autodial/`xray-ui` | **implemented locally**: [SUMMARY](AI-10-10R-SUMMARY.md), [VERIFICATION](AI-10-10R-VERIFICATION.md), [AI-VOICE](AI-10-10R-AI-VOICE.md). I1 smoke and I4 native PBX gated |
