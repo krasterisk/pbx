@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "node --max-old-space-size=4096 ../../node_modules/@nestjs/cli/bin/nest.js build --builder tsc",
+    "build": "node --max-old-space-size=4096 ../../node_modules/typescript/bin/tsc -p tsconfig.build.json --pretty false",
     "build:analytics": "nest build --config nest-cli.analytics.json",
     "build:robot": "nest build --config nest-cli.robot.json",
     "build:community": "nest build --config nest-cli.community.json",

@@ -5,7 +5,6 @@
   "compilerOptions": {
     "tsConfigPath": "tsconfig.build.json",
     "deleteOutDir": true,
-    "builder": "tsc",
     "assets": [
       { "include": "**/*.proto", "watchAssets": true },
       { "include": "skills/**/*.md", "watchAssets": false },
