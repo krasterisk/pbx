@@ -226,7 +226,11 @@ export class DirectoriesService {
         references,
       });
     }
-    await directory.destroy();
+    await this.sequelize.transaction(async (transaction) => {
+      await this.recordModel.destroy({ where: { directory_uid: uid }, transaction });
+      await this.fieldModel.destroy({ where: { directory_uid: uid }, transaction });
+      await directory.destroy({ transaction });
+    });
   }
 
   /**
@@ -390,9 +394,9 @@ export class DirectoriesService {
     });
     if (!directory) return { status: 'NOT_FOUND', values: [] };
 
-    const ownedUids = new Set((directory.fields ?? []).map((field) => field.uid));
+    const ownedUids = new Set((directory.fields ?? []).map((field) => Number(field.uid)));
     for (const fieldUid of request.fieldUids) {
-      if (!ownedUids.has(fieldUid)) {
+      if (!ownedUids.has(Number(fieldUid))) {
         throw new BadRequestException('Field does not belong to this directory');
       }
     }

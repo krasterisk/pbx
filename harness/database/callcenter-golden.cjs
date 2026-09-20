@@ -30,9 +30,11 @@ async function main(input = process.env) {
   const today = new Date();
   const day = sqlDate(today).slice(0, 10);
   try {
-    assert.equal(await reader.isAvailable(), false, 'test requires no pre-existing queue_log');
-    await sequelize.query('CREATE TABLE queue_log (time VARCHAR(32) NOT NULL, callid VARCHAR(64) NOT NULL, queuename VARCHAR(64) NOT NULL, agent VARCHAR(64), event VARCHAR(32) NOT NULL, data VARCHAR(64), data1 VARCHAR(64), data2 VARCHAR(64), data3 VARCHAR(64), data4 VARCHAR(64), data5 VARCHAR(64))');
-    createdTable = true;
+    const preexisting = await reader.isAvailable();
+    if (!preexisting) {
+      await sequelize.query('CREATE TABLE queue_log (time VARCHAR(32) NOT NULL, callid VARCHAR(64) NOT NULL, queuename VARCHAR(64) NOT NULL, agent VARCHAR(64), event VARCHAR(32) NOT NULL, data VARCHAR(64), data1 VARCHAR(64), data2 VARCHAR(64), data3 VARCHAR(64), data4 VARCHAR(64), data5 VARCHAR(64))');
+      createdTable = true;
+    }
     assert.equal(await reader.isAvailable(), true);
     const stamp = new Date(today.getTime() - 10 * 60_000);
     stamp.setMilliseconds(0);

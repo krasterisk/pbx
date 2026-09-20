@@ -42,10 +42,11 @@ export const test = base.extend<{
   authenticatedPage: Page;
   authSession: AuthSession;
 }>({
-  authSession: [async ({ baseURL }, use) => {
+  authSession: [async ({}, use) => {
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3010';
     const login = process.env.PW_USER || 'admin';
     const password = process.env.PW_PASS || 'admin';
-    const session = await loginViaApi(baseURL!, login, password);
+    const session = await loginViaApi(baseURL, login, password);
     await use(session);
   }, { scope: 'worker' }],
 

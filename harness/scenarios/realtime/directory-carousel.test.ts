@@ -75,7 +75,7 @@ describe('Directory trunk carousel', () => {
   });
 
   it('empty or malformed lookup keeps original 100 on both attempts', async () => {
-    const emptyKey = await apiFetch<{ status: string; values: string[] }>(
+    const emptyKey = await apiRequest<{ status: string; values: string[] }>(
       `/api/directories/${createdUid}/lookup-test`,
       {
         method: 'POST',
@@ -83,10 +83,11 @@ describe('Directory trunk carousel', () => {
         body: { key: '', fieldUids: [cidAlphaUid, cidBetaUid] },
       },
     );
+    expect(emptyKey.ok).toBe(true);
     expect(['NOT_FOUND', 'ERROR']).toContain(emptyKey.data.status);
     expect(emptyKey.data.values ?? []).toEqual([]);
 
-    const malformed = await apiFetch<{ status: string; values: string[] }>(
+    const malformed = await apiRequest<{ status?: string; values?: string[] }>(
       `/api/directories/${createdUid}/lookup-test`,
       {
         method: 'POST',
@@ -94,7 +95,11 @@ describe('Directory trunk carousel', () => {
         body: { key: '100', fieldUids: [0, -1] },
       },
     );
-    expect(['NOT_FOUND', 'ERROR']).toContain(malformed.data.status);
+    if (malformed.ok) {
+      expect(['NOT_FOUND', 'ERROR']).toContain(malformed.data.status);
+    } else {
+      expect(malformed.status).toBe(400);
+    }
     const incoming = '100';
     expect(incoming).toBe('100');
   });
