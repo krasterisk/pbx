@@ -30,6 +30,21 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+// Windows hangs at vitest discovery (`RUN`, zero files). Linux/macOS CI uses one normal run.
+if (process.platform !== 'win32') {
+  console.log(`vitest-run-src: ${files.length} files, native run, platform=${process.platform}`);
+  const result = spawnSync(
+    process.execPath,
+    [vitestBin, 'run', '--config', 'vite.config.ts'],
+    { cwd: frontendRoot, stdio: 'inherit', env: process.env, shell: false },
+  );
+  if (result.error) {
+    console.error(result.error);
+    process.exit(1);
+  }
+  process.exit(result.status ?? 1);
+}
+
 console.log(`vitest-run-src: ${files.length} files, chunk=${CHUNK}, platform=${process.platform}`);
 
 let failedFiles = 0;

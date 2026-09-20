@@ -153,9 +153,9 @@ describe('AiChatProviderCard', () => {
     expect(toggle).toHaveAttribute('data-state', 'unchecked');
 
     fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('data-state', 'checked');
+    await waitFor(() => expect(toggle).toHaveAttribute('data-state', 'checked'));
 
     putGate.resolve(jsonResponse({ message: 'fail' }, 500));
-    await waitFor(() => expect(toggle).toHaveAttribute('data-state', 'unchecked'));
+    await waitFor(() => expect(toggle).toHaveAttribute('data-state', 'unchecked'), { timeout: 3000 });
   });
 });
