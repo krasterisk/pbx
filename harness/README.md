@@ -72,7 +72,7 @@ npx tsx runner/index.ts --tag health --parallel   # opt-in parallelism (D-19)
 
 CI Playwright uses `workers: 1` and no sharding (D-12). Do not pass `--parallel` in the default CI job.
 
-Default lab credentials for the isolated CI MySQL (D-13): `PW_USER=admin`, `PW_PASS=admin`. Override via GitHub secrets for non-default test DBs. Do not point local `npm run harness` at a production tenant — API scenarios include MOH CRUD.
+Default lab credentials for the isolated CI MySQL (D-13): `PW_USER=ci-tenant-a`, `PW_PASS` = `CI_SEED_PASSWORD` (tenant ADMIN). Platform login `admin` is level 0 and cannot open `/callcenter/supervisor`. Override via GitHub secrets for non-default test DBs. Do not point local `npm run harness` at a production tenant — API scenarios include MOH CRUD.
 
 **Phase gate (AGENTS.md):** `npm run lint && npm run test:backend && npm run test:frontend && npm run harness`
 

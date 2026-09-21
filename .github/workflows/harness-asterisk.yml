@@ -100,7 +100,8 @@ jobs:
           DB_NAME: krasterisk_ci
           JWT_SECRET: ci-test-secret-for-isolated-harness-only-32chars
           CC_AI_KEY_SECRET: ci-test-ai-secret
-          PW_USER: admin
+          # Tenant admin (level 1) — platform admin is blocked from /callcenter/supervisor.
+          PW_USER: ci-tenant-a
           PW_PASS: ${{ env.CI_SEED_PASSWORD }}
           AMI_HOST: ${{ secrets.AMI_HOST }}
           AMI_PORT: ${{ secrets.AMI_PORT }}

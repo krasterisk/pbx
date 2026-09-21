@@ -11,7 +11,10 @@ import { test as base, type Page } from '@playwright/test';
  * tokens into localStorage before each test navigates.
  *
  * Override the credentials with env vars:
- *   PW_USER (default "admin"), PW_PASS (default "admin")
+ *   PW_USER (default "ci-tenant-a"), PW_PASS (default "admin")
+ *
+ * Prefer a tenant ADMIN for UI smokes: platform admin (seed login "admin")
+ * cannot open RequireRole-gated pages such as /callcenter/supervisor.
  */
 
 interface AuthSession {
@@ -101,7 +104,7 @@ export const test = base.extend<{
 }>({
   authSession: [async ({}, use) => {
     const apiBase = process.env.HARNESS_API_URL || 'http://localhost:5010';
-    const login = process.env.PW_USER || 'admin';
+    const login = process.env.PW_USER || 'ci-tenant-a';
     const password = process.env.PW_PASS || 'admin';
     const session = await loginViaApi(apiBase, login, password);
     await use(session);

@@ -90,7 +90,8 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3010
           HARNESS_API_URL: http://localhost:5010
-          PW_USER: admin
+          # Tenant admin (level 1) — platform admin is blocked from /callcenter/supervisor.
+          PW_USER: ci-tenant-a
           PW_PASS: ${{ env.CI_SEED_PASSWORD }}
           JWT_SECRET: ci-test-secret-for-isolated-harness-only-32chars
           CC_AI_KEY_SECRET: ci-test-ai-secret
