@@ -812,7 +812,7 @@ export function CallCenterSupervisorPage() {
             <Monitor className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
           </Flex>
           <VStack>
-            <Text variant="h1" className="text-lg sm:text-2xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <Text as="h1" variant="h1" className="text-lg sm:text-2xl">
               {t('callcenter.supervisor.title', 'Supervisor Dashboard')}
             </Text>
             <Text variant="muted" className="mt-0.5 sm:mt-1 text-xs sm:text-sm">

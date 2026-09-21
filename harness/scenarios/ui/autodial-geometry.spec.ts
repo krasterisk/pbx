@@ -6,11 +6,13 @@ const PAGES = [
     path: '/autodial',
     root: 'autodial-campaigns-page-responsive',
     modal: 'autodial-campaign-form-modal',
+    create: 'autodial-create-campaign',
   },
   {
     path: '/autodial/bases',
     root: 'autodial-bases-page-responsive',
     modal: 'autodial-base-form-modal',
+    create: 'autodial-create-base',
   },
 ] as const;
 
@@ -27,7 +29,7 @@ for (const lang of ['ru', 'en'] as const) {
         await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth))
           .toBeLessThanOrEqual(width + 1);
 
-        await root.locator('button').first().click();
+        await root.getByTestId(screen.create).click();
         const modal = page.getByTestId(screen.modal);
         await expect(modal).toBeVisible();
         const bounds = await modal.boundingBox();
@@ -37,6 +39,8 @@ for (const lang of ['ru', 'en'] as const) {
           .toBeLessThanOrEqual(width + 1);
         await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth))
           .toBeLessThanOrEqual(width + 1);
+        await page.keyboard.press('Escape');
+        await expect(modal).toBeHidden();
       }
     });
   }
@@ -47,7 +51,7 @@ for (const lang of ['ru', 'en'] as const) {
     await page.goto('/autodial');
     const root = page.getByTestId('autodial-campaigns-page-responsive');
     await expect(root).toBeVisible();
-    await root.locator('button').first().click();
+    await root.getByTestId('autodial-create-campaign').click();
     const modal = page.getByTestId('autodial-campaign-form-modal');
     await expect(modal).toBeVisible();
 

@@ -16,9 +16,9 @@ test.describe('Supervisor panel — happy path', () => {
 
   test('shows agent tab navigation', async ({ authenticatedPage: page }) => {
     await page.goto('/callcenter/supervisor');
-    await expect(page.getByRole('button', { name: /Agents|Агенты/i }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /Live Calls|Активные/i }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /Queues|Очереди/i }).first()).toBeVisible();
+    await expect(page.getByTestId('supervisor-tab-agents')).toBeVisible();
+    await expect(page.getByTestId('supervisor-tab-calls')).toBeVisible();
+    await expect(page.getByTestId('supervisor-tab-queues')).toBeVisible();
   });
 
   test('SSE connection indicator is present', async ({ authenticatedPage: page }) => {

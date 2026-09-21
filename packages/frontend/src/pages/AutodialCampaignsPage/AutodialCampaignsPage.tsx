@@ -29,6 +29,7 @@ export const AutodialCampaignsPage = memo(() => {
         </HStack>
         <Button
           className={cls.createBtn}
+          data-testid="autodial-create-campaign"
           onClick={() => dispatch(autodialPageActions.openCreateCampaign())}
         >
           <Plus size={16} className={cls.createBtnIcon} />

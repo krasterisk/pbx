@@ -21,11 +21,14 @@ export async function assertAgentShellVisible(page: Page): Promise<void> {
 
 /** Assert supervisor dashboard shell: heading + queue KPI strip (no live data required). */
 export async function assertSupervisorShellVisible(page: Page): Promise<void> {
+  const root = page.getByTestId('cc-supervisor-responsive');
+  await expect(root).toBeVisible();
+  // Title uses bg-clip + text-transparent; role=heading is fragile — match visible copy.
   await expect(
-    page.getByRole('heading', { name: /Supervisor Dashboard|Supervisor Panel|Панель супервизора/i }),
+    root.getByText(/Supervisor Dashboard|Supervisor Panel|Панель супервизора/i).first(),
   ).toBeVisible();
 
-  await expect(page.getByText(KPI_WAITING).first()).toBeVisible();
-  await expect(page.getByText(KPI_TALKING).first()).toBeVisible();
-  await expect(page.getByText(KPI_FREE).first()).toBeVisible();
+  await expect(root.getByText(KPI_WAITING).first()).toBeVisible();
+  await expect(root.getByText(KPI_TALKING).first()).toBeVisible();
+  await expect(root.getByText(KPI_FREE).first()).toBeVisible();
 }

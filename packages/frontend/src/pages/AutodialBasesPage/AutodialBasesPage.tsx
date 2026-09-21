@@ -37,6 +37,7 @@ export const AutodialBasesPage = memo(() => {
         </HStack>
         <Button
           className={cls.createBtn}
+          data-testid="autodial-create-base"
           onClick={() => dispatch(autodialPageActions.openCreateBase())}
         >
           <Plus size={16} className={cls.createBtnIcon} />

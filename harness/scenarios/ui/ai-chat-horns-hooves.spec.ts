@@ -6,12 +6,15 @@ import {
   HORNS_PROMPT,
   HORNS_TITLE,
   PLACEHOLDER,
+  PLAN_STEP,
   RAW_TOOLS,
 } from './horns-hooves';
 
 test.describe.configure({ mode: 'serial' });
 
-// Scripted llm-stub (CI). Live model: ai-chat-horns-hooves.live.spec.ts + HARNESS_LIVE_LLM=1.
+// Scripted llm-stub (CI). Complete briefs compile on the server (tryServerIvrPlan);
+// discovery tool turns are only a fallback when the brief is incomplete.
+// Live model: ai-chat-horns-hooves.live.spec.ts + HARNESS_LIVE_LLM=1.
 test('horns-and-hooves IVR shows useful steps once and one plan card', async ({
   authenticatedPage,
   llmStub,
@@ -38,28 +41,31 @@ test('horns-and-hooves IVR shows useful steps once and one plan card', async ({
   await expect(card).not.toContainText(/engine_uid|→ extension |→ group /i);
   await expect(card.getByTestId('ai-agent-workflow-steps')).toContainText(/групп|меню|Группа|Меню|call group|IVR/i);
 
-  await expect(chat.steps).toHaveCount(3);
-  const labels = (await chat.steps.locator('[class*="stepLabel"]').allTextContents())
-    .map((label) => label.trim());
-  expect(labels[0]).toMatch(/Смотрю голосовые движки|Looking up speech engines/);
-  expect(labels[1]).toMatch(/Смотрю абонентов|Looking up subscribers/);
-  expect(labels[2]).toMatch(/Собираю план изменений|Assembling a change plan/);
-  expect(new Set(labels).size).toBe(3);
+  const labels = await chat.stepLabels();
+  expect(labels.length).toBeGreaterThanOrEqual(1);
+  expect(labels.length).toBeLessThanOrEqual(3);
+  const planLabels = labels.filter((label) => PLAN_STEP.test(label));
+  expect(planLabels.length, `plan step labels: ${labels.join(' | ')}`).toBeGreaterThanOrEqual(1);
+  expect(planLabels.length, `plan step repeated: ${labels.join(' | ')}`).toBeLessThanOrEqual(2);
+  expect(new Set(labels).size).toBe(labels.length);
 
-  const engines = chat.steps.nth(0);
-  const subscribers = chat.steps.nth(1);
-  const plan = chat.steps.nth(2);
+  const engines = chat.steps.filter({ hasText: /Смотрю голосовые движки|Looking up speech engines/ });
+  if (await engines.count()) {
+    await engines.first().getByRole('button').click();
+    await expect(engines.first().getByTestId('ai-agent-step-detail')).toHaveText(
+      /Движки:|Голосовых движков нет|Engines:|No speech engines/i,
+    );
+  }
 
-  await engines.getByRole('button').click();
-  await expect(engines.getByTestId('ai-agent-step-detail')).toHaveText(
-    /Движки:|Голосовых движков нет|Engines:|No speech engines/i,
-  );
+  const subscribers = chat.steps.filter({ hasText: /Смотрю абонентов|Looking up subscribers/ });
+  if (await subscribers.count()) {
+    await subscribers.first().getByRole('button').click();
+    await expect(subscribers.first().getByTestId('ai-agent-step-detail')).toHaveText(
+      /Абоненты:|Абонентов с такими номерами нет|Subscribers:|No subscribers/i,
+    );
+  }
 
-  await subscribers.getByRole('button').click();
-  await expect(subscribers.getByTestId('ai-agent-step-detail')).toHaveText(
-    /Абоненты:|Абонентов с такими номерами нет|Subscribers:|No subscribers/i,
-  );
-
+  const plan = chat.steps.filter({ hasText: PLAN_STEP }).first();
   await expect(plan.getByRole('button')).toHaveCount(0);
   await expect(plan.getByTestId('ai-agent-step-detail')).toHaveCount(0);
 
