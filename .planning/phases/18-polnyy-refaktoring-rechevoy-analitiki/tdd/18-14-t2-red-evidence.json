@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"migrate-hub-modules-phase8\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "does not advertise speech-analytics Reports as a product hub path (D-37)",
+  "targetFile": "packages/backend/src/modules/cloud-admin/migrate-hub-modules-phase8.spec.ts",
+  "expected": "HUB_MODULE_PAGES_SEED has no path /speech-analytics/reports and no page_code speech_analytics_reports",
+  "actual": "Expected false, Received true — seed still includes /speech-analytics/reports",
+  "output": "# tests 8\n# pass 7\n# fail 1\n# cancelled 0\nnot ok 1 - does not advertise speech-analytics Reports as a product hub path (D-37)\nok 2 - defines hub_modules and hub_module_pages table names\nok 3 - seeds baseline hub codes (core, apps, system, callcenter, analytics, ai)\nok 4 - includes Overview tile metadata\nok 5 - marks Core/Apps/System as base and Call Center/Analytics/AI as market\nok 6 - maps queues→apps and keeps custom robot tables off the Call Center menu\nok 7 - places conferences in apps at sort_order 65 and not in market\nok 8 - membership rows reference only seeded hub codes"
+}

@@ -75,4 +75,16 @@ describe('Hub modules Phase 8 seed', () => {
       expect(hubCodes.has(page.hub_code)).toBe(true);
     }
   });
+
+  it('does not advertise speech-analytics Reports as a product hub path (D-37)', () => {
+    expect(
+      HUB_MODULE_PAGES_SEED.some((p) => p.path === '/speech-analytics/reports'),
+    ).toBe(false);
+    expect(
+      HUB_MODULE_PAGES_SEED.some((p) => p.page_code === 'speech_analytics_reports'),
+    ).toBe(false);
+    const saPages = HUB_MODULE_PAGES_SEED.filter((p) => p.hub_code === 'speech_analytics');
+    expect(saPages.some((p) => p.path === '/speech-analytics/dashboard')).toBe(true);
+    expect(saPages.some((p) => p.path === '/speech-analytics/conversations')).toBe(true);
+  });
 });
