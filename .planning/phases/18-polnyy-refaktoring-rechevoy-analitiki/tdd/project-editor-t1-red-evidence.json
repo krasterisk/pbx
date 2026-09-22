@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"project-editor\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "allows publish/delete for ADMIN, SUPERVISOR, and SUPERADMIN only",
+  "targetFile": "packages/backend/src/modules/speech-analytics/projects/project-editor.service.spec.ts",
+  "expected": "canPublishProject(ADMIN/SUPERVISOR/SUPERADMIN) === true; OPERATOR/READONLY false",
+  "actual": "canPublishProject(SUPERVISOR) returned false (RED stub allows ADMIN only)",
+  "output": "FAIL project-editor.service.spec.ts\n# tests 6\n# pass 2\n# fail 4\n# cancelled 0\nnot ok 1 - allows publish/delete for ADMIN, SUPERVISOR, and SUPERADMIN only\nok 2 - accepts every industry template id from D-25 including custom\nnot ok 3 - saving draft does not change the published version used by runs\nok 4 - publishing after metric/topic/prompt/visible-scale change increments version stamp\nnot ok 5 - saving webhook/digest/alert/budget alone does not increment version stamp\nnot ok 6 - cannot activate an arbitrary older version as current"
+}
