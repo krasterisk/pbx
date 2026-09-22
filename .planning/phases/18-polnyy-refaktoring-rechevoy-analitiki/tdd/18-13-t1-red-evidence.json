@@ -1,0 +1,9 @@
+{
+  "command": "node ../../node_modules/vitest/vitest.mjs run --config vite.config.ts src/features/speechAnalytics/ui/UploadForm/UploadForm.test.tsx",
+  "exitCode": 1,
+  "targetTest": "requires project and shows uploading busy label without channel swap",
+  "targetFile": "packages/frontend/src/features/speechAnalytics/ui/UploadForm/UploadForm.test.tsx",
+  "expected": "Upload form with project required, busy «Загрузка...», no channel-swap control",
+  "actual": "Unable to find an element by: [data-testid=\"upload-form\"] (stub shows upload-form-stub only)",
+  "output": "# tests 2\n# pass 0\n# fail 2\n# cancelled 0\nnot ok 1 - requires project and shows uploading busy label without channel swap\nnot ok 2 - keeps one field set for single file and batch; pre-queue refusal stays in the form"
+}
