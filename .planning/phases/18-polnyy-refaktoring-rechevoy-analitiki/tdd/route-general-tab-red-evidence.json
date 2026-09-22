@@ -1,0 +1,9 @@
+{
+  "command": "npx vitest run src/features/routes/ui/RouteFormModal/RouteGeneralTab.test.tsx --reporter=verbose",
+  "exitCode": 1,
+  "targetTest": "renders Analytics project Select when module is active and recording is on",
+  "targetFile": "packages/frontend/src/features/routes/ui/RouteFormModal/RouteGeneralTab.test.tsx",
+  "expected": "Label Analytics project Select with No project and Sales QA options; inherit/off/on Speech analytics control absent",
+  "actual": "Unable to find a label with the text of: Analytics project (legacy inherit/off/on Speech analytics UI still rendered)",
+  "output": "# tests 3\n# pass 2\n# fail 1\n# cancelled 0\nnot ok 1 - renders Analytics project Select when module is active and recording is on\nok 2 - hides the project Select when recording is off\nok 3 - hides the project Select when module is inactive and does not clear saved projectId"
+}
