@@ -1,0 +1,9 @@
+{
+  "command": "node ../../node_modules/vitest/vitest.mjs run --config vite.config.ts src/features/speechAnalytics/ui/ConversationSheet/ConversationSheet.test.tsx src/pages/SpeechAnalyticsJournalPage/SpeechAnalyticsJournalPage.test.tsx",
+  "exitCode": 1,
+  "targetTest": "renders Analytics, Transcript, and Cost tabs with locked copy",
+  "targetFile": "packages/frontend/src/features/speechAnalytics/ui/ConversationSheet/ConversationSheet.test.tsx",
+  "expected": "Tabs Аналитика / Расшифровка / Стоимость and cost label Посчитано, не списано",
+  "actual": "Unable to find an accessible element with the role \"tab\" and name \"Аналитика\" (stub renders conversation-sheet-stub only)",
+  "output": "# tests 7\n# pass 0\n# fail 7\n# cancelled 0\nnot ok 1 - renders Analytics, Transcript, and Cost tabs with locked copy\nnot ok 2 - hides sheet player for PBX-sourced conversations\nnot ok 3 - shows player only on Transcript for upload-sourced conversations\nnot ok 4 - keeps previous result visible with rebuild badge while rebuild is in progress\nnot ok 5 - exposes icon-only close with title and aria-label\nnot ok 6 - opens ConversationSheet at a stable conversation URL when a row is clicked\nnot ok 7 - opens the sheet from a deep-linked conversation URL"
+}
