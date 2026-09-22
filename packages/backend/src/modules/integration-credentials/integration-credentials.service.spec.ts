@@ -1,3 +1,4 @@
+import { UserLevel } from '../users/user.model';
 import { IntegrationCredentialsService } from './integration-credentials.service';
 
 const now = new Date('2026-09-19T00:00:00.000Z');
@@ -7,6 +8,7 @@ const context = Object.freeze({
 });
 const op1 = '00000000-0000-4000-8000-000000000001';
 const op2 = '00000000-0000-4000-8000-000000000002';
+const PROJECT = '00000000-0000-4000-8000-0000000000aa';
 const parts = (token: string): [string, string] => {
   const body = token.slice('krint_v1_'.length);
   return [body.slice(0, 22), body.slice(23)];
@@ -153,6 +155,80 @@ describe('IntegrationCredentialsService', () => {
       response: expect.objectContaining({ code: 'integration_admin_required' }),
     });
     expect(f.principals.create).not.toHaveBeenCalled();
+  });
+
+  describe('speech-analytics project tokens (D-32, D-33)', () => {
+    it('returns plaintext once, stores only secret_digest, and binds one project', async () => {
+      const f = fixture();
+      f.resources.authorize.mockResolvedValue(undefined);
+      const issued = await f.service.issueSpeechAnalyticsToken(context, {
+        label: 'CRM bridge', projectId: PROJECT, operationId: op1,
+      }, now);
+      expect(issued.token).toMatch(/^krint_v1_[A-Za-z0-9_-]{22}_[A-Za-z0-9_-]{43}$/);
+      expect(issued.projectId).toBe(PROJECT);
+      expect(issued.replay).toBe(false);
+      expect(f.credentialRows[0].secret_digest).toHaveLength(32);
+      expect(f.credentialRows[0]).not.toHaveProperty('secret');
+      expect(JSON.stringify(f.credentialRows[0])).not.toContain(issued.token!);
+      expect(f.grants.bulkCreate).toHaveBeenCalledWith(expect.arrayContaining([
+        expect.objectContaining({
+          resource_kind: 'project', resource_id: PROJECT, scope: 'analytics:upload',
+        }),
+        expect.objectContaining({
+          resource_kind: 'project', resource_id: PROJECT, scope: 'analytics:read',
+        }),
+      ]));
+      const replay = await f.service.issueSpeechAnalyticsToken(context, {
+        label: 'CRM bridge', projectId: PROJECT, operationId: op1,
+      }, now);
+      expect(replay.token).toBeNull();
+      expect(replay.replay).toBe(true);
+    });
+
+    it('lists name, project, lastUsed without secret; SUPERVISOR cannot issue', async () => {
+      const f = fixture();
+      f.resources.authorize.mockResolvedValue(undefined);
+      const issued = await f.service.issueSpeechAnalyticsToken(context, {
+        label: 'CRM bridge', projectId: PROJECT, operationId: op1,
+      }, now);
+      const page = await f.service.listSpeechAnalyticsTokens(context);
+      expect(page).toEqual([expect.objectContaining({
+        name: 'CRM bridge', projectId: PROJECT, principalId: issued.principalId,
+      })]);
+      expect(page[0]).toHaveProperty('lastUsed');
+      expect(JSON.stringify(page)).not.toContain(issued.token!);
+      expect(JSON.stringify(page)).not.toContain('secret_digest');
+      expect(JSON.stringify(page)).not.toMatch(/krint_v1_/);
+
+      f.users.findOne.mockResolvedValue({
+        uniqueid: 7, isActivated: true, level: UserLevel.SUPERVISOR,
+      });
+      await expect(f.service.issueSpeechAnalyticsToken(context, {
+        label: 'Nope', projectId: PROJECT, operationId: op2,
+      }, now)).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'integration_admin_required' }),
+      });
+    });
+
+    it('allows SUPERADMIN issuer and leaves tokens when module is off', async () => {
+      const f = fixture();
+      f.resources.authorize.mockResolvedValue(undefined);
+      f.users.findOne.mockResolvedValue({
+        uniqueid: 7, isActivated: true, level: UserLevel.SUPERADMIN,
+      });
+      const issued = await f.service.issueSpeechAnalyticsToken(context, {
+        label: 'Platform issued', projectId: PROJECT, operationId: op1,
+      }, now);
+      expect(issued.token).toMatch(/^krint_v1_/);
+      // Module-off blocks auth at ProductAccess decide — tokens remain in store.
+      f.products.decide.mockResolvedValue({ allowed: false, reason: 'product_disabled' });
+      const [selector, secret] = parts(issued.token!);
+      await expect(f.service.authenticate(selector, secret, 'r', now)).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'product_disabled' }),
+      });
+      expect(f.principalRows.size).toBe(1);
+      expect([...f.principalRows.values()][0].status).toBe('active');
+    });
   });
 
   it('lists sanitized tenant metadata and exposes only own empty capability state', async () => {

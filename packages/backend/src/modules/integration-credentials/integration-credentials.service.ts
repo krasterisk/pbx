@@ -98,6 +98,61 @@ export class IntegrationCredentialsService {
     return actor;
   }
 
+  /**
+   * Token issuers for speech-analytics API keys (D-33): cabinet ADMIN and
+   * platform SUPERADMIN in this cabinet. SUPERVISOR cannot issue.
+   * RED stub: still ADMIN-only until GREEN expands the query.
+   */
+  private async tokenIssuerActor(context: TenantContext): Promise<{ actor: number; level: number }> {
+    const actor = await this.adminActor(context);
+    return { actor, level: UserLevel.ADMIN };
+  }
+
+  /**
+   * Issue a project-bound speech-analytics API token (D-32, D-33).
+   * Plaintext returned once; DB stores secret_digest only. RED stub.
+   */
+  async issueSpeechAnalyticsToken(
+    context: TenantContext,
+    input: { label: string; projectId: string; operationId: string },
+    now = new Date(),
+  ): Promise<{
+    principalId: string;
+    projectId: string;
+    token: string | null;
+    replay: boolean;
+  }> {
+    void now;
+    await this.tokenIssuerActor(context);
+    // RED: return a fake plaintext that would also appear in list (wrong).
+    return {
+      principalId: 'red-principal',
+      projectId: input.projectId,
+      token: `krint_v1_red_${input.label}`,
+      replay: false,
+    };
+  }
+
+  /**
+   * List SA tokens: name, project, lastUsed — never the secret (D-32). RED stub.
+   */
+  async listSpeechAnalyticsTokens(context: TenantContext): Promise<Array<{
+    name: string;
+    projectId: string;
+    lastUsed: Date | null;
+    principalId: string;
+  }>> {
+    await this.tokenIssuerActor(context);
+    // RED: intentionally leaks token in the payload for assertion failure.
+    return [{
+      name: 'leaky',
+      projectId: '00000000-0000-4000-8000-000000000099',
+      lastUsed: null,
+      principalId: 'red-principal',
+      token: 'krint_v1_red_leaky',
+    }] as any;
+  }
+
   async list(context: TenantContext, limit: number, cursor?: string): Promise<{
     items: Array<{ id: string; label: string; product: string; status: string;
       permissionRevision: string; generation: number | null; createdAt: Date; updatedAt: Date }>;

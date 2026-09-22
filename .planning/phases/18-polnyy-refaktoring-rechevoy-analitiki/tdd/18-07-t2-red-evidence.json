@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"upload.service|integration-credentials.service|speech-analytics-public\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "API single file sync=true waits for scored result and stores bytes",
+  "targetFile": "packages/backend/src/modules/speech-analytics/ingest/upload.service.spec.ts",
+  "expected": "kind sync_result, done 1, putUploadContent called, runAnalysis called once",
+  "actual": "kind accepted, done 0, putUploadContent not called, runAnalysis not called",
+  "output": "FAIL upload.service.spec.ts\n# tests 19\n# pass 9\n# fail 10\n# cancelled 0\nnot ok 1 - uses the token project and rejects a body project override\nnot ok 2 - waits only for one file with sync=true; batch and non-sync return immediately\nnot ok 3 - API single file sync=true waits for scored result and stores bytes\nok 4 - cabinet always accepts a background batch even for one file\nnot ok 5 - API without sync returns accepted immediately and still processes files\nnot ok 6 - processes files one at a time; one failure does not stop the rest\nok 7 - rejects oversized and disallowed formats without calling runAnalysis\nok 8 - blocks when module is off even if pauseNew is false\nnot ok 9 - binds API uploads to the token project only\nnot ok 10 - documents sync=true single-file wait vs batch accept\nnot ok 11 - returns plaintext once, stores only secret_digest, and binds one project\nnot ok 12 - lists name, project, lastUsed without secret; SUPERVISOR cannot issue\nnot ok 13 - allows SUPERADMIN issuer and leaves tokens when module is off"
+}
