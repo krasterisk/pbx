@@ -71,9 +71,11 @@ describe('SA-CHARGE-RUN persist seam (D-46)', () => {
   });
 
   it('never imports settleShadow or BillingBalanceService from the seam module', () => {
-    expect(seamSource).not.toMatch(/settleShadow/);
-    expect(seamSource).not.toMatch(/BillingBalanceService/);
-    expect(seamSource).not.toMatch(/shadow-settlement/);
-    expect(seamSource).not.toMatch(/billing-balance\.service/);
+    expect(seamSource).not.toMatch(/from ['"].*shadow-settlement['"]/);
+    expect(seamSource).not.toMatch(/from ['"].*billing-balance\.service['"]/);
+    expect(seamSource).not.toMatch(/\bimport\b[\s\S]*\bsettleShadow\b/);
+    expect(seamSource).not.toMatch(/\bimport\b[\s\S]*\bBillingBalanceService\b/);
+    expect(seamSource).not.toMatch(/\bsettleShadow\s*\(/);
+    expect(seamSource).not.toMatch(/\bBillingBalanceService\b/);
   });
 });

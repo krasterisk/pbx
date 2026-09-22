@@ -66,6 +66,26 @@ export class SaAnalysisRun extends Model {
   @Column(DataType.STRING(36)) declare result_id: string | null;
   @Column(DataType.STRING(36)) declare parent_run_id: string | null;
   @Column(DataType.STRING(64)) declare reason: string | null;
+  /** SA-CHARGE-RUN calculated total (D-46). Persist-only; charged stays false this phase. */
+  @Column(DataType.DECIMAL(20, 10)) declare amount: string | null;
+  @Column(DataType.STRING(8)) declare currency: string | null;
+  @Column(DataType.BIGINT) declare audio_ms: string | null;
+  @Column(DataType.BIGINT) declare provider_tokens: string | null;
+  @AllowNull(false) @Column({ type: DataType.BOOLEAN, defaultValue: false }) declare charged: boolean;
+  @AllowNull(false) @Column(DataType.DATE) declare created_at: Date;
+  @AllowNull(false) @Column(DataType.DATE) declare updated_at: Date;
+}
+
+/** On-demand insights request row — SA-CHARGE-INSIGHTS amounts (D-47). */
+@Table({ tableName: 'sa_insights_requests', timestamps: false })
+export class SaInsightsRequest extends Model {
+  @PrimaryKey @AllowNull(false) @Column(DataType.STRING(36)) declare id: string;
+  @AllowNull(false) @Column({ type: DataType.INTEGER, field: 'vpbx_user_uid' }) declare tenant_uid: number;
+  @AllowNull(false) @Column(DataType.STRING(36)) declare project_id: string;
+  @Column(DataType.DECIMAL(20, 10)) declare amount: string | null;
+  @Column(DataType.STRING(8)) declare currency: string | null;
+  @Column(DataType.BIGINT) declare provider_tokens: string | null;
+  @AllowNull(false) @Column({ type: DataType.BOOLEAN, defaultValue: false }) declare charged: boolean;
   @AllowNull(false) @Column(DataType.DATE) declare created_at: Date;
   @AllowNull(false) @Column(DataType.DATE) declare updated_at: Date;
 }
