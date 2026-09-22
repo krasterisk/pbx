@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"budget|event-webhooks\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "treats softLimit 0 as no limit and never stops analyses when exceeded",
+  "targetFile": "packages/backend/src/modules/speech-analytics/projects/budget.spec.ts",
+  "expected": "softLimit 0 => exceeded false; over limit => alert+webhook, stopAnalyses false",
+  "actual": "softLimit 0 still reported exceeded=true (RED stub ignores zero=no-limit)",
+  "output": "FAIL budget.spec.ts\nFAIL event-webhooks.spec.ts\n# tests 6\n# pass 2\n# fail 4\n# cancelled 0\nok 1 - sums all SA-CHARGE-RUN amounts in the period and ignores out-of-range rows\nnot ok 2 - treats softLimit 0 as no limit and never stops analyses when exceeded\nnot ok 3 - rejects digest/alert integration uids from another tenant\nok 4 - enqueues SA events via WebhookQueueService with server-side headers\nnot ok 5 - Test performs a real HTTP request and records failure\nnot ok 6 - keeps conversations, clears route selection, revokes tokens, never refunds"
+}
