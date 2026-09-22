@@ -1,6 +1,7 @@
 import {
-  Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, Query, Req, UseGuards,
+  Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, Query, Req, Res, UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
 import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
 import { SaMetricsService } from './metrics/metrics.service';
@@ -25,6 +26,21 @@ export class SpeechAnalyticsJwtController {
   @Get('journal')
   listJournal(@Req() request: Authed) {
     return this.journal.list(request.tenantContext);
+  }
+
+  /** Entire filtered selection Excel (D-37). Must be registered before journal/:id. */
+  @Get('journal/export')
+  async exportJournalExcel(@Req() request: Authed, @Res() res: Response) {
+    const buffer = await this.journal.exportExcel(request.tenantContext);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="speech-analytics-journal.xlsx"',
+    );
+    return res.send(buffer);
   }
 
   @Get('journal/:id')

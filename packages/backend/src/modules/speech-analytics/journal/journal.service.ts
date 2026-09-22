@@ -18,6 +18,11 @@ import {
 } from '../speech-analytics.models';
 import { SaRecordingRelation } from '../reporting/reporting.models';
 import { SaHumanReview } from '../metrics/metric.models';
+import {
+  buildJournalExcel,
+  filterExportRowsByAccess,
+  type JournalExcelRow,
+} from './excel-export';
 
 export interface JournalRowAccessFields {
   id: string;
@@ -390,4 +395,166 @@ export class SaJournalService {
     void this.wallet;
     return { deleted: true as const, refunded: false as const };
   }
+
+  /**
+   * Access-scoped Excel export of the entire filtered journal selection (D-37).
+   * Reuses the same CDR visibility rules as list/get (T-18-11-IDOR).
+   */
+  async exportExcel(context: TenantContext): Promise<Buffer> {
+    const viewer = await this.resolveViewer(context);
+    const scope = await this.resolveCdrScope(viewer);
+    const recordings = await this.recordings.findAll({
+      where: { tenant_uid: context.tenantUid },
+      order: [['occurred_at', 'DESC']],
+    });
+    const relations = await this.relations.findAll({
+      where: {
+        tenant_uid: context.tenantUid,
+        recording_id: { [Op.in]: recordings.map((r) => r.id) },
+      },
+    });
+    const sourceByRecording = new Map(
+      relations.map((rel) => [rel.recording_id, rel.source_kind]),
+    );
+
+    const candidates: Array<JournalExcelRow & JournalRowAccessFields> = [];
+    for (const recording of recordings) {
+      const sourceKind = sourceByRecording.get(recording.id) ?? 'upload';
+      const access = accessFieldsFromRecording(recording, sourceKind);
+      candidates.push({
+        ...access,
+        occurredAt: recording.occurred_at?.toISOString?.() ?? String(recording.occurred_at),
+        sourceKind,
+        latestAmount: null,
+        currency: null,
+        summary: null,
+        transcript: null,
+        sttQuality: null,
+        topics: null,
+        rationales: null,
+        scales: {},
+      });
+    }
+
+    const visible = filterExportRowsByAccess(candidates, scope, viewer);
+    if (visible.length === 0) {
+      return buildJournalExcel([], []);
+    }
+
+    const runRows = await this.runs.findAll({
+      where: {
+        tenant_uid: context.tenantUid,
+        recording_id: { [Op.in]: visible.map((r) => r.id) },
+      },
+      order: [['created_at', 'DESC']],
+    });
+    const latestByRecording = new Map<string, SaAnalysisRun>();
+    const sortedRuns = [...runRows].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    for (const run of sortedRuns) {
+      if (!latestByRecording.has(run.recording_id)) {
+        latestByRecording.set(run.recording_id, run);
+      }
+    }
+
+    const resultIds = [...latestByRecording.values()]
+      .map((r) => r.result_id)
+      .filter((id): id is string => Boolean(id));
+    const resultRows = resultIds.length === 0
+      ? []
+      : await this.results.findAll({
+        where: { tenant_uid: context.tenantUid, id: { [Op.in]: resultIds } },
+      });
+    const resultById = new Map(resultRows.map((r) => [r.id, r]));
+
+    const transcriptIds = [...latestByRecording.values()]
+      .map((r) => r.transcript_id)
+      .filter((id): id is string => Boolean(id));
+    const segmentRows = transcriptIds.length === 0
+      ? []
+      : await this.segments.findAll({
+        where: {
+          tenant_uid: context.tenantUid,
+          transcript_id: { [Op.in]: transcriptIds },
+        },
+        order: [['ordinal', 'ASC']],
+      });
+    const textByTranscript = new Map<string, string>();
+    for (const seg of segmentRows) {
+      const prev = textByTranscript.get(seg.transcript_id) ?? '';
+      textByTranscript.set(
+        seg.transcript_id,
+        prev ? `${prev}\n${seg.text}` : seg.text,
+      );
+    }
+
+    const scaleKeySet = new Set<string>();
+    const enriched: JournalExcelRow[] = visible.map((row) => {
+      const latest = latestByRecording.get(row.id);
+      const result = latest?.result_id ? resultById.get(latest.result_id) : undefined;
+      const parsed = parseMetricResults(result?.metric_results);
+      for (const key of Object.keys(parsed.scales)) scaleKeySet.add(key);
+      return {
+        id: row.id,
+        occurredAt: row.occurredAt,
+        sourceKind: row.sourceKind,
+        latestAmount: latest?.amount ?? null,
+        currency: latest?.currency ?? null,
+        summary: result?.summary ?? null,
+        transcript: latest?.transcript_id
+          ? (textByTranscript.get(latest.transcript_id) ?? null)
+          : null,
+        sttQuality: result?.quality ?? null,
+        topics: parsed.topics,
+        rationales: parsed.rationales,
+        scales: parsed.scales,
+      };
+    });
+
+    return buildJournalExcel(enriched, [...scaleKeySet].sort());
+  }
+}
+
+function parseMetricResults(raw: unknown): {
+  topics: string | null;
+  rationales: string | null;
+  scales: Record<string, string | number | null>;
+} {
+  let parsed: unknown = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch { parsed = null; }
+  }
+  if (!Array.isArray(parsed)) {
+    return { topics: null, rationales: null, scales: {} };
+  }
+
+  const topics: string[] = [];
+  const rationales: string[] = [];
+  const scales: Record<string, string | number | null> = {};
+  for (const item of parsed) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as {
+      id?: unknown;
+      value?: unknown;
+      rationale?: unknown;
+    };
+    const id = row.id != null ? String(row.id) : '';
+    if (!id) continue;
+    if (id === 'topic' || id === 'topics') {
+      if (row.value != null) topics.push(String(row.value));
+    } else if (typeof row.value === 'number' || typeof row.value === 'string' || row.value === null) {
+      scales[id] = row.value as string | number | null;
+    } else if (row.value != null) {
+      scales[id] = String(row.value);
+    }
+    if (row.rationale != null && String(row.rationale).trim()) {
+      rationales.push(`${id}: ${String(row.rationale)}`);
+    }
+  }
+  return {
+    topics: topics.length ? topics.join('; ') : null,
+    rationales: rationales.length ? rationales.join('; ') : null,
+    scales,
+  };
 }

@@ -1,5 +1,10 @@
+import ExcelJS from 'exceljs';
 import type { CdrAccessScope } from '../../reports/cdr/cdr-access-scope';
-import type { JournalRowAccessFields, JournalViewer } from './journal.service';
+import {
+  isJournalRowVisible,
+  type JournalRowAccessFields,
+  type JournalViewer,
+} from './journal.service';
 
 /** Excel worksheet cell character limit (aiPBX truncateCell parity). */
 export const EXCEL_CELL_CHAR_LIMIT = 32767;
@@ -32,6 +37,8 @@ export const ROBOT_COLUMN_KEYS = [
   'intentRecognition',
 ] as const;
 
+const ROBOT_KEY_SET = new Set<string>(ROBOT_COLUMN_KEYS);
+
 export type JournalExcelRow = {
   id: string;
   occurredAt: string;
@@ -46,31 +53,54 @@ export type JournalExcelRow = {
   scales: Record<string, string | number | null>;
 };
 
-/** Stub — RED phase; GREEN implements truncate + workbook. */
-export function truncateCell(value: unknown, _limit = EXCEL_CELL_CHAR_LIMIT): string {
-  return value == null ? '' : String(value);
+export function truncateCell(value: unknown, limit = EXCEL_CELL_CHAR_LIMIT): string {
+  const text = value == null ? '' : String(value);
+  return text.length > limit ? text.slice(0, limit) : text;
 }
 
 export function filterExportRowsByAccess<T extends JournalExcelRow & JournalRowAccessFields>(
   rows: T[],
-  _scope: CdrAccessScope | null,
-  _viewer: JournalViewer,
+  scope: CdrAccessScope | null,
+  viewer: JournalViewer,
 ): T[] {
-  return rows;
+  return rows.filter((row) => isJournalRowVisible(row, scope, viewer));
 }
 
+export function sanitizeScaleKeys(scaleKeys: string[]): string[] {
+  return scaleKeys.filter((key) => !ROBOT_KEY_SET.has(key));
+}
+
+/**
+ * Build a journal Excel workbook for the full access-scoped selection (D-37).
+ * Long transcripts are truncated with the same limit as aiPBX truncateCell.
+ */
 export async function buildJournalExcel(
   rows: JournalExcelRow[],
-  _scaleKeys: string[],
+  scaleKeys: string[],
 ): Promise<Buffer> {
-  // Stub workbook — wrong headers (includes a robot column) and untruncated transcript.
-  const ExcelJS = await import('exceljs');
+  const safeScales = sanitizeScaleKeys(scaleKeys);
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Journal');
-  sheet.addRow(['id', 'automationRate', 'transcript']);
+  const headers = [...JOURNAL_EXCEL_BASE_KEYS, ...safeScales];
+  sheet.addRow(headers);
+
   for (const row of rows) {
-    sheet.addRow([row.id, '0', row.transcript ?? '']);
+    const values: Array<string | number | null> = [];
+    for (const key of JOURNAL_EXCEL_BASE_KEYS) {
+      if (key === 'transcript') {
+        values.push(truncateCell(row.transcript));
+        continue;
+      }
+      const raw = row[key];
+      values.push(raw == null ? '' : (raw as string | number));
+    }
+    for (const scaleKey of safeScales) {
+      const scaleVal = row.scales[scaleKey];
+      values.push(scaleVal == null ? '' : scaleVal);
+    }
+    sheet.addRow(values);
   }
+
   const buf = await workbook.xlsx.writeBuffer();
   return Buffer.from(buf);
 }
