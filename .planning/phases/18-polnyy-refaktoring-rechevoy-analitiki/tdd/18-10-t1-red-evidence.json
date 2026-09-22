@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"run-golden\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "fails the check when the model does not answer or the answer is empty",
+  "targetFile": "packages/backend/src/modules/speech-analytics/eval/run-golden.spec.ts",
+  "expected": "exitCode non-zero when scoreCase returns null; no journal/charge; drift with answers present stays exit 0; eval:speech-analytics registered outside npm test",
+  "actual": "stub exitCode 0 on empty answer; exitCode 1 on drift; eval:speech-analytics undefined",
+  "output": "FAIL run-golden.spec.ts\n# tests 4\n# pass 1\n# fail 3\n# cancelled 0\nok 1 - loads three universal fixtures without clinic wording and keeps example-003 expert scores\nnot ok 2 - fails the check when the model does not answer or the answer is empty\nnot ok 3 - prints MAE/accuracy/kappa style drift but does not fail delivery when answers are present\nnot ok 4 - registers eval:speech-analytics outside ordinary npm test"
+}
