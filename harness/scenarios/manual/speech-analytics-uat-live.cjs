@@ -249,6 +249,7 @@ async function webUploadOne(token, projectId, filePath) {
       assetId: complete.json.assetId,
       runStatus: run.status,
       runId: run.json?.id || run.json?.runId || null,
+      recordingId: run.json?.recordingId || null,
       error: run.status >= 400 ? `run:${run.status}` : undefined,
     };
   } catch (error) {
@@ -315,6 +316,7 @@ async function uploadBatch(label, files, uploadFn) {
       channel: r.channel,
       journalId: r.journalId || null,
       runId: r.runId || null,
+      recordingId: r.recordingId || null,
       error: r.error || null,
     })),
   };
@@ -353,6 +355,10 @@ async function main() {
   const projectInfo = await ensureProject(token);
   const projectId = projectInfo.project?.id || projectInfo.project?.projectId;
   if (!projectId) throw new Error('failed to resolve UAT project id');
+  const published = await request('POST', `/api/speech-analytics/projects/${projectId}/publish`, {
+    token,
+    body: { operationKey: crypto.randomUUID() },
+  });
 
   setup.project = {
     id: projectId,
@@ -372,6 +378,7 @@ async function main() {
     journalStatus: setup.journalBefore.status,
     project: setup.project,
     pauseToggleStatus: setup.pauseToggle.status,
+    publishStatus: published.status,
     adminLogin: admin.login,
   } });
 
@@ -397,10 +404,8 @@ async function main() {
     const journal = await request('GET', '/api/speech-analytics/journal', { token });
     const rows = Array.isArray(journal.json) ? journal.json : journal.json?.items || [];
     const name = path.basename(sample);
-    const matches = rows.filter((row) => {
-      const hay = JSON.stringify(row);
-      return hay.includes(name) || hay.includes(first.assetId || '') || hay.includes(second.assetId || '');
-    });
+    const recordingIds = [first.recordingId, second.recordingId].filter(Boolean);
+    const matches = rows.filter((row) => recordingIds.includes(row.id));
     doubleUpload = {
       skipped: false,
       filename: name,
@@ -408,8 +413,12 @@ async function main() {
       secondOk: second.ok,
       firstAssetId: first.assetId || null,
       secondAssetId: second.assetId || null,
+      firstRecordingId: first.recordingId || null,
+      secondRecordingId: second.recordingId || null,
       distinctAssets: Boolean(first.assetId && second.assetId && first.assetId !== second.assetId),
+      distinctRecordings: recordingIds.length === 2 && recordingIds[0] !== recordingIds[1],
       journalMatchCount: matches.length,
+      journalTotal: rows.length,
       assertion: 'uploading the same sample twice creates two journal conversations',
     };
   }
