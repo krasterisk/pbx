@@ -32,9 +32,11 @@ export function emptyEditorState(seed?: Partial<SaProjectConfigV1>): EditorProje
   };
 }
 
-/** Publishers / deleters: ADMIN, SUPERVISOR, SUPERADMIN (D-27). RED stub: ADMIN only. */
+/** Publishers / deleters: cabinet ADMIN, SUPERVISOR, and platform SUPERADMIN (D-27). */
 export function canPublishProject(level: number): boolean {
-  return level === UserLevel.ADMIN;
+  return level === UserLevel.ADMIN
+    || level === UserLevel.SUPERVISOR
+    || level === UserLevel.SUPERADMIN;
 }
 
 export function canDeleteProject(level: number): boolean {
@@ -71,9 +73,7 @@ export function assertValidTemplate(config: SaProjectConfigV1): void {
   }
 }
 
-/**
- * Draft save (D-26). RED stub incorrectly mutates published so tests fail.
- */
+/** Draft save does not change the published version used by runs (D-26). */
 export function saveDraft(
   state: EditorProjectState,
   expectedRevision: number,
@@ -83,18 +83,17 @@ export function saveDraft(
   if (state.draftRevision !== expectedRevision) {
     throw new ProjectEditorError('stale_draft', 409);
   }
-  const next = { ...config };
-  // INTENTIONAL RED: also overwrites published — must fail "draft does not change published"
   return {
     ...state,
-    draft: next,
+    draft: { ...config },
     draftRevision: state.draftRevision + 1,
-    published: next,
   };
 }
 
 /**
- * Publish draft (D-26). RED stub always bumps versionNo even for webhook-only changes.
+ * Publish draft (D-26).
+ * Version stamp grows only when metrics, topics, prompt, or visible default scales change.
+ * Webhook / digest / alert / budget do not bump it.
  */
 export function publishDraft(
   state: EditorProjectState,
@@ -104,8 +103,27 @@ export function publishDraft(
     throw new ProjectEditorError('resource_permission_denied', 403);
   }
   assertValidTemplate(state.draft);
-  const nextVersionNo = state.versionNo + 1;
   const published = { ...state.draft };
+  const bump = stampChanged(state.published, published);
+  const nextVersionNo = bump
+    ? (state.published ? state.versionNo + 1 : Math.max(1, state.versionNo + 1))
+    : state.versionNo;
+
+  if (!bump && state.published) {
+    // Non-stamp publish updates the active published config in place.
+    const versions = state.versions.map((row) => (
+      row.versionNo === state.versionNo
+        ? { versionNo: row.versionNo, config: published }
+        : row
+    ));
+    return {
+      ...state,
+      published,
+      versionNo: nextVersionNo,
+      versions,
+    };
+  }
+
   return {
     ...state,
     published,
@@ -114,25 +132,16 @@ export function publishDraft(
   };
 }
 
-/**
- * Cannot re-activate an older version as current (D-26). RED stub allows it.
- */
+/** Cannot re-activate an older version as current — restore via draft + new publish (D-26). */
 export function activateVersion(
-  state: EditorProjectState,
-  versionNo: number,
+  _state: EditorProjectState,
+  _versionNo: number,
 ): EditorProjectState {
-  const found = state.versions.find((v) => v.versionNo === versionNo);
-  if (!found) throw new ProjectEditorError('version_not_found', 404);
-  return {
-    ...state,
-    published: { ...found.config },
-    versionNo: found.versionNo,
-  };
+  throw new ProjectEditorError('cannot_reactivate_version', 400);
 }
 
 /**
- * Nest injectable surface — full DB wiring lands with task 2 endpoints.
- * Kept constructible so the module can register the provider when needed.
+ * Nest injectable surface — DB/endpoint wiring continues in task 2.
  */
 export class ProjectEditorService {
   canPublish(level: number): boolean {
