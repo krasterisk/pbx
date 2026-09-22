@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"run-analysis\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "persists transcript and metrics then calls invokeSaChargeRun once on success (incl. amount 0)",
+  "targetFile": "packages/backend/src/modules/speech-analytics/pipeline/run-analysis.spec.ts",
+  "expected": "invokeSaChargeRun called once after persistSuccess; state completed without fakeStt",
+  "actual": "invokeSaChargeRun call count 0; stub returns completed with fakeStt=true",
+  "output": "FAIL run-analysis.spec.ts\n# tests 5\n# pass 0\n# fail 5\nnot ok 1 - persists transcript and metrics then calls invokeSaChargeRun once on success (incl. amount 0)\nnot ok 2 - marks error and skips invokeSaChargeRun when scoring fails\nnot ok 3 - does not use fakeStt on the success path\nnot ok 4 - resolves models per D-38: project override, else module default; silence falls back once\nnot ok 5 - retries module default when project model is silent, then errors without charge if both fail"
+}
