@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"url-download\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "marks incomplete Content-Length, empty, timeout, and oversized downloads as errors",
+  "targetFile": "packages/backend/src/modules/speech-analytics/ingest/url-download.spec.ts",
+  "expected": "incomplete/empty/timeout/too_large error results without analysis",
+  "actual": "RED stub returned ok:true with red-stub bytes for incomplete Content-Length",
+  "output": "FAIL url-download.spec.ts\n# tests 5\n# pass 0\n# fail 5\n# cancelled 0\nnot ok 1 - accepts public and LAN URLs with insecure TLS enabled and no host allowlist\nnot ok 2 - marks incomplete Content-Length, empty, timeout, and oversized downloads as errors\nnot ok 3 - one URL + sync=true waits; multi URL or no sync returns accepted batch\nnot ok 4 - incomplete download skips runAnalysis/SA-CHARGE-RUN and continues the batch\nnot ok 5 - requires recording + active module; pause does not block; project from route else client"
+}

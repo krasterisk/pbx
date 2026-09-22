@@ -1,0 +1,170 @@
+npm notice run @krasterisk/backend@4.4.3 test
+npm notice run jest --testPathPattern=url-download --no-coverage
+FAIL src/modules/speech-analytics/ingest/url-download.spec.ts
+  downloadAnalyticsUrl caps (D-39, D-42)
+    × accepts public and LAN URLs with insecure TLS enabled and no host allowlist (9 ms)
+    × marks incomplete Content-Length, empty, timeout, and oversized downloads as errors (1 ms)
+  UrlIngestService batch (D-40, D-41, D-42)
+    × one URL + sync=true waits; multi URL or no sync returns accepted batch (1 ms)
+    × incomplete download skips runAnalysis/SA-CHARGE-RUN and continues the batch (1 ms)
+  Get analytics admission (D-18, D-19, D-22)
+    × requires recording + active module; pause does not block; project from route else client (17 ms)
+
+  ● downloadAnalyticsUrl caps (D-39, D-42) › accepts public and LAN URLs with insecure TLS enabled and no host allowlist
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 12
+    + Received  +  8
+
+      Object {
+        "bytes": Object {
+          "data": Array [
+    -       82,
+    -       73,
+    -       70,
+    -       70,
+    -       46,
+    -       46,
+    -       46,
+    -       46,
+    -       87,
+    -       65,
+    -       86,
+    -       69,
+    +       114,
+    +       101,
+    +       100,
+    +       45,
+    +       115,
+    +       116,
+    +       117,
+    +       98,
+          ],
+          "type": "Buffer",
+        },
+        "ok": true,
+      }
+
+      31 |     });
+      32 |     const result = await downloadAnalyticsUrl('https://192.168.1.50/rec.wav', deps);
+    > 33 |     expect(result).toEqual({ ok: true, bytes: body });
+         |                    ^
+      34 |     expect(deps.fetch).toHaveBeenCalledWith(
+      35 |       'https://192.168.1.50/rec.wav',
+      36 |       expect.objectContaining({ rejectUnauthorized: false, timeoutMs: expect.any(Number) }),
+
+      at Object.<anonymous> (modules/speech-analytics/ingest/url-download.spec.ts:33:20)
+
+  ● downloadAnalyticsUrl caps (D-39, D-42) › marks incomplete Content-Length, empty, timeout, and oversized downloads as errors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  2
+    + Received  + 14
+
+      Object {
+    -   "error": "incomplete",
+    -   "ok": false,
+    +   "bytes": Object {
+    +     "data": Array [
+    +       114,
+    +       101,
+    +       100,
+    +       45,
+    +       115,
+    +       116,
+    +       117,
+    +       98,
+    +     ],
+    +     "type": "Buffer",
+    +   },
+    +   "ok": true,
+      }
+
+      44 |       body: chunks(Buffer.alloc(40)),
+      45 |     }));
+    > 46 |     expect(short).toEqual({ ok: false, error: 'incomplete' });
+         |                   ^
+      47 |
+      48 |     const empty = await downloadAnalyticsUrl('https://cdn.example/b.wav', fetchStub({
+      49 |       statusCode: 200,
+
+      at Object.<anonymous> (modules/speech-analytics/ingest/url-download.spec.ts:46:19)
+
+  ● UrlIngestService batch (D-40, D-41, D-42) › one URL + sync=true waits; multi URL or no sync returns accepted batch
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      73 | describe('UrlIngestService batch (D-40, D-41, D-42)', () => {
+      74 |   it('one URL + sync=true waits; multi URL or no sync returns accepted batch', async () => {
+    > 75 |     expect(urlApiWaitsForResult(true, 1)).toBe(true);
+         |                                           ^
+      76 |     expect(urlApiWaitsForResult(true, 2)).toBe(false);
+      77 |     expect(urlApiWaitsForResult(false, 1)).toBe(false);
+      78 |
+
+      at Object.<anonymous> (modules/speech-analytics/ingest/url-download.spec.ts:75:43)
+
+  ● UrlIngestService batch (D-40, D-41, D-42) › incomplete download skips runAnalysis/SA-CHARGE-RUN and continues the batch
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Array [
+    -   true,
+        false,
+    -   true,
+    +   false,
+    +   false,
+      ]
+
+      126 |     });
+      127 |     expect(result.kind).toBe('accepted');
+    > 128 |     expect(result.results.map((r) => r.ok)).toEqual([true, false, true]);
+          |                                             ^
+      129 |     expect(deps.runAnalysis).toHaveBeenCalledTimes(2);
+      130 |     expect(invokeSaChargeRun).not.toHaveBeenCalled();
+      131 |   });
+
+      at Object.<anonymous> (modules/speech-analytics/ingest/url-download.spec.ts:128:45)
+
+  ● Get analytics admission (D-18, D-19, D-22) › requires recording + active module; pause does not block; project from route else client
+
+    expect(received).not.toThrow()
+
+    Error name:    "Error"
+    Error message: "pause_blocks"
+
+          119 | }): void {
+          120 |   if (input.pauseNew) {
+        > 121 |     throw Object.assign(new Error('pause_blocks'), { code: 'pause_new' });
+              |                         ^
+          122 |   }
+          123 |   void input;
+          124 | }
+
+      at assertGetAnalyticsAllowed (modules/speech-analytics/ingest/url-download.ts:121:25)
+      at modules/speech-analytics/ingest/url-download.spec.ts:136:43
+      at Object.<anonymous> (../../../node_modules/expect/build/toThrowMatchers.js:74:11)
+      at Object.throwingMatcher [as toThrow] (../../../node_modules/expect/build/index.js:320:21)
+      at Object.<anonymous> (modules/speech-analytics/ingest/url-download.spec.ts:138:13)
+      at Object.<anonymous> (modules/speech-analytics/ingest/url-download.spec.ts:138:13)
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 5 total
+Snapshots:   0 total
+Time:        1.598 s
+Ran all test suites matching /url-download/i.
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend
+npm error workspace @krasterisk/backend@4.4.3
+npm error location C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c jest --testPathPattern=url-download --no-coverage
