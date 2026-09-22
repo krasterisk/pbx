@@ -1,11 +1,48 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Route } from './route.model';
 import axios from 'axios';
 import { createHmac } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { WebhookQueueService } from './webhook-queue.service';
+import { decideHangupAnalysisAdmission } from '../speech-analytics/reporting/internal-admission';
 
+export const HANGUP_ANALYTICS_PORT = 'HANGUP_ANALYTICS_PORT';
+
+export type HangupAnalyticsContext = {
+  entitled: boolean;
+  pauseNew: boolean;
+  privacyDenied: boolean;
+  recordingEnabled: boolean;
+  projectActive: boolean;
+  projectPublished: boolean;
+  sameTenantProject: boolean;
+  policyRevision: number;
+  nodeId: string;
+  knownOrigins: Set<string>;
+};
+
+export type HangupAnalysisJobInput = {
+  tenantUid: number;
+  routeUid: number;
+  projectId: string;
+  uniqueid: string;
+  recordPath: string;
+  durationSec: number;
+  policyRevision: number;
+  nodeId: string;
+  originKey: string;
+};
+
+/** Optional port: resolve capture context + enqueue ai_jobs (D-03). No STT here. */
+export type HangupAnalyticsPort = {
+  resolveHangupContext(input: {
+    tenantUid: number;
+    routeUid: number;
+    routeProjectId: string | null;
+  }): Promise<HangupAnalyticsContext>;
+  enqueueAnalysisJob(input: HangupAnalysisJobInput): Promise<{ jobId: string }>;
+};
 
 export interface WebhookPayload {
   event: string;
@@ -35,16 +72,19 @@ export class DialplanWebhooksService {
   private readonly logger = new Logger(DialplanWebhooksService.name);
   private readonly webhookSecret: string;
   private readonly recordsBaseUrl: string;
+  private readonly analyticsPort: HangupAnalyticsPort | null;
 
   constructor(
     @InjectModel(Route) private readonly routeModel: typeof Route,
     private readonly config: ConfigService,
     private readonly webhookQueue: WebhookQueueService,
+    @Optional() @Inject(HANGUP_ANALYTICS_PORT) analyticsPort?: HangupAnalyticsPort | null,
   ) {
     this.webhookSecret = this.config.get<string>('WEBHOOK_SECRET') || '';
     this.recordsBaseUrl =
       this.config.get<string>('RECORDS_BASE_URL')
       || `https://${this.config.get('DOMAIN') || 'localhost'}/records`;
+    this.analyticsPort = analyticsPort ?? null;
   }
 
   // ---------------------------------------------------------------------------
@@ -156,6 +196,7 @@ export class DialplanWebhooksService {
   // ---------------------------------------------------------------------------
   // on_hangup — fire-and-forget with retry
   // MP3 is guaranteed ready (ffmpeg ran synchronously in [krsk-hangup-handler])
+  // Analytics: admit + enqueue only — never STT / scoring / SA-CHARGE-RUN (D-03)
   // ---------------------------------------------------------------------------
   async handleOnHangup(params: {
     route_uid: string;
@@ -168,28 +209,114 @@ export class DialplanWebhooksService {
   }): Promise<void> {
     const route = await this.findRoute(params.route_uid, params.user_uid);
     const webhook = this.resolveWebhook(route?.webhooks?.on_hangup);
-    if (!webhook) return;
 
-    const recordUrl = params.record_path
-      ? `${this.recordsBaseUrl}/${params.record_path}.mp3`
+    if (webhook) {
+      const recordUrl = params.record_path
+        ? `${this.recordsBaseUrl}/${params.record_path}.mp3`
+        : null;
+
+      const payload: WebhookPayload = {
+        event: 'on_hangup',
+        route_uid: params.route_uid,
+        uniqueid: params.uniqueid,
+        callerid: params.clid,
+        duration: parseInt(params.duration, 10) || 0,
+        disposition: params.disposition,
+        record_path: params.record_path || null,
+        // record_url points to the guaranteed-ready MP3
+        // ffmpeg ran synchronously in [krsk-hangup-handler] BEFORE this webhook fires
+        record_url: recordUrl,
+        user_uid: params.user_uid,
+        timestamp: new Date().toISOString(),
+      };
+
+      this.deliverAsync(webhook, payload, 'on_hangup');
+    }
+
+    // Analytics admit/enqueue — no STT. Safe to await here: controller already returned ok to Asterisk.
+    try {
+      await this.maybeEnqueueHangupAnalysis(route, params);
+    } catch (err: any) {
+      this.logger.warn(`Hangup analytics enqueue failed route=${params.route_uid}: ${err?.message}`);
+    }
+  }
+
+  /**
+   * Resolve route project + capture/admission gates, then enqueue ai_jobs.
+   * Does not import or call pipeline/STT (D-03).
+   */
+  private async maybeEnqueueHangupAnalysis(
+    route: Route | null,
+    params: {
+      route_uid: string;
+      uniqueid: string;
+      duration: string;
+      record_path: string;
+      user_uid: string;
+    },
+  ): Promise<void> {
+    if (!this.analyticsPort || !route) return;
+
+    const routeProjectId = typeof route.options?.analytics?.projectId === 'string'
+      ? route.options.analytics.projectId.trim() || null
       : null;
+    const recordingEnabled = route.options?.record === true || Boolean(params.record_path);
+    const tenantUid = parseInt(params.user_uid, 10);
+    const routeUid = parseInt(params.route_uid, 10);
+    if (!tenantUid || !routeUid) return;
 
-    const payload: WebhookPayload = {
-      event: 'on_hangup',
-      route_uid: params.route_uid,
+    const ctx = await this.analyticsPort.resolveHangupContext({
+      tenantUid,
+      routeUid,
+      routeProjectId,
+    });
+
+    const durationSec = parseInt(params.duration, 10) || 0;
+    const durationMs = durationSec * 1000;
+    const decision = decideHangupAnalysisAdmission({
+      tenantUid,
+      nodeId: ctx.nodeId,
+      recordingUid: params.uniqueid || params.record_path || String(routeUid),
+      routeProjectId,
+      recordingEnabled,
+      entitled: ctx.entitled,
+      pauseNew: ctx.pauseNew,
+      privacyDenied: ctx.privacyDenied,
+      projectActive: ctx.projectActive,
+      projectPublished: ctx.projectPublished,
+      sameTenantProject: ctx.sameTenantProject,
+      policyRevision: ctx.policyRevision,
+      durationMs,
+      // Optimistic: empty/missing file fails in the worker wait, before STT (D-03)
+      speechDetected: durationMs >= 400,
+      knownOrigins: ctx.knownOrigins,
+      assetState: 'ready',
+    });
+
+    if (!decision.enqueue || !decision.projectId || !decision.origin) {
+      this.logger.debug(
+        `Hangup analytics skip route=${params.route_uid} reason=${decision.reason}`,
+      );
+      return;
+    }
+
+    await this.analyticsPort.enqueueAnalysisJob({
+      tenantUid,
+      routeUid,
+      projectId: decision.projectId,
       uniqueid: params.uniqueid,
-      callerid: params.clid,
-      duration: parseInt(params.duration, 10) || 0,
-      disposition: params.disposition,
-      record_path: params.record_path || null,
-      // record_url points to the guaranteed-ready MP3
-      // ffmpeg ran synchronously in [krsk-hangup-handler] BEFORE this webhook fires
-      record_url: recordUrl,
-      user_uid: params.user_uid,
-      timestamp: new Date().toISOString(),
-    };
-
-    this.deliverAsync(webhook, payload, 'on_hangup');
+      recordPath: params.record_path,
+      durationSec,
+      policyRevision: decision.origin.policyRevision,
+      nodeId: decision.origin.nodeId,
+      originKey: [
+        decision.origin.tenantUid,
+        decision.origin.nodeId,
+        decision.origin.recordingUid,
+        decision.origin.projectId,
+        decision.origin.policyRevision,
+      ].join(':'),
+    });
   }
 
   // ---------------------------------------------------------------------------

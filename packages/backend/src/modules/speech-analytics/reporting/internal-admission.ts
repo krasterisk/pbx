@@ -1,4 +1,5 @@
 import { DomainError } from '../project-engine';
+import { resolveCapturePolicy } from './capture-policy';
 
 export type InternalOrigin = {
   tenantUid: number;
@@ -65,5 +66,89 @@ export function consumeAssetReadyEvent(input: AssetReadyAdmission & {
     originKey: internalOriginKey(input.origin),
     ...decision,
     cdr: enrichLateCdr(input.existingRun ?? null),
+  };
+}
+
+/** Hangup → capture-policy + admitInternalAssetReady gate (D-03, D-19). */
+export type HangupAnalysisAdmissionInput = {
+  tenantUid: number;
+  nodeId: string;
+  recordingUid: string;
+  routeProjectId: string | null | undefined;
+  recordingEnabled: boolean;
+  entitled: boolean;
+  pauseNew: boolean;
+  privacyDenied?: boolean;
+  projectActive: boolean;
+  projectPublished: boolean;
+  sameTenantProject: boolean;
+  policyRevision: number;
+  durationMs: number;
+  speechDetected: boolean;
+  knownOrigins: Set<string>;
+  assetState?: string;
+};
+
+export type HangupAnalysisAdmissionResult = {
+  enqueue: boolean;
+  reason: string;
+  projectId: string | null;
+  decision?: AdmissionDecision;
+  origin?: InternalOrigin;
+};
+
+/**
+ * Decide whether a hangup should enqueue an analysis job.
+ * STT must not run here — only policy + admission (D-03).
+ */
+export function decideHangupAnalysisAdmission(
+  input: HangupAnalysisAdmissionInput,
+): HangupAnalysisAdmissionResult {
+  const policy = resolveCapturePolicy({
+    privacyDenied: input.privacyDenied ?? false,
+    entitled: input.entitled,
+    pauseNew: input.pauseNew,
+    routeProjectId: input.routeProjectId,
+    recordingEnabled: input.recordingEnabled,
+    projectActive: input.projectActive,
+    projectPublished: input.projectPublished,
+    sameTenantProject: input.sameTenantProject,
+    policyRevision: input.policyRevision,
+  });
+  if (!policy.enabled || !policy.projectId) {
+    return { enqueue: false, reason: policy.reason, projectId: null };
+  }
+  const origin: InternalOrigin = {
+    tenantUid: input.tenantUid,
+    nodeId: input.nodeId,
+    recordingUid: input.recordingUid,
+    projectId: policy.projectId,
+    policyRevision: policy.policyRevision,
+  };
+  const decision = admitInternalAssetReady({
+    origin,
+    assetState: input.assetState ?? 'ready',
+    entitled: input.entitled,
+    pauseNew: input.pauseNew,
+    privacyDenied: input.privacyDenied ?? false,
+    durationMs: input.durationMs,
+    speechDetected: input.speechDetected,
+    knownOrigins: input.knownOrigins,
+  });
+  if (decision.outcome !== 'queued') {
+    return {
+      enqueue: false,
+      reason: decision.reason,
+      projectId: policy.projectId,
+      decision,
+      origin,
+    };
+  }
+  return {
+    enqueue: true,
+    reason: decision.reason,
+    projectId: policy.projectId,
+    decision,
+    origin,
   };
 }

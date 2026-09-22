@@ -1,4 +1,10 @@
-import { admitInternalAssetReady, consumeAssetReadyEvent, enrichLateCdr, internalOriginKey } from './internal-admission';
+import {
+  admitInternalAssetReady,
+  consumeAssetReadyEvent,
+  decideHangupAnalysisAdmission,
+  enrichLateCdr,
+  internalOriginKey,
+} from './internal-admission';
 import { readInternalRelation } from './recording-relations';
 import { previewLegacyBackfill } from './backfill-preview';
 
@@ -73,5 +79,42 @@ describe('INT2 internal admission', () => {
       origin: { ...origin, nodeId: 'n2' }, assetState: 'ready', entitled: true, pauseNew: false,
       privacyDenied: false, durationMs: 5000, speechDetected: true, knownOrigins: known,
     }).outcome).toBe('queued');
+  });
+
+  it('decideHangupAnalysisAdmission enqueues when entitled, not paused, and projectId is set', () => {
+    const result = decideHangupAnalysisAdmission({
+      tenantUid: 8,
+      nodeId: 'n1',
+      recordingUid: '1700000000.1',
+      routeProjectId: 'proj',
+      recordingEnabled: true,
+      entitled: true,
+      pauseNew: false,
+      projectActive: true,
+      projectPublished: true,
+      sameTenantProject: true,
+      policyRevision: 1,
+      durationMs: 5000,
+      speechDetected: true,
+      knownOrigins: new Set(),
+    });
+    expect(result.enqueue).toBe(true);
+    expect(result.projectId).toBe('proj');
+    expect(result.decision?.outcome).toBe('queued');
+  });
+
+  it('decideHangupAnalysisAdmission skips when pauseNew or projectId is missing', () => {
+    expect(decideHangupAnalysisAdmission({
+      tenantUid: 8, nodeId: 'n1', recordingUid: 'r1', routeProjectId: 'proj',
+      recordingEnabled: true, entitled: true, pauseNew: true, projectActive: true,
+      projectPublished: true, sameTenantProject: true, policyRevision: 1,
+      durationMs: 5000, speechDetected: true, knownOrigins: new Set(),
+    })).toMatchObject({ enqueue: false, reason: 'pause_new' });
+    expect(decideHangupAnalysisAdmission({
+      tenantUid: 8, nodeId: 'n1', recordingUid: 'r1', routeProjectId: null,
+      recordingEnabled: true, entitled: true, pauseNew: false, projectActive: true,
+      projectPublished: true, sameTenantProject: true, policyRevision: 1,
+      durationMs: 5000, speechDetected: true, knownOrigins: new Set(),
+    })).toMatchObject({ enqueue: false, reason: 'project_missing' });
   });
 });
