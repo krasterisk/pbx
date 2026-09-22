@@ -17,7 +17,7 @@ affects: [18-13, 18-14, 18-15]
 actuals:
   tokens: 18000
   tasks: 2
-  commits: 4
+  commits: 5
 plan_head_before: 2c02a2cf22564e33a04b742541baa1cb92fdc547
 tech-stack:
   added: []
@@ -100,6 +100,8 @@ Each task was committed atomically:
 2. **Task 1 GREEN: projects list page** - `c51b32bb` (feat)
 3. **Task 2 RED: MetricEditor D-25 section tests** - `405a95bc` (test)
 4. **Task 2 GREEN: MetricEditor + draft APIs + i18n** - `4f80f9d9` (feat)
+
+**Plan metadata:** `765d641d` (docs: complete plan)
 
 ## TDD Gate Compliance
 
