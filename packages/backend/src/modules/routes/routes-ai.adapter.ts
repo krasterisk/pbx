@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
 import { z } from 'zod';
 import { RoutesService } from './routes.service';
 import { ContextsService } from '../contexts/contexts.service';
@@ -32,8 +33,10 @@ import {
 } from '../ai-chat/route-precedence.util';
 import type { DialplanAction, DialplanHost } from '@krasterisk/shared';
 import { countDialplanAppUsage, listDialplanAppCatalog } from './dialplan-app-catalog';
+import { SaProject } from '../speech-analytics/speech-analytics.models';
 
 const SCHEMA_VERSION = 'routes-1';
+const ANALYTICS_SCHEMA_VERSION = 'routes-analytics-1';
 
 /** Dialplan action params stay open; nested tenant aliases are rejected recursively at parse. */
 const actionSchema = z.record(z.string(), z.unknown());
@@ -62,10 +65,34 @@ const deleteArgs = z.strictObject({
   context_uid: z.number().int().positive(),
 });
 
+const setAnalyticsInput = z.strictObject({
+  route_id: z.number().int().positive().describe('UID маршрута из list_routes'),
+  project_id: z.string().uuid().describe('UID проекта из list_route_analytics_projects'),
+});
+
+const setAnalyticsArgs = z.strictObject({
+  route_id: z.number().int().positive(),
+  project_id: z.string().uuid(),
+  context_uid: z.number().int().positive(),
+});
+
+const clearAnalyticsInput = z.strictObject({
+  route_id: z.number().int().positive().describe('UID маршрута из list_routes'),
+});
+
+const clearAnalyticsArgs = z.strictObject({
+  route_id: z.number().int().positive(),
+  context_uid: z.number().int().positive(),
+});
+
 type CreateInput = z.infer<typeof createInput>;
 type CreateArgs = z.infer<typeof createArgs>;
 type DeleteInput = z.infer<typeof deleteInput>;
 type DeleteArgs = z.infer<typeof deleteArgs>;
+type SetAnalyticsInput = z.infer<typeof setAnalyticsInput>;
+type SetAnalyticsArgs = z.infer<typeof setAnalyticsArgs>;
+type ClearAnalyticsInput = z.infer<typeof clearAnalyticsInput>;
+type ClearAnalyticsArgs = z.infer<typeof clearAnalyticsArgs>;
 
 /**
  * RoutesAiAdapter — typed action-chain proposals (D-15, D-18, D-20).
@@ -87,6 +114,7 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
     private readonly directoriesService: DirectoriesService,
     private readonly callGroupsService: CallGroupsService,
     private readonly registry: AiAdapterRegistryService,
+    @InjectModel(SaProject) private readonly saProjects: typeof SaProject,
   ) {}
 
   onModuleInit(): void {
@@ -101,6 +129,9 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
       this.toolDescribeChain(),
       this.toolCreateRoute(),
       this.toolDeleteRoute(),
+      this.toolListAnalyticsProjects(),
+      this.toolSetAnalyticsProject(),
+      this.toolClearAnalyticsProject(),
     ];
   }
 
@@ -113,6 +144,7 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
 - Маршрут = шаблон в контексте + типизированная цепочка действий, не сырое имя приложения Asterisk.
 - Пункты IVR — тот же редактор. Перед цепочкой вызови list_dialplan_apps (host=ivr|route): там типы, зачем шаг и что уже есть у тенанта. Не выдумывай приложения Asterisk.
 - Календарь рабочих часов — create_time_group, на действии condition.time_group_uid. schedule в actions — только inline intervals[], не tool плана.
+- Проект аналитики маршрута: list_route_analytics_projects, затем set_route_analytics_project / clear_route_analytics_project (карточка подтверждения). Пока запись выключена, проект не ставится.
 - Сначала list_routes / describe_route_chain / list_contexts, затем proposal. Применение диалплана — шаг подтверждения, не отдельный инструмент.`;
   }
 
@@ -299,6 +331,228 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
         await this.routesService.remove(args.id, ctx.vpbxUserUid);
       },
     });
+  }
+
+  private toolListAnalyticsProjects(): AiToolDefinition {
+    return {
+      name: 'list_route_analytics_projects',
+      description:
+        'Список проектов речевой аналитики тенанта и текущий проект маршрута. Без изменений.',
+      inputSchema: {
+        route_id: {
+          type: 'number',
+          description: 'Опционально: UID маршрута, чтобы вернуть текущий projectId',
+        },
+      },
+      entityType: 'route',
+      handler: async (args, uid) => {
+        const projects = await this.saProjects.findAll({
+          where: { tenant_uid: uid },
+          order: [['created_at', 'DESC']],
+          limit: 100,
+        });
+        const rows = projects.map((row) => ({ id: row.id, name: row.name }));
+        const routeId = args.route_id != null ? Number(args.route_id) : null;
+        if (routeId == null || !Number.isFinite(routeId)) {
+          return { projects: rows };
+        }
+        const route = await this.routesService.findOne(routeId, uid);
+        const projectId = readAnalyticsProjectId(route.options);
+        const projectName = projectId
+          ? rows.find((row) => row.id === projectId)?.name
+            ?? (await this.findTenantProject(projectId, uid))?.name
+            ?? null
+          : null;
+        return {
+          projects: rows,
+          current: {
+            route_id: routeId,
+            projectId,
+            projectName,
+          },
+        };
+      },
+    };
+  }
+
+  private toolSetAnalyticsProject(): AiToolDefinition {
+    return defineMutationTool<SetAnalyticsInput, SetAnalyticsArgs>({
+      name: 'set_route_analytics_project',
+      description:
+        'Предлагает поставить проект аналитики на маршрут. Нужна включённая запись. После подтверждения диалплан перечитывается.',
+      entityType: 'route',
+      schemaVersion: ANALYTICS_SCHEMA_VERSION,
+      input: setAnalyticsInput,
+      args: setAnalyticsArgs,
+      reload: {
+        kind: 'dialplan-context',
+        contextUid: (args: SetAnalyticsArgs) => args.context_uid,
+      },
+      propose: async (input, ctx) => this.proposeSetAnalytics(input, ctx),
+      revalidate: async (args, ctx) => this.revalidateSetAnalytics(args, ctx),
+      apply: async (args, ctx) => {
+        const route = await this.routesService.findOne(args.route_id, ctx.vpbxUserUid);
+        const options = {
+          ...((route.options ?? {}) as Record<string, unknown>),
+          analytics: { projectId: args.project_id },
+        };
+        await this.routesService.update(args.route_id, { options } as never, ctx.vpbxUserUid);
+      },
+    });
+  }
+
+  private toolClearAnalyticsProject(): AiToolDefinition {
+    return defineMutationTool<ClearAnalyticsInput, ClearAnalyticsArgs>({
+      name: 'clear_route_analytics_project',
+      description:
+        'Предлагает убрать проект аналитики с маршрута. После подтверждения диалплан перечитывается.',
+      entityType: 'route',
+      schemaVersion: ANALYTICS_SCHEMA_VERSION,
+      input: clearAnalyticsInput,
+      args: clearAnalyticsArgs,
+      reload: {
+        kind: 'dialplan-context',
+        contextUid: (args: ClearAnalyticsArgs) => args.context_uid,
+      },
+      propose: async (input, ctx) => this.proposeClearAnalytics(input, ctx),
+      revalidate: async (args, ctx) => this.revalidateClearAnalytics(args, ctx),
+      apply: async (args, ctx) => {
+        const route = await this.routesService.findOne(args.route_id, ctx.vpbxUserUid);
+        const prev = (route.options ?? {}) as Record<string, unknown>;
+        const prevAnalytics =
+          prev.analytics && typeof prev.analytics === 'object' && !Array.isArray(prev.analytics)
+            ? (prev.analytics as Record<string, unknown>)
+            : {};
+        const options = {
+          ...prev,
+          analytics: { ...prevAnalytics, projectId: null },
+        };
+        await this.routesService.update(args.route_id, { options } as never, ctx.vpbxUserUid);
+      },
+    });
+  }
+
+  private async proposeSetAnalytics(
+    input: SetAnalyticsInput,
+    ctx: AiMutationContext,
+  ): Promise<AgentDiffProposal | AiToolRefusal> {
+    const route = await this.routesService.findOne(input.route_id, ctx.vpbxUserUid);
+    if (!isRouteRecordingOn(route.options)) {
+      return {
+        refused: true,
+        route_id: input.route_id,
+        message: 'Нужна включённая запись на маршруте, чтобы поставить проект аналитики',
+      };
+    }
+    const project = await this.findTenantProject(input.project_id, ctx.vpbxUserUid);
+    if (!project) {
+      return {
+        refused: true,
+        project_id: input.project_id,
+        message: `Проект ${input.project_id} не принадлежит этому тенанту`,
+      };
+    }
+    const beforeId = readAnalyticsProjectId(route.options);
+    return this.proposal(
+      'set_route_analytics_project',
+      String(route.name || route.uid),
+      {
+        route_id: input.route_id,
+        project_id: project.id,
+        context_uid: route.context_uid,
+      },
+      {
+        action: 'set_analytics_project',
+        projectId: beforeId,
+        projectName: beforeId ? (await this.findTenantProject(beforeId, ctx.vpbxUserUid))?.name ?? null : null,
+        recordingEnabled: true,
+      },
+      {
+        action: 'set_analytics_project',
+        projectId: project.id,
+        projectName: project.name,
+        recordingEnabled: true,
+      },
+      [
+        `Поставить проект ${project.name}`,
+        `Маршрут: ${route.name || route.uid}`,
+        'После подтверждения диалплан будет перезагружен',
+      ],
+    );
+  }
+
+  private async revalidateSetAnalytics(args: SetAnalyticsArgs, ctx: AiMutationContext) {
+    const route = await this.routesService.findOne(args.route_id, ctx.vpbxUserUid);
+    if (!isRouteRecordingOn(route.options)) {
+      return { ok: false as const, reason: 'Нужна включённая запись на маршруте' };
+    }
+    const project = await this.findTenantProject(args.project_id, ctx.vpbxUserUid);
+    if (!project) {
+      return { ok: false as const, reason: `Проект ${args.project_id} не принадлежит этому тенанту` };
+    }
+    return {
+      ok: true as const,
+      args: {
+        route_id: args.route_id,
+        project_id: project.id,
+        context_uid: route.context_uid,
+      },
+    };
+  }
+
+  private async proposeClearAnalytics(
+    input: ClearAnalyticsInput,
+    ctx: AiMutationContext,
+  ): Promise<AgentDiffProposal | AiToolRefusal> {
+    const route = await this.routesService.findOne(input.route_id, ctx.vpbxUserUid);
+    const beforeId = readAnalyticsProjectId(route.options);
+    const beforeName = beforeId
+      ? (await this.findTenantProject(beforeId, ctx.vpbxUserUid))?.name ?? beforeId
+      : null;
+    return this.proposal(
+      'clear_route_analytics_project',
+      String(route.name || route.uid),
+      {
+        route_id: input.route_id,
+        context_uid: route.context_uid,
+      },
+      {
+        action: 'clear_analytics_project',
+        projectId: beforeId,
+        projectName: beforeName,
+      },
+      {
+        action: 'clear_analytics_project',
+        projectId: null,
+        projectName: null,
+      },
+      [
+        beforeName ? `Убрать проект ${beforeName}` : 'Убрать проект аналитики',
+        `Маршрут: ${route.name || route.uid}`,
+        'После подтверждения диалплан будет перезагружен',
+      ],
+    );
+  }
+
+  private async revalidateClearAnalytics(args: ClearAnalyticsArgs, ctx: AiMutationContext) {
+    const route = await this.routesService.findOne(args.route_id, ctx.vpbxUserUid);
+    return {
+      ok: true as const,
+      args: {
+        route_id: args.route_id,
+        context_uid: route.context_uid,
+      },
+    };
+  }
+
+  private async findTenantProject(
+    projectId: string,
+    uid: number,
+  ): Promise<{ id: string; name: string } | null> {
+    const row = await this.saProjects.findOne({
+      where: { id: projectId, tenant_uid: uid },
+    });
+    return row ? { id: row.id, name: row.name } : null;
   }
 
   private async proposeCreate(
@@ -545,4 +799,19 @@ function isInboundPattern(pattern: string): boolean {
   if (!isSpecificNumericPattern(pattern)) return false;
   const digits = pattern.replace(/\D/g, '');
   return digits.length >= 7;
+}
+
+function isRouteRecordingOn(options: unknown): boolean {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) return false;
+  return (options as Record<string, unknown>).record === true;
+}
+
+function readAnalyticsProjectId(options: unknown): string | null {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) return null;
+  const analytics = (options as Record<string, unknown>).analytics;
+  if (!analytics || typeof analytics !== 'object' || Array.isArray(analytics)) return null;
+  const projectId = (analytics as Record<string, unknown>).projectId;
+  if (typeof projectId !== 'string') return null;
+  const trimmed = projectId.trim();
+  return trimmed ? trimmed : null;
 }

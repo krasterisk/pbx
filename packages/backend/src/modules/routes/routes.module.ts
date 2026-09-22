@@ -26,13 +26,16 @@ import { IvrsModule } from '../ivrs/ivrs.module';
 import { DirectoriesModule } from '../directories/directories.module';
 import { TrunksModule } from '../trunks/trunks.module';
 import { CallGroupsModule } from '../call-groups/call-groups.module';
+import { SaProject } from '../speech-analytics/speech-analytics.models';
 
 // RouteDirectoryBinding/Directory/DirectoryField are registered here so
 // RoutesService/RouteApplyService can @InjectModel them without importing
 // DirectoriesModule (avoids a module cycle).
+// SaProject is registered for RoutesAiAdapter list/set analytics tools (D-04)
+// without importing SpeechAnalyticsModule (avoids a module cycle).
 @Module({
   imports: [
-    SequelizeModule.forFeature([Route, ContextInclude, WebhookFailure, Context, RouteDirectoryBinding, Directory, DirectoryField]),
+    SequelizeModule.forFeature([Route, ContextInclude, WebhookFailure, Context, RouteDirectoryBinding, Directory, DirectoryField, SaProject]),
     AmiModule,
     TimeGroupsModule,
     AiPlatformModule,
