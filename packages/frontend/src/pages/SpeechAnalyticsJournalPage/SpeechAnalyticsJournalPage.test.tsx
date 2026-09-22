@@ -35,6 +35,16 @@ vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useGetSaProjectsQuery: () => ({
+    data: [{ id: 'proj-1', name: 'Support', status: 'active', draft_revision: 1, active_version_id: null }],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useUploadSaCabinetBatchMutation: () => [
+    vi.fn(() => ({ unwrap: () => Promise.resolve({ kind: 'accepted', results: [] }) })),
+    { isLoading: false },
+  ],
   useGetSaConversationQuery: () => ({
     data: {
       id: 'conv-1',

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MessageSquareText, Upload } from 'lucide-react';
@@ -7,18 +7,37 @@ import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
   useGetSaConversationQuery,
   useGetSaJournalQuery,
+  useGetSaProjectsQuery,
+  useUploadSaCabinetBatchMutation,
 } from '@/features/speechAnalytics/api/speechAnalyticsApi';
 import {
   ConversationSheet,
   type ConversationSourceKind,
 } from '@/features/speechAnalytics/ui/ConversationSheet/ConversationSheet';
 import { ConversationsTable } from '@/features/speechAnalytics/ui/ConversationsTable/ConversationsTable';
+import {
+  UploadForm,
+  type UploadFormSubmitPayload,
+} from '@/features/speechAnalytics/ui/UploadForm/UploadForm';
 import cls from './SpeechAnalyticsJournalPage.module.scss';
 
 function normalizeSourceKind(raw: string | undefined): ConversationSourceKind {
   if (raw === 'pbx' || raw === 'cdr' || raw === 'callcenter' || raw === 'autodial') return 'pbx';
   if (raw === 'api' || raw === 'external') return 'api';
   return 'upload';
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? '');
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('read_failed'));
+    reader.readAsDataURL(file);
+  });
 }
 
 export const SpeechAnalyticsJournalPage = memo(() => {
@@ -28,6 +47,11 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   const sheetOpen = Boolean(conversationId);
 
   const journalQuery = useGetSaJournalQuery();
+  const projectsQuery = useGetSaProjectsQuery();
+  const [uploadBatch, uploadState] = useUploadSaCabinetBatchMutation();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFormError, setUploadFormError] = useState<string | null>(null);
+
   const conversationQuery = useGetSaConversationQuery(conversationId ?? '', {
     skip: !conversationId,
   });
@@ -35,6 +59,7 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   const items = journalQuery.data?.items ?? [];
   const uploadProgress = journalQuery.data?.uploadProgress ?? { done: 0, total: 0 };
   const isEmpty = !journalQuery.isLoading && !journalQuery.isError && items.length === 0;
+  const projects = (projectsQuery.data ?? []).map((p) => ({ id: p.id, name: p.name }));
 
   const openConversation = (id: string) => {
     navigate(`/speech-analytics/conversations/${id}`);
@@ -43,6 +68,38 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   const closeSheet = (open: boolean) => {
     if (!open) navigate('/speech-analytics/conversations');
   };
+
+  const openUpload = () => {
+    setUploadFormError(null);
+    setUploadOpen(true);
+  };
+
+  const handleUpload = useCallback(async (payload: UploadFormSubmitPayload) => {
+    setUploadFormError(null);
+    try {
+      const files = await Promise.all(
+        payload.files.map(async (file) => ({
+          filename: file.name,
+          bytesBase64: await fileToBase64(file),
+        })),
+      );
+      await uploadBatch({
+        projectId: payload.projectId,
+        operator: payload.operator,
+        clientPhone: payload.clientPhone,
+        language: payload.language,
+        files,
+      }).unwrap();
+    } catch {
+      setUploadFormError(
+        t(
+          'speechAnalytics.errorUpload',
+          'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
+        ),
+      );
+      throw new Error('upload_failed');
+    }
+  }, [t, uploadBatch]);
 
   return (
     <VStack gap="24" max className={cls.page} data-testid="speech-analytics-journal">
@@ -63,7 +120,12 @@ export const SpeechAnalyticsJournalPage = memo(() => {
             </Text>
           </VStack>
         </HStack>
-        <Button type="button" className={cls.uploadBtn} data-testid="journal-upload-cta">
+        <Button
+          type="button"
+          className={cls.uploadBtn}
+          data-testid="journal-upload-cta"
+          onClick={openUpload}
+        >
           <Upload size={16} className={cls.uploadIcon} />
           <Text as="span">{t('speechAnalytics.uploadRecording', 'Загрузить запись')}</Text>
         </Button>
@@ -94,7 +156,7 @@ export const SpeechAnalyticsJournalPage = memo(() => {
               'Загрузите запись или дождитесь разбора звонка с маршрута, где выбран проект.',
             )}
           </Text>
-          <Button type="button" data-testid="journal-empty-upload-cta">
+          <Button type="button" data-testid="journal-empty-upload-cta" onClick={openUpload}>
             <Upload size={16} className={cls.uploadIcon} />
             {t('speechAnalytics.uploadRecording', 'Загрузить запись')}
           </Button>
@@ -131,6 +193,15 @@ export const SpeechAnalyticsJournalPage = memo(() => {
         isLoading={conversationQuery.isLoading}
         isError={conversationQuery.isError}
         onRetry={() => void conversationQuery.refetch()}
+      />
+
+      <UploadForm
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        projects={projects}
+        onSubmit={handleUpload}
+        isSubmitting={uploadState.isLoading}
+        formError={uploadFormError}
       />
     </VStack>
   );

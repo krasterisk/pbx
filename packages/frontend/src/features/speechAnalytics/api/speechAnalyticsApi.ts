@@ -281,6 +281,100 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
         url: `/speech-analytics/transcripts/${id}/corrections`, method: 'POST', body: { text, reason },
       }),
     }),
+    /**
+     * Cabinet batch upload (D-14…D-16) against 18-07 JWT allocate/content/complete + analysis-runs.
+     * One file is a batch of 1. Per-file failure does not stop the rest. Never calls the wallet.
+     */
+    uploadSaCabinetBatch: builder.mutation<
+      {
+        kind: 'accepted';
+        jobId: string;
+        total: number;
+        done: number;
+        results: Array<{ filename: string; ok: boolean; error?: string; assetId?: string }>;
+      },
+      {
+        projectId: string;
+        operator?: { userId?: number; name?: string };
+        clientPhone?: string;
+        language?: string;
+        files: Array<{ filename: string; bytesBase64: string }>;
+      }
+    >({
+      async queryFn(arg, _api, _extraOptions, baseQuery) {
+        const results: Array<{ filename: string; ok: boolean; error?: string; assetId?: string }> = [];
+        for (const file of arg.files) {
+          try {
+            const allocated = await baseQuery({
+              url: '/speech-analytics/uploads',
+              method: 'POST',
+              body: { projectId: arg.projectId, expectedBytes: Math.ceil((file.bytesBase64.length * 3) / 4) },
+            });
+            if (allocated.error || !allocated.data || typeof allocated.data !== 'object') {
+              results.push({ filename: file.filename, ok: false, error: 'allocate_failed' });
+              continue;
+            }
+            const uploadId = String((allocated.data as { id?: string }).id ?? '');
+            if (!uploadId) {
+              results.push({ filename: file.filename, ok: false, error: 'allocate_failed' });
+              continue;
+            }
+            const content = await baseQuery({
+              url: `/speech-analytics/uploads/${uploadId}/content`,
+              method: 'PUT',
+              body: { bytesBase64: file.bytesBase64 },
+            });
+            if (content.error) {
+              results.push({ filename: file.filename, ok: false, error: 'content_failed' });
+              continue;
+            }
+            const complete = await baseQuery({
+              url: `/speech-analytics/uploads/${uploadId}/complete`,
+              method: 'POST',
+              body: {},
+            });
+            if (complete.error || !complete.data || typeof complete.data !== 'object') {
+              results.push({ filename: file.filename, ok: false, error: 'complete_failed' });
+              continue;
+            }
+            const assetId = String((complete.data as { assetId?: string }).assetId ?? '');
+            const run = await baseQuery({
+              url: '/speech-analytics/analysis-runs',
+              method: 'POST',
+              body: {
+                projectId: arg.projectId,
+                assetId,
+                metadata: {
+                  source: 'upload',
+                  filename: file.filename,
+                  operator: arg.operator,
+                  clientPhone: arg.clientPhone,
+                  language: arg.language,
+                },
+              },
+              headers: { 'Idempotency-Key': crypto.randomUUID() },
+            });
+            if (run.error) {
+              results.push({ filename: file.filename, ok: false, error: 'analyze_failed', assetId });
+              continue;
+            }
+            results.push({ filename: file.filename, ok: true, assetId });
+          } catch {
+            results.push({ filename: file.filename, ok: false, error: 'upload_failed' });
+          }
+        }
+        return {
+          data: {
+            kind: 'accepted' as const,
+            jobId: crypto.randomUUID(),
+            total: arg.files.length,
+            done: results.length,
+            results,
+          },
+        };
+      },
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
+    }),
   }),
 });
 
@@ -306,4 +400,5 @@ export const {
   useGetSaConversationQuery,
   useRegenerateSaConversationMutation,
   useDeleteSaConversationMutation,
+  useUploadSaCabinetBatchMutation,
 } = speechAnalyticsApi;
