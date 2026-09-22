@@ -180,10 +180,7 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   routes: { kind: 'covered', capability: 'configure' },
   'service-requests': { kind: 'covered', sharedSkill: 'operations', capability: 'operation' },
   sms: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },
-  'speech-analytics': {
-    kind: 'infrastructure',
-    reason: 'External speech-analytics product HTTP; agent tools stay out of this tenant-agent catalog.',
-  },
+  'speech-analytics': { kind: 'covered', capability: 'configure' },
   'stt-engines': { kind: 'covered', sharedSkill: 'speech-engines', capability: 'configure' },
   'system-settings': { kind: 'covered', sharedSkill: 'settings', capability: 'immutable' },
   telegram: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },

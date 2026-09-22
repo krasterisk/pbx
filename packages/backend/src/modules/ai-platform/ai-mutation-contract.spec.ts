@@ -73,6 +73,11 @@ const MUTATION_FIXTURES: Record<string, Record<string, unknown>> = {
     actions: [{ type: 'toexten', params: { target: { source: 'fixed', value: '201' } } }],
   },
   delete_route: { id: 11 },
+  set_route_analytics_project: {
+    route_id: 11,
+    project_id: '11111111-1111-4111-8111-111111111111',
+  },
+  clear_route_analytics_project: { route_id: 11 },
   create_call_group: {
     name: 'Группа 2',
     exten: '702',
@@ -172,7 +177,7 @@ function tenantFixtures() {
       priority: 1,
       extensions: ['_2XX'],
       actions: [{ type: 'toexten', params: { target: { source: 'fixed', value: '201' } } }],
-      options: {},
+      options: { record: true },
     },
   ];
   const directories = [
@@ -357,6 +362,18 @@ function bootHarness() {
     endpointsService as any,
     routeReferencesService as any,
   ).onModuleInit();
+  const saProjects = {
+    findAll: jest.fn(async () => [
+      { id: '11111111-1111-4111-8111-111111111111', name: 'Доставка' },
+    ]),
+    findOne: jest.fn(async (query: { where?: { id?: string; tenant_uid?: number } } = {}) => {
+      const where = query.where ?? {};
+      if (where.id === '11111111-1111-4111-8111-111111111111' && where.tenant_uid === TENANT_A) {
+        return { id: where.id, name: 'Доставка' };
+      }
+      return null;
+    }),
+  };
   new RoutesAiAdapter(
     routesService as any,
     contextsService as any,
@@ -367,6 +384,7 @@ function bootHarness() {
     directoriesService as any,
     callGroupsService as any,
     registry,
+    saProjects as any,
   ).onModuleInit();
   new MohAiAdapter(
     mohService as any,
