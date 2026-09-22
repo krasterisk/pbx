@@ -1,0 +1,9 @@
+{
+  "command": "node ../../node_modules/vitest/vitest.mjs run --config vite.config.ts src/features/speechAnalytics/ui/TokensTable/TokensTable.test.tsx",
+  "exitCode": 1,
+  "targetTest": "shows empty copy and hides issue CTA for supervisor; secret dialog once",
+  "targetFile": "packages/frontend/src/features/speechAnalytics/ui/TokensTable/TokensTable.test.tsx",
+  "expected": "Empty list shows «Токенов пока нет», issue CTA for admin, secret once dialog",
+  "actual": "Unable to find an element with the text: Токенов пока нет (stub shows tokens-table-stub only)",
+  "output": "# tests 2\n# pass 0\n# fail 2\n# cancelled 0\nnot ok 1 - shows empty copy and hides issue CTA for supervisor; secret dialog once\nnot ok 2 - shows skeleton, list error with retry, and read-only list when module is off"
+}
