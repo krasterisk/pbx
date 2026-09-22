@@ -24,6 +24,8 @@
 .entity {
     font-size: 13px;
     color: var(--color-foreground);
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .summary {
@@ -38,10 +40,13 @@
 .summaryLine {
     font-size: 13px;
     color: var(--color-foreground);
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .denied,
-.failedText {
+.failedText,
+.gateText {
     font-size: 13px;
     color: var(--color-destructive);
 }

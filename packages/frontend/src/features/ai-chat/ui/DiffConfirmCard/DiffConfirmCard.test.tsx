@@ -303,9 +303,9 @@ describe('DiffConfirmCard', () => {
             />,
         );
 
-        const nameNode = screen.getByText(new RegExp(longName.slice(0, 40)));
-        expect(nameNode).toBeInTheDocument();
-        expect(nameNode.className).toMatch(/wrap|entity|summary/i);
+        const nameNodes = screen.getAllByText((_, node) => Boolean(node?.textContent?.includes(longName)));
+        expect(nameNodes.length).toBeGreaterThan(0);
+        expect(nameNodes.some((node) => /entity|summaryLine/i.test(node.className))).toBe(true);
     });
 
     it('renders summary lines as text nodes, never as markup', () => {

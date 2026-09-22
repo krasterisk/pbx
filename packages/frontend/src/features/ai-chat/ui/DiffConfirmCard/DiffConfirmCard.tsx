@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
@@ -81,9 +81,32 @@ function isExpired(view: IAgentProposalView): boolean {
 
 const SETTLED_STATUSES = new Set(['applied', 'rejected', 'denied']);
 
+function readAnalyticsAfter(after: Record<string, unknown> | null | undefined): {
+    isSetAction: boolean;
+    projectId: string | null;
+    projectName: string | null;
+    recordingEnabled: boolean | null;
+} | null {
+    if (!after || after.action !== 'set_analytics_project') return null;
+    const projectIdRaw = after.projectId;
+    const projectId =
+        typeof projectIdRaw === 'string' && projectIdRaw.trim()
+            ? projectIdRaw.trim()
+            : null;
+    const projectName =
+        typeof after.projectName === 'string' && after.projectName.trim()
+            ? after.projectName.trim()
+            : null;
+    const recordingEnabled =
+        typeof after.recordingEnabled === 'boolean' ? after.recordingEnabled : null;
+    return { isSetAction: true, projectId, projectName, recordingEnabled };
+}
+
 export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: DiffConfirmCardProps) => {
     const { t } = useTranslation();
     const [view, setView] = useState(proposal);
+    const [localBusy, setLocalBusy] = useState(false);
+    const inFlightRef = useRef(false);
     const [applyError, setApplyError] = useState<string | null>(
         proposal.status === 'pending' || proposal.status === 'failed' ? proposal.error ?? null : null,
     );
@@ -113,6 +136,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
     }, [proposal]);
 
     const busy =
+        localBusy ||
         confirmState.isLoading ||
         rejectState.isLoading ||
         confirmWorkflowState.isLoading ||
@@ -122,66 +146,85 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
     const showActions =
         !readOnly && (view.status === 'pending' || view.status === 'failed') && !expired && !settled;
     const workflowId = view.workflowId;
+    const analyticsAfter = readAnalyticsAfter(view.after);
+    const recordingOff = analyticsAfter?.recordingEnabled === false;
+    const projectMissing = Boolean(analyticsAfter?.isSetAction && !analyticsAfter.projectId);
+    const confirmBlocked = recordingOff || projectMissing;
+    const projectDisplayName = analyticsAfter?.projectName || view.entityLabel;
 
     const handleConfirm = async () => {
-        if (busy || !showActions) return;
-        if (workflowId) {
-            const result = await confirmWorkflow(workflowId).unwrap();
-            const next = {
-                ...view,
-                status: result.status,
-                error: result.error,
-                appliedAt: result.appliedAt,
-                steps: result.steps,
-                summary: result.summary,
-            };
-            setView(next);
-            setApplyError(result.status === 'failed' ? result.error : null);
-            if (SETTLED_STATUSES.has(result.status)) onSettled?.(next);
-            return;
+        if (busy || !showActions || confirmBlocked || inFlightRef.current) return;
+        inFlightRef.current = true;
+        setLocalBusy(true);
+        try {
+            if (workflowId) {
+                const result = await confirmWorkflow(workflowId).unwrap();
+                const next = {
+                    ...view,
+                    status: result.status,
+                    error: result.error,
+                    appliedAt: result.appliedAt,
+                    steps: result.steps,
+                    summary: result.summary,
+                };
+                setView(next);
+                setApplyError(result.status === 'failed' ? result.error : null);
+                if (SETTLED_STATUSES.has(result.status)) onSettled?.(next);
+                return;
+            }
+            const result = await confirmProposal(view.proposalId).unwrap();
+            if (result.ok && result.proposal) {
+                setView(result.proposal);
+                setApplyError(null);
+                if (SETTLED_STATUSES.has(result.proposal.status)) onSettled?.(result.proposal);
+                return;
+            }
+            if (result.proposal?.status === 'denied') {
+                setView(result.proposal);
+                setApplyError(null);
+                onSettled?.(result.proposal);
+                return;
+            }
+            if (result.proposal && SETTLED_STATUSES.has(result.proposal.status)) {
+                setView(result.proposal);
+                setApplyError(null);
+                onSettled?.(result.proposal);
+                return;
+            }
+            setApplyError(result.error ?? result.reason ?? result.proposal?.error ?? 'apply_failed');
+        } finally {
+            inFlightRef.current = false;
+            setLocalBusy(false);
         }
-        const result = await confirmProposal(view.proposalId).unwrap();
-        if (result.ok && result.proposal) {
-            setView(result.proposal);
-            setApplyError(null);
-            if (SETTLED_STATUSES.has(result.proposal.status)) onSettled?.(result.proposal);
-            return;
-        }
-        if (result.proposal?.status === 'denied') {
-            setView(result.proposal);
-            setApplyError(null);
-            onSettled?.(result.proposal);
-            return;
-        }
-        if (result.proposal && SETTLED_STATUSES.has(result.proposal.status)) {
-            setView(result.proposal);
-            setApplyError(null);
-            onSettled?.(result.proposal);
-            return;
-        }
-        setApplyError(result.error ?? result.reason ?? result.proposal?.error ?? 'apply_failed');
     };
 
     const handleReject = async () => {
-        if (busy || !showActions) return;
-        if (workflowId) {
-            const result = await rejectWorkflow(workflowId).unwrap();
-            const next = {
-                ...view,
-                status: result.status,
-                error: result.error,
-                steps: result.steps,
-            };
-            setView(next);
-            setApplyError(null);
-            if (SETTLED_STATUSES.has(result.status)) onSettled?.(next);
-            return;
-        }
-        const result = await rejectProposal(view.proposalId).unwrap();
-        if (result.ok && result.proposal) {
-            setView(result.proposal);
-            setApplyError(null);
-            onSettled?.(result.proposal);
+        if (busy || !showActions || inFlightRef.current) return;
+        inFlightRef.current = true;
+        setLocalBusy(true);
+        try {
+            if (workflowId) {
+                const result = await rejectWorkflow(workflowId).unwrap();
+                const next = {
+                    ...view,
+                    status: result.status,
+                    error: result.error,
+                    steps: result.steps,
+                };
+                setView(next);
+                setApplyError(null);
+                if (SETTLED_STATUSES.has(result.status)) onSettled?.(next);
+                return;
+            }
+            const result = await rejectProposal(view.proposalId).unwrap();
+            if (result.ok && result.proposal) {
+                setView(result.proposal);
+                setApplyError(null);
+                onSettled?.(result.proposal);
+            }
+        } finally {
+            inFlightRef.current = false;
+            setLocalBusy(false);
         }
     };
 
@@ -220,7 +263,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
             </HStack>
 
             <Text as="p" className={cls.entity}>
-                {t('aiChat.card.entityPrefix')} {view.entityLabel}
+                {t('aiChat.card.entityPrefix')} {projectDisplayName}
             </Text>
 
             {Array.isArray(view.steps) && view.steps.length > 0 && (
@@ -248,6 +291,18 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                     ))}
             </VStack>
 
+            {recordingOff && (
+                <Text as="p" className={cls.gateText} data-testid="ai-agent-recording-required">
+                    {t('aiChat.card.recordingRequired', 'Нужна запись на маршруте, чтобы поставить проект')}
+                </Text>
+            )}
+
+            {projectMissing && !recordingOff && (
+                <Text as="p" className={cls.gateText} data-testid="ai-agent-project-required">
+                    {t('aiChat.card.projectRequired', 'Нужен проект')}
+                </Text>
+            )}
+
             {view.status === 'denied' && (
                 <Text as="p" className={cls.denied}>{t('aiChat.card.deniedExplanation')}</Text>
             )}
@@ -268,7 +323,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                 <HStack className={cls.actions} gap="8" align="center">
                     <Button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || confirmBlocked}
                         title={t('aiChat.card.applyHint')}
                         onClick={handleConfirm}
                     >
