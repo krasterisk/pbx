@@ -77,8 +77,17 @@ export type SaAnalysisJob = {
 
 export type SaAnalysisWorkerDeps = {
   waitForFile: (recordPath: string) => Promise<FileWaitResult>;
+  /** Kept for 18-03 wait-failure specs; charge must not run on wait errors. */
   invokeSaChargeRun: (...args: unknown[]) => Promise<unknown>;
-  handoffPipeline: (job: SaAnalysisJob, bytes: number) => Promise<{
+  /**
+   * Prefer `runAnalysis` (18-04). Legacy `handoffPipeline` kept so 18-03 unit
+   * tests keep injecting a stub without treating fakeStt as scored success.
+   */
+  runAnalysis?: (
+    job: SaAnalysisJob,
+    bytes: number,
+  ) => Promise<{ state: string; scored?: boolean; reason?: string }>;
+  handoffPipeline?: (job: SaAnalysisJob, bytes: number) => Promise<{
     state: string;
     fakeStt?: boolean;
     scored?: boolean;
@@ -86,8 +95,12 @@ export type SaAnalysisWorkerDeps = {
 };
 
 /**
- * Loads an enqueued hangup analysis job, waits for a stable non-empty file, then hands off.
- * Does not call SA-CHARGE-RUN on wait failure. Does not treat fakeStt as scored success (D-03).
+ * Loads an enqueued hangup analysis job, waits for a stable non-empty file, then
+ * runs `runAnalysis` (or legacy handoff). Does not call SA-CHARGE-RUN on wait failure.
+ * Does not treat fakeStt as scored success (D-03).
+ *
+ * Note: `HANGUP_ANALYTICS_PORT` remains an optional Nest token and is NOT registered
+ * in RoutesModule — production provider wiring is out of scope for 18-04.
  */
 export class SaAnalysisWorker {
   constructor(private readonly deps: SaAnalysisWorkerDeps) {}
@@ -103,8 +116,18 @@ export class SaAnalysisWorker {
       return { state: 'error', reason: wait.reason };
     }
 
-    const handoff = await this.deps.handoffPipeline(job, wait.bytes);
-    // Stub handoff may mark queued→ready; never declare fakeStt a successful scored analysis
+    if (this.deps.runAnalysis) {
+      const outcome = await this.deps.runAnalysis(job, wait.bytes);
+      return {
+        state: outcome.state,
+        reason: outcome.reason,
+        scored: outcome.scored === true,
+        fakeStt: false,
+      };
+    }
+
+    const handoff = await this.deps.handoffPipeline!(job, wait.bytes);
+    // Legacy stub handoff may mark queued→ready; never declare fakeStt a successful scored analysis
     return {
       state: handoff.state === 'completed' && handoff.fakeStt
         ? 'ready_for_pipeline'

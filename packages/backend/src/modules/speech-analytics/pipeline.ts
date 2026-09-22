@@ -116,6 +116,11 @@ export function validateResult(output: PipelineOutput, durationMs: number): Pipe
   return output;
 }
 
+/**
+ * Eval / fixture corpus helper only. Product hangup + upload analysis uses
+ * `pipeline/runAnalysis` (one STT pass → diarize → score → SA-CHARGE-RUN).
+ * Do not wire workers or controllers through this function.
+ */
 export function runPipeline(input: PipelineInput): PipelineOutput {
   if (input.channels === 2 && !input.stereoVerified) {
     input = { ...input, channels: 1 };

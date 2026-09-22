@@ -1,4 +1,4 @@
-/** STT adapter port — real provider call lands behind deps; no fakeStt (D-23, D-38). */
+/** STT adapter port — real provider call lands behind deps (D-23, D-38). */
 
 export type SttRequest = {
   audioPath: string;
@@ -21,7 +21,7 @@ export type SttResponse = {
 
 /**
  * Placeholder for Nest-wired STT providers. Pipeline injects a concrete `stt` dep;
- * this module must never re-export or call fakeStt.
+ * this module must never re-export or call the eval-only fixture synthesizer.
  */
 export async function transcribeAudio(
   _req: SttRequest,
