@@ -12,6 +12,7 @@ import { ProfilePage } from '@/pages/ProfilePage/ProfilePage';
 import {
   PlatformTenantsPage,
   PlatformModulesPage,
+  PlatformPricesPage,
   PlatformRoleStartPage,
   PlatformAiThreadsPage,
 } from '@/pages/platform';
@@ -64,6 +65,7 @@ import { SpeechAnalyticsProjectPage } from '@/pages/SpeechAnalyticsProjectPage/S
 import { SpeechAnalyticsRecordingPage } from '@/pages/SpeechAnalyticsRecordingPage/SpeechAnalyticsRecordingPage';
 import { SpeechAnalyticsDashboardPage } from '@/pages/SpeechAnalyticsDashboardPage/SpeechAnalyticsDashboardPage';
 import { SpeechAnalyticsReportsPage } from '@/pages/SpeechAnalyticsReportsPage/SpeechAnalyticsReportsPage';
+import { SpeechAnalyticsJournalPage } from '@/pages/SpeechAnalyticsJournalPage/SpeechAnalyticsJournalPage';
 import { AiRobotsStudioPage } from '@/pages/AiRobotsStudioPage/AiRobotsStudioPage';
 import { AiRobotsSessionsPage } from '@/pages/AiRobotsSessionsPage/AiRobotsSessionsPage';
 import { AiRobotsPreviewPage } from '@/pages/AiRobotsPreviewPage/AiRobotsPreviewPage';
@@ -112,6 +114,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="tenants" replace /> },
       { path: 'tenants', element: <PlatformTenantsPage /> },
       { path: 'modules', element: <PlatformModulesPage /> },
+      { path: 'prices', element: <PlatformPricesPage /> },
       { path: 'role-start', element: <PlatformRoleStartPage /> },
       { path: 'ai-threads', element: <PlatformAiThreadsPage /> },
     ],
@@ -196,6 +199,8 @@ export const router = createBrowserRouter([
       { path: 'speech-analytics/projects/:id', element: <SpeechAnalyticsProjectPage /> },
       { path: 'speech-analytics/recordings/:id', element: <SpeechAnalyticsRecordingPage /> },
       { path: 'speech-analytics/dashboard', element: <SpeechAnalyticsDashboardPage /> },
+      { path: 'speech-analytics/conversations', element: <SpeechAnalyticsJournalPage /> },
+      { path: 'speech-analytics/conversations/:conversationId', element: <SpeechAnalyticsJournalPage /> },
       { path: 'speech-analytics/reports', element: <SpeechAnalyticsReportsPage /> },
       { path: 'ai-robots', element: <AiProductLandingPage product="ai_voice_robots" /> },
       { path: 'ai-robots/connections', element: <AiConnectionsPage product="ai_voice_robots" /> },

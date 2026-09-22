@@ -45,9 +45,64 @@ export interface SaMetricRubric {
   enumValues?: string[];
 }
 
+export interface SaJournalRow {
+  id: string;
+  occurredAt: string;
+  sourceKind: string;
+  latestAmount: string | null;
+  currency: string | null;
+  summary: string | null;
+}
+
+export interface SaJournalList {
+  items: SaJournalRow[];
+  total: number;
+  uploadProgress: { done: number; total: number };
+}
+
+export interface SaConversationDetail {
+  id: string;
+  sourceKind: string;
+  audioUrl: string | null;
+  summary: string | null;
+  transcriptText: string | null;
+  rebuildInProgress: boolean;
+  runs: Array<{
+    id: string;
+    amount: string | null;
+    currency: string | null;
+    createdAt: string;
+  }>;
+}
+
 const speechAnalyticsApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
+    getSaJournal: builder.query<SaJournalList, void>({
+      query: () => '/speech-analytics/journal',
+      providesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
+    }),
+    getSaConversation: builder.query<SaConversationDetail, string>({
+      query: (id) => `/speech-analytics/journal/${id}`,
+      providesTags: (_r, _e, id) => [{ type: 'SpeechAnalytics', id: `CONV-${id}` }],
+    }),
+    regenerateSaConversation: builder.mutation<{ runId: string }, string>({
+      query: (id) => ({
+        url: `/speech-analytics/journal/${id}/regenerate`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'SpeechAnalytics', id: 'JOURNAL' },
+        { type: 'SpeechAnalytics', id: `CONV-${id}` },
+      ],
+    }),
+    deleteSaConversation: builder.mutation<{ deleted: true }, string>({
+      query: (id) => ({
+        url: `/speech-analytics/journal/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
+    }),
     getSaProjects: builder.query<SaProject[], void>({
       query: () => '/speech-analytics/projects',
       providesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
@@ -163,4 +218,8 @@ export const {
   useReanalyzeSaRunMutation,
   useReviewSaRunMutation,
   useCorrectSaTranscriptMutation,
+  useGetSaJournalQuery,
+  useGetSaConversationQuery,
+  useRegenerateSaConversationMutation,
+  useDeleteSaConversationMutation,
 } = speechAnalyticsApi;

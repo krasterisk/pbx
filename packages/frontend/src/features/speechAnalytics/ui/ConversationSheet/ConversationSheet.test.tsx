@@ -26,12 +26,14 @@ const baseProps = {
 };
 
 describe('ConversationSheet', () => {
-  it('renders Analytics, Transcript, and Cost tabs with locked copy', () => {
+  it('renders Analytics, Transcript, and Cost tabs with locked copy', async () => {
+    const user = userEvent.setup();
     render(<ConversationSheet {...baseProps} sourceKind="upload" audioUrl="/audio.mp3" />);
 
     expect(screen.getByRole('tab', { name: 'Аналитика' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Расшифровка' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Стоимость' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Стоимость' }));
     expect(screen.getByText('Посчитано, не списано')).toBeInTheDocument();
   });
 
