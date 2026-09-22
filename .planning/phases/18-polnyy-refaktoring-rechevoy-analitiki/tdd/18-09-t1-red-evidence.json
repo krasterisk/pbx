@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"routes-ai.adapter\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "refuses to set analytics project when recording is off and does not propose",
+  "targetFile": "packages/backend/src/modules/routes/routes-ai.adapter.spec.ts",
+  "expected": "set_route_analytics_project tool exists; recording-off returns refused with recording-required message and no applyPayload",
+  "actual": "set_route_analytics_project tool is undefined (not registered yet)",
+  "output": "# tests 19\n# pass 12\n# fail 7\n# cancelled 0\nnot ok 1 - exposes list, describe-chain, create and delete and does not expose apply_dialplan\nnot ok 2 - marks create and delete as proposing\nnot ok 3 - lists tenant analytics projects and the current route project without mutation\nnot ok 4 - proposes set analytics project with dialplan reload when recording is on\nnot ok 5 - refuses to set analytics project when recording is off and does not propose\nnot ok 6 - proposes clear analytics project confirm card with dialplan reload\nnot ok 7 - applies set using dispatch tenant uid and ignores forged tenant args\nok 8 - lists tenant routes and describes the assembled chain without mutation"
+}

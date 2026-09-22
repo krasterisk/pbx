@@ -1,0 +1,224 @@
+﻿node.exe : npm notice run @krasterisk/backend@4.4.3 test
+строка:1 знак:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\Professional\AppData\R ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm notice run ...kend@4.4.3 test:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm notice run jest --testPathPattern=routes-ai.adapter --no-coverage
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [PbxAgentDiffService] apply create_route tenant=100
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [PbxAgentDiffService] apply create_route tenant=100
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [McpToolsService] Registered 5 MCP tools
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [McpToolsService] AI adapter domains: routes
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [AiAdapterRegistryService] Registered AI adapter for domain "routes" (5 tools)
+[Nest] 63544  - 22.09.2026, 22:27:24     LOG [RoutesAiAdapter] RoutesAiAdapter registered
+FAIL src/modules/routes/routes-ai.adapter.spec.ts
+  RoutesAiAdapter
+    tool declarations (D-15, D-18, D-20)
+      ├Ч exposes list, describe-chain, create and delete and does not expose apply_dialplan (11 ms)
+      ├Ч marks create and delete as proposing (4 ms)
+    list_routes and describe_route_chain (D-15)
+      тИЪ lists tenant routes and describes the assembled chain without mutation (4 ms)
+      тИЪ lists product editor apps with copy and tenant usage (3 ms)
+    create_route (D-15, D-18, D-20)
+      тИЪ returns a pending proposal whose summary lists steps and states the dialplan will be reloaded (6 ms)
+      тИЪ refuses an invalid typed chain before a proposal exists and names the failing step (2 ms)
+      тИЪ refuses a route in another tenant context at tool time (2 ms)
+    confirm create_route (D-20)
+      тИЪ writes the route and calls the orchestrator exactly once, never the low-level applier (10 ms)
+    precedence and impact at proposal time (D-19, D-20)
+      тИЪ refuses a catch-all above a specific or emergency pattern and names both (2 ms)
+      тИЪ adds an impact note for inbound or catch-all proposals (1 ms)
+    delete_route (D-19)
+      тИЪ names the pattern and the destination that will stop working (1 ms)
+    analytics project tools (D-04)
+      ├Ч lists tenant analytics projects and the current route project without mutation (2 ms)
+      ├Ч proposes set analytics project with dialplan reload when recording is on (1 ms)
+      ├Ч refuses to set analytics project when recording is off and does not propose (1 ms)
+      ├Ч proposes clear analytics project confirm card with dialplan reload (1 ms)
+      ├Ч applies set using dispatch tenant uid and ignores forged tenant args (2 ms)
+    failed reload (D-20)
+      тИЪ leaves the proposal pending with the error after the route write is visible (3 ms)
+    no standalone apply tool (D-20)
+      тИЪ does not register a model-callable apply_dialplan after the routes adapter is adopted (3 ms)
+    routes domain skill
+      тИЪ ships a playbook with list tools, checklist, pending card and when to ask (1 ms)
+
+  тЧП RoutesAiAdapter тА║ tool declarations (D-15, D-18, D-20) тА║ exposes list, describe-chain, create and delete and 
+does not expose apply_dialplan
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 0
+
+    @@ -2,9 +2,6 @@
+        "list_routes",
+        "list_dialplan_apps",
+        "describe_route_chain",
+        "create_route",
+        "delete_route",
+    -   "list_route_analytics_projects",
+    -   "set_route_analytics_project",
+    -   "clear_route_analytics_project",
+      ]
+
+      292 |   describe('tool declarations (D-15, D-18, D-20)', () => {
+      293 |     it('exposes list, describe-chain, create and delete and does not expose apply_dialplan', () => {
+    > 294 |       expect(adapter.getTools().map((tool) => tool.name)).toEqual([
+          |                                                           ^
+      295 |         'list_routes',
+      296 |         'list_dialplan_apps',
+      297 |         'describe_route_chain',
+
+      at Object.<anonymous> (modules/routes/routes-ai.adapter.spec.ts:294:59)
+
+  тЧП RoutesAiAdapter тА║ tool declarations (D-15, D-18, D-20) тА║ marks create and delete as proposing
+
+    TypeError: Cannot read properties of undefined (reading 'proposes')
+
+      309 |       expect(getTool('delete_route').proposes).toBe(true);
+      310 |       expect(getTool('delete_route').destructive).toBe(true);
+    > 311 |       expect(getTool('set_route_analytics_project').proposes).toBe(true);
+          |                                                    ^
+      312 |       expect(getTool('clear_route_analytics_project').proposes).toBe(true);
+      313 |     });
+      314 |   });
+
+      at Object.<anonymous> (modules/routes/routes-ai.adapter.spec.ts:311:52)
+
+  тЧП RoutesAiAdapter тА║ analytics project tools (D-04) тА║ lists tenant analytics projects and the current route proj
+ect without mutation
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      490 |     it('lists tenant analytics projects and the current route project without mutation', async () => {
+      491 |       const tool = adapter.getTools().find((row) => row.name === 'list_route_analytics_projects');
+    > 492 |       expect(tool).toBeDefined();
+          |                    ^
+      493 |
+      494 |       routesService.findAll.mockImplementation(async (uid: number) => {
+      495 |         if (uid === TENANT_A) {
+
+      at Object.<anonymous> (modules/routes/routes-ai.adapter.spec.ts:492:20)
+
+  тЧП RoutesAiAdapter тА║ analytics project tools (D-04) тА║ proposes set analytics project with dialplan reload when r
+ecording is on
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      525 |     it('proposes set analytics project with dialplan reload when recording is on', async () => {
+      526 |       const tool = adapter.getTools().find((row) => row.name === 'set_route_analytics_project');
+    > 527 |       expect(tool).toBeDefined();
+          |                    ^
+      528 |
+      529 |       const result = await tool!.handler(
+      530 |         { route_id: 11, project_id: PROJECT_A.id },
+
+      at Object.<anonymous> (modules/routes/routes-ai.adapter.spec.ts:527:20)
+
+  тЧП RoutesAiAdapter тА║ analytics project tools (D-04) тА║ refuses to set analytics project when recording is off and
+ does not propose
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      560 |     it('refuses to set analytics project when recording is off and does not propose', async () => {
+      561 |       const tool = adapter.getTools().find((row) => row.name === 'set_route_analytics_project');
+    > 562 |       expect(tool).toBeDefined();
+          |                    ^
+      563 |
+      564 |       const result = await tool!.handler(
+      565 |         { route_id: 12, project_id: PROJECT_A.id },
+
+      at Object.<anonymous> (modules/routes/routes-ai.adapter.spec.ts:562:20)
+
+  тЧП RoutesAiAdapter тА║ analytics project tools (D-04) тА║ proposes clear analytics project confirm card with dialpla
+n reload
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      575 |     it('proposes clear analytics project confirm card with dialplan reload', async () => {
+      576 |       const tool = adapter.getTools().find((row) => row.name === 'clear_route_analytics_project');
+    > 577 |       expect(tool).toBeDefined();
+          |                    ^
+      578 |
+      579 |       routesService.findAll.mockImplementation(async (uid: number) => {
+      580 |         if (uid === TENANT_A) {
+
+      at Object.<anonymous> (modules/routes/routes-ai.adapter.spec.ts:577:20)
+
+  тЧП RoutesAiAdapter тА║ analytics project tools (D-04) тА║ applies set using dispatch tenant uid and ignores forged t
+enant args
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      615 |     it('applies set using dispatch tenant uid and ignores forged tenant args', async () => {
+      616 |       const tool = adapter.getTools().find((row) => row.name === 'set_route_analytics_project');
+    > 617 |       expect(tool).toBeDefined();
+          |                    ^
+      618 |
+      619 |       const proposal = await tool!.handler(
+      620 |         { route_id: 11, project_id: PROJECT_A.id },
+
+      at Object.<anonymous> (modules/routes/routes-ai.adapter.spec.ts:617:20)
+
+Test Suites: 1 failed, 1 total
+Tests:       7 failed, 12 passed, 19 total
+Snapshots:   0 total
+Time:        3.265 s, estimated 4 s
+Ran all test suites matching /routes-ai.adapter/i.
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend
+npm error workspace @krasterisk/backend@4.4.3
+npm error location C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c jest --testPathPattern=routes-ai.adapter --no-coverage

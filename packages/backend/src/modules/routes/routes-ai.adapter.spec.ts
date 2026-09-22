@@ -20,6 +20,20 @@ const QUEUE_ACTION = {
   condition: {},
 };
 
+const PROJECT_A = {
+  id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee4001',
+  name: 'Sales quality',
+  tenant_uid: TENANT_A,
+  status: 'active',
+};
+
+const PROJECT_B = {
+  id: 'bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeee4002',
+  name: 'Other tenant project',
+  tenant_uid: TENANT_B,
+  status: 'active',
+};
+
 const ROUTE_A = {
   uid: 11,
   context_uid: 3,
@@ -28,6 +42,7 @@ const ROUTE_A = {
   priority: 0,
   actions: [QUEUE_ACTION],
   user_uid: TENANT_A,
+  options: { record: true, analytics: { projectId: null } },
 };
 
 const ROUTE_CATCHALL = {
@@ -38,6 +53,7 @@ const ROUTE_CATCHALL = {
   priority: 1,
   actions: [{ type: 'hangup', params: { signal: 'hangup' }, condition: {} }],
   user_uid: TENANT_A,
+  options: { record: false },
 };
 
 const ROUTE_B = {
@@ -48,6 +64,7 @@ const ROUTE_B = {
   priority: 0,
   actions: [{ type: 'toqueue', params: { queue: 'other' }, condition: {} }],
   user_uid: TENANT_B,
+  options: { record: true },
 };
 
 type ProposalRow = {
@@ -92,6 +109,7 @@ describe('RoutesAiAdapter', () => {
   let directoriesService: { findAll: jest.Mock };
   let routeApplyService: { applyContext: jest.Mock };
   let dialplanApplyService: { applyCategories: jest.Mock };
+  let saProjects: { findAll: jest.Mock; findOne: jest.Mock };
   let registry: { register: jest.Mock };
   let adapter: RoutesAiAdapter;
   let proposalRows: ProposalRow[];
@@ -115,15 +133,36 @@ describe('RoutesAiAdapter', () => {
         const all = await routesService.findAll(uid);
         const found = all.find((row: { uid: number }) => row.uid === id);
         if (!found) throw new NotFoundException(`Route ${id} not found`);
-        return found;
+        return { ...found };
       }),
       create: jest.fn(async (args: { context_uid: number }, uid: number) => ({
         uid: 50,
         context_uid: args.context_uid,
         user_uid: uid,
       })),
-      update: jest.fn(),
+      update: jest.fn(async (id: number, data: Record<string, unknown>, uid: number) => {
+        const current = await routesService.findOne(id, uid);
+        Object.assign(current, data);
+        return current;
+      }),
       remove: jest.fn(),
+    };
+    saProjects = {
+      findAll: jest.fn(async (opts: { where?: { tenant_uid?: number } } = {}) => {
+        const uid = opts.where?.tenant_uid;
+        if (uid === TENANT_A) return [{ ...PROJECT_A }];
+        if (uid === TENANT_B) return [{ ...PROJECT_B }];
+        return [];
+      }),
+      findOne: jest.fn(async (opts: { where?: { id?: string; tenant_uid?: number } } = {}) => {
+        const id = opts.where?.id;
+        const uid = opts.where?.tenant_uid;
+        const rows = [
+          { ...PROJECT_A },
+          { ...PROJECT_B },
+        ];
+        return rows.find((row) => row.id === id && (uid == null || row.tenant_uid === uid)) ?? null;
+      }),
     };
     contextsService = {
       findAll: jest.fn(async (uid: number) => {
@@ -197,6 +236,7 @@ describe('RoutesAiAdapter', () => {
       directoriesService as any,
       callGroupsService as any,
       liveRegistry,
+      saProjects as any,
     );
     adapter.onModuleInit();
 
@@ -257,6 +297,9 @@ describe('RoutesAiAdapter', () => {
         'describe_route_chain',
         'create_route',
         'delete_route',
+        'list_route_analytics_projects',
+        'set_route_analytics_project',
+        'clear_route_analytics_project',
       ]);
       expect(adapter.getTools().some((tool) => tool.name === 'apply_dialplan')).toBe(false);
     });
@@ -265,6 +308,8 @@ describe('RoutesAiAdapter', () => {
       expect(getTool('create_route').proposes).toBe(true);
       expect(getTool('delete_route').proposes).toBe(true);
       expect(getTool('delete_route').destructive).toBe(true);
+      expect(getTool('set_route_analytics_project').proposes).toBe(true);
+      expect(getTool('clear_route_analytics_project').proposes).toBe(true);
     });
   });
 
@@ -441,6 +486,165 @@ describe('RoutesAiAdapter', () => {
     });
   });
 
+  describe('analytics project tools (D-04)', () => {
+    it('lists tenant analytics projects and the current route project without mutation', async () => {
+      const tool = adapter.getTools().find((row) => row.name === 'list_route_analytics_projects');
+      expect(tool).toBeDefined();
+
+      routesService.findAll.mockImplementation(async (uid: number) => {
+        if (uid === TENANT_A) {
+          return [
+            {
+              ...ROUTE_A,
+              options: { record: true, analytics: { projectId: PROJECT_A.id } },
+            },
+            { ...ROUTE_CATCHALL },
+          ];
+        }
+        return [];
+      });
+
+      const listed = await tool!.handler(
+        { route_id: 11 },
+        TENANT_A,
+      ) as {
+        projects: Array<{ id: string; name: string }>;
+        current: { route_id: number; projectId: string | null; projectName: string | null };
+      };
+
+      expect(routesService.update).not.toHaveBeenCalled();
+      expect(listed.projects).toEqual([{ id: PROJECT_A.id, name: PROJECT_A.name }]);
+      expect(JSON.stringify(listed)).not.toMatch(/Other tenant project/);
+      expect(listed.current).toEqual({
+        route_id: 11,
+        projectId: PROJECT_A.id,
+        projectName: PROJECT_A.name,
+      });
+    });
+
+    it('proposes set analytics project with dialplan reload when recording is on', async () => {
+      const tool = adapter.getTools().find((row) => row.name === 'set_route_analytics_project');
+      expect(tool).toBeDefined();
+
+      const result = await tool!.handler(
+        { route_id: 11, project_id: PROJECT_A.id },
+        TENANT_A,
+      );
+
+      expect(routesService.update).not.toHaveBeenCalled();
+      expect(result.refused).toBeUndefined();
+      expect(result.includesDialplanReload).toBe(true);
+      expect(result.applyPayload).toEqual(
+        expect.objectContaining({
+          tool: 'set_route_analytics_project',
+          args: expect.objectContaining({
+            route_id: 11,
+            project_id: PROJECT_A.id,
+            context_uid: 3,
+          }),
+        }),
+      );
+      const card = (result.summary as string[]).join(' ');
+      expect(card).toMatch(/поставить|set/i);
+      expect(card).toMatch(/Sales quality/);
+      expect(result.after).toEqual(
+        expect.objectContaining({
+          action: 'set_analytics_project',
+          projectId: PROJECT_A.id,
+          projectName: PROJECT_A.name,
+          recordingEnabled: true,
+        }),
+      );
+    });
+
+    it('refuses to set analytics project when recording is off and does not propose', async () => {
+      const tool = adapter.getTools().find((row) => row.name === 'set_route_analytics_project');
+      expect(tool).toBeDefined();
+
+      const result = await tool!.handler(
+        { route_id: 12, project_id: PROJECT_A.id },
+        TENANT_A,
+      );
+
+      expect(result.applyPayload).toBeUndefined();
+      expect(result.refused).toBe(true);
+      expect(JSON.stringify(result)).toMatch(/запис|record/i);
+      expect(routesService.update).not.toHaveBeenCalled();
+    });
+
+    it('proposes clear analytics project confirm card with dialplan reload', async () => {
+      const tool = adapter.getTools().find((row) => row.name === 'clear_route_analytics_project');
+      expect(tool).toBeDefined();
+
+      routesService.findAll.mockImplementation(async (uid: number) => {
+        if (uid === TENANT_A) {
+          return [
+            {
+              ...ROUTE_A,
+              options: { record: true, analytics: { projectId: PROJECT_A.id } },
+            },
+            { ...ROUTE_CATCHALL },
+          ];
+        }
+        return [];
+      });
+
+      const result = await tool!.handler(
+        { route_id: 11 },
+        TENANT_A,
+      );
+
+      expect(routesService.update).not.toHaveBeenCalled();
+      expect(result.includesDialplanReload).toBe(true);
+      expect(result.applyPayload).toEqual(
+        expect.objectContaining({
+          tool: 'clear_route_analytics_project',
+          args: expect.objectContaining({ route_id: 11, context_uid: 3 }),
+        }),
+      );
+      const card = (result.summary as string[]).join(' ');
+      expect(card).toMatch(/убрать|clear|remove/i);
+      expect(result.after).toEqual(
+        expect.objectContaining({
+          action: 'clear_analytics_project',
+          projectId: null,
+        }),
+      );
+    });
+
+    it('applies set using dispatch tenant uid and ignores forged tenant args', async () => {
+      const tool = adapter.getTools().find((row) => row.name === 'set_route_analytics_project');
+      expect(tool).toBeDefined();
+
+      const proposal = await tool!.handler(
+        { route_id: 11, project_id: PROJECT_A.id },
+        TENANT_A,
+      );
+      const view = await diffService.createProposal(proposal, ctxA);
+      const result = await diffService.apply(view.proposalId, ctxA);
+
+      expect(result.ok).toBe(true);
+      expect(routesService.update).toHaveBeenCalledWith(
+        11,
+        expect.objectContaining({
+          options: expect.objectContaining({
+            record: true,
+            analytics: { projectId: PROJECT_A.id },
+          }),
+        }),
+        TENANT_A,
+      );
+      expect(routeApplyService.applyContext).toHaveBeenCalledWith(3, TENANT_A, expect.anything());
+
+      await expect(
+        tool!.handler(
+          { route_id: 11, project_id: PROJECT_A.id, vpbxUserUid: TENANT_B },
+          TENANT_A,
+        ),
+      ).rejects.toThrow(/TENANT_ARG_FORBIDDEN/);
+    });
+  });
+
   describe('failed reload (D-20)', () => {
     it('leaves the proposal pending with the error after the route write is visible', async () => {
       routeApplyService.applyContext.mockRejectedValueOnce(new Error('AMI reload failed'));
@@ -479,6 +683,7 @@ describe('RoutesAiAdapter', () => {
         directoriesService as any,
         callGroupsService as any,
         live,
+        saProjects as any,
       );
       wired.onModuleInit();
       const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
