@@ -7,6 +7,8 @@ import { defaultSaProjectConfig } from '@krasterisk/shared';
 
 const TENANT_A = 100;
 const TENANT_B = 200;
+const PROJECT_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee1501';
+const OPERATION_ID = '11111111-1111-4111-8111-111111111111';
 
 function getTool(adapter: SpeechAnalyticsAiAdapter, name: string) {
   const tool = adapter.getTools().find((row) => row.name === name);
@@ -52,16 +54,7 @@ describe('SpeechAnalyticsAiAdapter', () => {
     projects = {
       getEditorState: jest.fn(async () => {
         const draft = defaultSaProjectConfig();
-        draft.customMetrics = [{
-          id: 'm1',
-          key: 'greeting',
-          displayName: 'Greeting',
-          type: 'boolean',
-          instructions: 'x',
-          polarity: 'positive',
-          weight: 1,
-          required: true,
-        } as never];
+        draft.customMetrics = [{ id: 'm1', name: 'Greeting', type: 'boolean' }];
         const state: EditorProjectState = {
           draft,
           draftRevision: 2,
@@ -76,7 +69,7 @@ describe('SpeechAnalyticsAiAdapter', () => {
     tokens = {
       issueSpeechAnalyticsToken: jest.fn(async () => ({
         principalId: 'prin-1',
-        projectId: 'proj-1',
+        projectId: PROJECT_ID,
         token: 'sa-secret-ONCE-only',
         replay: false,
       })),
@@ -114,7 +107,7 @@ describe('SpeechAnalyticsAiAdapter', () => {
   it('issues a token with secret only in apply result; proposal and chat history omit the secret (D-33)', async () => {
     const tool = getTool(adapter, 'issue_speech_analytics_token');
     const proposal = await tool.handler(
-      { name: 'CRM', project_id: 'proj-1' },
+      { name: 'CRM', project_id: PROJECT_ID },
       TENANT_A,
       { userUid: 7, role: UserLevel.ADMIN, threadUid: 1 },
     );
@@ -128,7 +121,7 @@ describe('SpeechAnalyticsAiAdapter', () => {
     expect(JSON.stringify(history)).not.toMatch(/sa-secret|secret["']?\s*:/i);
 
     const applied = await tool.mutation!.apply(
-      { name: 'CRM', project_id: 'proj-1', operation_id: '11111111-1111-4111-8111-111111111111' },
+      { name: 'CRM', project_id: PROJECT_ID, operation_id: OPERATION_ID },
       mutationCtx,
     );
     expect(tokens.issueSpeechAnalyticsToken).toHaveBeenCalled();
@@ -143,9 +136,10 @@ describe('SpeechAnalyticsAiAdapter', () => {
     const tool = getTool(adapter, 'edit_speech_analytics_project');
     const proposal = await tool.handler(
       {
-        project_id: 'proj-1',
-        config: { name: 'Support', customMetrics: [{ id: 'm2', key: 'bye' }] },
-        vpbx_user_uid: TENANT_B,
+        project_id: PROJECT_ID,
+        config: {
+          customMetrics: [{ id: 'm2', name: 'Bye', type: 'boolean' }],
+        },
       },
       TENANT_A,
       { userUid: 7, role: UserLevel.ADMIN, threadUid: 1 },
@@ -153,18 +147,29 @@ describe('SpeechAnalyticsAiAdapter', () => {
     expect((proposal as any).after?.publish).toBe(true);
     expect(stampChanged).toBeDefined();
 
+    await expect(
+      tool.handler(
+        {
+          project_id: PROJECT_ID,
+          config: { customMetrics: [{ id: 'm2', name: 'Bye', type: 'boolean' }] },
+          vpbx_user_uid: TENANT_B,
+        },
+        TENANT_A,
+      ),
+    ).rejects.toThrow(/TENANT_ARG_FORBIDDEN/);
+
     await tool.mutation!.apply(
       {
-        project_id: 'proj-1',
+        project_id: PROJECT_ID,
         expected_revision: 2,
-        config: { name: 'Support' },
+        config: { customMetrics: [{ id: 'm2', name: 'Bye', type: 'boolean' }] },
         publish: true,
       },
       { ...mutationCtx, vpbxUserUid: TENANT_A },
     );
     expect(projects.applyEditorUpdate).toHaveBeenCalledWith(
       TENANT_A,
-      expect.objectContaining({ projectId: 'proj-1', publish: true }),
+      expect.objectContaining({ projectId: PROJECT_ID, publish: true }),
     );
     expect(projects.applyEditorUpdate).not.toHaveBeenCalledWith(
       TENANT_B,
