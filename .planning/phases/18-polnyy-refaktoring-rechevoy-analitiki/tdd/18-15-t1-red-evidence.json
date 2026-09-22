@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"module-settings\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "allows SUPERADMIN always; SUPERVISOR never; ADMIN only with tenant right",
+  "targetFile": "packages/backend/src/modules/speech-analytics/module-settings.service.spec.ts",
+  "expected": "canEditModels: SUPERADMIN always, SUPERVISOR never, ADMIN only with tenant right; pause + model defaults persist with D-38",
+  "actual": "stub canEditModels always false; setPauseNew/setModelDefaults no-ops (Expected true, Received false)",
+  "output": "# tests 5\n# pass 1\n# fail 4\nnot ok 1 - allows SUPERADMIN always; SUPERVISOR never; ADMIN only with tenant right\nnot ok 2 - lets SUPERADMIN and entitled ADMIN update module defaults within allowlist\nnot ok 3 - hides model selects when allowlist empty or right off; pause stays available\nnot ok 4 - persists pauseNew and model defaults with D-38 rights"
+}

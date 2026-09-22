@@ -1,0 +1,9 @@
+{
+  "command": "node ../../node_modules/vitest/vitest.mjs run --config vite.config.ts src/features/speechAnalytics/ui/ModuleSettings/ModuleSettings.test.tsx",
+  "exitCode": 1,
+  "targetTest": "optimistic pause Switch rolls back on failure and shows error text",
+  "targetFile": "packages/frontend/src/features/speechAnalytics/ui/ModuleSettings/ModuleSettings.test.tsx",
+  "expected": "Optimistic pause Switch rolls back on failure and shows error; model selects gated by D-38",
+  "actual": "Unable to find an element by: [data-testid=\"sa-pause-switch\"] (stub shows module-settings-stub only)",
+  "output": "# tests 3\n# pass 0\n# fail 3\n# cancelled 0\nnot ok 1 - optimistic pause Switch rolls back on failure and shows error text\nnot ok 2 - hides model selects without right or empty allowlist; pause Switch remains\nnot ok 3 - shows model selects when entitled and keep long names from widening the page"
+}
