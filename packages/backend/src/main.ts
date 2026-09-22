@@ -3,8 +3,12 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { execSync } from 'child_process';
 import * as net from 'net';
+
+/** 50MB audio as base64 is about 67MB of JSON. Nest's default 100kb parser rejects it before the module cap. */
+const JSON_BODY_LIMIT = '72mb';
 
 /**
  * Check if a port is already in use.
@@ -115,7 +119,9 @@ async function bootstrap() {
     await killPortProcess(port);
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(json({ limit: JSON_BODY_LIMIT }));
+  app.use(urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
   app.enableShutdownHooks();
 
   // HTTP-only / self-hosted boxes: disable HSTS and CSP upgrade-insecure-requests

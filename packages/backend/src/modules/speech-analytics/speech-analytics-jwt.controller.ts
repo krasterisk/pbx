@@ -161,7 +161,10 @@ export class SpeechAnalyticsJwtController {
     @Body() body: { from?: string; to?: string },
   ) {
     assertUuid(id);
-    return this.analytics.evaluateProjectBudget(request.tenantContext, id, body);
+    return this.analytics.evaluateProjectBudget(request.tenantContext, id, {
+      from: body.from,
+      to: body.to,
+    });
   }
 
   @Get('recordings')

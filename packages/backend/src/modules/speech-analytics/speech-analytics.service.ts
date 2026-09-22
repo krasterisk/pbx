@@ -352,7 +352,7 @@ export class SpeechAnalyticsService {
     });
   }
 
-  async evaluateProjectBudget(context: TenantContext, projectId: string, period?: { from: string; to: string }) {
+  async evaluateProjectBudget(context: TenantContext, projectId: string, period?: { from?: string; to?: string }) {
     const project = await this.assertScope(context, projectId, 'analytics:read');
     const config = this.parseConfig(
       project.active_version_id

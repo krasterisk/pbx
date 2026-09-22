@@ -8,6 +8,21 @@ export type SaMetricStatus = typeof SA_METRIC_STATUSES[number];
 export const SA_TOPICS = ['sales', 'support', 'other'] as const;
 export type SaTopic = typeof SA_TOPICS[number];
 
+export type SaMetricEvidence = {
+  segmentId: string;
+  startMs: number;
+  endMs: number;
+};
+
+export type SaMetricResult = {
+  id: SaMetricId;
+  status: SaMetricStatus;
+  value: boolean | SaTopic | null;
+  evidence: SaMetricEvidence[];
+  rationale: string;
+  rubricRevision: typeof SA_RUBRIC_VERSION;
+};
+
 export const SA_RUN_STATES = [
   'queued', 'running', 'retry_wait', 'awaiting_reconciliation',
   'partial', 'completed', 'failed', 'cancelled',
