@@ -1,0 +1,62 @@
+﻿node.exe : npm notice run @krasterisk/backend@4.4.3 test
+строка:1 знак:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\Professional\AppData\R ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm notice run ...kend@4.4.3 test:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm notice run jest --testPathPattern=insights.service --no-coverage
+FAIL src/modules/speech-analytics/dashboard/insights.service.spec.ts
+  generateInsights (D-35, D-36, D-47)
+    ├Ч returns empty copy path and does not call the LLM when conversations < 10 (9 ms)
+    ├Ч calls invokeSaChargeInsights once on successful LLM and skips it on cache hit (3 ms)
+    тИЪ loads instruction from the repo insights skill and resolves model via deps (D-36) (5 ms)
+    тИЪ never imports wallet debit helpers (1 ms)
+
+  тЧП generateInsights (D-35, D-36, D-47) тА║ returns empty copy path and does not call the LLM when conversations < 10
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "empty"
+    Received: "ok"
+
+      60 |     );
+      61 |
+    > 62 |     expect(result.status).toBe('empty');
+         |                           ^
+      63 |     expect(result.emptyReason).toBe('below_min_conversations');
+      64 |     expect(result.insights).toEqual([]);
+      65 |     expect(callLlm).not.toHaveBeenCalled();
+
+      at Object.<anonymous> (modules/speech-analytics/dashboard/insights.service.spec.ts:62:27)
+
+  тЧП generateInsights (D-35, D-36, D-47) тА║ calls invokeSaChargeInsights once on successful LLM and skips it on cache
+ hit
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      105 |     const second = await generateInsights(input, deps);
+      106 |     expect(second.status).toBe('ok');
+    > 107 |     expect(second.fromCache).toBe(true);
+          |                              ^
+      108 |     expect(second.amount).toBe('0.40');
+      109 |     expect(invokeCharge).toHaveBeenCalledTimes(1);
+      110 |     expect(callLlm).toHaveBeenCalledTimes(1);
+
+      at Object.<anonymous> (modules/speech-analytics/dashboard/insights.service.spec.ts:107:30)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 2 passed, 4 total
+Snapshots:   0 total
+Time:        1.379 s, estimated 2 s
+Ran all test suites matching /insights.service/i.
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend
+npm error workspace @krasterisk/backend@4.4.3
+npm error location C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c jest --testPathPattern=insights.service --no-coverage

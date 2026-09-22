@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=insights.service --no-coverage",
+  "exitCode": 1,
+  "targetTest": "returns empty copy path and does not call the LLM when conversations < 10",
+  "targetFile": "packages/backend/src/modules/speech-analytics/dashboard/insights.service.spec.ts",
+  "expected": "status empty, LLM not called",
+  "actual": "status ok, LLM called (RED stub)",
+  "output": "FAIL src/modules/speech-analytics/dashboard/insights.service.spec.ts\n# tests 4\n# pass 2\n# fail 2\nnot ok 1 - returns empty copy path and does not call the LLM when conversations < 10\nnot ok 2 - calls invokeSaChargeInsights once on successful LLM and skips it on cache hit\nok 3 - loads instruction from the repo insights skill and resolves model via deps (D-36)\nok 4 - never imports wallet debit helpers\nExpected: \"empty\"\nReceived: \"ok\""
+}
