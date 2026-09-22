@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 status: executing
 stopped_at: Phase 18 UI-SPEC approved
-last_updated: "2026-09-22T10:08:04.304Z"
-state_head: ab40d2fd20f7849ea6827858337b0182f2ebede5
+last_updated: "2026-09-22T11:46:46.339Z"
+state_head: 352d8f5dbd74b640d6a77ce55b5d1f4e36b3f45f
 progress:
   total_phases: 26
   completed_phases: 6
-  total_plans: 193
+  total_plans: 208
   completed_plans: 193
   total_phase_directories: 25
   phases_with_plan_summaries: 18
 milestone_name: milestone
+current_phase_name: Полный рефакторинг речевой аналитики
 current_phase: 15
-current_phase_name: universal-pbx-ai-agent
 ---
 
 # State

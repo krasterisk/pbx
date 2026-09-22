@@ -1306,15 +1306,12 @@ Plans:
 **Depends on:** Phase 17.3
 **Plans:** TBD
 
----
-
 ## Phase 17.5: Автообзвон — AI-адаптер, Predictive, лимит транка (INSERTED)
 
 **Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
 **Goal:** `autodial-ai.adapter.ts` + SKILL.md + coverage; predictive pacing; trunk channel limit as first-class setting.
 **Depends on:** Phase 17.4
 **Plans:** TBD
-
 
 ## Phase 16.3: Телеконференции — фронтенд живой комнаты, гостевая поверхность и AI-адаптер
 
@@ -1380,6 +1377,72 @@ Plans:
 
 **GSD workflow:** `/gsd-plan-phase 16.3` ✅ → `/gsd-execute-phase 16.3` ✅ → `/gsd-secure-phase 16.3` ✅ → `/gsd-verify-work 16.3` ✅ → UAT ✅
 
+## Phase 18: Полный рефакторинг речевой аналитики
+
+**Status:** Planned
+**Goal:** Заново собрать модуль речевой аналитики до паритета с aiPBX и удобнее текущего кабинета: проекты и редактор метрик, загрузка записей через интерфейс и API, дашборды и отчёты, диаризация stereo/mono, включение анализа на маршруте, внешний API для чужих АТС, модели из каталога platform/тенанта, биллинг Krasterisk, эталонные оценки, настройка через AI-чат и живой UAT.
+**Depends on:** — (модуль уже в коде; Phase 17 не блокирует)
+**Requirements**: паритет с aiPBX, архитектура `packages/frontend/.idea/ARCHITECTURE.md`, живой прогон `Z:\temp\speech-analytics-samples` (REQ-SA-PARITY, REQ-SA-ARCH, REQ-SA-UAT)
+**Plans:** 15 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 18-01-PLAN.md — Schema 0023 multi-run + SA-CHARGE-RUN/INSIGHTS persist seams (D-05, D-46…D-49)
+- [ ] 18-02-PLAN.md — Route project Select + capture-policy project-only (D-01, D-02, D-19…D-22)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 18-03-PLAN.md — Hangup enqueue + wait non-empty file (500ms/60s), no STT in handler (D-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 18-04-PLAN.md — Real STT/diarize/score pipeline + SA-CHARGE-RUN (D-23, D-24, D-38)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 18-05-PLAN.md — Journal + sheet + access-scoped journal API (D-05…D-13)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 18-11-PLAN.md — Excel export + CDR analytics actions + journal i18n/route (D-05, D-16, D-18, D-37)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 18-06-PLAN.md — Project-editor backend draft/publish, budget, webhooks (D-25…D-31)
+- [ ] 18-08-PLAN.md — Standard dashboard + on-demand insights (D-34…D-36, D-47)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 18-12-PLAN.md — MetricEditor + projects pages UI (D-25, D-36)
+- [ ] 18-14-PLAN.md — Remove Reports product surface (D-37)
+- [ ] 18-07-PLAN.md — Upload/API/URL ingest + hash-only tokens backend (D-14…D-18, D-32, D-33, D-39…D-42)
+- [ ] 18-09-PLAN.md — Routes AI chat tools for analytics project (D-04)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [ ] 18-13-PLAN.md — UploadForm + TokensTable UI (D-14…D-16, D-32, D-33)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [ ] 18-15-PLAN.md — Module AI adapter + ModuleSettings pause/models (D-27, D-33, D-38)
+- [ ] 18-10-PLAN.md — Golden eval + live UAT harness (D-43…D-45, D-50)
+
+**Cross-cutting constraints:**
+
+- User-visible strings exist in ru and en and do not contain U+2014. Feature and page styles use SCSS modules and var(--color-*). Tailwind utilities are not added in those layers. Layout uses VStack, HStack, and Flex from shared/ui (ARCHITECTURE.md, UI-SPEC).
+- The hangup handler only enqueues a job. STT does not run inside the handler. The job waits until the recording file exists and is non-empty. Upload and URL batches process one item at a time. One failure does not stop the rest. Pause blocks only new automatic analyses. Queued and in-flight jobs finish (D-03, D-16, D-19, D-41).
+- A route with recording off or with no project selected does not enqueue analysis. An incomplete URL download (break, timeout, empty body, or fewer bytes than Content-Length) is an error for that URL and does not call SA-CHARGE-RUN. A file over 50MB is an error (D-03, D-04, D-41)
+- Journal «Разговоры» lives in analytics DB; PBX analyzed calls keep CDR player and an «Аналитика» button to the same journal URL; sheet has no second player for PBX; uploads/API play on Transcript only (D-05, D-08)
+- Пауза компании не скрывает ручные «Получить аналитику» и загрузку.
+- Metric editor keeps aiPBX sections: templates real_estate, delivery, tech_support, banking, medicine, food, auto_service, insurance, ecommerce, custom; custom metrics; hideable standard scales; system prompt; topics; analytics event webhook; digest; alerts (D-25)
+- Upload: one form, one file is a batch of 1; mp3/wav/ogg/m4a max 50MB; operator is cabinet user or free-text name; project required; sequential; one failure does not stop the batch; progress on the job; buttons on journal AND CDR (D-14, D-15, D-16)
+- API token: one token one project; request cannot override project; secret shown once; DB stores only hash; can upload and read; cannot delete or regenerate; issuers admin and superadmin; supervisor cannot; no expiry; module off does not delete tokens (D-32, D-33)
+- Excel export is a journal toolbar button, not a Reports page and not DataTable.exportCsv. It exports the entire filtered selection in this column order: journal columns, summary, transcript, STT quality, topics, rationales, and all project scales. Cost is the latest run. Robot columns are absent (D-37)
+
+**Вход для discuss:** `.planning/phases/18-polnyy-refaktoring-rechevoy-analitiki/18-BRIEF.md`. Реализация по `.planning/initiatives/ai-products/` — пример того, что не устроило, а не план этой фазы.
+
+---
 
 ## Production readiness track (после review 2026-09-17)
 

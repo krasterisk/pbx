@@ -528,14 +528,13 @@ async dryRunAnalyze(transcription: string, opts?: {...}) {
 | A2 | Для Excel на backend достаточно уже установленного `exceljs` (без frontend export) | Standard Stack | Если UI-only export — другой wire |
 | A3 | `DURABLE_CAPTURE=1` в prod желателен для UUID filenames, но analytics enqueue должен работать и в legacy ffmpeg-hangup mode | Q1/Q2 | Dialplan ветки разъедутся |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Backoff / timeout ожидания файла после hangup**
-   - What we know: D-03 требует wait for non-empty; exact seconds not locked.
-   - Recommendation: planner picks finite retry (e.g. 30–60s) as implementation detail under Claude discretion absence → use aiPBX-like practical timeout and document in PLAN.
+1. **Backoff / timeout ожидания файла после hangup** — (RESOLVED)
+   - Bound locked in plan 18-03: poll every 500ms for up to 60s total ceiling. Proceed only when the path exists, size > 0, and size is unchanged across two consecutive polls (≈1s stable) so a short mid-write growth is still observed before handoff. If the ceiling elapses without that condition, the run is an error and does not call SA-CHARGE-RUN. Success still requires a non-empty file (D-03).
 
-2. **Project metrics in golden set**
-   - Deferred: only standard scales this phase.
+2. **Project metrics in golden set** — (RESOLVED, deferred)
+   - Deferred per CONTEXT Deferred Ideas: this phase golden set compares standard scales on the three fixtures only. Do not add project custom metrics to golden fixtures this phase.
 
 ## Environment Availability
 
