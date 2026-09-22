@@ -17,7 +17,7 @@ test('production PG selects the reviewed baseline offline and rejects arbitrary 
   const input = { DB_DIALECT: 'postgres', DB_HOST: 'must-not-resolve.invalid', DB_USER: 'nobody', DB_PASSWORD: 'secret', DB_NAME: 'none' };
   const result = await main(['--list'], input);
   assert.equal(result.engine, 'postgres');
-  assert.deepEqual(result.migrations.map(migration => migration.id), ['0001-current-schema.sql', '0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql', '0013-ai-voice.sql', '0014-sa-metrics.sql', '0015-sa-reporting.sql', '0016-sa-native-int.sql', '0017-ai-realtime.sql', '0018-ai-tools.sql', '0019-asterisk-odbc.sql', '0020-ai-sku-catalog.sql']);
+  assert.deepEqual(result.migrations.map(migration => migration.id), ['0001-current-schema.sql', '0002-cdr-query-indexes.sql', '0003-callcenter-report-keys.sql', '0004-ai-product-access.sql', '0005-ai-integration-credentials.sql', '0006-ai-integration-auth-limits.sql', '0007-tenant-login-uniqueness.sql', '0008-ai-jobs-assets.sql', '0009-ai-usage.sql', '0010-ai-capture.sql', '0011-speech-analytics.sql', '0012-ai-webhooks.sql', '0013-ai-voice.sql', '0014-sa-metrics.sql', '0015-sa-reporting.sql', '0016-sa-native-int.sql', '0017-ai-realtime.sql', '0018-ai-tools.sql', '0019-asterisk-odbc.sql', '0020-ai-sku-catalog.sql', '0021-billing-sellers.sql', '0022-platform-prices.sql', '0023-sa-multi-run-charges.sql']);
   assert.equal(result.migrations[0].artifact, 'postgres/0001-current-schema.sql');
   assert.equal(result.migrations[0].checksum, 'a7d418f512e6534c8d94bcf90fef4be28263634a5eb1c5774a787baa89d1720f');
   await assert.rejects(main(['--fixtures'], input), /Usage/);
@@ -46,10 +46,10 @@ test('standalone AI profiles select one neutral baseline and shared migrations o
     const robot = loadMigrations(dialect, 'robot-api');
     assert.equal(analytics[0].id, '0001-ai-standalone-base.sql');
     assert.deepEqual(robot, analytics);
-    const sharedFull = full.slice(3).filter(item => item.id !== '0019-asterisk-odbc.sql');
+    const sharedFull = full.slice(3).filter(item => item.id !== '0019-asterisk-odbc.sql' && item.id !== '0021-billing-sellers.sql');
     assert.deepEqual(analytics.slice(1).map(item => item.id), sharedFull.map(item => item.id));
     assert.deepEqual(analytics.slice(1).map(item => item.checksum), sharedFull.map(item => item.checksum));
-    assert.equal(full.at(-1).id, '0020-ai-sku-catalog.sql');
+    assert.equal(full.at(-1).id, '0023-sa-multi-run-charges.sql');
     assert.ok(full.some(item => item.id === '0019-asterisk-odbc.sql'));
     assert.ok(!analytics.some(item => item.id === '0019-asterisk-odbc.sql'));
     assert.doesNotMatch(analytics[0].sql, /CREATE TABLE (?:IF NOT EXISTS )?[`"]?(?:contexts|cdr|queue_log|ps_endpoints|ac_campaigns)[`"]?\b/i);

@@ -83,6 +83,18 @@
         {
           "id": "0020-ai-sku-catalog.sql",
           "artifact": "0020-ai-sku-catalog.sql"
+        },
+        {
+          "id": "0021-billing-sellers.sql",
+          "artifact": "0021-billing-sellers.sql"
+        },
+        {
+          "id": "0022-platform-prices.sql",
+          "artifact": "0022-platform-prices.sql"
+        },
+        {
+          "id": "0023-sa-multi-run-charges.sql",
+          "artifact": "0023-sa-multi-run-charges.sql"
         }
       ],
       "profiles": {
@@ -154,6 +166,14 @@
           {
             "id": "0020-ai-sku-catalog.sql",
             "artifact": "0020-ai-sku-catalog.sql"
+          },
+          {
+            "id": "0022-platform-prices.sql",
+            "artifact": "0022-platform-prices.sql"
+          },
+          {
+            "id": "0023-sa-multi-run-charges.sql",
+            "artifact": "0023-sa-multi-run-charges.sql"
           }
         ],
         "robot-api": [
@@ -224,6 +244,14 @@
           {
             "id": "0020-ai-sku-catalog.sql",
             "artifact": "0020-ai-sku-catalog.sql"
+          },
+          {
+            "id": "0022-platform-prices.sql",
+            "artifact": "0022-platform-prices.sql"
+          },
+          {
+            "id": "0023-sa-multi-run-charges.sql",
+            "artifact": "0023-sa-multi-run-charges.sql"
           }
         ]
       }
@@ -310,6 +338,18 @@
         {
           "id": "0020-ai-sku-catalog.sql",
           "artifact": "postgres/0020-ai-sku-catalog.sql"
+        },
+        {
+          "id": "0021-billing-sellers.sql",
+          "artifact": "postgres/0021-billing-sellers.sql"
+        },
+        {
+          "id": "0022-platform-prices.sql",
+          "artifact": "postgres/0022-platform-prices.sql"
+        },
+        {
+          "id": "0023-sa-multi-run-charges.sql",
+          "artifact": "postgres/0023-sa-multi-run-charges.sql"
         }
       ],
       "profiles": {
@@ -381,6 +421,14 @@
           {
             "id": "0020-ai-sku-catalog.sql",
             "artifact": "postgres/0020-ai-sku-catalog.sql"
+          },
+          {
+            "id": "0022-platform-prices.sql",
+            "artifact": "postgres/0022-platform-prices.sql"
+          },
+          {
+            "id": "0023-sa-multi-run-charges.sql",
+            "artifact": "postgres/0023-sa-multi-run-charges.sql"
           }
         ],
         "robot-api": [
@@ -451,6 +499,14 @@
           {
             "id": "0020-ai-sku-catalog.sql",
             "artifact": "postgres/0020-ai-sku-catalog.sql"
+          },
+          {
+            "id": "0022-platform-prices.sql",
+            "artifact": "postgres/0022-platform-prices.sql"
+          },
+          {
+            "id": "0023-sa-multi-run-charges.sql",
+            "artifact": "postgres/0023-sa-multi-run-charges.sql"
           }
         ]
       }
