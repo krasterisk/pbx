@@ -196,9 +196,9 @@ export const RouteFormModal = memo(() => {
       // Only persist record_all when recording is actually enabled - prevents record_all:true/record:false ghost state
       record_all: record && recordAll ? true : undefined,
       record_stereo: record && recordStereo ? true : undefined,
-      analytics: analyticsMode === 'inherit' && !analyticsProjectId
-        ? undefined
-        : { mode: analyticsMode, projectId: analyticsMode === 'on' ? analyticsProjectId || undefined : undefined },
+      analytics: analyticsProjectId
+        ? { projectId: analyticsProjectId }
+        : undefined,
       pre_command: preCommand || undefined,
       route_type: routeType || undefined,
       dialplan_source: showRawDialplan && editorMode === 'raw' ? 'raw' : 'actions',

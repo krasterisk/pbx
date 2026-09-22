@@ -45,13 +45,13 @@ describe('INT1 capture resolver', () => {
     projectActive: true, projectPublished: true, sameTenantProject: true, policyRevision: 1,
   };
 
-  it('keeps inherit+default off from enabling analysis', () => {
+  it('does not enable analysis without a route project', () => {
     expect(resolveCapturePolicy(base).enabled).toBe(false);
-    expect(resolveCapturePolicy(base).reason).toBe('default_off');
+    expect(resolveCapturePolicy(base).reason).toBe('project_missing');
   });
 
-  it('route off is not privacy deny', () => {
-    expect(resolveCapturePolicy({ ...base, routeMode: 'off', defaultEnabled: true }).reason).toBe('route_off');
+  it('a leftover route mode is not a privacy deny', () => {
+    expect(resolveCapturePolicy({ ...base, routeMode: 'off', defaultEnabled: true }).reason).toBe('project_missing');
   });
 
   it('does not enable when recording is off', () => {

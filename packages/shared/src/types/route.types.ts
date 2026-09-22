@@ -140,8 +140,8 @@ export interface IRouteOptions {
   route_type?: number; // outbound type (1-5)
   /** Table chain vs Dialplan tab. Missing + non-empty actions → generate from actions. */
   dialplan_source?: 'actions' | 'raw';
-  /** INT1: inherit company default unless explicitly off/on. Missing = inherit. */
-  analytics?: { mode: 'inherit' | 'off' | 'on'; projectId?: string };
+  /** Selected analytics project. Missing or empty projectId means no auto analysis (D-01, D-02). */
+  analytics?: { projectId?: string | null; mode?: 'inherit' | 'off' | 'on' };
 }
 
 export interface IRouteWebhooks {

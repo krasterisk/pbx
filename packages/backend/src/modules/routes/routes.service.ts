@@ -381,6 +381,7 @@ export class RoutesService {
           recordStereo: opts.record_stereo === true,
           recordAll: opts.record_all === true,
           hangupWebhook: Boolean(wh.on_hangup?.url),
+          analyticsProjectId: opts.analytics?.projectId || null,
         }));
       } else if (wh.on_hangup?.url) {
         lines.push('same => n,Set(CHANNEL(hangup_handler_push)=krsk-hangup-handler,s,1)');

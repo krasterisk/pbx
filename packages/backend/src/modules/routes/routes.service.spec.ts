@@ -548,6 +548,28 @@ describe('RoutesService', () => {
       expect(dp).not.toMatch(/MixMonitor\([^)]*,b/);
     });
 
+    it('pushes hangup_handler when a recording route has an analytics project and no webhook', () => {
+      const route = baseRoute({
+        options: { record: true, analytics: { projectId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee4001' } },
+        webhooks: {},
+      });
+      const dp = service.generateRouteDialplan(route, 100, false);
+      expect(dp).toContain('hangup_handler_push)=krsk-hangup-handler');
+    });
+
+    it('does not push hangup_handler for a recording route without an analytics project', () => {
+      const previous = process.env.DURABLE_CAPTURE;
+      delete process.env.DURABLE_CAPTURE;
+      try {
+        const route = baseRoute({ options: { record: true }, webhooks: {} });
+        const dp = service.generateRouteDialplan(route, 100, false);
+        expect(dp).not.toContain('hangup_handler_push');
+      } finally {
+        if (previous === undefined) delete process.env.DURABLE_CAPTURE;
+        else process.env.DURABLE_CAPTURE = previous;
+      }
+    });
+
     it('uses a UUID filename and MixMonitor recorder id when durable capture is on', () => {
       const previous = process.env.DURABLE_CAPTURE;
       process.env.DURABLE_CAPTURE = '1';
