@@ -5286,6 +5286,27 @@ export const en = {
     colSummary: "Summary",
     colOccurred: "Date",
     colCost: "Cost",
+    getInsights: "Get insights",
+    costNotCharged: "Calculated, not charged",
+    emptyDashboardHeading: "Not enough data",
+    emptyDashboardBody:
+      "Need analyzed conversations for the selected period. Open the journal or upload recordings.",
+    emptyInsights: "Insights need at least 10 conversations",
+    errorInsights: "Could not get insights. Try again.",
+    insightsTitle: "Insights",
+    sentimentTitle: "Mood",
+    successTitle: "Success",
+    scalesTitle: "Scales",
+    customMetricsTitle: "Custom metrics",
+    dynamicsTitle: "Dynamics",
+    statConversations: "Conversations",
+    statLowStt: "Poor recognition",
+    statCost: "Cost",
+    statSuccess: "Success",
+    emptyProjectsHeading: "No projects yet",
+    emptyProjectsBody:
+      "Create a project and publish metrics so routes and uploads can use this set.",
+    createProject: "Create project",
   },
 
   aiRobots: {

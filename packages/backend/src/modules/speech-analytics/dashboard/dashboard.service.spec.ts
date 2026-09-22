@@ -65,7 +65,6 @@ describe('aggregateDashboard (D-34)', () => {
         operators: ['101'],
         ownExten: '101',
         queues: [],
-        unrestricted: false,
       },
       { userId: 9, level: UserLevel.OPERATOR },
     );

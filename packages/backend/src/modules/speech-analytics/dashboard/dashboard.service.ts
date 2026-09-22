@@ -1,22 +1,22 @@
 /**
- * Standard dashboard aggregations (D-34) — RED stub for 18-08.
- * GREEN will honor access lists, exclude low-STT from averages, and sum latest-run costs only.
+ * Standard dashboard aggregations (D-34).
+ * Access list matches journal visibility. Low-STT excluded from averages with count shown.
+ * Cost cards sum latest-run amounts only (insights excluded by caller).
  */
 
 import { Injectable } from '@nestjs/common';
-import {
-  isCdrUnrestricted,
-  type CdrAccessScope,
-} from '../../reports/cdr/cdr-access-scope';
-import { normalizeAccessToken } from '../../callcenter/callcenter-access-list.util';
-import { UserLevel } from '../../users/user.model';
+import type { CdrAccessScope } from '../../reports/cdr/cdr-access-scope';
 import {
   isJournalRowVisible,
-  type JournalRowAccessFields,
   type JournalViewer,
 } from '../journal/journal.service';
 
-export type DashboardConversation = JournalRowAccessFields & {
+export type DashboardConversation = {
+  id: string;
+  operatorExten: string | null;
+  operatorName: string | null;
+  uploadedByUserId: number | null;
+  sourceKind: string;
   latestAmount: string | null;
   currency: string | null;
   lowStt: boolean;
@@ -48,7 +48,18 @@ export type DashboardAggregate = {
   ranking: 'ok' | 'insufficient_sample';
 };
 
-function sumAmounts(rows: DashboardConversation[]): { total: string; currency: string | null } {
+export function filterDashboardByAccess(
+  conversations: DashboardConversation[],
+  scope: CdrAccessScope | null,
+  viewer: JournalViewer,
+): DashboardConversation[] {
+  return conversations.filter((row) => isJournalRowVisible(row, scope, viewer));
+}
+
+function sumLatestRunAmounts(rows: DashboardConversation[]): {
+  total: string;
+  currency: string | null;
+} {
   let currency: string | null = null;
   let sum = 0;
   for (const row of rows) {
@@ -61,43 +72,80 @@ function sumAmounts(rows: DashboardConversation[]): { total: string; currency: s
   return { total: sum.toFixed(2), currency };
 }
 
-/** RED stub: includes low-STT in averages and does not filter access — tests must fail. */
+function average(values: number[]): number | null {
+  if (!values.length) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+function avgByKey(rows: DashboardConversation[], pick: (row: DashboardConversation) => Record<string, number>): Array<{ key: string; avg: number }> {
+  const buckets = new Map<string, number[]>();
+  for (const row of rows) {
+    for (const [key, value] of Object.entries(pick(row))) {
+      if (!Number.isFinite(value)) continue;
+      const list = buckets.get(key) ?? [];
+      list.push(value);
+      buckets.set(key, list);
+    }
+  }
+  return [...buckets.entries()].map(([key, values]) => ({
+    key,
+    avg: average(values) ?? 0,
+  }));
+}
+
 export function aggregateDashboard(input: DashboardAggregateInput): DashboardAggregate {
-  const rows = input.conversations;
-  const { total, currency } = sumAmounts(rows);
-  const scores = rows
+  const visible = filterDashboardByAccess(input.conversations, input.scope, input.viewer);
+  const lowSttCount = visible.filter((r) => r.lowStt).length;
+  const forAverages = visible.filter((r) => !r.lowStt);
+  const { total, currency } = sumLatestRunAmounts(visible);
+
+  const scores = forAverages
     .map((r) => r.overallScore)
     .filter((v): v is number => v != null && Number.isFinite(v));
-  const averageScore = scores.length
-    ? scores.reduce((a, b) => a + b, 0) / scores.length
-    : null;
-  const successRows = rows.filter((r) => r.success != null);
+  const averageScore = average(scores);
+
+  const successRows = forAverages.filter((r) => r.success != null);
   const successRate = successRows.length
     ? successRows.filter((r) => r.success === true).length / successRows.length
     : null;
 
+  const sentiment = { positive: 0, neutral: 0, negative: 0 };
+  for (const row of forAverages) {
+    if (row.sentiment === 'positive') sentiment.positive += 1;
+    else if (row.sentiment === 'neutral') sentiment.neutral += 1;
+    else if (row.sentiment === 'negative') sentiment.negative += 1;
+  }
+
+  const dayBuckets = new Map<string, number[]>();
+  for (const row of forAverages) {
+    if (row.overallScore == null) continue;
+    const list = dayBuckets.get(row.dayLabel) ?? [];
+    list.push(row.overallScore);
+    dayBuckets.set(row.dayLabel, list);
+  }
+  const dynamics = [...dayBuckets.entries()].map(([label, values]) => ({
+    label,
+    avgScore: average(values) ?? 0,
+    calls: values.length,
+  }));
+
   return {
-    conversationCount: rows.length,
-    lowSttCount: 0,
+    conversationCount: visible.length,
+    lowSttCount,
     costTotal: total,
     currency,
     successRate,
     averageScore,
-    sentiment: { positive: 0, neutral: 0, negative: 0 },
-    scales: [],
-    customMetrics: [],
-    dynamics: [],
-    ranking: rows.length >= 20 ? 'ok' : 'insufficient_sample',
+    sentiment,
+    scales: avgByKey(forAverages, (r) => r.scaleScores),
+    customMetrics: avgByKey(forAverages, (r) => r.customScores).map((m) => ({
+      id: m.key,
+      label: m.key,
+      avg: m.avg,
+    })),
+    dynamics,
+    ranking: forAverages.length >= 20 ? 'ok' : 'insufficient_sample',
   };
-}
-
-export function filterDashboardByAccess(
-  conversations: DashboardConversation[],
-  scope: CdrAccessScope | null,
-  viewer: JournalViewer,
-): DashboardConversation[] {
-  // RED: no filtering
-  return conversations;
 }
 
 @Injectable()
@@ -106,10 +154,3 @@ export class DashboardService {
     return aggregateDashboard(input);
   }
 }
-
-// Keep imports referenced so RED compiles with journal helpers available for GREEN.
-void isCdrUnrestricted;
-void normalizeAccessToken;
-void UserLevel;
-void isJournalRowVisible;
-void filterDashboardByAccess;

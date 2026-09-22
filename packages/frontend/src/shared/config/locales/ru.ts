@@ -5375,6 +5375,27 @@ export const ru = {
     colSummary: "Саммари",
     colOccurred: "Дата",
     colCost: "Стоимость",
+    getInsights: "Получить инсайты",
+    costNotCharged: "Посчитано, не списано",
+    emptyDashboardHeading: "Недостаточно данных",
+    emptyDashboardBody:
+      "Нужны разобранные разговоры за выбранный период. Откройте журнал или загрузите записи.",
+    emptyInsights: "Для инсайтов нужно минимум 10 разговоров",
+    errorInsights: "Не удалось получить инсайты. Повторите запрос.",
+    insightsTitle: "Инсайты",
+    sentimentTitle: "Настроение",
+    successTitle: "Успех",
+    scalesTitle: "Шкалы",
+    customMetricsTitle: "Свои метрики",
+    dynamicsTitle: "Динамика",
+    statConversations: "Разговоры",
+    statLowStt: "Плохое распознавание",
+    statCost: "Стоимость",
+    statSuccess: "Успех",
+    emptyProjectsHeading: "Проектов пока нет",
+    emptyProjectsBody:
+      "Создайте проект и опубликуйте метрики, чтобы маршруты и загрузки могли брать этот набор.",
+    createProject: "Создать проект",
   },
 
   aiRobots: {

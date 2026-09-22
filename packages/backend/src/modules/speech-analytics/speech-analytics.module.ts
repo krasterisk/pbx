@@ -28,6 +28,7 @@ import { SaJournalService } from './journal/journal.service';
 import { SaProjectResolver } from './sa-project.resolver';
 import { ProjectEditorService } from './projects/project-editor.service';
 import { InsightsService } from './dashboard/insights.service';
+import { DashboardService } from './dashboard/dashboard.service';
 import { SpeechAnalyticsJwtController } from './speech-analytics-jwt.controller';
 import { SpeechAnalyticsPublicController } from './speech-analytics-public.controller';
 import { User } from '../users/user.model';
@@ -63,6 +64,7 @@ import { SaInsightsRequest } from './speech-analytics.models';
     SaProjectResolver,
     ProjectEditorService,
     InsightsService,
+    DashboardService,
   ],
   controllers: [SpeechAnalyticsJwtController, SpeechAnalyticsPublicController],
   exports: [
@@ -72,6 +74,7 @@ import { SaInsightsRequest } from './speech-analytics.models';
     SaJournalService,
     ProjectEditorService,
     InsightsService,
+    DashboardService,
     SequelizeModule,
   ],
 })
