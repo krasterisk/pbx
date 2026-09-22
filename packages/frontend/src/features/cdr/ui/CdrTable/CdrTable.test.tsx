@@ -23,8 +23,22 @@ vi.mock('@/shared/ui', async (importOriginal) => {
 });
 
 function call(
-  overrides: Partial<ICdrCall> & { hasVoicemail?: boolean; hasConferenceRecording?: boolean } = {},
-): ICdrCall & { hasVoicemail?: boolean; hasConferenceRecording?: boolean } {
+  overrides: Partial<ICdrCall> & {
+    hasVoicemail?: boolean;
+    hasConferenceRecording?: boolean;
+    journalConversationId?: string | null;
+    speechAnalyticsActive?: boolean;
+    routeProjectId?: string | null;
+    companyPaused?: boolean;
+  } = {},
+): ICdrCall & {
+  hasVoicemail?: boolean;
+  hasConferenceRecording?: boolean;
+  journalConversationId?: string | null;
+  speechAnalyticsActive?: boolean;
+  routeProjectId?: string | null;
+  companyPaused?: boolean;
+} {
   return {
     linkedid: 'lid-1',
     uniqueid: '1693731234.12',
@@ -129,5 +143,119 @@ describe('CdrTable conference recording icon (16.2-03 D-33)', () => {
     );
     expect(screen.getByRole('button', { name: 'Прослушать запись' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Запись конференции' })).not.toBeInTheDocument();
+  });
+});
+
+describe('CdrTable speech analytics actions (D-05, D-16, D-18, D-19)', () => {
+  it('hides Аналитика without a journal row and hides Получить аналитику without a recording', () => {
+    render(
+      <CdrTable
+        data={[call({
+          hasRecording: false,
+          record: null,
+          recordingUrl: null,
+          journalConversationId: null,
+          speechAnalyticsActive: true,
+        })]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Прослушать запись' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Аналитика' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Получить аналитику' })).not.toBeInTheDocument();
+  });
+
+  it('shows Аналитика when a journal row exists and keeps the CDR player', () => {
+    const onOpenAnalytics = vi.fn();
+    render(
+      <CdrTable
+        data={[call({
+          journalConversationId: 'conv-1',
+          speechAnalyticsActive: true,
+        })]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+        onOpenAnalytics={onOpenAnalytics}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Прослушать запись' })).toBeInTheDocument();
+    const analytics = screen.getByRole('button', { name: 'Аналитика' });
+    fireEvent.click(analytics);
+    expect(onOpenAnalytics).toHaveBeenCalledWith('conv-1');
+  });
+
+  it('shows Получить аналитику when recording exists and module is active, even if company is paused', () => {
+    const onGetAnalytics = vi.fn();
+    render(
+      <CdrTable
+        data={[call({
+          hasRecording: true,
+          speechAnalyticsActive: true,
+          companyPaused: true,
+          routeProjectId: 'proj-1',
+        })]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+        onGetAnalytics={onGetAnalytics}
+      />,
+    );
+
+    const getBtn = screen.getByRole('button', { name: 'Получить аналитику' });
+    fireEvent.click(getBtn);
+    expect(onGetAnalytics).toHaveBeenCalledWith(
+      expect.objectContaining({ uniqueid: '1693731234.12', projectId: 'proj-1' }),
+    );
+  });
+
+  it('asks for a project before starting when the route has no project', () => {
+    const onGetAnalytics = vi.fn();
+    render(
+      <CdrTable
+        data={[call({
+          hasRecording: true,
+          speechAnalyticsActive: true,
+          routeProjectId: null,
+        })]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+        onGetAnalytics={onGetAnalytics}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Получить аналитику' }));
+    expect(screen.getByText('Выберите проект аналитики')).toBeInTheDocument();
+    expect(onGetAnalytics).not.toHaveBeenCalled();
+  });
+
+  it('hides Получить аналитику when the module is inactive', () => {
+    render(
+      <CdrTable
+        data={[call({
+          hasRecording: true,
+          speechAnalyticsActive: false,
+        })]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Получить аналитику' })).not.toBeInTheDocument();
   });
 });

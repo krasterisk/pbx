@@ -1,0 +1,9 @@
+{
+  "command": "npx vitest run src/features/cdr/ui/CdrTable/CdrTable.test.tsx",
+  "exitCode": 1,
+  "targetTest": "shows Аналитика when a journal row exists and keeps the CDR player",
+  "targetFile": "packages/frontend/src/features/cdr/ui/CdrTable/CdrTable.test.tsx",
+  "expected": "Аналитика button visible and onOpenAnalytics('conv-1') called",
+  "actual": "Unable to find button name Аналитика / onOpenAnalytics not wired",
+  "output": "# tests 9\n# pass 6\n# fail 3\n# cancelled 0\nok 1 - keeps RecordingButton for conversation and adds a Voicemail details icon\nok 2 - does not show the Voicemail icon when the row has no voicemail\nok 3 - shows the conference button only when hasConferenceRecording and click skips voicemail\nok 4 - does not show the conference button when the flag is false\nok 5 - hides Аналитика without a journal row and hides Получить аналитику without a recording\nnot ok 6 - shows Аналитика when a journal row exists and keeps the CDR player\nnot ok 7 - shows Получить аналитику when recording exists and module is active, even if company is paused\nnot ok 8 - asks for a project before starting when the route has no project\nok 9 - hides Получить аналитику when the module is inactive"
+}
