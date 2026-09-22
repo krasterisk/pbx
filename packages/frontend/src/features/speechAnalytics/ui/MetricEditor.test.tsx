@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SA_INDUSTRY_TEMPLATES } from '@krasterisk/shared';
@@ -17,7 +18,7 @@ vi.mock('react-i18next', () => ({
 vi.mock('react-toastify', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 vi.mock('@/shared/hooks/useAppStore', () => ({
-  useAppSelector: () => 2, // ADMIN
+  useAppSelector: () => 2,
 }));
 
 const draftState = {
@@ -75,22 +76,40 @@ describe('MetricEditor', () => {
     draftState.publishLoading = false;
   });
 
-  it('renders every D-25 industry template and editor sections', () => {
+  it('renders every D-25 industry template and editor sections', async () => {
+    const user = userEvent.setup();
     renderEditor();
 
     expect(screen.getByTestId('sa-metric-editor')).toBeInTheDocument();
     for (const templateId of SA_INDUSTRY_TEMPLATES) {
       expect(screen.getByTestId(`sa-template-${templateId}`)).toBeInTheDocument();
     }
+
+    await user.click(screen.getByRole('tab', { name: 'Метрики' }));
     expect(screen.getByTestId('sa-section-custom-metrics')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Шкалы' }));
     expect(screen.getByTestId('sa-section-scales')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Промпт' }));
     expect(screen.getByTestId('sa-section-system-prompt')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Темы' }));
     expect(screen.getByTestId('sa-section-topics')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Вебхук' }));
     expect(screen.getByTestId('sa-section-webhook')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Дайджест' }));
     expect(screen.getByTestId('sa-section-digest')).toBeInTheDocument();
-    expect(screen.getByTestId('sa-section-alerts')).toBeInTheDocument();
-    expect(screen.getByTestId('sa-section-budget')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Интеграции|Integrations/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Алерты' }));
+    expect(screen.getByTestId('sa-section-alerts')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Бюджет' }));
+    expect(screen.getByTestId('sa-section-budget')).toBeInTheDocument();
+
     expect(screen.queryByTestId('sa-section-models')).not.toBeInTheDocument();
   });
 
@@ -102,8 +121,10 @@ describe('MetricEditor', () => {
     expect(publish).toBeDisabled();
   });
 
-  it('shows model override fields only when the cabinet right is on', () => {
+  it('shows model override fields only when the cabinet right is on', async () => {
+    const user = userEvent.setup();
     renderEditor(true);
+    await user.click(screen.getByRole('tab', { name: 'Модели' }));
     expect(screen.getByTestId('sa-section-models')).toBeInTheDocument();
   });
 });

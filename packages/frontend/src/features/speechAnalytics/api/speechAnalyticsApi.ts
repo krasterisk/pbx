@@ -1,4 +1,7 @@
+import { defaultSaProjectConfig, type SaProjectConfigV1 } from '@krasterisk/shared';
 import { rtkApi } from '@/shared/api/rtkApi';
+
+export type { SaProjectConfigV1 };
 
 export interface SaProject {
   id: string;
@@ -6,6 +9,28 @@ export interface SaProject {
   status: 'draft' | 'active' | 'archived';
   draft_revision: number;
   active_version_id: string | null;
+  draft_config?: SaProjectConfigV1;
+}
+
+function parseDraftConfig(raw: unknown): SaProjectConfigV1 {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return { ...defaultSaProjectConfig(), ...(raw as SaProjectConfigV1) };
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      return { ...defaultSaProjectConfig(), ...(JSON.parse(raw) as SaProjectConfigV1) };
+    } catch {
+      return defaultSaProjectConfig();
+    }
+  }
+  return defaultSaProjectConfig();
+}
+
+function normalizeProject(row: SaProject & { draft_config?: unknown }): SaProject {
+  return {
+    ...row,
+    draft_config: parseDraftConfig(row.draft_config),
+  };
 }
 
 export interface SaRecording {
@@ -105,10 +130,26 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
     }),
     getSaProjects: builder.query<SaProject[], void>({
       query: () => '/speech-analytics/projects',
+      transformResponse: (rows: Array<SaProject & { draft_config?: unknown }>) =>
+        (rows ?? []).map(normalizeProject),
       providesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
     }),
     createSaProject: builder.mutation<SaProject, { name: string }>({
       query: (body) => ({ url: '/speech-analytics/projects', method: 'POST', body }),
+      transformResponse: (row: SaProject & { draft_config?: unknown }) => normalizeProject(row),
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
+    }),
+    updateSaProjectDraft: builder.mutation<
+      SaProject,
+      { id: string; expectedRevision: number; config: SaProjectConfigV1 }
+    >({
+      query: ({ id, expectedRevision, config }) => ({
+        url: `/speech-analytics/projects/${id}/draft`,
+        method: 'PUT',
+        body: config,
+        headers: { 'If-Match': String(expectedRevision) },
+      }),
+      transformResponse: (row: SaProject & { draft_config?: unknown }) => normalizeProject(row),
       invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
     }),
     publishSaProject: builder.mutation<unknown, { id: string; operationKey: string }>({
@@ -116,6 +157,12 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
         url: `/speech-analytics/projects/${id}/publish`, method: 'POST', body: { operationKey },
       }),
       invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
+    }),
+    testSaProjectWebhook: builder.mutation<{ ok: boolean } | unknown, { id: string }>({
+      query: ({ id }) => ({
+        url: `/speech-analytics/projects/${id}/webhook/test`,
+        method: 'POST',
+      }),
     }),
     setSaProjectIntake: builder.mutation<SaProject, { id: string; enabled: boolean }>({
       query: ({ id, enabled }) => ({
@@ -240,7 +287,9 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
 export const {
   useGetSaProjectsQuery,
   useCreateSaProjectMutation,
+  useUpdateSaProjectDraftMutation,
   usePublishSaProjectMutation,
+  useTestSaProjectWebhookMutation,
   useSetSaProjectIntakeMutation,
   useGetSaRecordingsQuery,
   useGetSaRunQuery,

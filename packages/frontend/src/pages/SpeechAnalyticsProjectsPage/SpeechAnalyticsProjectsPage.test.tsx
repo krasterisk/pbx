@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SA_INDUSTRY_TEMPLATES } from '@krasterisk/shared';
+import { MetricEditor } from '@/features/speechAnalytics/ui/MetricEditor';
 import { SpeechAnalyticsProjectsPage } from './SpeechAnalyticsProjectsPage';
 
 vi.mock('react-i18next', () => ({
@@ -30,11 +32,13 @@ const projectsState: {
   }>;
   isLoading: boolean;
   isError: boolean;
+  saveLoading: boolean;
   refetch: ReturnType<typeof vi.fn>;
 } = {
   data: [],
   isLoading: false,
   isError: false,
+  saveLoading: false,
   refetch: vi.fn(),
 };
 
@@ -46,10 +50,14 @@ vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
     refetch: projectsState.refetch,
   }),
   useCreateSaProjectMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ id: 'new' }) })), { isLoading: false }],
-  usePublishSaProjectMutation: () => [vi.fn(), { isLoading: false }],
+  usePublishSaProjectMutation: () => [vi.fn(), { isLoading: projectsState.saveLoading === true }],
   useSetSaProjectIntakeMutation: () => [vi.fn(), {}],
-  useUpdateSaProjectDraftMutation: () => [vi.fn(), { isLoading: false }],
+  useUpdateSaProjectDraftMutation: () => [vi.fn(), { isLoading: projectsState.saveLoading === true }],
   useTestSaProjectWebhookMutation: () => [vi.fn(), { isLoading: false }],
+}));
+
+vi.mock('@/shared/api/endpoints/notificationApi', () => ({
+  useGetNotificationsQuery: () => ({ data: [], isLoading: false }),
 }));
 
 function renderPage() {
@@ -65,6 +73,7 @@ describe('SpeechAnalyticsProjectsPage', () => {
     projectsState.data = [];
     projectsState.isLoading = false;
     projectsState.isError = false;
+    projectsState.saveLoading = false;
     projectsState.refetch = vi.fn();
   });
 
@@ -118,5 +127,27 @@ describe('SpeechAnalyticsProjectsPage', () => {
     expect(screen.getByText('Debt')).toBeInTheDocument();
     expect(screen.getByText('Appt')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Создать проект' }).length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('MetricEditor (via projects verify path)', () => {
+  beforeEach(() => {
+    projectsState.data = [
+      { id: 'p1', name: 'Pilot', status: 'draft', draft_revision: 1, active_version_id: null },
+    ];
+    projectsState.saveLoading = false;
+  });
+
+  it('renders D-25 templates and disables publish while saving', () => {
+    projectsState.saveLoading = true;
+    render(
+      <MemoryRouter>
+        <MetricEditor projectId="p1" />
+      </MemoryRouter>,
+    );
+    for (const templateId of SA_INDUSTRY_TEMPLATES) {
+      expect(screen.getByTestId(`sa-template-${templateId}`)).toBeInTheDocument();
+    }
+    expect(screen.getByRole('button', { name: 'Опубликовать проект' })).toBeDisabled();
   });
 });
