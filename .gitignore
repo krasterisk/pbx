@@ -35,3 +35,10 @@ ecosystem.config.js
 asterisk-odbc.credentials.json
 **/asterisk-odbc.credentials.json
 
+# Speech-analytics UAT sample audio (D-50) — never commit
+speech-analytics-samples/
+**/speech-analytics-samples/**/*.mp3
+**/speech-analytics-samples/**/*.wav
+**/speech-analytics-samples/**/*.ogg
+**/speech-analytics-samples/**/*.m4a
+

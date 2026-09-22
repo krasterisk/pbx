@@ -1,0 +1,19 @@
+{
+  "note": "Template evidence slot for live speech-analytics UAT (D-50). Overwritten by harness/scenarios/manual/speech-analytics-uat-live.cjs. Do not embed raw audio or API token plaintext (T-18-10-LEAK).",
+  "samplesDir": "Z:\\temp\\speech-analytics-samples",
+  "updatedAt": null,
+  "setup": null,
+  "live": {
+    "skipped": true,
+    "reason": "awaiting_human_live_run",
+    "web": {
+      "mono": null,
+      "stereo": null
+    },
+    "api": {
+      "mono": null,
+      "stereo": null
+    },
+    "doubleUpload": null
+  }
+}
