@@ -1,0 +1,9 @@
+{
+  "command": "node ../../node_modules/vitest/vitest.mjs run --config vite.config.ts src/app/router/speechAnalyticsReportsRoute.test.tsx",
+  "exitCode": 1,
+  "targetTest": "does not mount SpeechAnalyticsReportsPage as a live product route at /speech-analytics/reports",
+  "targetFile": "packages/frontend/src/app/router/speechAnalyticsReportsRoute.test.tsx",
+  "expected": "mountsReportsPage === false; route element is Navigate to /speech-analytics/conversations",
+  "actual": "AssertionError: expected true to be false — SpeechAnalyticsReportsPage still mounted at speech-analytics/reports",
+  "output": "# tests 2\n# pass 1\n# fail 1\n# cancelled 0\nnot ok 1 - does not mount SpeechAnalyticsReportsPage as a live product route at /speech-analytics/reports\nok 2 - keeps dashboard and journal product routes"
+}
