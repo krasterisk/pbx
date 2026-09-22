@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"speech-analytics-ai.adapter\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "issues a token with secret only in apply result; proposal and chat history omit the secret (D-33)",
+  "targetFile": "packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.spec.ts",
+  "expected": "Token secret only in apply result; proposal/chat history omit secret; pause/project tools register with skill",
+  "actual": "Stub proposal.after includes sa-secret-ONCE-only; registry not called; skill name stub; publish/pauseNew false",
+  "output": "# tests 5\n# pass 1\n# fail 4\nnot ok 1 - registers with the AI adapter registry and pairs with the module skill\nnot ok 2 - issues a token with secret only in apply result; proposal and chat history omit the secret (D-33)\nnot ok 3 - publishes project edit when metrics change and uses dispatch tenant uid only (D-27, T-18-15-TENANT)\nnot ok 4 - pauses new auto-analysis via module settings (D-19)"
+}
