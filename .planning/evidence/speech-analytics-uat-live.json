@@ -1,19 +1,2002 @@
 {
-  "note": "Template evidence slot for live speech-analytics UAT (D-50). Overwritten by harness/scenarios/manual/speech-analytics-uat-live.cjs. Do not embed raw audio or API token plaintext (T-18-10-LEAK).",
+  "note": "Live UAT evidence. No raw audio or API token plaintext.",
   "samplesDir": "Z:\\temp\\speech-analytics-samples",
-  "updatedAt": null,
-  "setup": null,
+  "updatedAt": "2026-09-22T17:31:42.761Z",
+  "setup": {
+    "capabilitiesStatus": 200,
+    "capturePolicyStatus": 200,
+    "journalStatus": 200,
+    "project": {
+      "id": "9f5dad1a-8219-4872-9028-938a18c10b6b",
+      "name": "UAT-SA-Samples-20260922",
+      "created": false,
+      "listStatus": 200,
+      "createStatus": null
+    },
+    "pauseToggleStatus": 200,
+    "publishStatus": 201,
+    "adminLogin": "adminNew"
+  },
   "live": {
-    "skipped": true,
-    "reason": "awaiting_human_live_run",
+    "skipped": false,
     "web": {
-      "mono": null,
-      "stereo": null
+      "mono": {
+        "label": "web-mono",
+        "total": 58,
+        "ok": 58,
+        "failed": 0,
+        "continuedAfterFailure": true,
+        "results": [
+          {
+            "ok": true,
+            "filename": "20260922082005-89135811885-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "d7212ab1-73ce-4c94-b997-f39d279a6a44",
+            "recordingId": "566d5169-9e6f-4ec3-8bcb-354046ac0d89",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082006-83912644583-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "adb4cb18-b7b2-4531-a3f3-4bf8cb41f130",
+            "recordingId": "474926a0-8570-4c91-9507-d7404781dc2a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082008-89135502897-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "fcb3081a-77ec-4e72-a7f7-6df7e4883453",
+            "recordingId": "219e8b95-5f5a-43da-9323-62476452bc9a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082039-89082064064-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "ed494e6f-eba8-4947-b23c-e391e83dcbeb",
+            "recordingId": "f75e723f-65df-48da-b516-7cf7c3f590b7",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082108-83912988034-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "191d4d02-d705-4b11-be14-e32dd2540832",
+            "recordingId": "0ea3530b-1b63-4104-aa3d-b28418e35aff",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082111-83912600760-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "77a94e77-e3d3-467b-bd98-78dfb8b8c0a0",
+            "recordingId": "a2fd99d9-2862-441e-93d5-1fffa891813d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082122-89994405573-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "b5fda0d6-5259-4c90-9fe8-a55edd6678e1",
+            "recordingId": "5a88bc62-e728-4f0f-aa74-34f26b48f06a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082140-89135271734-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "0d5517b5-fa9e-48ef-bed5-a38dcf345b1a",
+            "recordingId": "300a1831-e0bf-455a-b516-2b7cd4437615",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082212-89232927390-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "e70adf0b-b3ac-487d-b4c1-f03b34d605c7",
+            "recordingId": "17d6e5d7-b181-4885-a7cc-5bb5c2a790c4",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082213-89131715902-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "242733da-6615-4e18-b2b9-e39b38c4d32f",
+            "recordingId": "b89a59ea-1052-45fb-acc2-0f7aad623387",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082214-89131989442-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "ce3cc772-e4a9-4326-a98d-c54da645d85c",
+            "recordingId": "1d251b12-03b1-436d-a741-e8aa2dc8a161",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082225-89135927807-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "68254bc4-c2c4-42b6-8fce-ed0a1f164c01",
+            "recordingId": "a3d42de1-d438-4ab5-a045-e64914ef023e",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082504-89504290267-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "c5433e2d-4ec8-4b64-a9be-ccd1dcafdc0d",
+            "recordingId": "9d8e003a-43de-49de-9327-05123bba0eb2",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083025-84997099817-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "782df87b-3978-41d4-a85b-40636914e8ff",
+            "recordingId": "60ed622e-bb65-40fb-9476-df88b74800bb",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083025-89029122175-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "4f6b4eae-f930-43d9-852d-9dd7289c29a4",
+            "recordingId": "bbec5e79-231a-4acc-81d4-b0c9c6338a78",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083052-89135966818-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "a26a2f15-0ffb-449b-b7c9-5dfb9c4c7f51",
+            "recordingId": "431fe8de-25b0-426f-889a-2db6a5e2f0f7",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083118-89236692920-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "d227312f-0063-496f-9926-6f836a6ad784",
+            "recordingId": "302e221b-f06e-4b14-964b-90130c2fb42a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083125-89082004564-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "5c61b3ae-ab34-4434-a0eb-2f1e42b2b558",
+            "recordingId": "e18ecd8a-3e48-42fb-ac14-c6b0c7a2613b",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083129-89632642222-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "ebd5c817-fdd4-485b-9f79-4e746157bdb3",
+            "recordingId": "b2539917-135c-4f1a-a4ff-1212452d9176",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083152-89234141408-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "b9976b22-5e1c-4114-9a3b-58d0a3bcc3df",
+            "recordingId": "b6817bb7-0705-4e66-aac4-d7cc88b6c591",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083227-89080166343-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "943bd0b1-a797-44d9-a1e1-b75e9c0a256c",
+            "recordingId": "e6a7d941-1de4-4455-8947-14bf40c9937f",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083240-89504338569-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "c9142ac3-cccf-459f-af18-eed5a448e090",
+            "recordingId": "7cb720c0-305d-48b5-aeb7-39e63bc8b57f",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083316-83912625137-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "25733de3-ea2a-4b89-9908-a35d6a8442cc",
+            "recordingId": "66438464-791e-4f60-a19a-18647c699d7f",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083319-89504395009-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "bf90cb3c-a600-4370-8553-67694908b86c",
+            "recordingId": "8a02c4f2-b827-44cd-a53d-37f0190c6a87",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083400-89504068894-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "30e9020c-6191-4632-8021-0a8daca0cd25",
+            "recordingId": "b8c540e8-5285-486a-911a-485a017629ca",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083424-89069163633-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "94bf423f-ae2c-46a6-a63b-ed0e8044da39",
+            "recordingId": "0d3e5d3d-df47-48d8-b377-d8471524e95a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083442-89339949729-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "0653e7a8-01d7-4de0-8645-afceeeeda21b",
+            "recordingId": "7be0e7ab-4f83-4aff-99a4-48dfd93da3d7",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083454-89131970938-2573161.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "8cece043-058d-4f30-be74-d7152bdf08c9",
+            "recordingId": "c37ec69a-c1ca-4036-a330-52b07a6d0035",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083515-89915010970-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "02fabf5a-2c2f-4e39-bf4d-c4794ed61b88",
+            "recordingId": "f73b55f6-eb0b-41fe-8e2c-c07661e7150d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083609-89138350975-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "2742d5b1-510b-4750-ba14-f326e9ec8573",
+            "recordingId": "6176134a-a333-42a6-a222-1945c398060d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083621-89048900251-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "e72e125c-6a9e-4ce3-a5ed-e2e1ff9badfb",
+            "recordingId": "ac81cfff-d1ea-4969-b4a2-dc0b70539a4f",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083621-89504083830-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "f52ae22b-d05c-48b3-bf3c-7a582e15c9a4",
+            "recordingId": "02cf2037-40bf-415a-a947-4c2d43b886a6",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083636-89135195070-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "8ef22e47-2d54-45c9-89dd-c24644069e91",
+            "recordingId": "d7aad08c-a5c0-42a1-a03b-73b976ee45dc",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083700-83912643575-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "ae735613-8ea5-4c82-b58f-24205e7e4a7c",
+            "recordingId": "4d81ee97-21ae-41af-9413-3fc9a0641862",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083727-89658998880-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "442cac43-69af-413a-b10a-edfbdf1a22bf",
+            "recordingId": "78bd9c41-2f3c-4841-bfc7-4e23542d4c55",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083739-89509848261-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "25e08b0a-5861-4f01-93d9-506b1fa36bf9",
+            "recordingId": "d14d8d3a-e0bc-4cf1-a3a4-3a198cb55406",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083812-83912377156-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "52d102c4-2a04-49ee-8646-730f07dffac6",
+            "recordingId": "fca5d2b9-2a53-4f5a-9ab1-8e020518d2b5",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083812-89339949729-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "bc312957-7c37-4720-8028-a2b78be404ba",
+            "recordingId": "6a7c35f1-e518-490e-bc02-e01a5297acac",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083818-89620845982-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "5b70a7e7-b521-4365-aa4c-c6f218f6e643",
+            "recordingId": "a16ea6ae-2c5d-47f9-be04-fa84efa7c336",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083843-89689704891-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "4a7eb0e2-1779-4712-a276-8c549a3d57f4",
+            "recordingId": "9ac5f284-c018-494f-a550-2845bcbae55d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083934-89131991790-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "30fb5db8-e1d8-452c-9485-25899c3a886b",
+            "recordingId": "49700b5b-c624-4223-ad2c-835a8d4b77d2",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083938-89029102633-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "80f7982c-fa31-4127-814a-b6ce6ae92ca1",
+            "recordingId": "644ef6ad-8e89-4ae4-8a0c-09412aa7a976",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083948-89135119679-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "99d70626-958a-4cf3-a3be-a799fb445a3d",
+            "recordingId": "e7000b54-9bc1-458d-99e5-b6838f55a783",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084203-83912622104-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "4c4b1c21-9e04-48cc-8eaa-a10bd2613ea0",
+            "recordingId": "3b1f9cf7-ca03-4f53-9476-b3349c7ee7a9",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084205-89029193721-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "99a82099-02d0-4b46-8f4f-8c48aa0c490c",
+            "recordingId": "09d1b3f3-db58-4646-b143-c8ce8ea41e67",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084209-89620815506-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "72722b6a-d7ab-43f8-88a7-daabf2d800aa",
+            "recordingId": "fda8203c-7473-4924-b2c6-0219a3121d6f",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084224-89029452563-2772735.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "3196b1b0-2324-4c78-8a78-e8ec7eeab557",
+            "recordingId": "5bed1e3d-487c-4d11-9485-05eb6edfadfe",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084227-89675402863-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "419c9814-6a3d-42e8-948f-b7c137ddb20e",
+            "recordingId": "193a9c2a-7c0d-476d-8cf9-f5e856cf070a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084239-89500977692-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "bbed24ba-d08b-4093-a478-09688c782b1b",
+            "recordingId": "0d05d722-fc1a-4419-9817-bb7c1fe4eb6f",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084251-89080261971-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "516f0f01-66a2-4f25-9541-2e366ce73798",
+            "recordingId": "d3e75b4e-15d3-42da-b8c3-a53c6da06153",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084354-89082084776-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "a9f625e5-02ec-47b1-ae4c-1e8f3b457881",
+            "recordingId": "b2882454-f34c-438b-b98b-11aca19d0d42",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084404-89029193721-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "2aa4f04b-bbab-444f-882e-2d26801d8194",
+            "recordingId": "5e0baef6-87be-44f4-a65a-aadfbc9d532d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084414-83912493137-2573160.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "a215c287-26e0-45a9-9cbb-edbdbc589923",
+            "recordingId": "28f0136b-3fa0-4466-87de-eb978fad37e1",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084417-89135703674-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "cfa96d8f-23a2-41a1-ab55-9795a8ad050c",
+            "recordingId": "fa8cbd62-2168-47ec-a85f-3d2a045d69f5",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084456-89130478998-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "fc776ddc-12b6-4ac2-b598-148c1bd40dd9",
+            "recordingId": "c1ca7405-80b7-4b03-9086-cac06849fa53",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084529-89915002621-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "61b88953-f10c-4dd8-abb4-688c304f63e5",
+            "recordingId": "214beadd-7c5c-4d2a-9125-48878a422889",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084601-89135575577-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "83607734-1d50-49cb-8f9f-220c9eb9cf50",
+            "recordingId": "9e3b5420-845a-4185-8cb9-ff78b2b1331e",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084751-89131745953-2773355.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "d97ff00c-9bf1-452c-ad26-326f5f724dce",
+            "recordingId": "39314cbe-f14f-4c7b-806d-4663d3d27f56",
+            "error": null
+          }
+        ]
+      },
+      "stereo": {
+        "label": "web-stereo",
+        "total": 49,
+        "ok": 49,
+        "failed": 0,
+        "continuedAfterFailure": true,
+        "results": [
+          {
+            "ok": true,
+            "filename": "20260922095045-+79029819740-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "1f9c6422-74cc-414b-8764-89f6491c7af5",
+            "recordingId": "f987f02b-3d45-45eb-94ae-ad4b5adbe8cd",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095125-+79535926390-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "e0196364-2cb6-4a13-8cb3-7e59d4f2ea58",
+            "recordingId": "4bc70e25-bfdb-4b74-ae7a-ed5494896834",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095314-89509954900-83912050130.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "2f2fa7c3-3e14-47e5-aa8a-39cd0ca5713c",
+            "recordingId": "975ce076-7308-49f6-8bec-09cefa571577",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095627-+73912051703-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "c980e62b-e6c7-4fc6-8801-c97e1b1921a0",
+            "recordingId": "40471b8c-b3ac-4a80-b607-5b22cf75c917",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095651-+79135343048-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "f2e43164-2133-426c-9bf6-b89b62fb8166",
+            "recordingId": "d46d79aa-ef31-47b1-9127-6bbbbf14b58d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095759-+79029665800-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "5639a68c-73b8-4b92-8181-e64d7e8007a3",
+            "recordingId": "d95ef82c-94bf-4961-b963-b6238789d022",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100047-+79607731777-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "1b4ca637-d98f-4af2-a925-6cd5ca13ef56",
+            "recordingId": "f2a18e9a-3368-4144-ae82-097c53f4e4ff",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100129-+79233109039-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "6089df5e-3f70-4d8f-a63b-657250e7ef0e",
+            "recordingId": "364338ff-9921-45d9-9cf6-4fdb2765a0ee",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100239-89504085057-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "0e1f448c-e207-45f3-b50d-eaaaa4d343ef",
+            "recordingId": "87d83866-7dd4-43cf-8d1c-9c6b6edd16dc",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100511-+79142534004-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "b523a823-b6c6-4deb-83a6-f67fb89ca9ea",
+            "recordingId": "fd9bfac0-1e14-4f4f-b1ed-60188445f984",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100517-89806926280-83912050130.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "65cad7bb-f8c2-4379-a501-bc52faad0567",
+            "recordingId": "3eab29b2-e612-4274-a3aa-24654f0cb5c6",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922101007-+79080116731-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "8d14bd3d-f9c5-4703-8f1b-51727757bf6a",
+            "recordingId": "bf250c6d-31e4-4a44-be31-4dc75d686af9",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922101228-89233067621-83912050130.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "8262d511-fbcb-4aea-8021-9771c3ac8d90",
+            "recordingId": "6d661064-d874-4207-99c2-1e71d53bca0b",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922101838-89235565608-83912050130.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "83bd9e00-d2f7-43dc-a559-cf38cb889f57",
+            "recordingId": "2c949c2a-8123-4f44-afe9-96285e5bfb9b",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102054-+73912911443-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "7326a051-1071-40ec-973c-f96200c033a6",
+            "recordingId": "7577935a-23ff-4ee1-8948-dda100f98bf7",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102301-81079509804433-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "a02c591e-e1d8-4829-bf2e-b604c8644c1a",
+            "recordingId": "dd9e749e-6dbe-49cf-b469-cca16b06a7b5",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102403-+79832090143-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "6c075400-c390-469a-95a7-fc70a3fd96c0",
+            "recordingId": "1c16aab1-f9a1-46b1-9ff3-f10573baec5a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102438-+79029710985-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "844df4e4-4cbc-49ef-b67c-3ffcc116ab35",
+            "recordingId": "bf9f8e14-6cc1-4fcf-99e6-f16540b96ed5",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102538-+79080165175-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "bf2b9559-74e6-4535-a9f9-2d3e64754db1",
+            "recordingId": "9e1bd5e6-34e4-4b47-a914-c6323304a6ce",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102631-+79235160800-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "3de92ffe-07e2-4b51-bcb3-a4da7e905e86",
+            "recordingId": "52bb52e4-ee03-4a76-8da0-8d4945a064f3",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102641-+79082008048-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "e26ccfeb-5055-4c85-8776-eac3a81f0f35",
+            "recordingId": "fcac9663-6a76-430c-b50f-173ba02889c8",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102745-89029108789-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "5aa80a15-d389-44b4-b47b-a4c656795370",
+            "recordingId": "e737fd2d-5159-4aba-b7df-90e7b1036d8e",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103102-81079233754077-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "2c71d41c-1bec-4455-8fb9-dc4b23d07cc2",
+            "recordingId": "ea3aed24-db9a-44fb-95ab-fb18197a3f18",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103215-+79131937115-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "15f1f7d2-12e0-4109-9ce0-e57c18a8e54f",
+            "recordingId": "4703e87f-3dd5-443a-b9dd-741655866e4c",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103222-+73912168478-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "bb840e5c-2494-4947-aa06-2b1736e8deca",
+            "recordingId": "38e46ce2-f377-4883-90e4-5457e337b24f",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103223-+79509729774-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "0b0e5ccc-54c3-45c0-b883-2ca94dd56256",
+            "recordingId": "d6763a75-5d46-400b-bcc0-536649503f09",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103318-89504381164-2343711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "67334bbb-24a5-4108-a962-0e9eaacdc059",
+            "recordingId": "618adce8-42f5-4cd6-b935-37dd45351977",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103443-89293088032-83912050130.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "30fdd2c9-7fcb-4f55-abe9-780fde645eb7",
+            "recordingId": "13000237-f475-436e-847e-29bd772e17c5",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103557-+79833632566-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "22aaf07b-293d-4de2-a6d3-2907b9c013d2",
+            "recordingId": "c9c16db0-7791-4f66-b46f-0744f3470b8c",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103843-81079048933311-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "ff2c589e-db09-41ab-8dec-fbc63ca2a690",
+            "recordingId": "4e1bad34-70c2-4d0b-aa0b-dfb372032698",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104040-+79130381552-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "37a6aaec-1a93-4e84-93fd-6be6a942df2e",
+            "recordingId": "89553f1e-a290-4901-bfed-9e0e0084ac6d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104151-+79080243965-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "913b592d-f62e-4ed9-aa3c-d1ae281d8170",
+            "recordingId": "dfe4fc41-c350-49ed-a529-5ad8ad92b653",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104630-+79232835011-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "8948b33e-06f5-439b-ab4e-49943318f95d",
+            "recordingId": "fdc477c8-781c-4558-98bd-478a817df621",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104700-89832859257-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "5b083adf-8556-4e62-afe8-3370f260108b",
+            "recordingId": "2397bf7c-6ac1-4ec1-b150-9a2b9e5d77d1",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104746-83912167487-2343711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "db066869-ebe3-41b3-ad2c-58d30b29889f",
+            "recordingId": "f4d6becc-4494-4a29-870a-4b447fd9965a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104857-+79509964860-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "193ba099-5851-4612-867c-f53aecf0d1af",
+            "recordingId": "25f29dc3-77ff-4398-90ad-b4e0902206ba",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104922-+79029108789-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "0aebd0db-8f55-4e93-9b49-eec28fc32153",
+            "recordingId": "79504c3d-0066-4ae9-ab37-a8826f627a3e",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105251-+79080114159-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "c10f7aa8-05bc-432f-9ad4-faf151d999da",
+            "recordingId": "18c929c1-7057-40de-a894-649c30e0ac6f",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105350-89233299062-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "f953e37b-2fb3-41fc-a103-71661a3e6a6f",
+            "recordingId": "91d03c16-91c3-4f09-8ef6-2cff082cb90d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105448-+79080114159-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "532d44d9-becd-45c1-800d-62bc55eff143",
+            "recordingId": "12d10ace-230b-42f7-9718-527aefb8fbbd",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105527-81079509751534-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "8e0983e3-64b1-4881-a3da-8e9264a2e5eb",
+            "recordingId": "76e855bf-2830-4361-9689-94f00ee68016",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105653-+79080135827-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "6e2da533-b40b-43fe-b80d-8b2ab4b68a9b",
+            "recordingId": "740ff276-5b82-41e8-8cec-ad078b8bd704",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105708-+79831567184-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "341076b0-00b8-4d1d-a551-46bb775c85dd",
+            "recordingId": "94419677-e00e-4b0e-8f6a-ab271d7f9c88",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922111001-+79080216589-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "0a531633-c714-4d7d-91a1-197253d4a8a9",
+            "recordingId": "ef6e798b-4e70-45f8-9079-a6027bcd790e",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922111211-+79307060001-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "87da95ab-a3e0-4392-ac43-788b7ed6cb4c",
+            "recordingId": "2f9d3513-f023-40c8-920e-2b7cd65fe07a",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922111726-+79659120019-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "ee9e5f8a-826a-4912-9fbd-17d3a4275443",
+            "recordingId": "bcdc354f-1919-4abd-a61b-ee4ce40e735d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922112003-+73912168478-9059768100.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "2d70189c-9086-4041-998e-aba545488099",
+            "recordingId": "33f0ff54-1bbf-4a5e-90e4-fdc033f46349",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922112102-81079082207908-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "fc32be46-0920-4679-bc20-e68d1ba0751b",
+            "recordingId": "a82ed95e-8717-430b-99a5-21191a7bc04d",
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922112713-81079535835928-2238711.mp3",
+            "channel": "web",
+            "journalId": null,
+            "runId": "f86d6841-3270-49a6-abee-e6c9c75dade0",
+            "recordingId": "ee6def88-e639-49fe-8386-6f09308b3c1b",
+            "error": null
+          }
+        ]
+      }
     },
     "api": {
-      "mono": null,
-      "stereo": null
+      "mono": {
+        "label": "api-mono",
+        "total": 58,
+        "ok": 58,
+        "failed": 0,
+        "continuedAfterFailure": true,
+        "results": [
+          {
+            "ok": true,
+            "filename": "20260922082005-89135811885-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082005-89135811885-2773355.mp3:1790096362465",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082006-83912644583-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082006-83912644583-2773355.mp3:1790096364822",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082008-89135502897-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082008-89135502897-2773355.mp3:1790096367138",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082039-89082064064-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082039-89082064064-2773355.mp3:1790096369467",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082108-83912988034-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082108-83912988034-2773355.mp3:1790096371852",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082111-83912600760-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082111-83912600760-2773355.mp3:1790096374158",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082122-89994405573-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082122-89994405573-2773355.mp3:1790096376458",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082140-89135271734-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082140-89135271734-2773355.mp3:1790096378813",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082212-89232927390-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082212-89232927390-2773355.mp3:1790096381246",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082213-89131715902-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082213-89131715902-2773355.mp3:1790096383920",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082214-89131989442-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082214-89131989442-2773355.mp3:1790096386741",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082225-89135927807-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082225-89135927807-2773355.mp3:1790096389559",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922082504-89504290267-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922082504-89504290267-2573160.mp3:1790096391883",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083025-84997099817-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083025-84997099817-2573160.mp3:1790096394202",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083025-89029122175-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083025-89029122175-2773355.mp3:1790096396514",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083052-89135966818-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083052-89135966818-2773355.mp3:1790096398805",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083118-89236692920-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083118-89236692920-2573160.mp3:1790096401273",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083125-89082004564-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083125-89082004564-2773355.mp3:1790096403831",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083129-89632642222-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083129-89632642222-2573160.mp3:1790096406175",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083152-89234141408-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083152-89234141408-2573160.mp3:1790096408557",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083227-89080166343-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083227-89080166343-2573160.mp3:1790097818231",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083240-89504338569-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083240-89504338569-2573160.mp3:1790097822372",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083316-83912625137-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083316-83912625137-2773355.mp3:1790097826695",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083319-89504395009-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083319-89504395009-2773355.mp3:1790097830618",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083400-89504068894-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083400-89504068894-2773355.mp3:1790097834642",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083424-89069163633-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083424-89069163633-2573160.mp3:1790097838514",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083442-89339949729-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083442-89339949729-2573160.mp3:1790097842513",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083454-89131970938-2573161.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083454-89131970938-2573161.mp3:1790097846886",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083515-89915010970-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083515-89915010970-2773355.mp3:1790097850848",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083609-89138350975-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083609-89138350975-2773355.mp3:1790097854831",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083621-89048900251-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083621-89048900251-2573160.mp3:1790097858700",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083621-89504083830-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083621-89504083830-2773355.mp3:1790097862601",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083636-89135195070-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083636-89135195070-2573160.mp3:1790097866936",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083700-83912643575-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083700-83912643575-2773355.mp3:1790097870789",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083727-89658998880-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083727-89658998880-2773355.mp3:1790097874715",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083739-89509848261-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083739-89509848261-2773355.mp3:1790097878677",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083812-83912377156-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083812-83912377156-2773355.mp3:1790097887940",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083812-89339949729-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083812-89339949729-2573160.mp3:1790097891901",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083818-89620845982-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083818-89620845982-2773355.mp3:1790097895804",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083843-89689704891-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083843-89689704891-2573160.mp3:1790097899653",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083934-89131991790-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083934-89131991790-2573160.mp3:1790097903706",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083938-89029102633-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083938-89029102633-2573160.mp3:1790097908075",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922083948-89135119679-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922083948-89135119679-2773355.mp3:1790097912036",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084203-83912622104-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084203-83912622104-2773355.mp3:1790097916451",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084205-89029193721-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084205-89029193721-2773355.mp3:1790097920327",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084209-89620815506-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084209-89620815506-2773355.mp3:1790097924669",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084224-89029452563-2772735.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084224-89029452563-2772735.mp3:1790097929014",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084227-89675402863-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084227-89675402863-2773355.mp3:1790097932960",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084239-89500977692-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084239-89500977692-2773355.mp3:1790097936815",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084251-89080261971-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084251-89080261971-2773355.mp3:1790097940709",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084354-89082084776-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084354-89082084776-2773355.mp3:1790097944650",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084404-89029193721-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084404-89029193721-2773355.mp3:1790097948523",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084414-83912493137-2573160.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084414-83912493137-2573160.mp3:1790097958286",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084417-89135703674-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084417-89135703674-2773355.mp3:1790097962280",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084456-89130478998-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084456-89130478998-2773355.mp3:1790097966198",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084529-89915002621-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084529-89915002621-2773355.mp3:1790097970607",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084601-89135575577-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084601-89135575577-2773355.mp3:1790097974514",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922084751-89131745953-2773355.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922084751-89131745953-2773355.mp3:1790097978431",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          }
+        ]
+      },
+      "stereo": {
+        "label": "api-stereo",
+        "total": 49,
+        "ok": 49,
+        "failed": 0,
+        "continuedAfterFailure": true,
+        "results": [
+          {
+            "ok": true,
+            "filename": "20260922095045-+79029819740-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922095045-+79029819740-9059768100.mp3:1790097982578",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095125-+79535926390-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922095125-+79535926390-9059768100.mp3:1790097986479",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095314-89509954900-83912050130.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922095314-89509954900-83912050130.mp3:1790097990844",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095627-+73912051703-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922095627-+73912051703-9059768100.mp3:1790097994688",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095651-+79135343048-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922095651-+79135343048-9059768100.mp3:1790097998589",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922095759-+79029665800-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922095759-+79029665800-9059768100.mp3:1790098002541",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100047-+79607731777-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922100047-+79607731777-9059768100.mp3:1790098006397",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100129-+79233109039-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922100129-+79233109039-9059768100.mp3:1790098010345",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100239-89504085057-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922100239-89504085057-2238711.mp3:1790098014279",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100511-+79142534004-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922100511-+79142534004-9059768100.mp3:1790098018660",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922100517-89806926280-83912050130.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922100517-89806926280-83912050130.mp3:1790098022595",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922101007-+79080116731-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922101007-+79080116731-9059768100.mp3:1790098026520",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922101228-89233067621-83912050130.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922101228-89233067621-83912050130.mp3:1790098030459",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922101838-89235565608-83912050130.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922101838-89235565608-83912050130.mp3:1790098034495",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102054-+73912911443-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922102054-+73912911443-9059768100.mp3:1790098038461",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102301-81079509804433-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922102301-81079509804433-2238711.mp3:1790098042837",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102403-+79832090143-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922102403-+79832090143-9059768100.mp3:1790098052498",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102438-+79029710985-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922102438-+79029710985-9059768100.mp3:1790098056348",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102538-+79080165175-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922102538-+79080165175-9059768100.mp3:1790098060245",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102631-+79235160800-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922102631-+79235160800-9059768100.mp3:1790098064156",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102641-+79082008048-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922102641-+79082008048-9059768100.mp3:1790098068147",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922102745-89029108789-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922102745-89029108789-2238711.mp3:1790098072056",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103102-81079233754077-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922103102-81079233754077-2238711.mp3:1790098076008",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103215-+79131937115-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922103215-+79131937115-9059768100.mp3:1790098080207",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103222-+73912168478-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922103222-+73912168478-9059768100.mp3:1790098084223",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103223-+79509729774-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922103223-+79509729774-9059768100.mp3:1790098088130",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103318-89504381164-2343711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922103318-89504381164-2343711.mp3:1790098092096",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103443-89293088032-83912050130.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922103443-89293088032-83912050130.mp3:1790098096017",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103557-+79833632566-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922103557-+79833632566-9059768100.mp3:1790098099936",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922103843-81079048933311-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922103843-81079048933311-2238711.mp3:1790098104460",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104040-+79130381552-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922104040-+79130381552-9059768100.mp3:1790098108487",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104151-+79080243965-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922104151-+79080243965-9059768100.mp3:1790098112842",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104630-+79232835011-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922104630-+79232835011-9059768100.mp3:1790098122076",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104700-89832859257-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922104700-89832859257-2238711.mp3:1790098126174",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104746-83912167487-2343711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922104746-83912167487-2343711.mp3:1790098130136",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104857-+79509964860-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922104857-+79509964860-9059768100.mp3:1790098134243",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922104922-+79029108789-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922104922-+79029108789-9059768100.mp3:1790098138137",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105251-+79080114159-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922105251-+79080114159-9059768100.mp3:1790098142108",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105350-89233299062-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922105350-89233299062-2238711.mp3:1790098146019",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105448-+79080114159-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922105448-+79080114159-9059768100.mp3:1790098149875",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105527-81079509751534-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922105527-81079509751534-2238711.mp3:1790098154184",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105653-+79080135827-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922105653-+79080135827-9059768100.mp3:1790098158072",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922105708-+79831567184-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922105708-+79831567184-9059768100.mp3:1790098162197",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922111001-+79080216589-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922111001-+79080216589-9059768100.mp3:1790098166545",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922111211-+79307060001-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922111211-+79307060001-9059768100.mp3:1790098170855",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922111726-+79659120019-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922111726-+79659120019-9059768100.mp3:1790098174776",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922112003-+73912168478-9059768100.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922112003-+73912168478-9059768100.mp3:1790098178651",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922112102-81079082207908-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922112102-81079082207908-2238711.mp3:1790098182605",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          },
+          {
+            "ok": true,
+            "filename": "20260922112713-81079535835928-2238711.mp3",
+            "channel": "api",
+            "journalId": "journal:20260922112713-81079535835928-2238711.mp3:1790098191822",
+            "runId": null,
+            "recordingId": null,
+            "error": null
+          }
+        ]
+      }
     },
-    "doubleUpload": null
+    "doubleUpload": {
+      "skipped": false,
+      "filename": "20260922082005-89135811885-2773355.mp3",
+      "firstOk": true,
+      "secondOk": true,
+      "firstRecordingId": "d3829eb2-ecd3-4e5a-88ba-5424cd324889",
+      "secondRecordingId": "844ac5d5-e2f8-4d5f-adea-75b86c2e94f9",
+      "distinctRecordings": true,
+      "journalMatchCount": 2,
+      "journalTotal": 115,
+      "assertion": "uploading the same sample twice creates two journal conversations"
+    },
+    "batchContinuesOnFailure": true
   }
 }
