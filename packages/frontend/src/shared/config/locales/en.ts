@@ -38,6 +38,19 @@ export const en = {
     fieldRequired: "Required field",
     moveUp: "Move up",
     moveDown: "Move down",
+    selectPageAria: "Select all on this page",
+    selectionBannerPage: "{{pageCount}} selected on this page.",
+    selectionBannerSelectAll: "Select all {{total}}",
+    selectionBannerAll: "All {{total}} selected.",
+    selectionBannerClear: "Clear selection",
+    confirmBulkDelete: "Delete {{count}} selected records?",
+    confirmBulkDeleteOne: "Delete \"{{label}}\"?",
+    confirmBulkDeleteBody: "Will delete: {{labels}}.",
+    confirmBulkDeleteBodyMore: "Will delete: {{labels}} and {{remaining}} more.",
+    confirmBulkDeleteAll: "Delete all records ({{count}})?",
+    confirmBulkDeleteAllFiltered: "Delete all records matching the current search ({{count}})?",
+    confirmBulkDeleteIrreversible: "This action cannot be undone.",
+    exportSelectedCsv: "CSV ({{count}})",
   },
 
   // Auth
@@ -138,6 +151,9 @@ export const en = {
     wallboard: "Wallboard",
     ccReports: "Call Center Reports",
     ccSettings: "Call Center Settings",
+    auditLog: "Audit log",
+    modules: "Modules",
+    integrations: "Integrations",
   },
 
   recording: {
@@ -263,8 +279,19 @@ export const en = {
     showCredentials: "Show",
     btnSip: "SIP Data",
     confirmDelete: "Delete endpoint {{ext}}?",
-    confirmBulkDelete: "Delete {{count}} endpoints ({{extensions}})?",
+    confirmBulkDelete: "Delete {{count}} endpoints?",
+    confirmBulkDeleteOne: "Delete endpoint {{ext}}?",
+    confirmBulkDeleteBody: "Will delete: {{extensions}}.",
+    confirmBulkDeleteBodyMore: "Will delete: {{extensions}} and {{remaining}} more.",
+    confirmBulkDeleteAll: "Delete all endpoints ({{count}})?",
+    confirmBulkDeleteAllFiltered: "Delete all endpoints matching the current search ({{count}})?",
+    confirmBulkDeleteIrreversible: "This action cannot be undone.",
     deleteSelected: "Delete ({{count}})",
+    selectPageAria: "Select all on this page",
+    selectionBannerPage: "{{pageCount}} selected on this page.",
+    selectionBannerSelectAll: "Select all {{total}}",
+    selectionBannerAll: "All {{total}} selected.",
+    selectionBannerClear: "Clear selection",
     count_one: "{{count}} endpoint",
     count_other: "{{count}} endpoints",
     tabBasic: "Basic",
@@ -324,6 +351,7 @@ export const en = {
     department: "Department",
     network: "Network / Device",
     exportCsv: "CSV",
+    exportSelectedCsv: "CSV ({{count}})",
     bulkProgress: "{{processed}} / {{total}}",
   },
 
@@ -5126,6 +5154,8 @@ export const en = {
     openProjects: "Projects",
     openStudio: "Studio",
     openSessions: "Sessions",
+    entitleCurrent: "Grant to this JWT cabinet",
+    openTenants: "Platform tenants",
     speech_analytics: {
       title: "Speech analytics",
       subtitle: "License, activation and recording readiness. Project editing ships separately.",
@@ -5142,6 +5172,8 @@ export const en = {
       locked: {
         title: "Product unavailable",
         body: "There is no valid license or entitlement for this product. Purchase is not started from this page.",
+        superadminHint:
+          "SuperAdmin sees the JWT status, not a cabinet. Grant the product to a tenant (or this JWT if it has a cabinet), then open that cabinet.",
       },
       expired: {
         title: "License expired",
@@ -5173,6 +5205,10 @@ export const en = {
       product_activation_failed: "Could not change activation",
       tenant_admin_required: "Cabinet administrator rights are required",
       tenant_not_found: "Cabinet not found",
+      tenant_inactive: "The cabinet is inactive (trial ended or suspended). Activate it on the tenant card first.",
+      tenant_binding_required: "This JWT has no cabinet. Grant the product to a tenant in the platform console.",
+      sku_revoked: "The SKU is revoked; issue a different code",
+      UNKNOWN_AI_PRODUCT: "Unknown AI product",
       not_entitled: "This product is not entitled",
       entitlement_expired: "Entitlement has expired",
       product_disabled: "The product is disabled by policy",
@@ -5255,6 +5291,12 @@ export const en = {
     nativeLiveOff: "Native Asterisk capture apply is off until DB-03/INT2.",
     exportCsv: "Export CSV",
     rankingInsufficient: "Sample too small for a leaderboard",
+    routeProjectLabel: "Analytics project",
+    routeProjectHint:
+      "**None** - no auto-analysis\n**Project** - after the call the closed recording is analyzed with this project\nRecording must be enabled on the route",
+    routeProjectPlaceholder: "No project",
+    errorLoadProjects: "Could not load projects. Try again.",
+    retry: "Retry",
   },
 
   aiRobots: {
@@ -5297,6 +5339,7 @@ export const en = {
       title: "Cabinets",
       name: "Name",
       email: "Email",
+      seller: "Supplier",
       status: "Status",
       limits: "Limits",
       limitsValue: "{{extensions}} extensions / {{trunks}} trunks",
@@ -5305,6 +5348,42 @@ export const en = {
       details: "Details",
       suspend: "Suspend",
       activate: "Activate",
+      createTitle: "New cabinet",
+      editTitle: "Edit cabinet",
+      tabGeneral: "General",
+      tabLimits: "Limits",
+      sectionAdmin: "Cabinet administrator",
+      passwordHint: "Password for the cabinet administrator login",
+      field: {
+        name: "Organization name",
+        slug: "Identifier (slug)",
+        email: "Email (admin login)",
+        phone: "Phone",
+        inn: "INN",
+        seller: "Supplier",
+        adminName: "Administrator name",
+        password: "Password",
+        trialDays: "Trial period (days)",
+        maxExtensions: "Max extensions",
+        maxTrunks: "Max trunks",
+        maxQueues: "Max queues",
+      },
+      placeholder: {
+        name: "Acme LLC",
+        adminName: "John Smith",
+        seller: "Select a supplier",
+      },
+    },
+    sellers: {
+      title: "Suppliers",
+      name: "Name",
+      inn: "INN",
+      create: "New supplier",
+      createTitle: "New supplier",
+      editTitle: "Edit supplier",
+      defaultBadge: "Default",
+      makeDefault: "Make default",
+      deleteConfirm: "Delete supplier “{{name}}”? Cabinets will be reassigned to the default supplier.",
     },
     stats: {
       all: "All cabinets",
@@ -5312,10 +5391,58 @@ export const en = {
       trial: "Trial",
       suspended: "Suspended",
     },
+    status: {
+      active: "Active",
+      trial: "Trial",
+      suspended: "Suspended",
+      cancelled: "Cancelled",
+    },
     drawer: {
       impersonate: "Sign in to cabinet",
+      modulesFor: "Modules for {{name}}",
+      grant: "Grant",
+      disableConfirm: "Disable this module for {{name}}?",
+      seller: "Supplier",
+      email: "Email",
+      phone: "Phone",
+      inn: "INN",
+      trial: "Trial ends",
+      created: "Created",
+      limits: "Limits",
+      extensions: "Extensions",
+      trunks: "Trunks",
+      queues: "Queues",
+      tabInfo: "Info",
+      tabBilling: "Billing",
+      tabModules: "Modules",
+      aiProductLocked:
+        "AI product: import a local license (BOX) or purchase the SKU (CLOUD) first. The toggle only activates an existing entitlement.",
+      licenseStatus: {
+        active: "Active",
+        locked: "Not granted",
+        disabled: "Disabled",
+      },
+    },
+    impersonation: {
+      asSuperadmin: "Signed in as superadmin",
     },
     settings: {
+      seller: {
+        sectionOrg: "Organization",
+        sectionBank: "Bank details",
+        sectionService: "Service description on acts",
+        name: "Organization name",
+        inn: "INN",
+        kpp: "KPP",
+        ogrn: "OGRN",
+        address: "Legal address",
+        bankName: "Bank name",
+        bankBik: "BIK",
+        bankAccount: "Settlement account",
+        corrAccount: "Correspondent account",
+        serviceDescription: "Service name",
+        serviceCode: "Settlement subject code",
+      },
       aiChat: {
         title: "AI Chat",
         subtitle: "AI assistant settings for the current tenant",
@@ -5335,6 +5462,8 @@ export const en = {
     roleStartSave: "Save tenant role → start",
     roleStartAdminOnly:
       "Only tenant administrators can edit role → start overrides.",
+    modulesPlatformOnly:
+      "A platform operator manages modules for a selected cabinet in the platform console, not on this page.",
   },
 
   hub: {
@@ -5416,6 +5545,7 @@ export const en = {
     navAria: "Platform console",
     navTenants: "Tenants",
     navModules: "Modules catalog",
+    navPrices: "Prices",
     navRoleStart: "Role → start",
     navAiThreads: "Tenant conversations",
     aiThreadsTitle: "Tenant conversations",
@@ -5423,14 +5553,42 @@ export const en = {
     aiThreadsPickTenant: "Select a tenant",
     aiThreadsEmpty: "Select a tenant and a conversation — view only",
     tenantsTitle: "Tenants",
-    tenantsSubtitle: "Cabinets, impersonation and seller details",
+    tenantsSubtitle: "Cabinets, impersonation and suppliers directory",
     tenantsTab: "Cabinets",
-    sellerTab: "Seller details",
+    sellerTab: "Suppliers",
     modulesTitle: "Modules catalog",
+    pricesTitle: "Prices",
+    pricesHint: "Subscription list prices, AI SKU monthly prices and usage rates (tokens / audio). Catalog edits do not rewrite in-flight tenant cycles.",
+    pricesSubscriptions: "Module subscriptions",
+    pricesSkus: "AI SKU monthly prices",
+    pricesUsage: "Token / minute usage rates",
+    pricesNoSkus: "No tenant SKUs yet",
+    pricesProduct: "Product",
+    pricesUnit: "Unit",
+    pricesRate: "Rate",
+    pricesPolicy: "Policy",
+    pricesAddRate: "Add rate",
+    priceAmount: "Amount, ₽",
+    pricePeriod: "Period",
+    priceInterval: "Every",
+    priceMonthlyRub: "₽ / month",
+    unitAudioMs: "Audio ms",
+    unitTokens: "Provider tokens",
+    period: {
+      hour: "hour",
+      day: "day",
+      week: "week",
+      month: "month",
+      year: "year",
+      custom: "custom (hours)",
+    },
     modulesScaffold: "Catalog editor loading…",
     roleStartTitle: "Role → start",
     roleStartScaffold: "Role→start editor loading…",
     addModule: "Add module",
+    fieldCode: "Code",
+    fieldName: "Name",
+    fieldKind: "Kind",
     kindBase: "Base",
     kindMarket: "Market",
     reorderUp: "Move up",
@@ -5444,7 +5602,7 @@ export const en = {
     roleStartPrecedenceHint:
       "Platform defaults for post-login start. Tenants may override per level. Precedence: tenant override → platform default → built-in (OPERATOR→CC agent, SUPERVISOR→CC supervisor, ADMIN→Overview; CC off → Overview).",
     roleStartSave: "Save role → start defaults",
-    compositionReadonly: "Pages in this module (read-only)",
+    modulePages: "Pages",
     enable: "Enable",
     disable: "Disable",
     buy: "Buy",
@@ -5467,7 +5625,7 @@ export const en = {
       AC_AMD_UNAVAILABLE:
         "AMD is unavailable on the PBX. Dialing did not start. Contact the PBX administrator.",
       AC_AMD_MESSAGE_NOT_CONFIGURED:
-        "The leave-message action has no recording or playback scenario yet. Choose another AMD action to start this campaign.",
+        "Leave-a-message needs an existing tenant prompt. Pick a recording on the General tab or choose another AMD action.",
       AC_SCENARIO_UNSUPPORTED_ACTION:
         "The scenario contains an action that autodial cannot run yet. Choose a supported action.",
       AC_SCENARIO_CONDITION_UNSUPPORTED:
@@ -5562,6 +5720,7 @@ export const en = {
       trunk_channels: "Trunk channels",
       tenant_cap: "Tenant cap",
       schedule: "Outside schedule",
+      stale_apply: "Dialplan not applied",
       no_providers: "Pacing not configured",
       none: "-",
     },
@@ -5593,6 +5752,7 @@ export const en = {
       confirmDeleteBody:
         "The campaign and its dial tasks are removed. Contacts and past call records are retained.",
       deleteFailed: "Could not delete the campaign. Please try again.",
+      applyFailed: "Dialplan was not applied. Save again to retry.",
     },
 
     start: {
@@ -5623,17 +5783,12 @@ export const en = {
       base: "Contact list",
       basePlaceholder: "Select a list",
       dialMode: "Dial mode",
-      dialModeHint: {
-        progressive: "One call per free agent: the fewest abandoned calls.",
-        power: "N calls per agent: faster, but the abandon rate grows.",
-        agentless: "No agents needed: a robot or IVR runs the scenario.",
-        predictive:
-          "Forecast-driven pacing: the dialer holds the abandon rate at the target you set.",
-      },
+      dialModeHint:
+        "**Progressive** - one call per free agent, the fewest abandoned calls\n**Power** - N calls per agent, faster but the abandon rate grows\n**Agentless** - no agents needed, a robot or IVR runs the scenario\n**Predictive** - forecast-driven pacing, the dialer holds the abandon rate at your target",
       queues: "Agent queues",
       queuesPlaceholder: "Select queues",
       queuesHint:
-        '**Agent queues** - count free agents and limit dialing capacity\n**Answered-call destination** - is set by the "To queue" scenario step\nFor agent modes, choose the queues that provide available capacity.',
+        '**Agent queues** - count free agents and limit dialing capacity\n**Answered-call destination** - is set by the "To queue" scenario step',
       queuesRequired: "Agent modes need at least one queue",
       successMinSec: "Minimum time after answer, sec",
       successMinSecHint:
@@ -5669,12 +5824,15 @@ export const en = {
       },
       providerHint: {
         static: "A hard number of concurrent calls",
-        queue_agents: "Counts READY agents in the selected queues",
+        queue_agents:
+          "**By free agents** - counts READY agents in the selected queues and limits how many new calls to open\nThis is the capacity pool, not the answered-call route",
         trunk_channels: "Uses the channel limit set on the campaign trunks",
         tenant_cap: "A safety net across all campaigns of the tenant",
       },
       maxChannels: "Concurrent calls",
-      queues: "Queues to count agents in",
+      queues: "Queues used to count free agents",
+      queuesHint:
+        '**Queues for counting** - READY agents in these queues decide how many new calls to open\n**Answered-call destination** - only the "To queue" scenario step with a fixed queue',
       addProvider: "Add capacity provider",
       atLeastOne: "At least one capacity provider is required",
     },
@@ -5683,12 +5841,19 @@ export const en = {
       title: "Answering machine detection (AMD)",
       enabled: "AMD",
       onMachine: "On machine",
+      onMachineHint:
+        "**Hang up** - end the attempt with the answering-machine result\n**Continue scenario** - do not divert; the scenario keeps running\n**Leave a message** - wait for a short silence, play the selected prompt, then end the attempt\nAn uncertain result (NOTSURE) is not treated as a machine and follows the normal scenario",
       hangup: "Hang up",
       continue: "Continue scenario",
       voicemail: "Leave a message",
       voicemailUnavailable: "Leave a message (not available yet)",
+      messagePrompt: "Answering-machine message",
+      messagePromptPlaceholder: "Select a prompt",
+      messagePromptHint:
+        'A file from the Prompts module\nAfter a machine is detected, the system waits briefly for silence and plays the recording\nWithout a selected file this mode cannot start',
+      messageRequired: "Select a prompt for the answering-machine message",
       hint:
-        "This uses the Asterisk app_amd application: a classic silence-and-speech detector, not ML or ASR. It returns MACHINE, HUMAN, NOTSURE or HANGUP. Detection can delay a conversation and misidentify a person. The system checks that app_amd is loaded on the PBX before start. Leave a message is unavailable in this installation because it needs configured media and a separate playback branch.",
+        "A pause-and-speech detector on the Krasterisk PBX (not ML or speech recognition)\nReturns MACHINE, HUMAN, NOTSURE or HANGUP\nDetection can delay a conversation and misidentify a person\nThe system checks that the application is loaded on the PBX before start\nLeave a message requires an existing tenant prompt.",
     },
 
     retry: {
@@ -5725,8 +5890,10 @@ export const en = {
       callerIdDirectoryKey: "Contact lookup field",
       callerIdDirectoryValue: "Caller ID value field",
       callerIdDirectoryHint:
-        "When the record or number is missing, the fallback Caller ID is used. If it is empty, the PBX trunk setting applies.",
+        "The directory is looked up by the selected contact field\nWhen the record or number is missing, the fallback Caller ID is used",
       callerIdFallback: "Fallback Caller ID",
+      callerIdFallbackHint:
+        "Used when the directory record or number is missing\nIf empty, the PBX trunk setting applies",
       callerIdFallbackPlaceholder: "Number from the PBX trunk settings",
       selectDirectory: "Select a directory",
       selectContactField: "Select a contact field",
@@ -5761,7 +5928,7 @@ export const en = {
     schedule: {
       title: "Dialing windows",
       intro:
-        "The campaign makes new attempts only inside active windows\nSubscriber hours are checked separately from their time offset.",
+        "The campaign makes new attempts only inside active windows. The same clock interval is applied to each number using its stored timezone offset, so a subscriber is not dialed outside those local hours. A campaign with no windows runs around the clock and does not add a subscriber-hour limit.",
       kind: "Kind",
       kindLabel: {
         weekly: "Weekly",
@@ -5796,8 +5963,10 @@ export const en = {
 
     scenario: {
       intro:
-        'These steps run once the subscriber answers. Agent modes usually end the chain with a "To queue" step.',
+        'These steps run once the subscriber answers\n**To queue** - where the answered call goes; a fixed queue is required\n**Agent pool** for pacing is set separately on the Pacing tab',
       requiredAgentless: "Agentless mode needs at least one scenario step",
+      queueRequired:
+        'Agent modes need a "To queue" step with a fixed queue',
       emptyTitle: "Scenario is empty",
       emptyBody:
         "Add steps: a greeting, text-to-speech, input collection or a queue handoff.",
@@ -5844,6 +6013,11 @@ export const en = {
       selectPrompt: "Pick a list on the left to see its contacts",
       saveFailed: "Failed to save the list",
       confirmDelete: 'Delete list "{{name}}" with all its contacts?',
+      confirmBulkDelete: "Delete {{count}} selected lists with their contacts?",
+      confirmBulkDeleteOne: 'Delete list "{{name}}" with all its contacts?',
+      confirmBulkDeleteIrreversible: "This cannot be undone.",
+      deleteSelected: "Delete selected",
+      bulkPartialFailed: "Some lists were not deleted. Campaigns still use them.",
       contacts_one: "{{count}} contact",
       contacts_other: "{{count}} contacts",
       fields_one: "{{count}} field",

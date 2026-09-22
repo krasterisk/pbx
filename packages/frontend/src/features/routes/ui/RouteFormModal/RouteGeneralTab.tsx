@@ -1,10 +1,17 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input, Select, Checkbox, Label, InfoTooltip } from '@/shared/ui';
+import { Input, Select, Checkbox, Label, InfoTooltip, Button, Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { ExtensionChips } from '../ExtensionChips/ExtensionChips';
 import type { IContext } from '@/shared/api/endpoints/contextApi';
+import { useHubModules } from '@/features/modules/hooks/useHubModules';
+import { useGetSaProjectsQuery } from '@/features/speechAnalytics/api/speechAnalyticsApi';
 import styles from './RouteFormModal.module.scss';
+
+export interface AnalyticsProjectOption {
+  id: string;
+  name: string;
+}
 
 export interface RouteGeneralTabProps {
   name: string;
@@ -21,10 +28,19 @@ export interface RouteGeneralTabProps {
   setRecordAll: (v: boolean) => void;
   recordStereo: boolean;
   setRecordStereo: (v: boolean) => void;
+  /** @deprecated D-01 — ignored; project Select replaces inherit/off/on */
   analyticsMode: 'inherit' | 'off' | 'on';
+  /** @deprecated D-01 — parent may still pass; not used for auto analysis */
   setAnalyticsMode: (v: 'inherit' | 'off' | 'on') => void;
   analyticsProjectId: string;
   setAnalyticsProjectId: (v: string) => void;
+  /** Override hub entitlement (tests). When omitted, resolved from hub catalog. */
+  speechAnalyticsModuleActive?: boolean;
+  /** Override project list (tests). When omitted, loaded via tenant-scoped API. */
+  analyticsProjects?: AnalyticsProjectOption[];
+  analyticsProjectsLoading?: boolean;
+  analyticsProjectsError?: boolean;
+  onRetryAnalyticsProjects?: () => void;
   /** Context selector (create/copy mode) */
   contextUid: number | null;
   setContextUid: (v: number) => void;
@@ -49,11 +65,34 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
     name, setName, extensions, setExtensions, active, setActive,
     routeType, setRouteType, record, setRecord, recordAll, setRecordAll,
     recordStereo, setRecordStereo,
-    analyticsMode, setAnalyticsMode, analyticsProjectId, setAnalyticsProjectId,
-    contextUid, setContextUid, isCreateMode, contexts,
+    analyticsProjectId, setAnalyticsProjectId,
+    speechAnalyticsModuleActive,
+    analyticsProjects: analyticsProjectsProp,
+    analyticsProjectsLoading: analyticsProjectsLoadingProp,
+    analyticsProjectsError: analyticsProjectsErrorProp,
+    onRetryAnalyticsProjects,
+    contextUid, setContextUid, contexts,
   } = props;
 
   const { t } = useTranslation();
+  const hub = useHubModules();
+
+  const moduleActive = speechAnalyticsModuleActive
+    ?? hub.active.some((m) => m.code === 'speech_analytics' && m.licenseStatus === 'active');
+
+  const showProjectSelect = moduleActive && record;
+
+  const projectsQuery = useGetSaProjectsQuery(undefined, {
+    skip: !showProjectSelect || analyticsProjectsProp !== undefined,
+  });
+
+  const projects = useMemo((): AnalyticsProjectOption[] => {
+    if (analyticsProjectsProp) return analyticsProjectsProp;
+    return (projectsQuery.data ?? []).map((p) => ({ id: p.id, name: p.name }));
+  }, [analyticsProjectsProp, projectsQuery.data]);
+
+  const projectsLoading = analyticsProjectsLoadingProp ?? (!analyticsProjectsProp && projectsQuery.isLoading);
+  const projectsError = analyticsProjectsErrorProp ?? (!analyticsProjectsProp && projectsQuery.isError);
 
   const handleRecordModeChange = (mode: string) => {
     switch (mode) {
@@ -72,6 +111,10 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
         break;
     }
   };
+
+  const selectValue = projects.some((p) => p.id === analyticsProjectId)
+    ? analyticsProjectId
+    : '';
 
   return (
     <VStack gap="16">
@@ -166,29 +209,59 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
         )}
       </VStack>
 
-      <VStack gap="4">
-        <Label htmlFor="route-analytics-mode">{t('routes.analyticsMode', 'Speech analytics')}</Label>
-        <Select
-          id="route-analytics-mode"
-          value={analyticsMode}
-          onChange={(e) => setAnalyticsMode(e.target.value as 'inherit' | 'off' | 'on')}
-        >
-          <option value="inherit">{t('routes.analyticsInherit', 'Company default')}</option>
-          <option value="off">{t('routes.analyticsOff', 'Do not analyze this route')}</option>
-          <option value="on">{t('routes.analyticsOn', 'Analyze with project')}</option>
-        </Select>
-        {analyticsMode === 'on' && (
-          <Input
-            id="route-analytics-project"
-            value={analyticsProjectId}
-            onChange={(e) => setAnalyticsProjectId(e.target.value)}
-            placeholder={t('routes.analyticsProject', 'Analytics project ID')}
-          />
-        )}
-        {analyticsMode === 'on' && !record && (
-          <Label>{t('routes.analyticsEnableRecording', 'Recording must stay enabled for analysis')}</Label>
-        )}
-      </VStack>
+      {showProjectSelect && (
+        <VStack gap="4" className={styles.analyticsProjectField}>
+          <HStack gap="4" align="center">
+            <Label htmlFor="route-analytics-project">
+              {t('speechAnalytics.routeProjectLabel', 'Analytics project')}
+            </Label>
+            <InfoTooltip
+              text={t(
+                'speechAnalytics.routeProjectHint',
+                '**None** - no auto-analysis\n**Project** - after the call the closed recording is analyzed with this project\nRecording must be enabled on the route',
+              )}
+            />
+          </HStack>
+          {projectsError ? (
+            <VStack gap="8">
+              <Text variant="muted">
+                {t('speechAnalytics.errorLoadProjects', 'Could not load projects. Try again.')}
+              </Text>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (onRetryAnalyticsProjects) onRetryAnalyticsProjects();
+                  else void projectsQuery.refetch();
+                }}
+              >
+                {t('speechAnalytics.retry', 'Retry')}
+              </Button>
+            </VStack>
+          ) : (
+            <Select
+              id="route-analytics-project"
+              className={styles.analyticsProjectSelect}
+              value={selectValue}
+              disabled={projectsLoading}
+              aria-busy={projectsLoading || undefined}
+              onChange={(e) => setAnalyticsProjectId(e.target.value)}
+            >
+              <option value="">
+                {projectsLoading
+                  ? t('speechAnalytics.loading', 'Loading…')
+                  : t('speechAnalytics.routeProjectPlaceholder', 'No project')}
+              </option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id} title={project.name}>
+                  {project.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </VStack>
+      )}
     </VStack>
   );
 });

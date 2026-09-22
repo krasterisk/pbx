@@ -125,5 +125,22 @@
 .modeBtnActive {
   background: var(--color-primary, hsl(239 84% 67%));
   border-color: var(--color-primary, hsl(239 84% 67%));
+}
+
+.analyticsProjectField {
+  width: 100%;
+  min-width: 0;
+}
+
+.analyticsProjectSelect {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
+  option {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   color: white;
 }
