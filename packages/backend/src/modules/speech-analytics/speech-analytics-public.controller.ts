@@ -11,8 +11,62 @@ import {
   resolveTokenBoundProject,
   type UploadFileInput,
 } from './ingest/upload.service';
+import {
+  UrlIngestService,
+  downloadAnalyticsUrl,
+  type UrlFetchResponse,
+} from './ingest/url-download';
+import * as http from 'node:http';
+import * as https from 'node:https';
+import { URL } from 'node:url';
 
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
+
+/** Open HTTP(S) GET with insecure TLS accepted (D-39). No host allowlist. */
+export function defaultUrlFetch(
+  target: string,
+  opts: { timeoutMs: number; rejectUnauthorized: boolean },
+): Promise<UrlFetchResponse> {
+  return new Promise((resolve, reject) => {
+    let parsed: URL;
+    try {
+      parsed = new URL(target);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    const lib = parsed.protocol === 'http:' ? http : https;
+    const req = lib.request(
+      {
+        protocol: parsed.protocol,
+        hostname: parsed.hostname,
+        port: parsed.port || undefined,
+        path: `${parsed.pathname}${parsed.search}`,
+        method: 'GET',
+        timeout: opts.timeoutMs,
+        rejectUnauthorized: opts.rejectUnauthorized,
+      },
+      (res) => {
+        const headers = res.headers as Record<string, string | string[] | undefined>;
+        async function* body(): AsyncIterable<Buffer> {
+          for await (const chunk of res) {
+            yield Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          }
+        }
+        resolve({
+          statusCode: res.statusCode ?? 0,
+          headers,
+          body: body(),
+        });
+      },
+    );
+    req.on('timeout', () => {
+      req.destroy(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
 
 @ApiTags('Speech Analytics Public')
 @ApiBearerAuth()
@@ -99,6 +153,59 @@ export class SpeechAnalyticsPublicController {
       language: body.language,
       swapChannels: body.swapChannels === true,
       files,
+    });
+  }
+
+  /**
+   * URL ingest (D-39…D-42). Project from token only; open download with caps.
+   * One URL + sync=true waits; several URLs or no sync return accepted batch.
+   */
+  @Post('analyze-url')
+  @HttpCode(202)
+  async analyzeUrl(
+    @Req() request: Authed,
+    @Body() body: {
+      projectId?: string;
+      sync?: boolean;
+      operator?: { userId?: number; name?: string };
+      clientPhone?: string;
+      language?: string;
+      swapChannels?: boolean;
+      consent?: string;
+      urls: string[];
+    },
+  ) {
+    const ctx = this.integration(request);
+    await this.assertModuleActive(ctx.tenantUid);
+    const tokenProjectId = await this.credentials.resolveSpeechAnalyticsProjectId(ctx);
+    const projectId = resolveTokenBoundProject(tokenProjectId, body.projectId ?? null);
+    const urls = (body.urls ?? []).map((url) => ({ url }));
+
+    const service = new UrlIngestService({
+      download: (url) => downloadAnalyticsUrl(url, { fetch: defaultUrlFetch }),
+      putUploadContent: async (bytes) => {
+        const allocated = await this.analytics.allocateUpload(ctx, projectId, bytes.length);
+        await this.analytics.putUploadContent(ctx, allocated.id, bytes);
+        await this.analytics.completeUpload(ctx, allocated.id);
+        return { storedBytes: bytes.length };
+      },
+      createJournalRow: async (row) => ({
+        id: `journal-url:${Date.now()}:${row.projectId}`,
+      }),
+      runAnalysis: async ({ journalId }) => ({ summary: `analyzed:${journalId}` }),
+    });
+
+    return service.submit({
+      tokenProjectId,
+      bodyProjectId: body.projectId ?? null,
+      sync: body.sync === true,
+      moduleActive: true,
+      operator: body.operator,
+      clientPhone: body.clientPhone,
+      language: body.language,
+      swapChannels: body.swapChannels === true,
+      consent: body.consent,
+      urls,
     });
   }
 

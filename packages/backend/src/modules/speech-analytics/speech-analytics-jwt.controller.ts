@@ -1,8 +1,9 @@
 import {
-  Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, Query, Req, Res, UseGuards,
+  Body, Controller, Delete, ForbiddenException, Get, Headers, HttpCode, Param, Post, Put, Query, Req, Res, UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
+import { ProductAccessService } from '../product-access/product-access.service';
 import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
 import { SaMetricsService } from './metrics/metrics.service';
 import { SaReportingService } from './reporting/reporting.service';
@@ -11,6 +12,10 @@ import { InsightsService } from './dashboard/insights.service';
 import type { AnalyticsFilterSpec } from '@krasterisk/shared';
 import type { SaProjectConfigV1 } from '@krasterisk/shared';
 import type { MetricRubric } from './metrics/metric-engine';
+import {
+  assertGetAnalyticsAllowed,
+  resolveGetAnalyticsProject,
+} from './ingest/url-download';
 
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
 
@@ -23,6 +28,7 @@ export class SpeechAnalyticsJwtController {
     private readonly reporting: SaReportingService,
     private readonly journal: SaJournalService,
     private readonly insights: InsightsService,
+    private readonly products: ProductAccessService,
   ) {}
 
   @Get('journal')
@@ -62,6 +68,47 @@ export class SpeechAnalyticsJwtController {
   deleteJournal(@Req() request: Authed, @Param('id') id: string) {
     assertUuid(id);
     return this.journal.delete(request.tenantContext, id);
+  }
+
+  /**
+   * CDR / manual Get analytics (D-18, D-19, D-22).
+   * Same recording asset (no second copy). Project from route, else client must supply.
+   * Pause does not block; module off does.
+   */
+  @Post('get-analytics')
+  @HttpCode(202)
+  async getAnalytics(
+    @Req() request: Authed,
+    @Headers('idempotency-key') idempotencyKey: string,
+    @Body() body: {
+      assetId: string;
+      routeProjectId?: string | null;
+      projectId?: string | null;
+      hasRecording?: boolean;
+      externalCallId?: string;
+      pauseNew?: boolean;
+    },
+  ) {
+    assertUuid(body.assetId);
+    const access = await this.products.decide(request.tenantContext.tenantUid, 'speech_analytics');
+    assertGetAnalyticsAllowed({
+      moduleActive: access.allowed === true,
+      hasRecording: body.hasRecording !== false,
+      pauseNew: body.pauseNew === true,
+    });
+    const projectId = resolveGetAnalyticsProject(body.routeProjectId, body.projectId);
+    assertUuid(projectId);
+    if (!idempotencyKey) {
+      throw new ForbiddenException({ code: 'idempotency_key_required' });
+    }
+    // Same assetId — never allocate a second copy (D-18).
+    return this.analytics.createRun(request.tenantContext, {
+      projectId,
+      assetId: body.assetId,
+      externalCallId: body.externalCallId,
+      idempotencyKey,
+      metadata: { source: 'get_analytics' },
+    });
   }
 
   @Get('projects')
