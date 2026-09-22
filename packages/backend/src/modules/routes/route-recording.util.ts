@@ -90,6 +90,10 @@ export function recordingDialplanLines(input: RecordingDialplanInput): string[] 
     }
   }
   if (input.hangupWebhook || input.durable || Boolean(input.analyticsProjectId)) {
+    if (input.analyticsProjectId) {
+      // Lets [krsk-hangup-handler] notify backend when WH_OH is unset (D-03)
+      lines.push('same => n,Set(__SA_PROJECT=1)');
+    }
     const hangupContext = input.hangupContext ?? 'krsk-hangup-handler';
     lines.push(`same => n,Set(CHANNEL(hangup_handler_push)=${hangupContext},s,1)`);
   }

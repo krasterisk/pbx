@@ -98,9 +98,10 @@ export class DialplanSubroutinesUtil {
     lines.push(`same  => n,ExecIf($["\${fname}" != "" && "\${DURABLE_CAPTURE}" != "1" && "\${REC_STEREO}" = "1"]?System(nice -n 10 /usr/bin/ffmpeg -y -f s16le -ar 8000 -ac 2 -i ${recordsBase}/\${CDR(record)}.raw -codec:a libmp3lame -b:a 64k -ar 8000 -ac 2 ${recordsBase}/\${CDR(record)}.mp3 -loglevel quiet && rm -f ${recordsBase}/\${CDR(record)}.raw))`);
     lines.push(`same  => n,ExecIf($["\${fname}" != "" && "\${DURABLE_CAPTURE}" != "1" && "\${REC_STEREO}" != "1"]?System(nice -n 10 /usr/bin/ffmpeg -y -i ${recordsBase}/\${CDR(record)}.wav -codec:a libmp3lame -b:a 32k -ar 8000 -ac 1 ${recordsBase}/\${CDR(record)}.mp3 -loglevel quiet && rm -f ${recordsBase}/\${CDR(record)}.wav))`);
 
-    // on_hangup webhook: fires only if route has on_hangup configured (WH_OH=1)
-    // At this point MP3 is guaranteed to exist (ffmpeg ran synchronously above)
-    lines.push('same  => n,ExecIf($["${WH_OH}" != "1"]?Return())');
+    // on_hangup notify: always after StopMixMonitor/ffmpeg when this handler runs.
+    // Hangup handler is pushed for route webhook, durable capture, or analytics project (D-02/D-03).
+    // Do not early-Return on WH_OH alone — analytics-only routes still need backend notify.
+    lines.push('same  => n,ExecIf($["${WH_OH}" != "1" && "${SA_PROJECT}" != "1"]?Return())');
     lines.push('same  => n,Set(CURLOPT(conntimeout)=3)');
     lines.push('same  => n,Set(CURLOPT(timeout)=5)');
     lines.push(`same  => n,Set(CURL_HH=\${CURL(${backendUrl}/internal/dialplan/on-hangup,route_uid=\${HH_ROUTE_UID}&uniqueid=\${URIENCODE(\${UNIQUEID})}&clid=\${URIENCODE(\${CALLERID(num)})}&duration=\${CDR(billsec)}&disposition=\${CDR(disposition)}&record_path=\${URIENCODE(\${CDR(record)})}&user_uid=\${CDR(vpbx_user_uid)}${keyParam})})`);
