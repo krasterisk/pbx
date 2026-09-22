@@ -1,0 +1,9 @@
+{
+  "command": "node ../../node_modules/vitest/vitest.mjs run --config vite.config.ts src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.test.tsx",
+  "exitCode": 1,
+  "targetTest": "shows empty projects heading and create CTA when list is empty",
+  "targetFile": "packages/frontend/src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.test.tsx",
+  "expected": "Empty list shows «Проектов пока нет» / No projects yet and CTA «Создать проект» / Create project",
+  "actual": "Unable to find an element with the text: Проектов пока нет (stub shows speechAnalytics.create only)",
+  "output": "# tests 4\n# pass 0\n# fail 4\n# cancelled 0\nnot ok 1 - shows empty projects heading and create CTA when list is empty\nnot ok 2 - shows a loader while projects are loading\nnot ok 3 - shows error text and retry when projects fail to load\nnot ok 4 - keeps the same create CTA for zero, one, and many projects"
+}
