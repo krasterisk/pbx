@@ -1,18 +1,20 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v1.0
-milestone_name: milestone
 status: executing
-stopped_at: Production readiness audit with three live tenant pilots
-last_updated: "2026-09-17"
-state_head: f166cebd
-current_phase: 15
-current_phase_name: universal-pbx-ai-agent
+stopped_at: Phase 18 context gathered
+last_updated: "2026-09-22T09:06:11.388Z"
+state_head: 996774bae83acf1a6f0df0a3bf6a9a9cdb5fbc50
 progress:
-  total_phase_directories: 25
-  phases_with_plan_summaries: 18
+  total_phases: 26
+  completed_phases: 6
   total_plans: 193
   completed_plans: 193
+  total_phase_directories: 25
+  phases_with_plan_summaries: 18
+milestone_name: milestone
+current_phase: 15
+current_phase_name: universal-pbx-ai-agent
 ---
 
 # State
@@ -658,15 +660,16 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 
 ## Session
 
-**Last session:** 2026-09-16T10:40:00.000Z
-**Stopped at:** Phase 16.1 complete (execute-phase confirmed). Next: `/gsd-secure-phase 16.1`. Phase 16.2 already executed — `/gsd-verify-work 16.2`
-**Resume file:** None
+**Last session:** 2026-09-22T09:06:05.964Z
+**Stopped at:** Phase 18 context gathered
+**Resume file:** .planning/phases/18-polnyy-refaktoring-rechevoy-analitiki/18-CONTEXT.md
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
+- Phase 18 added (2026-09-22): Полный рефакторинг речевой аналитики. Каталог `.planning/phases/18-polnyy-refaktoring-rechevoy-analitiki/`. От Phase 17 не зависит. Контекст собран. Следующее: `/gsd-plan-phase 18`.
 - Phase 17 added: Модуль Автообзвон (кампании, клиентские базы, диалер, монитор, отчётность)
 - Phase 17.1–17.5 inserted: bases/import → campaigns/dialplan → ARI engine → monitor/reports → AI/Predictive
 - Phase 16.1 inserted after Phase 16: Phase 16 split: видео, ёмкость, гостевой вход и приглашения (backend)
