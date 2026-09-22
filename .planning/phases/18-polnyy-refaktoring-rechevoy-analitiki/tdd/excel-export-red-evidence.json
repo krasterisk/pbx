@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"excel-export\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "truncates transcripts longer than the Excel cell limit",
+  "targetFile": "packages/backend/src/modules/speech-analytics/journal/excel-export.spec.ts",
+  "expected": "truncateCell returns string of length EXCEL_CELL_CHAR_LIMIT (32767)",
+  "actual": "Received length 33267 (stub returns untruncated string)",
+  "output": "# tests 6\n# pass 1\n# fail 5\n# cancelled 0\nnot ok 1 - truncates transcripts longer than the Excel cell limit\nok 2 - leaves short cells unchanged\nnot ok 3 - exports base journal columns then summary, transcript, STT quality, topics, rationales, then project scales\nnot ok 4 - never includes robot KPI columns\nnot ok 5 - applies truncateCell to the transcript cell in the workbook\nnot ok 6 - keeps only rows visible under the same CDR access scope as the journal list"
+}
