@@ -64,7 +64,6 @@ import { SpeechAnalyticsProjectsPage } from '@/pages/SpeechAnalyticsProjectsPage
 import { SpeechAnalyticsProjectPage } from '@/pages/SpeechAnalyticsProjectPage/SpeechAnalyticsProjectPage';
 import { SpeechAnalyticsRecordingPage } from '@/pages/SpeechAnalyticsRecordingPage/SpeechAnalyticsRecordingPage';
 import { SpeechAnalyticsDashboardPage } from '@/pages/SpeechAnalyticsDashboardPage/SpeechAnalyticsDashboardPage';
-import { SpeechAnalyticsReportsPage } from '@/pages/SpeechAnalyticsReportsPage/SpeechAnalyticsReportsPage';
 import { SpeechAnalyticsJournalPage } from '@/pages/SpeechAnalyticsJournalPage/SpeechAnalyticsJournalPage';
 import { AiRobotsStudioPage } from '@/pages/AiRobotsStudioPage/AiRobotsStudioPage';
 import { AiRobotsSessionsPage } from '@/pages/AiRobotsSessionsPage/AiRobotsSessionsPage';
@@ -201,7 +200,8 @@ export const router = createBrowserRouter([
       { path: 'speech-analytics/dashboard', element: <SpeechAnalyticsDashboardPage /> },
       { path: 'speech-analytics/conversations', element: <SpeechAnalyticsJournalPage /> },
       { path: 'speech-analytics/conversations/:conversationId', element: <SpeechAnalyticsJournalPage /> },
-      { path: 'speech-analytics/reports', element: <SpeechAnalyticsReportsPage /> },
+      // D-37: Reports is not a product surface — Excel lives on the journal toolbar
+      { path: 'speech-analytics/reports', element: <Navigate to="/speech-analytics/conversations" replace /> },
       { path: 'ai-robots', element: <AiProductLandingPage product="ai_voice_robots" /> },
       { path: 'ai-robots/connections', element: <AiConnectionsPage product="ai_voice_robots" /> },
       { path: 'ai-robots/studio', element: <AiRobotsStudioPage /> },
