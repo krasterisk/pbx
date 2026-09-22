@@ -1,11 +1,17 @@
 /**
  * Golden scoring delivery check (D-43…D-45).
- * RED stub: intentionally wrong exit policy so unit tests fail first.
+ * Transcript-only fixtures → scoring model path via scoreTranscript.
+ * No journal rows, no SA-CHARGE-RUN. Exit non-zero only on empty/missing answers.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { scoreTranscript } from '../pipeline/score';
+import {
+  scoreTranscript,
+  type ScoreRequest,
+  type ScoreResponse,
+} from '../pipeline/score';
+import type { DiarizedSegment } from '../pipeline/run-analysis';
 
 export type SentimentLabel = 'Positive' | 'Neutral' | 'Negative';
 
@@ -227,7 +233,7 @@ export function buildEvalReport(items: EvalItem[]): EvalReport {
   };
 }
 
-function isEmptyAnswer(predicted: PredictedScores | null | undefined): boolean {
+export function isEmptyAnswer(predicted: PredictedScores | null | undefined): boolean {
   if (predicted == null) return true;
   const keys = Object.keys(predicted).filter((k) => k !== 'summary');
   if (!keys.length) return true;
@@ -237,10 +243,69 @@ function isEmptyAnswer(predicted: PredictedScores | null | undefined): boolean {
   });
 }
 
+/** Parse "Оператор: … / Клиент: …" lines into diarized segments for the score port. */
+export function transcriptToSegments(transcript: string): DiarizedSegment[] {
+  const lines = transcript.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  return lines.map((line, index) => {
+    const op = /^оператор\s*:/i.test(line);
+    const cust = /^клиент\s*:/i.test(line);
+    const text = line.replace(/^(оператор|клиент)\s*:\s*/i, '');
+    return {
+      id: `seg-${index + 1}`,
+      ordinal: index + 1,
+      startMs: index * 1000,
+      endMs: (index + 1) * 1000,
+      channel: op ? 1 : 0,
+      speakerRole: op ? 'operator' : cust ? 'customer' : 'unknown',
+      roleSource: 'llm' as const,
+      text,
+    };
+  });
+}
+
+export function flattenScoreResponse(res: ScoreResponse): PredictedScores | null {
+  if (!res) return null;
+  const predicted: PredictedScores = {};
+  if (typeof res.summary === 'string' && res.summary.trim()) {
+    predicted.summary = res.summary;
+  }
+  for (const metric of res.metrics ?? []) {
+    const id = String((metric as { id?: string }).id ?? '');
+    const value = (metric as { value?: unknown }).value;
+    if (!id) continue;
+    if (id === 'customer_sentiment' && typeof value === 'string') {
+      predicted.customer_sentiment = value;
+    } else if (id === 'success' && typeof value === 'boolean') {
+      predicted.success = value;
+    } else if (typeof value === 'number') {
+      (predicted as Record<string, number>)[id] = value;
+    }
+  }
+  if (isEmptyAnswer(predicted)) return null;
+  return predicted;
+}
+
 /**
- * RED stub exit policy (intentionally wrong per D-45):
- * - empty model answers do NOT fail (should fail)
- * - any numeric drift fails delivery (should report only)
+ * Real scoring path: transcript → scoreTranscript(provider) → flat predicted scores.
+ * Unit tests mock scoreCase; the CLI wires this helper with a live provider.
+ */
+export function makeScoreCaseFromProvider(
+  provider: (req: ScoreRequest) => Promise<ScoreResponse | null>,
+  modelId = process.env.SA_SCORE_MODEL_ID || 'speech-analytics-score',
+): ScoreCaseFn {
+  return async (transcript: string) => {
+    const segments = transcriptToSegments(transcript);
+    const res = await scoreTranscript({ segments, modelId }, provider);
+    if (res == null) return null;
+    return flattenScoreResponse(res);
+  };
+}
+
+/**
+ * Delivery exit policy (D-45):
+ * - empty / missing model answer → non-zero exit
+ * - score drift is reported (MAE/accuracy/kappa) and does NOT fail delivery
+ * - never writes journal or invokes SA-CHARGE-RUN
  */
 export async function runGoldenEval(
   cases: GoldenCase[],
@@ -248,37 +313,32 @@ export async function runGoldenEval(
 ): Promise<GoldenRunResult> {
   const items: EvalItem[] = [];
   let failures = 0;
-  let journalWrites = 0;
-  let chargeInvokes = 0;
-  let driftDetected = false;
+  const journalWrites = 0;
+  const chargeInvokes = 0;
 
   for (const c of cases) {
-    const predicted = await deps.scoreCase(c.transcript);
-    // scoreTranscript port is the real scoring entry — keep the import live for the CLI path.
-    await scoreTranscript(
-      { segments: [], modelId: 'golden-eval' },
-      async () => null,
-    );
-
-    if (isEmptyAnswer(predicted)) {
+    let predicted: PredictedScores | null | undefined;
+    try {
+      predicted = await deps.scoreCase(c.transcript);
+    } catch (error) {
       failures += 1;
+      console.error(`  ✗ ${c.id}: ${(error as Error).message}`);
       continue;
     }
 
-    const pred = predicted as PredictedScores;
-    for (const key of NUMERIC_KEYS) {
-      const ref = (c.reference as Record<string, unknown>)[key];
-      const p = (pred as Record<string, unknown>)[key];
-      if (typeof ref === 'number' && typeof p === 'number' && Math.abs(p - ref) > 0) {
-        driftDetected = true;
-      }
+    if (isEmptyAnswer(predicted)) {
+      failures += 1;
+      console.error(`  ✗ ${c.id}: empty or missing model answer`);
+      continue;
     }
-    items.push({ id: c.id, reference: c.reference, predicted: pred });
+
+    items.push({ id: c.id, reference: c.reference, predicted: predicted as PredictedScores });
+    console.log(`  ✓ ${c.id}`);
   }
 
   const report = buildEvalReport(items);
-  // WRONG: empty answers ignored; drift fails delivery
-  const exitCode = driftDetected ? 1 : 0;
+  // D-45: only empty/missing answers fail delivery; drift is informational.
+  const exitCode = failures > 0 ? 2 : 0;
   return { exitCode, failures, report, items, journalWrites, chargeInvokes };
 }
 
@@ -299,4 +359,137 @@ export function formatEvalReport(report: EvalReport, failures: number, total: nu
     );
   }
   return lines.join('\n');
+}
+
+/** OpenAI-compatible chat scoring provider for the delivery CLI (not used by npm test). */
+export async function createHttpScoreProvider(
+  req: ScoreRequest,
+): Promise<ScoreResponse | null> {
+  const baseUrl = process.env.SPEECH_ANALYTICS_SCORE_URL;
+  const apiKey = process.env.SPEECH_ANALYTICS_SCORE_API_KEY;
+  if (!baseUrl || !apiKey) {
+    throw new Error(
+      'SPEECH_ANALYTICS_SCORE_URL and SPEECH_ANALYTICS_SCORE_API_KEY are required for eval:speech-analytics',
+    );
+  }
+  const transcript = req.segments.map((s) => {
+    const who = s.speakerRole === 'operator' ? 'Оператор' : s.speakerRole === 'customer' ? 'Клиент' : 'Unknown';
+    return `${who}: ${s.text}`;
+  }).join('\n');
+
+  const body = {
+    model: req.modelId,
+    temperature: 0,
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You score call-center transcripts. Reply with JSON only: greeting_quality, script_compliance, politeness_empathy, active_listening, objection_handling, product_knowledge, problem_resolution, speech_clarity_pace, closing_quality (0|25|50|75|100), csat (1-5), customer_sentiment (Positive|Neutral|Negative), success (boolean), summary (string).',
+      },
+      { role: 'user', content: transcript },
+    ],
+  };
+
+  const res = await fetch(baseUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { total_tokens?: number };
+  };
+  const content = json.choices?.[0]?.message?.content;
+  if (!content || !content.trim()) return null;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(content) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  const metrics = [
+    ...NUMERIC_KEYS.map((id) => ({
+      id,
+      status: 'scored' as const,
+      value: typeof parsed[id] === 'number' ? parsed[id] : null,
+      evidence: [],
+      rationale: 'golden-eval',
+      rubricRevision: 'sa-metrics-v1',
+    })),
+    {
+      id: 'customer_sentiment',
+      status: 'scored' as const,
+      value: typeof parsed.customer_sentiment === 'string' ? parsed.customer_sentiment : null,
+      evidence: [],
+      rationale: 'golden-eval',
+      rubricRevision: 'sa-metrics-v1',
+    },
+    {
+      id: 'success',
+      status: 'scored' as const,
+      value: typeof parsed.success === 'boolean' ? parsed.success : null,
+      evidence: [],
+      rationale: 'golden-eval',
+      rubricRevision: 'sa-metrics-v1',
+    },
+  ];
+
+  return {
+    metrics: metrics as ScoreResponse['metrics'],
+    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    providerTokens: json.usage?.total_tokens ?? 0,
+    modelId: req.modelId,
+  };
+}
+
+export async function main(argv: string[] = process.argv): Promise<number> {
+  const outArg = argv.find((a) => a.startsWith('--out='));
+  const outPath = outArg ? outArg.slice('--out='.length) : null;
+  const cases = loadGoldenSet();
+  if (!cases.length) {
+    console.error('No golden-set fixtures found. Nothing to evaluate.');
+    return 1;
+  }
+  console.log(`Loaded ${cases.length} golden case(s).`);
+
+  const result = await runGoldenEval(cases, {
+    scoreCase: makeScoreCaseFromProvider(createHttpScoreProvider),
+  });
+
+  console.log(`\n${formatEvalReport(result.report, result.failures, cases.length)}`);
+
+  if (outPath) {
+    const abs = path.resolve(outPath);
+    fs.writeFileSync(
+      abs,
+      JSON.stringify(
+        {
+          generatedAt: new Date().toISOString(),
+          report: result.report,
+          items: result.items,
+          failures: result.failures,
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(`\nReport written to ${abs}`);
+  }
+
+  return result.exitCode;
+}
+
+if (require.main === module) {
+  main()
+    .then((code) => process.exit(code))
+    .catch((error) => {
+      console.error('Golden eval crashed:', error);
+      process.exit(1);
+    });
 }
