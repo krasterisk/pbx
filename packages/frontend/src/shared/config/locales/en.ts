@@ -5379,6 +5379,33 @@ export const en = {
     modelsTitle: "Project models",
     sttModel: "Speech recognition model",
     scoreModel: "Scoring model",
+    emptyTokensHeading: "No API tokens yet",
+    emptyTokensBody:
+      "Create a token for the external API - one token is bound to one project.",
+    createToken: "Create token",
+    tokensTitle: "API tokens",
+    tokensSubtitle:
+      "One token is bound to one project. The secret is shown once.",
+    tokenName: "Name",
+    colTokenName: "Name",
+    colTokenProject: "Project",
+    colTokenLastUsed: "Last used",
+    tokenNeverUsed: "Not used yet",
+    revokeToken: "Revoke token",
+    revokeTokenConfirm:
+      "Revoke token \"{{name}}\"? Requests with this secret will stop working.",
+    tokenSecretOnceTitle: "Save the token secret",
+    tokenSecretOnceBody:
+      "The secret is shown once. Copy it now - you cannot view it later.",
+    errorLoadTokens: "Could not load tokens. Try again.",
+    pauseCompanyLabel: "Pause new auto-analysis",
+    modelsAdminOnlyHint: "Model changes are enabled by a superadmin",
+    chatConfirmSetProject: "Set project",
+    chatConfirmClearProject: "Clear project",
+    chatConfirmRecordingOff:
+      "Analytics needs recording enabled on the route.",
+    chatConfirmTokenSecretOnce:
+      "The secret is shown once. Copy it now - you cannot view it later.",
   },
 
   aiRobots: {

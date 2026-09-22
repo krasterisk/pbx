@@ -5468,6 +5468,33 @@ export const ru = {
     modelsTitle: "Модели проекта",
     sttModel: "Модель распознавания",
     scoreModel: "Модель оценок",
+    emptyTokensHeading: "Токенов пока нет",
+    emptyTokensBody:
+      "Выпустите токен для внешнего API - один токен привязан к одному проекту.",
+    createToken: "Выпустить токен",
+    tokensTitle: "API-токены",
+    tokensSubtitle:
+      "Один токен привязан к одному проекту. Секрет показывается один раз.",
+    tokenName: "Имя",
+    colTokenName: "Имя",
+    colTokenProject: "Проект",
+    colTokenLastUsed: "Последнее использование",
+    tokenNeverUsed: "Ещё не использовался",
+    revokeToken: "Отозвать токен",
+    revokeTokenConfirm:
+      "Отозвать токен «{{name}}»? Запросы с этим секретом перестанут работать.",
+    tokenSecretOnceTitle: "Сохраните секрет токена",
+    tokenSecretOnceBody:
+      "Секрет показывается один раз. Скопируйте его сейчас - позже увидеть нельзя.",
+    errorLoadTokens: "Не удалось загрузить токены. Повторите попытку.",
+    pauseCompanyLabel: "Пауза новых авторазборов",
+    modelsAdminOnlyHint: "Смену моделей включает суперадмин",
+    chatConfirmSetProject: "Поставить проект",
+    chatConfirmClearProject: "Убрать проект",
+    chatConfirmRecordingOff:
+      "Для аналитики нужна включённая запись на маршруте.",
+    chatConfirmTokenSecretOnce:
+      "Секрет показывается один раз. Скопируйте его сейчас - позже увидеть нельзя.",
   },
 
   aiRobots: {
