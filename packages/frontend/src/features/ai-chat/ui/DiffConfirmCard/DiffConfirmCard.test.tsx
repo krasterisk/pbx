@@ -217,6 +217,97 @@ describe('DiffConfirmCard', () => {
         expect(screen.getByText('aiChat.card.busy')).toBeInTheDocument();
     });
 
+    it('ignores a second confirm click while the first request is still in flight', async () => {
+        let resolveConfirm!: (value: typeof confirmResult) => void;
+        confirmUnwrap = () => new Promise((resolve) => {
+            resolveConfirm = resolve;
+        });
+        render(<DiffConfirmCard proposal={pendingView()} />);
+
+        const apply = screen.getByRole('button', { name: 'aiChat.card.apply' });
+        fireEvent.click(apply);
+        fireEvent.click(apply);
+
+        expect(confirmCalls).toHaveLength(1);
+        resolveConfirm({
+            ok: true,
+            proposal: pendingView({ status: 'applied', appliedAt: '2026-09-04T12:00:00.000Z' }),
+        });
+        await vi.waitFor(() => {
+            expect(screen.getByText('aiChat.card.badge.applied')).toBeInTheDocument();
+        });
+        expect(confirmCalls).toHaveLength(1);
+    });
+
+    it('shows recording-off refusal copy and blocks confirm for set analytics proposals', () => {
+        render(
+            <DiffConfirmCard
+                proposal={pendingView({
+                    entityType: 'route',
+                    entityLabel: 'Inbound sales',
+                    summary: ['Поставить проект Sales quality'],
+                    after: {
+                        action: 'set_analytics_project',
+                        projectId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee4001',
+                        projectName: 'Sales quality',
+                        recordingEnabled: false,
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.getByText(/нужна запись|recording required/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'aiChat.card.apply' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
+        expect(confirmCalls).toHaveLength(0);
+    });
+
+    it('blocks confirm when the set-analytics card has no project selected', () => {
+        render(
+            <DiffConfirmCard
+                proposal={pendingView({
+                    entityType: 'route',
+                    entityLabel: 'Inbound sales',
+                    summary: ['Поставить проект'],
+                    after: {
+                        action: 'set_analytics_project',
+                        projectId: null,
+                        projectName: null,
+                        recordingEnabled: true,
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.getByText(/нужен проект|project required/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'aiChat.card.apply' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
+        expect(confirmCalls).toHaveLength(0);
+    });
+
+    it('wraps a long analytics project name inside the card so it stays readable', () => {
+        const longName = `Very long analytics project name ${'x'.repeat(80)}`;
+        render(
+            <DiffConfirmCard
+                proposal={pendingView({
+                    entityType: 'route',
+                    entityLabel: longName,
+                    summary: [`Поставить проект ${longName}`],
+                    after: {
+                        action: 'set_analytics_project',
+                        projectId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee4001',
+                        projectName: longName,
+                        recordingEnabled: true,
+                    },
+                })}
+            />,
+        );
+
+        const nameNode = screen.getByText(new RegExp(longName.slice(0, 40)));
+        expect(nameNode).toBeInTheDocument();
+        expect(nameNode.className).toMatch(/wrap|entity|summary/i);
+    });
+
     it('renders summary lines as text nodes, never as markup', () => {
         render(
             <DiffConfirmCard

@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/frontend -- --run src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.test.tsx",
+  "exitCode": 1,
+  "targetTest": "shows recording-off refusal copy and blocks confirm for set analytics proposals",
+  "targetFile": "packages/frontend/src/features/ai-chat/ui/DiffConfirmCard/DiffConfirmCard.test.tsx",
+  "expected": "card shows recording-required copy and apply is disabled for set_analytics_project with recordingEnabled false",
+  "actual": "no recording-required copy rendered; apply button remains enabled",
+  "output": "# tests 20\n# pass 16\n# fail 4\n# cancelled 0\nnot ok 1 - ignores a second confirm click while the first request is still in flight\nnot ok 2 - shows recording-off refusal copy and blocks confirm for set analytics proposals\nnot ok 3 - blocks confirm when the set-analytics card has no project selected\nnot ok 4 - wraps a long analytics project name inside the card so it stays readable"
+}
