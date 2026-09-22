@@ -17,10 +17,13 @@ const parts = (token: string): [string, string] => {
 function fixture() {
   const principalRows = new Map<string, any>();
   const credentialRows: any[] = [];
+  const grantRows: any[] = [];
   const commandRows = new Map<string, any>();
   const auditRows: any[] = [];
   const tenants = { findOne: jest.fn().mockResolvedValue({ status: 'active' }) };
-  const users = { findOne: jest.fn().mockResolvedValue({ uniqueid: 7, isActivated: true }) };
+  const users = { findOne: jest.fn().mockResolvedValue({
+    uniqueid: 7, isActivated: true, level: UserLevel.ADMIN,
+  }) };
   const principals = {
     create: jest.fn(async (value) => {
       const row = { ...value, update: jest.fn(async (patch) => Object.assign(row, patch)) };
@@ -31,7 +34,12 @@ function fixture() {
       const row = principalRows.get(where.id);
       return row?.tenant_uid === where.tenant_uid ? row : null;
     }),
-    findAll: jest.fn(async () => [...principalRows.values()]),
+    findAll: jest.fn(async ({ where } = {}) => [...principalRows.values()].filter((row) => {
+      if (where?.tenant_uid != null && row.tenant_uid !== where.tenant_uid) return false;
+      if (where?.product != null && row.product !== where.product) return false;
+      if (where?.status != null && row.status !== where.status) return false;
+      return true;
+    })),
   };
   const credentials = {
     create: jest.fn(async (value) => {
@@ -46,8 +54,28 @@ function fixture() {
         .sort((a, b) => b.generation - a.generation)[0] ?? null;
     }),
   };
-  const grants = { destroy: jest.fn().mockResolvedValue(0), bulkCreate: jest.fn().mockResolvedValue([]),
-    findAll: jest.fn().mockResolvedValue([]) };
+  const grants = {
+    destroy: jest.fn(async ({ where }) => {
+      for (let i = grantRows.length - 1; i >= 0; i -= 1) {
+        const row = grantRows[i];
+        if (where?.tenant_uid != null && row.tenant_uid !== where.tenant_uid) continue;
+        if (where?.principal_id != null && row.principal_id !== where.principal_id) continue;
+        grantRows.splice(i, 1);
+      }
+      return 0;
+    }),
+    bulkCreate: jest.fn(async (rows) => {
+      grantRows.push(...rows);
+      return rows;
+    }),
+    findAll: jest.fn(async ({ where } = {}) => grantRows.filter((row) => {
+      if (where?.tenant_uid != null && row.tenant_uid !== where.tenant_uid) return false;
+      if (where?.principal_id != null && row.principal_id !== where.principal_id) return false;
+      if (where?.resource_kind != null && row.resource_kind !== where.resource_kind) return false;
+      if (where?.scope != null && row.scope !== where.scope) return false;
+      return true;
+    })),
+  };
   const audits = { create: jest.fn(async (value) => { auditRows.push(value); return value; }) };
   const commands = {
     create: jest.fn(async (value) => {
@@ -64,7 +92,7 @@ function fixture() {
     tenants as any, users as any, principals as any, credentials as any, grants as any,
     audits as any, commands as any, sequelize as any, products as any, resources as any,
   );
-  return { service, principalRows, credentialRows, commandRows, auditRows,
+  return { service, principalRows, credentialRows, grantRows, commandRows, auditRows,
     tenants, users, principals, credentials, grants, audits, commands, products, resources };
 }
 
@@ -170,14 +198,17 @@ describe('IntegrationCredentialsService', () => {
       expect(f.credentialRows[0].secret_digest).toHaveLength(32);
       expect(f.credentialRows[0]).not.toHaveProperty('secret');
       expect(JSON.stringify(f.credentialRows[0])).not.toContain(issued.token!);
-      expect(f.grants.bulkCreate).toHaveBeenCalledWith(expect.arrayContaining([
-        expect.objectContaining({
-          resource_kind: 'project', resource_id: PROJECT, scope: 'analytics:upload',
-        }),
-        expect.objectContaining({
-          resource_kind: 'project', resource_id: PROJECT, scope: 'analytics:read',
-        }),
-      ]));
+      expect(f.grants.bulkCreate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            resource_kind: 'project', resource_id: PROJECT, scope: 'analytics:upload',
+          }),
+          expect.objectContaining({
+            resource_kind: 'project', resource_id: PROJECT, scope: 'analytics:read',
+          }),
+        ]),
+        expect.anything(),
+      );
       const replay = await f.service.issueSpeechAnalyticsToken(context, {
         label: 'CRM bridge', projectId: PROJECT, operationId: op1,
       }, now);

@@ -101,16 +101,39 @@ export class IntegrationCredentialsService {
   /**
    * Token issuers for speech-analytics API keys (D-33): cabinet ADMIN and
    * platform SUPERADMIN in this cabinet. SUPERVISOR cannot issue.
-   * RED stub: still ADMIN-only until GREEN expands the query.
    */
   private async tokenIssuerActor(context: TenantContext): Promise<{ actor: number; level: number }> {
-    const actor = await this.adminActor(context);
-    return { actor, level: UserLevel.ADMIN };
+    const actor = actorId(context);
+    const user = await this.users.findOne({
+      where: {
+        uniqueid: actor,
+        vpbx_user_uid: context.tenantUid,
+        level: { [Op.in]: [UserLevel.ADMIN, UserLevel.SUPERADMIN] },
+      },
+      attributes: ['uniqueid', 'level', 'isActivated', 'activationCode'],
+    });
+    if (!user || (!user.isActivated && !!user.activationCode)) {
+      throw new ForbiddenException({ code: 'integration_admin_required' });
+    }
+    const level = Number((user as any).level);
+    if (level !== UserLevel.ADMIN && level !== UserLevel.SUPERADMIN) {
+      throw new ForbiddenException({ code: 'integration_admin_required' });
+    }
+    return { actor, level };
+  }
+
+  private saTokenScopes(projectId: string): GrantInput[] {
+    return [
+      { resourceKind: 'project', resourceId: projectId, scope: 'analytics:upload' },
+      { resourceKind: 'project', resourceId: projectId, scope: 'analytics:read' },
+      { resourceKind: 'project', resourceId: projectId, scope: 'analytics:transcript' },
+      { resourceKind: 'project', resourceId: projectId, scope: 'analytics:audio' },
+    ];
   }
 
   /**
    * Issue a project-bound speech-analytics API token (D-32, D-33).
-   * Plaintext returned once; DB stores secret_digest only. RED stub.
+   * Plaintext returned once; DB stores secret_digest only. No expiry.
    */
   async issueSpeechAnalyticsToken(
     context: TenantContext,
@@ -122,19 +145,73 @@ export class IntegrationCredentialsService {
     token: string | null;
     replay: boolean;
   }> {
-    void now;
-    await this.tokenIssuerActor(context);
-    // RED: return a fake plaintext that would also appear in list (wrong).
-    return {
-      principalId: 'red-principal',
-      projectId: input.projectId,
-      token: `krint_v1_red_${input.label}`,
-      replay: false,
-    };
+    const { actor } = await this.tokenIssuerActor(context);
+    if (!UUID.test(input.operationId) || !UUID.test(input.projectId)
+      || typeof input.label !== 'string' || !input.label.trim()
+      || input.label.length > 120) {
+      throw new BadRequestException({ code: 'integration_create_invalid' });
+    }
+    const hash = commandHash(['sa-token', input.projectId, input.label.trim()]);
+    return this.sequelize.transaction(async (transaction) => {
+      const tenant = await this.tenants.findOne({
+        where: { vpbx_user_uid: context.tenantUid }, transaction, lock: transaction.LOCK.UPDATE,
+      });
+      if (!tenant) throw new ForbiddenException({ code: 'tenant_inactive' });
+      const prior = await this.commands.findOne({
+        where: { tenant_uid: context.tenantUid, actor_user_id: actor,
+          operation_id: input.operationId }, transaction,
+      });
+      if (prior) {
+        if (prior.command_hash !== hash) throw new ConflictException({ code: 'operation_conflict' });
+        return {
+          principalId: prior.principal_id,
+          projectId: input.projectId,
+          token: null,
+          replay: true,
+        };
+      }
+      const access = await this.products.decide(context.tenantUid, 'speech_analytics', now, transaction);
+      if (!access.allowed) throw new ForbiddenException({ code: access.reason });
+
+      const scopes = this.saTokenScopes(input.projectId);
+      for (const scope of scopes) {
+        await this.resources.authorize(context, {
+          product: 'speech_analytics', action: 'grant',
+          resourceKind: scope.resourceKind, resourceId: scope.resourceId,
+        });
+      }
+
+      const principalId = randomUUID();
+      const key = generateIntegrationKey();
+      await this.principals.create({
+        id: principalId, tenant_uid: context.tenantUid, label: input.label.trim(),
+        product: 'speech_analytics', status: 'active', permission_revision: '1',
+        created_by: actor, created_at: now, updated_at: now,
+      } as any, { transaction });
+      await this.credentials.create({
+        id: randomUUID(), tenant_uid: context.tenantUid, principal_id: principalId,
+        selector: key.selector, secret_digest: key.digest, predecessor_id: null,
+        generation: 1, expires_at: null, revoked_at: null,
+        created_at: now, created_by: actor,
+      } as any, { transaction });
+      await this.grants.bulkCreate(scopes.map((scope) => ({
+        id: randomUUID(), tenant_uid: context.tenantUid, principal_id: principalId,
+        resource_kind: scope.resourceKind, resource_id: scope.resourceId,
+        scope: scope.scope, created_at: now,
+      })) as any[], { transaction });
+      await this.commands.create({
+        tenant_uid: context.tenantUid, actor_user_id: actor, operation_id: input.operationId,
+        command_hash: hash, principal_id: principalId, resulting_generation: 1,
+        completed_at: now,
+      } as any, { transaction });
+      await this.audit(transaction, context, principalId, 'create',
+        { product: 'speech_analytics', projectId: input.projectId, generation: 1 }, now);
+      return { principalId, projectId: input.projectId, token: key.token, replay: false };
+    });
   }
 
   /**
-   * List SA tokens: name, project, lastUsed — never the secret (D-32). RED stub.
+   * List SA tokens: name, project, lastUsed — never the secret (D-32).
    */
   async listSpeechAnalyticsTokens(context: TenantContext): Promise<Array<{
     name: string;
@@ -143,14 +220,61 @@ export class IntegrationCredentialsService {
     principalId: string;
   }>> {
     await this.tokenIssuerActor(context);
-    // RED: intentionally leaks token in the payload for assertion failure.
-    return [{
-      name: 'leaky',
-      projectId: '00000000-0000-4000-8000-000000000099',
-      lastUsed: null,
-      principalId: 'red-principal',
-      token: 'krint_v1_red_leaky',
-    }] as any;
+    const principals = await this.principals.findAll({
+      where: {
+        tenant_uid: context.tenantUid,
+        product: 'speech_analytics',
+        status: 'active',
+      },
+      attributes: ['id', 'label', 'updated_at'],
+      order: [['id', 'ASC']],
+      limit: 200,
+    });
+    const items: Array<{
+      name: string; projectId: string; lastUsed: Date | null; principalId: string;
+    }> = [];
+    for (const principal of principals) {
+      const rows = await this.grants.findAll({
+        where: {
+          tenant_uid: context.tenantUid,
+          principal_id: principal.id,
+          resource_kind: 'project',
+        },
+        attributes: ['resource_id', 'scope'],
+        order: [['id', 'ASC']],
+        limit: 20,
+      });
+      const upload = rows.find((row) => row.scope === 'analytics:upload') ?? rows[0];
+      if (!upload?.resource_id) continue;
+      items.push({
+        name: principal.label,
+        projectId: upload.resource_id,
+        lastUsed: principal.updated_at ?? null,
+        principalId: principal.id,
+      });
+    }
+    return items;
+  }
+
+  /** Bound project for an authenticated SA integration principal (D-32). */
+  async resolveSpeechAnalyticsProjectId(context: TenantContext): Promise<string> {
+    if (context.principalKind !== 'integration') {
+      throw new ForbiddenException({ code: 'integration_key_required' });
+    }
+    const rows = await this.grants.findAll({
+      where: {
+        tenant_uid: context.tenantUid,
+        principal_id: context.principalId,
+        resource_kind: 'project',
+        scope: 'analytics:upload',
+      },
+      attributes: ['resource_id'],
+      limit: 2,
+    });
+    if (rows.length !== 1) {
+      throw new ForbiddenException({ code: 'project_grant_required' });
+    }
+    return rows[0].resource_id;
   }
 
   async list(context: TenantContext, limit: number, cursor?: string): Promise<{
@@ -440,6 +564,12 @@ export class IntegrationCredentialsService {
     const access = await this.products.decide(credential.tenant_uid,
       principal.product as AiProductModuleCode, now);
     if (!access.allowed) throw new ForbiddenException({ code: access.reason });
+    // Track lastUsed for SA token list (D-32) without storing the secret again.
+    if (principal.product === 'speech_analytics' && typeof (principal as any).update === 'function') {
+      await (principal as any).update({ updated_at: now });
+    } else if (principal.product === 'speech_analytics') {
+      (principal as any).updated_at = now;
+    }
     return Object.freeze({
       tenantUid: credential.tenant_uid, principalId: principal.id,
       principalKind: 'integration' as const, credentialId: credential.id,

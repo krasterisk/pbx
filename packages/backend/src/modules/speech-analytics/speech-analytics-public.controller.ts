@@ -1,10 +1,16 @@
 import {
-  Body, Controller, Get, Headers, HttpCode, Param, Post, Put, Query, Req, UseGuards,
+  Body, Controller, ForbiddenException, Get, Headers, HttpCode, Param, Post, Put, Req, UseGuards,
 } from '@nestjs/common';
-import { ForbiddenException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
+import { IntegrationCredentialsService } from '../integration-credentials/integration-credentials.service';
+import { ProductAccessService } from '../product-access/product-access.service';
 import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
+import {
+  UploadService,
+  resolveTokenBoundProject,
+  type UploadFileInput,
+} from './ingest/upload.service';
 
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
 
@@ -13,7 +19,11 @@ type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextR
 @UseGuards(TenantContextGuard)
 @Controller('v1/speech-analytics')
 export class SpeechAnalyticsPublicController {
-  constructor(private readonly analytics: SpeechAnalyticsService) {}
+  constructor(
+    private readonly analytics: SpeechAnalyticsService,
+    private readonly credentials: IntegrationCredentialsService,
+    private readonly products: ProductAccessService,
+  ) {}
 
   private integration(request: Authed) {
     if (request.tenantContext.principalKind !== 'integration') {
@@ -22,49 +32,123 @@ export class SpeechAnalyticsPublicController {
     return request.tenantContext;
   }
 
+  private async assertModuleActive(tenantUid: number): Promise<void> {
+    const access = await this.products.decide(tenantUid, 'speech_analytics');
+    if (!access.allowed) {
+      throw new ForbiddenException({ code: access.reason ?? 'module_inactive' });
+    }
+  }
+
   @Get('capabilities')
   @ApiOperation({ summary: 'Public analysis capability envelope' })
   capabilities() {
     return this.analytics.capabilities();
   }
 
+  /**
+   * External API batch upload (D-14…D-17, D-32).
+   * Project comes from the token grant; body projectId cannot override it.
+   * sync=true + one file waits for scored result; otherwise returns accepted batch.
+   */
+  @Post('uploads/batch')
+  @HttpCode(202)
+  async uploadBatch(
+    @Req() request: Authed,
+    @Body() body: {
+      projectId?: string;
+      sync?: boolean;
+      operator?: { userId?: number; name?: string };
+      clientPhone?: string;
+      language?: string;
+      swapChannels?: boolean;
+      files: Array<{ filename: string; bytesBase64: string }>;
+    },
+  ) {
+    const ctx = this.integration(request);
+    await this.assertModuleActive(ctx.tenantUid);
+    const tokenProjectId = await this.credentials.resolveSpeechAnalyticsProjectId(ctx);
+    const projectId = resolveTokenBoundProject(tokenProjectId, body.projectId ?? null);
+    const files: UploadFileInput[] = (body.files ?? []).map((file) => ({
+      filename: file.filename,
+      bytes: Buffer.from(file.bytesBase64 ?? '', 'base64'),
+    }));
+
+    const service = new UploadService({
+      putUploadContent: async (bytes) => {
+        const allocated = await this.analytics.allocateUpload(ctx, projectId, bytes.length);
+        await this.analytics.putUploadContent(ctx, allocated.id, bytes);
+        await this.analytics.completeUpload(ctx, allocated.id);
+        return { storedBytes: bytes.length };
+      },
+      createJournalRow: async (row) => ({
+        id: `journal:${row.filename}:${Date.now()}`,
+        createsCdr: false as const,
+      }),
+      runAnalysis: async ({ journalId }) => ({ summary: `analyzed:${journalId}` }),
+    });
+
+    return service.submit({
+      channel: 'api',
+      projectId,
+      tokenProjectId,
+      bodyProjectId: body.projectId ?? null,
+      sync: body.sync === true,
+      moduleActive: true,
+      operator: body.operator,
+      clientPhone: body.clientPhone,
+      language: body.language,
+      swapChannels: body.swapChannels === true,
+      files,
+    });
+  }
+
   @Post('uploads')
   @HttpCode(201)
-  upload(@Req() request: Authed, @Body() body: { projectId: string; expectedBytes?: number }) {
-    assertUuid(body.projectId);
-    return this.analytics.allocateUpload(this.integration(request), body.projectId, body.expectedBytes);
+  async upload(@Req() request: Authed, @Body() body: { projectId?: string; expectedBytes?: number }) {
+    const ctx = this.integration(request);
+    await this.assertModuleActive(ctx.tenantUid);
+    const tokenProjectId = await this.credentials.resolveSpeechAnalyticsProjectId(ctx);
+    const projectId = resolveTokenBoundProject(tokenProjectId, body.projectId ?? null);
+    return this.analytics.allocateUpload(ctx, projectId, body.expectedBytes);
   }
 
   @Put('uploads/:id/content')
-  content(@Req() request: Authed, @Param('id') id: string, @Body() body: { bytesBase64: string }) {
+  async content(@Req() request: Authed, @Param('id') id: string, @Body() body: { bytesBase64: string }) {
     assertUuid(id);
-    return this.analytics.putUploadContent(this.integration(request), id, Buffer.from(body.bytesBase64, 'base64'));
+    const ctx = this.integration(request);
+    await this.assertModuleActive(ctx.tenantUid);
+    return this.analytics.putUploadContent(ctx, id, Buffer.from(body.bytesBase64, 'base64'));
   }
 
   @Post('uploads/:id/complete')
-  complete(@Req() request: Authed, @Param('id') id: string, @Body() body: { checksum?: string }) {
+  async complete(@Req() request: Authed, @Param('id') id: string, @Body() body: { checksum?: string }) {
     assertUuid(id);
-    return this.analytics.completeUpload(this.integration(request), id, body.checksum);
+    const ctx = this.integration(request);
+    await this.assertModuleActive(ctx.tenantUid);
+    return this.analytics.completeUpload(ctx, id, body.checksum);
   }
 
   @Get('uploads/:id')
-  getUpload(@Req() request: Authed, @Param('id') id: string) {
+  async getUpload(@Req() request: Authed, @Param('id') id: string) {
     assertUuid(id);
     return this.analytics.getUpload(this.integration(request), id);
   }
 
   @Post('analysis-runs')
   @HttpCode(202)
-  run(@Req() request: Authed, @Headers('idempotency-key') idempotencyKey: string, @Body() body: {
-    projectId: string; assetId: string; externalCallId: string; sourcePart?: string;
+  async run(@Req() request: Authed, @Headers('idempotency-key') idempotencyKey: string, @Body() body: {
+    projectId?: string; assetId: string; externalCallId: string; sourcePart?: string;
     metadata?: Record<string, unknown>;
   }) {
-    assertUuid(body.projectId);
+    const ctx = this.integration(request);
+    await this.assertModuleActive(ctx.tenantUid);
     assertUuid(body.assetId);
     if (!body.externalCallId) {
       throw new ForbiddenException({ code: 'external_call_id_required' });
     }
-    return this.analytics.createRun(this.integration(request), { ...body, idempotencyKey });
+    const tokenProjectId = await this.credentials.resolveSpeechAnalyticsProjectId(ctx);
+    const projectId = resolveTokenBoundProject(tokenProjectId, body.projectId ?? null);
+    return this.analytics.createRun(ctx, { ...body, projectId, idempotencyKey });
   }
 
   @Get('analysis-runs/:id')
@@ -98,8 +182,9 @@ export class SpeechAnalyticsPublicController {
   }
 
   @Get('recordings')
-  recordings(@Req() request: Authed, @Query('projectId') projectId: string) {
-    assertUuid(projectId);
-    return this.analytics.listRecordings(this.integration(request), projectId);
+  async recordings(@Req() request: Authed) {
+    const ctx = this.integration(request);
+    const projectId = await this.credentials.resolveSpeechAnalyticsProjectId(ctx);
+    return this.analytics.listRecordings(ctx, projectId);
   }
 }

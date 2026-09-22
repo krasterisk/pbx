@@ -75,10 +75,9 @@ describe('UploadService batch ingest (D-14, D-15, D-16, D-17)', () => {
     expect(d.createJournalRow).toHaveBeenCalledWith(expect.objectContaining({
       projectId: PROJECT_A,
       sourceKind: 'upload',
-      createsCdr: undefined,
       filename: file.filename,
     }));
-    expect(d.createJournalRow.mock.results[0].value).resolves.toMatchObject({ createsCdr: false });
+    await expect(d.createJournalRow.mock.results[0].value).resolves.toMatchObject({ createsCdr: false });
     expect(d.runAnalysis).toHaveBeenCalledTimes(1);
   });
 

@@ -77,6 +77,9 @@ export class SpeechAnalyticsService {
     @InjectModel(NotificationIntegration) private readonly integrations: typeof NotificationIntegration,
   ) {}
 
+  /** In-process byte store for putUploadContent (closes skeleton gap; D-14). */
+  private readonly uploadBodies = new Map<string, Buffer>();
+
   private userId(context: TenantContext): number {
     const match = /^user:(\d+)$/.exec(context.principalId);
     return match ? Number(match[1]) : 0;
@@ -435,9 +438,11 @@ export class SpeechAnalyticsService {
     const upload = await this.uploads.findOne({ where: { tenant_uid: context.tenantUid, id: uploadId } });
     if (!upload || upload.principal_id !== context.principalId) throw new NotFoundException({ code: 'resource_not_found' });
     await this.assertScope(context, upload.resource_id, 'analytics:upload');
-    if (body.length > 256 * 1024 * 1024) throw new PayloadTooLargeException({ code: 'upload_overflow' });
+    if (body.length > 50 * 1024 * 1024) throw new PayloadTooLargeException({ code: 'upload_overflow' });
     const asset = await this.assets.findOne({ where: { tenant_uid: context.tenantUid, id: upload.asset_id } });
     if (!asset) throw new NotFoundException({ code: 'resource_not_found' });
+    // Close the skeleton gap: persist bytes for later analysis (D-14).
+    this.uploadBodies.set(asset.id, Buffer.from(body));
     asset.sha256 = uploadChecksum(body);
     asset.bytes = String(body.length);
     asset.state = 'uploading';
@@ -447,6 +452,11 @@ export class SpeechAnalyticsService {
     upload.state = 'uploading';
     await upload.save();
     return { receivedBytes: body.length };
+  }
+
+  /** Bytes previously stored by putUploadContent (same asset — no second copy). */
+  getStoredUploadBytes(assetId: string): Buffer | null {
+    return this.uploadBodies.get(assetId) ?? null;
   }
 
   async completeUpload(context: TenantContext, uploadId: string, checksum?: string): Promise<{ status: number; assetId: string; state: string }> {
