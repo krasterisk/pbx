@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"dialplan-webhooks.service|internal-admission\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "enqueues an analysis job when entitled, not paused, and route has projectId",
+  "targetFile": "packages/backend/src/modules/routes/dialplan-webhooks.service.spec.ts",
+  "expected": "resolveHangupContext and enqueueAnalysisJob called; STT/pipeline not invoked",
+  "actual": "resolveHangupContext call count 0 — handleOnHangup only delivers route webhooks",
+  "output": "# tests 10\n# pass 8\n# fail 2\n# cancelled 0\nnot ok 1 - enqueues an analysis job when entitled, not paused, and route has projectId\nnot ok 2 - still delivers route webhook and does not await STT when analytics enqueues\nok 3 - skips enqueue when route has no analytics projectId\nok 4 - skips enqueue when pauseNew is true without cancelling prior jobs\nok 5 - INT2 internal admission suite"
+}
