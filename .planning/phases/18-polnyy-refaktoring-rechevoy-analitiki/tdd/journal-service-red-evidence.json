@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"journal.service\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "allows regenerate/delete only for ADMIN and SUPERADMIN",
+  "targetFile": "packages/backend/src/modules/speech-analytics/journal/journal.service.spec.ts",
+  "expected": "canMutateConversation(ADMIN/SUPERADMIN) === true; supervisor/operator/readonly false",
+  "actual": "canMutateConversation(ADMIN) returned false (stub always returns false)",
+  "output": "# tests 9\n# pass 1\n# fail 8\n# cancelled 0\nnot ok 1 - allows regenerate/delete only for ADMIN and SUPERADMIN\nnot ok 2 - allows score/tag edits for SUPERVISOR plus admin roles, never an analyst role\nnot ok 3 - lets admin-level unrestricted viewers see every tenant row\nnot ok 4 - filters restricted supervisors to matching extensions and own exten\nnot ok 5 - shows text-only upload rows to the uploader and unrestricted viewers\nnot ok 6 - lists latest-run cost per conversation and keeps earlier runs on detail\nok 7 - rejects regenerate/delete for supervisor and never calls wallet on delete\nnot ok 8 - admin regenerate creates a new run without dropping prior runs or reviews\nnot ok 9 - admin delete removes conversation history and amounts without refund"
+}
