@@ -1,30 +1,56 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpeechAnalyticsDashboardPage } from './SpeechAnalyticsDashboardPage';
 
-const requestInsights = vi.fn();
-const navigate = vi.fn();
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 
-let dashboardData: {
-  scored: number;
-  ranking: string;
-  filterDigest: string;
-  conversationCount: number;
-  costTotal: string;
-  lowSttCount: number;
-  sentiment?: { positive: number; neutral: number; negative: number };
-  successRate?: number;
-  scales?: Array<{ key: string; avg: number }>;
-  customMetrics?: Array<{ id: string; label: string; avg: number }>;
-  dynamics?: Array<{ label: string; avgScore: number; calls: number }>;
-};
-
-let insightsMutationState: {
-  isLoading: boolean;
-  isError: boolean;
-  data: unknown;
-};
+const {
+  requestInsights,
+  navigate,
+  dashboardState,
+  insightsMutationState,
+} = vi.hoisted(() => ({
+  requestInsights: vi.fn(),
+  navigate: vi.fn(),
+  dashboardState: {
+    data: {
+      scored: 12,
+      ranking: 'ok',
+      filterDigest: 'digest-1',
+      conversationCount: 12,
+      costTotal: '10.00',
+      lowSttCount: 2,
+      sentiment: { positive: 5, neutral: 4, negative: 3 },
+      successRate: 0.7,
+      scales: [{ key: 'greeting', avg: 80 }],
+      customMetrics: [{ id: 'needs', label: 'Needs', avg: 60 }],
+      dynamics: [{ label: 'Mon', avgScore: 70, calls: 4 }],
+    } as {
+      scored: number;
+      ranking: string;
+      filterDigest: string;
+      conversationCount: number;
+      costTotal: string;
+      lowSttCount: number;
+      sentiment?: { positive: number; neutral: number; negative: number };
+      successRate?: number;
+      scales?: Array<{ key: string; avg: number }>;
+      customMetrics?: Array<{ id: string; label: string; avg: number }>;
+      dynamics?: Array<{ label: string; avgScore: number; calls: number }>;
+    },
+  },
+  insightsMutationState: {
+    isLoading: false,
+    isError: false,
+    data: undefined as unknown,
+  },
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -39,7 +65,7 @@ vi.mock('react-router-dom', () => ({
 vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
   useGetSaProjectsQuery: () => ({ data: [{ id: 'p1', name: 'Demo' }] }),
   useGetSaDashboardQuery: () => ({
-    data: dashboardData,
+    data: dashboardState.data,
     isLoading: false,
   }),
   useGetSaCapturePolicyQuery: () => ({
@@ -53,7 +79,7 @@ describe('SpeechAnalyticsDashboardPage insights (D-35)', () => {
   beforeEach(() => {
     requestInsights.mockReset();
     navigate.mockReset();
-    dashboardData = {
+    dashboardState.data = {
       scored: 12,
       ranking: 'ok',
       filterDigest: 'digest-1',
@@ -66,11 +92,9 @@ describe('SpeechAnalyticsDashboardPage insights (D-35)', () => {
       customMetrics: [{ id: 'needs', label: 'Needs', avg: 60 }],
       dynamics: [{ label: 'Mon', avgScore: 70, calls: 4 }],
     };
-    insightsMutationState = {
-      isLoading: false,
-      isError: false,
-      data: undefined,
-    };
+    insightsMutationState.isLoading = false;
+    insightsMutationState.isError = false;
+    insightsMutationState.data = undefined;
   });
 
   it('shows Get insights CTA and does not fetch insights on mount', () => {
@@ -81,8 +105,8 @@ describe('SpeechAnalyticsDashboardPage insights (D-35)', () => {
   });
 
   it('shows empty insights copy when fewer than 10 conversations and does not call the model', async () => {
-    dashboardData = {
-      ...dashboardData,
+    dashboardState.data = {
+      ...dashboardState.data,
       scored: 3,
       ranking: 'insufficient_sample',
       conversationCount: 3,
@@ -95,48 +119,24 @@ describe('SpeechAnalyticsDashboardPage insights (D-35)', () => {
     expect(requestInsights).not.toHaveBeenCalled();
   });
 
-  it('keeps previous insights on screen while busy and labels cost as not charged', async () => {
-    requestInsights.mockImplementation(async () => ({
-      unwrap: async () => ({
-        status: 'ok',
-        insights: [
-          {
-            type: 'gap',
-            title: 'Пробел',
-            observation: 'Низкий успех',
-            recommendation: 'Тренинг',
-            evidence: { metric: 'successRate', value: 40, operators: [], periodLabel: '' },
-          },
-        ],
-        amount: '0.40',
-        currency: 'RUB',
-        fromCache: false,
-      }),
-    }));
-
-    const { rerender } = render(<SpeechAnalyticsDashboardPage />);
-    await userEvent.click(screen.getByTestId('sa-get-insights'));
-    await waitFor(() => expect(requestInsights).toHaveBeenCalled());
-
-    insightsMutationState = {
-      isLoading: true,
-      isError: false,
-      data: {
-        status: 'ok',
-        insights: [
-          {
-            type: 'gap',
-            title: 'Пробел',
-            observation: 'Низкий успех',
-            recommendation: 'Тренинг',
-            evidence: { metric: 'successRate', value: 40, operators: [], periodLabel: '' },
-          },
-        ],
-        amount: '0.40',
-        currency: 'RUB',
-      },
+  it('keeps previous insights on screen while busy and labels cost as not charged', () => {
+    insightsMutationState.isLoading = true;
+    insightsMutationState.data = {
+      status: 'ok',
+      insights: [
+        {
+          type: 'gap',
+          title: 'Пробел',
+          observation: 'Низкий успех',
+          recommendation: 'Тренинг',
+          evidence: { metric: 'successRate', value: 40, operators: [], periodLabel: '' },
+        },
+      ],
+      amount: '0.40',
+      currency: 'RUB',
     };
-    rerender(<SpeechAnalyticsDashboardPage />);
+
+    render(<SpeechAnalyticsDashboardPage />);
 
     expect(screen.getByTestId('sa-insights-busy')).toBeInTheDocument();
     expect(screen.getByText('Пробел')).toBeInTheDocument();

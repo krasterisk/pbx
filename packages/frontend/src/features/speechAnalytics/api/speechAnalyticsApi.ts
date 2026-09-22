@@ -145,7 +145,19 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       query: (id) => `/speech-analytics/projects/${id}/metrics`,
       providesTags: (_r, _e, id) => [{ type: 'SpeechAnalytics', id: `MET-${id}` }],
     }),
-    getSaDashboard: builder.query<{ scored: number; ranking: string; filterDigest: string }, { projectId: string }>({
+    getSaDashboard: builder.query<{
+      scored: number;
+      ranking: string;
+      filterDigest: string;
+      conversationCount?: number;
+      costTotal?: string;
+      lowSttCount?: number;
+      successRate?: number;
+      sentiment?: { positive: number; neutral: number; negative: number };
+      scales?: Array<{ key: string; avg: number }>;
+      customMetrics?: Array<{ id: string; label: string; avg: number }>;
+      dynamics?: Array<{ label: string; avgScore: number; calls: number }>;
+    }, { projectId: string }>({
       query: ({ projectId }) => ({
         url: '/speech-analytics/dashboard',
         method: 'POST',
@@ -157,6 +169,28 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
           runSelector: 'latest_completed',
           view: 'ai',
         },
+      }),
+    }),
+    requestSaInsights: builder.mutation<
+      {
+        status: 'empty' | 'ok' | 'error';
+        insights: Array<{
+          type: string;
+          title: string;
+          observation: string;
+          recommendation: string;
+          evidence?: Record<string, unknown>;
+        }>;
+        amount: string | null;
+        currency: string | null;
+        fromCache?: boolean;
+      },
+      { projectId: string; filterDigest?: string; refresh?: boolean; conversationCount?: number }
+    >({
+      query: (body) => ({
+        url: '/speech-analytics/insights',
+        method: 'POST',
+        body,
       }),
     }),
     getSaCapturePolicy: builder.query<{ pause_new: boolean; default_enabled: boolean; revision: number }, void>({
@@ -213,6 +247,7 @@ export const {
   useGetSaMetricsQuery,
   usePublishSaMetricMutation,
   useGetSaDashboardQuery,
+  useRequestSaInsightsMutation,
   useGetSaCapturePolicyQuery,
   useSetSaCapturePolicyMutation,
   useReanalyzeSaRunMutation,

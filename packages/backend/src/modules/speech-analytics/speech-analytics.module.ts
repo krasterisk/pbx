@@ -27,12 +27,14 @@ import { SaReportingService } from './reporting/reporting.service';
 import { SaJournalService } from './journal/journal.service';
 import { SaProjectResolver } from './sa-project.resolver';
 import { ProjectEditorService } from './projects/project-editor.service';
+import { InsightsService } from './dashboard/insights.service';
 import { SpeechAnalyticsJwtController } from './speech-analytics-jwt.controller';
 import { SpeechAnalyticsPublicController } from './speech-analytics-public.controller';
 import { User } from '../users/user.model';
 import { NumberList } from '../numbers/number-list.model';
 import { Route } from '../routes/route.model';
 import { NotificationIntegration } from '../notifications/notification-integration.model';
+import { SaInsightsRequest } from './speech-analytics.models';
 
 @Module({
   imports: [
@@ -49,7 +51,7 @@ import { NotificationIntegration } from '../notifications/notification-integrati
       SaHumanReview, SaTranscriptCorrection,
       SaReportDefinition, SaReportRun, SaReportSnapshotItem, SaReportSchedule,
       SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem,
-      SaTenantCapturePolicy, SaRecordingRelation,
+      SaTenantCapturePolicy, SaRecordingRelation, SaInsightsRequest,
       User, NumberList, Route, NotificationIntegration,
     ]),
   ],
@@ -60,6 +62,7 @@ import { NotificationIntegration } from '../notifications/notification-integrati
     SaJournalService,
     SaProjectResolver,
     ProjectEditorService,
+    InsightsService,
   ],
   controllers: [SpeechAnalyticsJwtController, SpeechAnalyticsPublicController],
   exports: [
@@ -68,6 +71,7 @@ import { NotificationIntegration } from '../notifications/notification-integrati
     SaReportingService,
     SaJournalService,
     ProjectEditorService,
+    InsightsService,
     SequelizeModule,
   ],
 })

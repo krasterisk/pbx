@@ -7,6 +7,7 @@ import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
 import { SaMetricsService } from './metrics/metrics.service';
 import { SaReportingService } from './reporting/reporting.service';
 import { SaJournalService } from './journal/journal.service';
+import { InsightsService } from './dashboard/insights.service';
 import type { AnalyticsFilterSpec } from '@krasterisk/shared';
 import type { SaProjectConfigV1 } from '@krasterisk/shared';
 import type { MetricRubric } from './metrics/metric-engine';
@@ -21,6 +22,7 @@ export class SpeechAnalyticsJwtController {
     private readonly metrics: SaMetricsService,
     private readonly reporting: SaReportingService,
     private readonly journal: SaJournalService,
+    private readonly insights: InsightsService,
   ) {}
 
   @Get('journal')
@@ -222,6 +224,24 @@ export class SpeechAnalyticsJwtController {
   @Post('dashboard')
   dashboard(@Req() request: Authed, @Body() body: AnalyticsFilterSpec) {
     return this.reporting.dashboard(request.tenantContext, body);
+  }
+
+  @Post('insights')
+  requestInsights(
+    @Req() request: Authed,
+    @Body() body: {
+      projectId: string;
+      filterDigest?: string;
+      refresh?: boolean;
+      conversationCount?: number;
+      projectName?: string;
+      systemPrompt?: string | null;
+      dashboardFacts?: Record<string, unknown>;
+      currency?: string;
+    },
+  ) {
+    assertUuid(body.projectId);
+    return this.insights.requestForTenant(request.tenantContext, body);
   }
 
   @Post('exports')
