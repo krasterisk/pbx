@@ -40,22 +40,35 @@ export type BudgetSoftLimitResult = {
   softLimit: number;
 };
 
-/**
- * RED stub: returns stopAnalyses:true on exceed (wrong) and ignores zero=no-limit.
- */
+/** Soft limit: zero means no limit; over limit → alert + webhook, never stop analyses (D-28). */
 export function evaluateBudgetSoftLimit(input: {
   softLimit: number;
   spent: string;
 }): BudgetSoftLimitResult {
-  const spentNum = Number(input.spent);
-  const exceeded = spentNum > 0 && spentNum >= input.softLimit;
+  if (!Number.isFinite(input.softLimit) || input.softLimit <= 0) {
+    return {
+      exceeded: false,
+      stopAnalyses: false,
+      shouldAlert: false,
+      shouldWebhook: false,
+      spent: input.spent,
+      softLimit: input.softLimit,
+    };
+  }
+  const spent = parseDecimal(input.spent);
+  const limit = parseDecimal(String(input.softLimit));
+  let spentDigits = spent.digits;
+  let limitDigits = limit.digits;
+  const scale = Math.max(spent.scale, limit.scale);
+  if (spent.scale < scale) spentDigits *= 10n ** BigInt(scale - spent.scale);
+  if (limit.scale < scale) limitDigits *= 10n ** BigInt(scale - limit.scale);
+  const exceeded = spentDigits >= limitDigits;
   return {
     exceeded,
-    // INTENTIONAL RED: analyses must never stop — stub stops them
-    stopAnalyses: true,
+    stopAnalyses: false,
     shouldAlert: exceeded,
     shouldWebhook: exceeded,
     spent: input.spent,
     softLimit: input.softLimit,
-  } as BudgetSoftLimitResult;
+  };
 }

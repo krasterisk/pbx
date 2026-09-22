@@ -92,6 +92,29 @@ export class SpeechAnalyticsJwtController {
     return this.analytics.publish(request.tenantContext, id, body.operationKey);
   }
 
+  @Delete('projects/:id')
+  deleteProject(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.deleteProject(request.tenantContext, id);
+  }
+
+  @Post('projects/:id/webhook/test')
+  @HttpCode(200)
+  testWebhook(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.testProjectWebhook(request.tenantContext, id);
+  }
+
+  @Post('projects/:id/budget/evaluate')
+  evaluateBudget(
+    @Req() request: Authed,
+    @Param('id') id: string,
+    @Body() body: { from?: string; to?: string },
+  ) {
+    assertUuid(id);
+    return this.analytics.evaluateProjectBudget(request.tenantContext, id, body);
+  }
+
   @Get('recordings')
   recordings(@Req() request: Authed, @Query('projectId') projectId: string, @Query('cursor') cursor?: string) {
     assertUuid(projectId);

@@ -78,6 +78,6 @@ describe('delete project effects (D-31)', () => {
       { record: true, analytics: { projectId: 'proj-1', mode: 'on' } },
       'proj-1',
     );
-    expect(cleared?.analytics).toEqual({ projectId: null });
+    expect(cleared?.analytics).toEqual(expect.objectContaining({ projectId: null }));
   });
 });

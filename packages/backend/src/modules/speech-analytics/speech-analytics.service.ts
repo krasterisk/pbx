@@ -3,6 +3,7 @@ import {
   NotFoundException, PayloadTooLargeException, UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { randomUUID } from 'node:crypto';
 import { Sequelize } from 'sequelize-typescript';
 import { UniqueConstraintError } from 'sequelize';
@@ -13,8 +14,14 @@ import { AiJobAdmissionService } from '../ai-jobs/ai-job-admission.service';
 import { AiMediaAsset, AiUpload } from '../media-assets/media-asset.models';
 import { ProductAccessService } from '../product-access/product-access.service';
 import { ProductResourceAuthorization } from '../integration-credentials/product-resource.authorization';
-import { IntegrationGrant } from '../integration-credentials/integration-credential.models';
+import {
+  IntegrationCredential, IntegrationGrant, IntegrationPrincipal,
+} from '../integration-credentials/integration-credential.models';
 import type { TenantContext } from '../integration-credentials/tenant-context';
+import { User, UserLevel } from '../users/user.model';
+import { Route } from '../routes/route.model';
+import { NotificationIntegration } from '../notifications/notification-integration.model';
+import { WebhookQueueService } from '../routes/webhook-queue.service';
 import { configDigest, DomainError } from './project-engine';
 import { claimRecording, emptyIngestStores, metadataAllowlist, uploadChecksum } from './ingest-engine';
 import { runPipeline } from './pipeline';
@@ -22,6 +29,25 @@ import {
   SaAnalysisRun, SaProject, SaProjectMember, SaProjectVersion, SaRecording, SaResult, SaTranscript,
   SaTranscriptSegment,
 } from './speech-analytics.models';
+import {
+  ProjectEditorError,
+  assertValidTemplate,
+  canDeleteProject,
+  canPublishProject,
+  stampChanged,
+} from './projects/project-editor.service';
+import {
+  evaluateBudgetSoftLimit,
+  sumSaChargeRunAmounts,
+} from './projects/budget';
+import {
+  assertIntegrationsForTenant,
+  axiosSaHttpPoster,
+  clearRouteAnalyticsProject,
+  enqueueSaEventWebhook,
+  planDeleteProjectEffects,
+  testSaEventWebhook,
+} from './projects/event-webhooks';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -32,6 +58,7 @@ export class SpeechAnalyticsService {
     private readonly admission: AiJobAdmissionService,
     private readonly products: ProductAccessService,
     private readonly resources: ProductResourceAuthorization,
+    private readonly webhooks: WebhookQueueService,
     @InjectModel(SaProject) private readonly projects: typeof SaProject,
     @InjectModel(SaProjectVersion) private readonly versions: typeof SaProjectVersion,
     @InjectModel(SaProjectMember) private readonly members: typeof SaProjectMember,
@@ -43,11 +70,66 @@ export class SpeechAnalyticsService {
     @InjectModel(AiMediaAsset) private readonly assets: typeof AiMediaAsset,
     @InjectModel(AiUpload) private readonly uploads: typeof AiUpload,
     @InjectModel(IntegrationGrant) private readonly grants: typeof IntegrationGrant,
+    @InjectModel(IntegrationCredential) private readonly credentials: typeof IntegrationCredential,
+    @InjectModel(IntegrationPrincipal) private readonly principals: typeof IntegrationPrincipal,
+    @InjectModel(User) private readonly users: typeof User,
+    @InjectModel(Route) private readonly routes: typeof Route,
+    @InjectModel(NotificationIntegration) private readonly integrations: typeof NotificationIntegration,
   ) {}
 
   private userId(context: TenantContext): number {
     const match = /^user:(\d+)$/.exec(context.principalId);
     return match ? Number(match[1]) : 0;
+  }
+
+  private async resolveUserLevel(context: TenantContext): Promise<number> {
+    const userId = this.userId(context);
+    if (!userId) throw new ForbiddenException({ code: 'resource_permission_denied' });
+    const user = await this.users.findOne({
+      where: { uniqueid: userId },
+      attributes: ['uniqueid', 'level'],
+    });
+    if (!user) throw new ForbiddenException({ code: 'resource_permission_denied' });
+    return Number(user.getDataValue('level'));
+  }
+
+  /** D-38 partial: tenant right defaults off until 18-15; do not clear existing overrides. */
+  private applyModelOverridePolicy(
+    existing: SaProjectConfigV1,
+    incoming: SaProjectConfigV1,
+    allowOverride: boolean,
+  ): SaProjectConfigV1 {
+    if (allowOverride) return incoming;
+    return {
+      ...incoming,
+      sttModelId: existing.sttModelId ?? null,
+      scoreModelId: existing.scoreModelId ?? null,
+    };
+  }
+
+  private parseConfig(raw: string): SaProjectConfigV1 {
+    try {
+      return { ...defaultSaProjectConfig(), ...(JSON.parse(raw) as SaProjectConfigV1) };
+    } catch {
+      return defaultSaProjectConfig();
+    }
+  }
+
+  private async assertDigestIntegrations(tenantUid: number, config: SaProjectConfigV1): Promise<void> {
+    const uids = [
+      ...config.digest.integrationUids,
+      ...config.alerts.integrationUids,
+    ];
+    if (!uids.length) return;
+    const rows = await this.integrations.findAll({
+      where: { uid: { [Op.in]: [...new Set(uids)] } },
+      attributes: ['uid', 'user_uid'],
+    });
+    assertIntegrationsForTenant(
+      tenantUid,
+      uids,
+      rows.map((row) => ({ uid: row.uid, tenantUid: row.user_uid })),
+    );
   }
 
   async assertScope(context: TenantContext, projectId: string, scope: string): Promise<SaProject> {
@@ -97,7 +179,17 @@ export class SpeechAnalyticsService {
     const project = await this.assertScope(context, projectId, 'analytics:read');
     if (context.principalKind === 'integration') throw new ForbiddenException({ code: 'resource_permission_denied' });
     if (project.draft_revision !== expectedRevision) throw new ConflictException({ code: 'stale_draft' });
-    project.draft_config = JSON.stringify(config);
+    try {
+      assertValidTemplate(config);
+      await this.assertDigestIntegrations(context.tenantUid, config);
+    } catch (error) {
+      this.mapEditorError(error);
+    }
+    const existing = this.parseConfig(project.draft_config);
+    const level = await this.resolveUserLevel(context);
+    const allowOverride = level === UserLevel.SUPERADMIN;
+    const next = this.applyModelOverridePolicy(existing, config, allowOverride);
+    project.draft_config = JSON.stringify(next);
     project.draft_revision += 1;
     project.updated_at = new Date();
     await project.save();
@@ -117,23 +209,47 @@ export class SpeechAnalyticsService {
     if (context.principalKind === 'integration') throw new ForbiddenException({ code: 'resource_permission_denied' });
     const access = await this.products.decide(context.tenantUid, 'speech_analytics');
     if (!access.allowed) throw new ForbiddenException({ code: access.reason ?? 'not_entitled' });
+    const level = await this.resolveUserLevel(context);
+    if (!canPublishProject(level)) throw new ForbiddenException({ code: 'resource_permission_denied' });
     return this.sequelize.transaction(async (transaction) => {
       const project = await this.projects.findOne({
         where: { tenant_uid: context.tenantUid, id: projectId },
         transaction, lock: transaction.LOCK.UPDATE,
       });
       if (!project) throw new NotFoundException({ code: 'resource_not_found' });
-      const member = await this.members.findOne({
-        where: { tenant_uid: context.tenantUid, project_id: projectId, user_id: this.userId(context) },
-        transaction,
-      });
-      if (!member || member.role !== 'owner') throw new ForbiddenException({ code: 'resource_permission_denied' });
+      const draft = this.parseConfig(project.draft_config);
+      try {
+        assertValidTemplate(draft);
+        await this.assertDigestIntegrations(context.tenantUid, draft);
+      } catch (error) {
+        this.mapEditorError(error);
+      }
+      const active = project.active_version_id
+        ? await this.versions.findOne({
+          where: { id: project.active_version_id, tenant_uid: context.tenantUid },
+          transaction,
+        })
+        : null;
+      const publishedConfig = active ? this.parseConfig(active.config) : null;
+      const bump = stampChanged(publishedConfig, draft);
+
+      if (!bump && active) {
+        active.config = JSON.stringify(draft);
+        active.config_digest = configDigest(draft);
+        active.stt_revision_id = draft.sttRevisionId;
+        active.llm_revision_id = draft.llmRevisionId;
+        await active.save({ transaction });
+        project.status = 'active';
+        project.updated_at = new Date();
+        await project.save({ transaction });
+        return active;
+      }
+
       const count = await this.versions.count({ where: { project_id: projectId }, transaction });
-      const config = JSON.parse(project.draft_config) as SaProjectConfigV1;
       const version = await this.versions.create({
         id: randomUUID(), tenant_uid: context.tenantUid, project_id: projectId,
-        version_no: count + 1, config_digest: configDigest(config), config: project.draft_config,
-        stt_revision_id: config.sttRevisionId, llm_revision_id: config.llmRevisionId,
+        version_no: count + 1, config_digest: configDigest(draft), config: JSON.stringify(draft),
+        stt_revision_id: draft.sttRevisionId, llm_revision_id: draft.llmRevisionId,
         created_by: this.userId(context), created_at: new Date(),
       }, { transaction });
       project.active_version_id = version.id;
@@ -142,6 +258,155 @@ export class SpeechAnalyticsService {
       await project.save({ transaction });
       return version;
     });
+  }
+
+  async deleteProject(context: TenantContext, projectId: string): Promise<{ deleted: true; effects: ReturnType<typeof planDeleteProjectEffects> }> {
+    if (context.principalKind === 'integration') throw new ForbiddenException({ code: 'resource_permission_denied' });
+    const level = await this.resolveUserLevel(context);
+    if (!canDeleteProject(level)) throw new ForbiddenException({ code: 'resource_permission_denied' });
+    const effects = planDeleteProjectEffects();
+    await this.assertScope(context, projectId, 'analytics:read');
+
+    await this.sequelize.transaction(async (transaction) => {
+      const project = await this.projects.findOne({
+        where: { tenant_uid: context.tenantUid, id: projectId },
+        transaction, lock: transaction.LOCK.UPDATE,
+      });
+      if (!project) throw new NotFoundException({ code: 'resource_not_found' });
+
+      // Keep conversations (recordings/runs untouched). Clear route selection (D-31).
+      if (effects.clearRouteSelection) {
+        const routes = await this.routes.findAll({
+          where: { user_uid: context.tenantUid },
+          transaction,
+        });
+        for (const route of routes) {
+          const next = clearRouteAnalyticsProject(route.options as Record<string, unknown> | null, projectId);
+          if (JSON.stringify(next) !== JSON.stringify(route.options)) {
+            route.options = next;
+            await route.save({ transaction });
+          }
+        }
+      }
+
+      // Revoke API tokens granted to this project (D-31).
+      if (effects.revokeTokens) {
+        const grants = await this.grants.findAll({
+          where: {
+            tenant_uid: context.tenantUid,
+            resource_kind: 'project',
+            resource_id: projectId,
+          },
+          transaction,
+        });
+        const principalIds = [...new Set(grants.map((g) => g.principal_id))];
+        const now = new Date();
+        if (principalIds.length) {
+          await this.credentials.update(
+            { revoked_at: now },
+            {
+              where: {
+                tenant_uid: context.tenantUid,
+                principal_id: { [Op.in]: principalIds },
+                revoked_at: null,
+              },
+              transaction,
+            },
+          );
+          await this.principals.update(
+            { status: 'disabled', updated_at: now },
+            {
+              where: {
+                tenant_uid: context.tenantUid,
+                id: { [Op.in]: principalIds },
+                product: 'speech_analytics',
+              },
+              transaction,
+            },
+          );
+        }
+      }
+
+      project.status = 'archived';
+      project.updated_at = new Date();
+      await project.save({ transaction });
+    });
+
+    return { deleted: true, effects };
+  }
+
+  async testProjectWebhook(context: TenantContext, projectId: string) {
+    const project = await this.assertScope(context, projectId, 'analytics:read');
+    if (context.principalKind === 'integration') throw new ForbiddenException({ code: 'resource_permission_denied' });
+    const config = this.parseConfig(project.draft_config);
+    if (!config.eventWebhook.url) {
+      throw new UnprocessableEntityException({ code: 'webhook_url_required' });
+    }
+    return testSaEventWebhook(axiosSaHttpPoster, {
+      url: config.eventWebhook.url,
+      headers: config.eventWebhook.headers ?? {},
+      projectId,
+    });
+  }
+
+  async evaluateProjectBudget(context: TenantContext, projectId: string, period?: { from: string; to: string }) {
+    const project = await this.assertScope(context, projectId, 'analytics:read');
+    const config = this.parseConfig(
+      project.active_version_id
+        ? ((await this.versions.findByPk(project.active_version_id))?.config ?? project.draft_config)
+        : project.draft_config,
+    );
+    const to = period?.to ? new Date(period.to) : new Date();
+    const from = period?.from
+      ? new Date(period.from)
+      : new Date(to.getTime() - 30 * 86400000);
+    const recordings = await this.recordings.findAll({
+      where: { tenant_uid: context.tenantUid, project_id: projectId },
+      attributes: ['id'],
+    });
+    const recordingIds = recordings.map((r) => r.id);
+    const runs = recordingIds.length
+      ? await this.runs.findAll({
+        where: {
+          tenant_uid: context.tenantUid,
+          recording_id: { [Op.in]: recordingIds },
+          amount: { [Op.ne]: null },
+        },
+        attributes: ['amount', 'currency', 'created_at'],
+      })
+      : [];
+    const currency = runs.find((r) => r.currency)?.currency ?? 'RUB';
+    const spent = sumSaChargeRunAmounts(
+      runs.map((r) => ({
+        amount: r.amount,
+        currency: r.currency,
+        createdAt: r.created_at,
+      })),
+      { from, to },
+      currency,
+    );
+    const result = evaluateBudgetSoftLimit({
+      softLimit: config.budget?.softLimit ?? 0,
+      spent,
+    });
+    if (result.shouldWebhook && config.eventWebhook.url
+      && config.eventWebhook.events.includes('budget.exceeded')) {
+      await enqueueSaEventWebhook(this.webhooks, {
+        url: config.eventWebhook.url,
+        headers: config.eventWebhook.headers ?? {},
+        event: 'budget.exceeded',
+        projectId,
+        data: { spent, softLimit: result.softLimit, currency },
+      });
+    }
+    return { ...result, currency, period: { from: from.toISOString(), to: to.toISOString() } };
+  }
+
+  mapEditorError(error: unknown): never {
+    if (error instanceof ProjectEditorError) {
+      throw new HttpException({ code: error.code }, error.status);
+    }
+    throw error;
   }
 
   async allocateUpload(context: TenantContext, projectId: string, expectedBytes?: number): Promise<{ id: string; expiresAt: string }> {

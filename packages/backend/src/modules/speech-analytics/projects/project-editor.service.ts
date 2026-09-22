@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import {
   defaultSaProjectConfig,
@@ -110,7 +111,6 @@ export function publishDraft(
     : state.versionNo;
 
   if (!bump && state.published) {
-    // Non-stamp publish updates the active published config in place.
     const versions = state.versions.map((row) => (
       row.versionNo === state.versionNo
         ? { versionNo: row.versionNo, config: published }
@@ -140,9 +140,8 @@ export function activateVersion(
   throw new ProjectEditorError('cannot_reactivate_version', 400);
 }
 
-/**
- * Nest injectable surface — DB/endpoint wiring continues in task 2.
- */
+/** Nest provider so the module can construct the editor helpers. */
+@Injectable()
 export class ProjectEditorService {
   canPublish(level: number): boolean {
     return canPublishProject(level);
