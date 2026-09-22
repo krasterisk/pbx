@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=dashboard.service --no-coverage",
+  "exitCode": 1,
+  "targetTest": "excludes low-STT conversations from averages and exposes their count",
+  "targetFile": "packages/backend/src/modules/speech-analytics/dashboard/dashboard.service.spec.ts",
+  "expected": "lowSttCount 1, averageScore 90",
+  "actual": "lowSttCount 0 (RED stub includes low-STT in averages)",
+  "output": "FAIL dashboard.service.spec.ts\n# tests 3\n# pass 1\n# fail 2\nnot ok 1 - excludes low-STT conversations from averages and exposes their count\nok 2 - sums latest-run amounts only for cost cards and ignores insights amounts\nnot ok 3 - respects CDR access list the same way as the journal\nExpected lowSttCount: 1\nReceived: 0"
+}
