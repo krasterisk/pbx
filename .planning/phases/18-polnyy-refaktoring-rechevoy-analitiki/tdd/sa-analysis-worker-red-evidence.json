@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"sa-analysis.worker\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "exports a 500ms poll interval and 60s total ceiling",
+  "targetFile": "packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.spec.ts",
+  "expected": "FILE_WAIT_POLL_MS=500 and FILE_WAIT_CEILING_MS=60000",
+  "actual": "FILE_WAIT_POLL_MS=1000 (RED stub)",
+  "output": "# tests 6\n# pass 0\n# fail 6\n# cancelled 0\nnot ok 1 - exports a 500ms poll interval and 60s total ceiling\nnot ok 2 - proceeds only when file exists, size > 0, and size is unchanged across two consecutive 500ms polls\nnot ok 3 - marks the run as error without invokeSaChargeRun when the 60s ceiling elapses\nnot ok 4 - marks empty or never-appearing file as error without SA-CHARGE-RUN\nnot ok 5 - does not treat fakeStt as a successful scored analysis handoff\nnot ok 6 - orders StopMixMonitor then ffmpeg then CURL on-hangup, and notifies when analytics project is attached"
+}
