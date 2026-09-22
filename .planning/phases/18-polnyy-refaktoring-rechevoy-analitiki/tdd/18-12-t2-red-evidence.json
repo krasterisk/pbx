@@ -1,0 +1,9 @@
+{
+  "command": "node ../../node_modules/vitest/vitest.mjs run --config vite.config.ts src/features/speechAnalytics/ui/MetricEditor.test.tsx",
+  "exitCode": 1,
+  "targetTest": "renders every D-25 industry template and editor sections",
+  "targetFile": "packages/frontend/src/features/speechAnalytics/ui/MetricEditor.test.tsx",
+  "expected": "Editor contains templates, metrics, scales, prompt, topics, webhook, digest, alerts, budget; publish disabled while save in flight",
+  "actual": "Unable to find an element by: [data-testid=\"sa-template-real_estate\"] (stub metric form only)",
+  "output": "# tests 3\n# pass 0\n# fail 3\n# cancelled 0\nnot ok 1 - renders every D-25 industry template and editor sections\nnot ok 2 - disables publish while a draft save is in flight\nnot ok 3 - shows model override fields only when the cabinet right is on"
+}
