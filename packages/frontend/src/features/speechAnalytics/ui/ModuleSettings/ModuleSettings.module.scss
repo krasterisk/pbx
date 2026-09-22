@@ -1,0 +1,41 @@
+.wrap {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.pauseRow {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.hint {
+  color: var(--color-muted-foreground);
+}
+
+.error {
+  color: var(--color-destructive);
+}
+
+.models {
+  width: 100%;
+  min-width: 0;
+}
+
+.field {
+  width: 100%;
+  min-width: 0;
+}
+
+.modelSelect {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.modelOption {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}

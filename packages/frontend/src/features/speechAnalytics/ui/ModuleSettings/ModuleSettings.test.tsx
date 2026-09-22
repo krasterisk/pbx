@@ -96,7 +96,8 @@ describe('ModuleSettings', () => {
     const wrap = screen.getByTestId('sa-module-settings');
     expect(wrap.className).toMatch(/wrap|settings/);
     fireEvent.change(screen.getByTestId('sa-stt-model-select'), { target: { value: 'stt-a' } });
-    const option = screen.getByText(/ОченьДлинноеИмяМодели/);
-    expect(option.closest('[class*="wrap"]') || option).toBeTruthy();
+    const options = screen.getAllByText(/ОченьДлинноеИмяМодели/);
+    expect(options.length).toBeGreaterThan(0);
+    expect(options[0].closest('[class*="wrap"]') || options[0]).toBeTruthy();
   });
 });

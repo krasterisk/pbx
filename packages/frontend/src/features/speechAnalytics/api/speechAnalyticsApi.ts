@@ -246,13 +246,60 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
     }),
     setSaCapturePolicy: builder.mutation<unknown, { pauseNew: boolean }>({
       query: (body) => ({ url: '/speech-analytics/capture-policy', method: 'PUT', body }),
+      /** Optimistic Switch (ARCHITECTURE): flip pause_new immediately; undo on failure. */
       async onQueryStarted({ pauseNew }, { dispatch, queryFulfilled }) {
         const patch = dispatch(speechAnalyticsApi.util.updateQueryData('getSaCapturePolicy', undefined, (draft) => {
           draft.pause_new = pauseNew;
         }));
-        try { await queryFulfilled; } catch { patch.undo(); }
+        const modulePatch = dispatch(speechAnalyticsApi.util.updateQueryData('getSaModuleSettings', undefined, (draft) => {
+          draft.pauseNew = pauseNew;
+        }));
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+          modulePatch.undo();
+        }
       },
-      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'POLICY' }],
+      invalidatesTags: [
+        { type: 'SpeechAnalytics', id: 'POLICY' },
+        { type: 'SpeechAnalytics', id: 'MODULE_SETTINGS' },
+      ],
+    }),
+    getSaModuleSettings: builder.query<{
+      pauseNew: boolean;
+      sttModelId: string | null;
+      scoreModelId: string | null;
+      insightsModelId: string | null;
+      cabinetCanEditModels: boolean;
+      modelAllowlist: Array<{ id: string; label: string }>;
+      canEditModels: boolean;
+    }, void>({
+      query: () => '/speech-analytics/module-settings',
+      providesTags: [{ type: 'SpeechAnalytics', id: 'MODULE_SETTINGS' }],
+    }),
+    setSaModuleModels: builder.mutation<
+      unknown,
+      {
+        sttModelId?: string | null;
+        scoreModelId?: string | null;
+        insightsModelId?: string | null;
+      }
+    >({
+      query: (body) => ({ url: '/speech-analytics/module-settings/models', method: 'PUT', body }),
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        const patch = dispatch(speechAnalyticsApi.util.updateQueryData('getSaModuleSettings', undefined, (draft) => {
+          if (arg.sttModelId !== undefined) draft.sttModelId = arg.sttModelId;
+          if (arg.scoreModelId !== undefined) draft.scoreModelId = arg.scoreModelId;
+          if (arg.insightsModelId !== undefined) draft.insightsModelId = arg.insightsModelId;
+        }));
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'MODULE_SETTINGS' }],
     }),
     publishSaMetric: builder.mutation<unknown, { id: string; operationKey: string; rubric: SaMetricRubric }>({
       query: ({ id, operationKey, rubric }) => ({
@@ -393,6 +440,8 @@ export const {
   useRequestSaInsightsMutation,
   useGetSaCapturePolicyQuery,
   useSetSaCapturePolicyMutation,
+  useGetSaModuleSettingsQuery,
+  useSetSaModuleModelsMutation,
   useReanalyzeSaRunMutation,
   useReviewSaRunMutation,
   useCorrectSaTranscriptMutation,
