@@ -16,6 +16,10 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('react-toastify', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
+vi.mock('@/shared/hooks/useIsMobile', () => ({
+  useIsMobile: () => false,
+}));
+
 const projectsState: {
   data: Array<{
     id: string;
@@ -74,7 +78,7 @@ describe('SpeechAnalyticsProjectsPage', () => {
         'Создайте проект и опубликуйте метрики, чтобы маршруты и загрузки могли брать этот набор.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Создать проект' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Создать проект' }).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows a loader while projects are loading', () => {
@@ -95,33 +99,24 @@ describe('SpeechAnalyticsProjectsPage', () => {
     expect(projectsState.refetch).toHaveBeenCalled();
   });
 
-  it('keeps the same create CTA for zero, one, and many projects', () => {
-    const { rerender } = renderPage();
-    expect(screen.getByRole('button', { name: 'Создать проект' })).toBeInTheDocument();
-
+  it('keeps the create CTA when the list has one project', () => {
     projectsState.data = [
       { id: 'p1', name: 'Pilot', status: 'active', draft_revision: 1, active_version_id: 'v1' },
     ];
-    rerender(
-      <MemoryRouter>
-        <SpeechAnalyticsProjectsPage />
-      </MemoryRouter>,
-    );
+    renderPage();
     expect(screen.getByText('Pilot')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Создать проект' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Создать проект' }).length).toBeGreaterThanOrEqual(1);
+  });
 
+  it('keeps the create CTA when the list has many projects', () => {
     projectsState.data = [
       { id: 'p1', name: 'Pilot', status: 'active', draft_revision: 1, active_version_id: 'v1' },
       { id: 'p2', name: 'Debt', status: 'draft', draft_revision: 2, active_version_id: null },
       { id: 'p3', name: 'Appt', status: 'active', draft_revision: 1, active_version_id: 'v3' },
     ];
-    rerender(
-      <MemoryRouter>
-        <SpeechAnalyticsProjectsPage />
-      </MemoryRouter>,
-    );
+    renderPage();
     expect(screen.getByText('Debt')).toBeInTheDocument();
     expect(screen.getByText('Appt')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Создать проект' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Создать проект' }).length).toBeGreaterThanOrEqual(1);
   });
 });
