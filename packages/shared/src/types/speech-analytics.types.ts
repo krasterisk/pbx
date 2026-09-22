@@ -62,8 +62,10 @@ export type AnalyticsFilterSpec = {
 };
 
 export type RouteAnalyticsOptions = {
-  mode: 'inherit' | 'off' | 'on';
-  projectId?: string;
+  /** Selected analytics project; null/omit means no auto analysis (D-01, D-02). */
+  projectId?: string | null;
+  /** @deprecated D-01 — ignored; projectId alone decides auto analysis */
+  mode?: 'inherit' | 'off' | 'on';
 };
 
 export function defaultAnalyticsFilter(projectId: string): AnalyticsFilterSpec {

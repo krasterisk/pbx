@@ -52,6 +52,8 @@ export type RecordingDialplanInput = {
   recordAll: boolean;
   hangupWebhook: boolean;
   hangupContext?: string;
+  /** When set, always push hangup_handler so analytics notify can run after StopMixMonitor (D-02). */
+  analyticsProjectId?: string | null;
 };
 
 /** MixMonitor + hangup_handler lines used by generated routes (`routes.service`). */
@@ -87,7 +89,7 @@ export function recordingDialplanLines(input: RecordingDialplanInput): string[] 
       lines.push(`same => n,MixMonitor(${recBase}.${recExt},${flags})`);
     }
   }
-  if (input.hangupWebhook || input.durable) {
+  if (input.hangupWebhook || input.durable || Boolean(input.analyticsProjectId)) {
     const hangupContext = input.hangupContext ?? 'krsk-hangup-handler';
     lines.push(`same => n,Set(CHANNEL(hangup_handler_push)=${hangupContext},s,1)`);
   }
