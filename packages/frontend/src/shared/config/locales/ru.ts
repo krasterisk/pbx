@@ -5348,6 +5348,33 @@ export const ru = {
     routeProjectPlaceholder: "Без проекта",
     errorLoadProjects: "Не удалось загрузить проекты. Повторите попытку.",
     retry: "Повторить",
+    journalTitle: "Разговоры",
+    journalSubtitle: "Журнал разобранных разговоров и загрузок",
+    uploadRecording: "Загрузить запись",
+    exportExcel: "Выгрузить Excel",
+    exportExcelBusy: "Выгрузка...",
+    getAnalytics: "Получить аналитику",
+    getAnalyticsBusy: "Получение...",
+    openAnalytics: "Аналитика",
+    askProjectBeforeAnalyze: "Выберите проект аналитики",
+    askProjectBeforeAnalyzeHint:
+      "Назначьте проект аналитики на маршруте этого звонка, затем повторите.",
+    sheetTabAnalytics: "Аналитика",
+    sheetTabTranscript: "Расшифровка",
+    sheetTabCost: "Стоимость",
+    journalProgress: "Готово {{done}} из {{total}}",
+    emptyJournalHeading: "Разговоров пока нет",
+    emptyJournalBody:
+      "Загрузите запись или дождитесь разбора звонка с маршрута, где выбран проект.",
+    errorLoadJournal:
+      "Не удалось загрузить журнал. Обновите страницу или повторите позже.",
+    errorExport: "Не удалось выгрузить Excel. Повторите попытку.",
+    errorModuleOffWrite:
+      "Модуль выключен. Доступен только просмотр уже посчитанного.",
+    costPending: "Сумма не посчитана",
+    colSummary: "Саммари",
+    colOccurred: "Дата",
+    colCost: "Стоимость",
   },
 
   aiRobots: {

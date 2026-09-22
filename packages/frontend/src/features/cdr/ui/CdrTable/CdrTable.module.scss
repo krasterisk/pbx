@@ -30,7 +30,32 @@
 .recordingCell {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.25rem;
+  min-width: 0;
+}
+
+.recordingStack {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.analyticsActionBtn {
+  flex: 0 1 auto;
+  max-width: 9rem;
+  white-space: normal;
+  line-height: 1.2;
+  height: auto;
+  min-height: 2rem;
+  padding-block: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.analyticsError {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-destructive, #dc2626);
+  max-width: 12rem;
 }
 
 .iconBtn,
