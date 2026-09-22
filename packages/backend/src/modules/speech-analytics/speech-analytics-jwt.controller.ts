@@ -1,10 +1,11 @@
 import {
-  Body, Controller, Get, Headers, HttpCode, Param, Post, Put, Query, Req, UseGuards,
+  Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
 import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
 import { SaMetricsService } from './metrics/metrics.service';
 import { SaReportingService } from './reporting/reporting.service';
+import { SaJournalService } from './journal/journal.service';
 import type { AnalyticsFilterSpec } from '@krasterisk/shared';
 import type { SaProjectConfigV1 } from '@krasterisk/shared';
 import type { MetricRubric } from './metrics/metric-engine';
@@ -18,7 +19,32 @@ export class SpeechAnalyticsJwtController {
     private readonly analytics: SpeechAnalyticsService,
     private readonly metrics: SaMetricsService,
     private readonly reporting: SaReportingService,
+    private readonly journal: SaJournalService,
   ) {}
+
+  @Get('journal')
+  listJournal(@Req() request: Authed) {
+    return this.journal.list(request.tenantContext);
+  }
+
+  @Get('journal/:id')
+  getJournal(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.journal.get(request.tenantContext, id);
+  }
+
+  @Post('journal/:id/regenerate')
+  @HttpCode(202)
+  regenerateJournal(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.journal.regenerate(request.tenantContext, id);
+  }
+
+  @Delete('journal/:id')
+  deleteJournal(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.journal.delete(request.tenantContext, id);
+  }
 
   @Get('projects')
   list(@Req() request: Authed) {

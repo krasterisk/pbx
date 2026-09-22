@@ -12,6 +12,7 @@ import {
   ConversationSheet,
   type ConversationSourceKind,
 } from '@/features/speechAnalytics/ui/ConversationSheet/ConversationSheet';
+import { ConversationsTable } from '@/features/speechAnalytics/ui/ConversationsTable/ConversationsTable';
 import cls from './SpeechAnalyticsJournalPage.module.scss';
 
 function normalizeSourceKind(raw: string | undefined): ConversationSourceKind {
@@ -32,6 +33,7 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   });
 
   const items = journalQuery.data?.items ?? [];
+  const uploadProgress = journalQuery.data?.uploadProgress ?? { done: 0, total: 0 };
   const isEmpty = !journalQuery.isLoading && !journalQuery.isError && items.length === 0;
 
   const openConversation = (id: string) => {
@@ -67,14 +69,6 @@ export const SpeechAnalyticsJournalPage = memo(() => {
         </Button>
       </Flex>
 
-      {journalQuery.isLoading ? (
-        <VStack gap="8" max data-testid="journal-loading">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className={cls.skeletonRow} />
-          ))}
-        </VStack>
-      ) : null}
-
       {journalQuery.isError ? (
         <VStack gap="12" max data-testid="journal-error">
           <Text>
@@ -107,30 +101,21 @@ export const SpeechAnalyticsJournalPage = memo(() => {
         </VStack>
       ) : null}
 
-      {!journalQuery.isLoading && !journalQuery.isError && items.length > 0 ? (
-        <VStack gap="8" max className={cls.tableWrap} data-testid="journal-rows">
-          {items.map((row) => (
-            <button
-              key={row.id}
-              type="button"
-              className={cls.row}
-              data-testid={`journal-row-${row.id}`}
-              onClick={() => openConversation(row.id)}
-            >
-              <HStack justify="between" align="center" max>
-                <VStack gap="4">
-                  <Text>{row.summary || row.id}</Text>
-                  <Text variant="muted">{row.occurredAt}</Text>
-                </VStack>
-                <Text variant="muted">
-                  {row.latestAmount != null
-                    ? `${row.latestAmount} ${row.currency ?? ''}`.trim()
-                    : t('speechAnalytics.costPending', 'Сумма не посчитана')}
-                </Text>
-              </HStack>
-            </button>
-          ))}
-        </VStack>
+      {!journalQuery.isError && (journalQuery.isLoading || items.length > 0) ? (
+        journalQuery.isLoading && items.length === 0 ? (
+          <VStack gap="8" max data-testid="journal-loading">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className={cls.skeletonRow} />
+            ))}
+          </VStack>
+        ) : (
+          <ConversationsTable
+            items={items}
+            uploadProgress={uploadProgress}
+            isLoading={journalQuery.isLoading}
+            onRowClick={openConversation}
+          />
+        )
       ) : null}
 
       <ConversationSheet

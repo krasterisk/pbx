@@ -98,7 +98,11 @@ describe('SaJournalService list/detail/regenerate/delete (D-05, D-12, D-13)', ()
       destroy: jest.fn().mockResolvedValue(1),
       ...(overrides.runs as object),
     };
-    const results = { destroy: jest.fn().mockResolvedValue(1), findAll: jest.fn().mockResolvedValue([]) };
+    const results = {
+      destroy: jest.fn().mockResolvedValue(1),
+      findAll: jest.fn().mockResolvedValue([]),
+      ...(overrides.results as object),
+    };
     const transcripts = { destroy: jest.fn().mockResolvedValue(1) };
     const segments = { destroy: jest.fn().mockResolvedValue(1) };
     const relations = {
@@ -106,10 +110,16 @@ describe('SaJournalService list/detail/regenerate/delete (D-05, D-12, D-13)', ()
       destroy: jest.fn().mockResolvedValue(1),
       ...(overrides.relations as object),
     };
-    const reviews = { destroy: jest.fn().mockResolvedValue(1), findAll: jest.fn().mockResolvedValue([]) };
+    const reviews = {
+      destroy: jest.fn().mockResolvedValue(1),
+      findAll: jest.fn().mockResolvedValue([]),
+      ...(overrides.reviews as object),
+    };
     const users = {
       findOne: jest.fn().mockResolvedValue({
-        getDataValue: (k: string) => ({ uniqueid: 7, level: UserLevel.ADMIN, numbers_id: null, exten: '100', login: 'admin' }[k]),
+        getDataValue: (k: string) => ({
+          uniqueid: 7, level: UserLevel.ADMIN, numbers_id: null, exten: '100', login: 'admin',
+        }[k]),
       }),
       ...(overrides.users as object),
     };
@@ -126,9 +136,9 @@ describe('SaJournalService list/detail/regenerate/delete (D-05, D-12, D-13)', ()
       reviews as any,
       users as any,
       numberLists as any,
-      wallet as any,
     );
-    return { service, recordings, runs, results, reviews, wallet, users };
+    service.wallet = wallet;
+    return { service, recordings, runs, results, reviews, wallet, users, relations };
   }
 
   it('lists latest-run cost per conversation and keeps earlier runs on detail', async () => {
@@ -146,15 +156,10 @@ describe('SaJournalService list/detail/regenerate/delete (D-05, D-12, D-13)', ()
         findAll: jest.fn().mockResolvedValue([{ recording_id: 'rec-1', source_kind: 'upload' }]),
       },
       runs: {
-        findAll: jest.fn().mockImplementation(async ({ where }: any) => {
-          if (where?.recording_id === 'rec-1' || where?.recording_id?.['$in']) {
-            return [
-              { id: 'run-old', recording_id: 'rec-1', amount: '5.00', currency: 'RUB', state: 'succeeded', created_at: new Date('2026-09-20'), result_id: 'res-old' },
-              { id: 'run-new', recording_id: 'rec-1', amount: '12.50', currency: 'RUB', state: 'succeeded', created_at: new Date('2026-09-21'), result_id: 'res-new' },
-            ];
-          }
-          return [];
-        }),
+        findAll: jest.fn().mockResolvedValue([
+          { id: 'run-old', recording_id: 'rec-1', amount: '5.00', currency: 'RUB', state: 'succeeded', created_at: new Date('2026-09-20'), result_id: 'res-old' },
+          { id: 'run-new', recording_id: 'rec-1', amount: '12.50', currency: 'RUB', state: 'succeeded', created_at: new Date('2026-09-21'), result_id: 'res-new' },
+        ]),
       },
     });
     void recordings;
@@ -233,7 +238,7 @@ describe('SaJournalService list/detail/regenerate/delete (D-05, D-12, D-13)', ()
         }),
       },
       runs: {
-        findAll: jest.fn().mockResolvedValue([{ id: 'run-1', amount: '9.00' }]),
+        findAll: jest.fn().mockResolvedValue([{ id: 'run-1', amount: '9.00', result_id: 'res-1' }]),
         destroy: jest.fn().mockResolvedValue(1),
       },
     });

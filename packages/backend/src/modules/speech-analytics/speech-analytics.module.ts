@@ -21,9 +21,12 @@ import {
 import { SpeechAnalyticsService } from './speech-analytics.service';
 import { SaMetricsService } from './metrics/metrics.service';
 import { SaReportingService } from './reporting/reporting.service';
+import { SaJournalService } from './journal/journal.service';
 import { SaProjectResolver } from './sa-project.resolver';
 import { SpeechAnalyticsJwtController } from './speech-analytics-jwt.controller';
 import { SpeechAnalyticsPublicController } from './speech-analytics-public.controller';
+import { User } from '../users/user.model';
+import { NumberList } from '../numbers/number-list.model';
 
 @Module({
   imports: [
@@ -39,10 +42,11 @@ import { SpeechAnalyticsPublicController } from './speech-analytics-public.contr
       SaReportDefinition, SaReportRun, SaReportSnapshotItem, SaReportSchedule,
       SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem,
       SaTenantCapturePolicy, SaRecordingRelation,
+      User, NumberList,
     ]),
   ],
-  providers: [SpeechAnalyticsService, SaMetricsService, SaReportingService, SaProjectResolver],
+  providers: [SpeechAnalyticsService, SaMetricsService, SaReportingService, SaJournalService, SaProjectResolver],
   controllers: [SpeechAnalyticsJwtController, SpeechAnalyticsPublicController],
-  exports: [SpeechAnalyticsService, SaMetricsService, SaReportingService, SequelizeModule],
+  exports: [SpeechAnalyticsService, SaMetricsService, SaReportingService, SaJournalService, SequelizeModule],
 })
 export class SpeechAnalyticsModule {}
