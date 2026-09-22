@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"channel-diarize\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "locks route and upload channel maps (D-24)",
+  "targetFile": "packages/backend/src/modules/speech-analytics/pipeline/channel-diarize.spec.ts",
+  "expected": "ROUTE left=customer right=operator; UPLOAD left=operator right=customer",
+  "actual": "ROUTE left=operator right=customer (RED stub inverted)",
+  "output": "FAIL channel-diarize.spec.ts\n# tests 5\n# pass 0\n# fail 5\nnot ok 1 - locks route and upload channel maps (D-24)\nnot ok 2 - classifies identical left/right channels as not stereo\nnot ok 3 - energy failure assigns LLM roles on the same transcript without a second STT\nnot ok 4 - labels segments by channel energy with the upload map\nnot ok 5 - does not export a dual-stt code path"
+}
