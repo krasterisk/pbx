@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"capture-policy|route-recording.util\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "does not fall back to a company default project when route projectId is absent",
+  "targetFile": "packages/backend/src/modules/speech-analytics/reporting/capture-policy.spec.ts",
+  "expected": "enabled false, reason project_missing, projectId null (no company default fallback)",
+  "actual": "enabled true (legacy inherit + defaultProjectId still enables capture)",
+  "output": "# tests 16\n# pass 13\n# fail 3\n# cancelled 0\nnot ok 1 - denies auto capture when route projectId is missing\nnot ok 2 - does not fall back to a company default project when route projectId is absent\nnot ok 3 - pushes hangup_handler when analytics projectId is set even without hangup webhook\nok 4 - blocks only new automatic capture when pauseNew is true\nok 5 - denies auto capture when module entitlement is false without requiring a company default project\nok 6 - admits capture when entitled, not paused, recording on, and projectId is set\nok 7 - throws foreign_project when project is outside the tenant\nok 8 - does not push hangup_handler for non-durable capture without webhook or project"
+}

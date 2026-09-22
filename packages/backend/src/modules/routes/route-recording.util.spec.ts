@@ -77,5 +77,29 @@ describe('route-recording.util', () => {
         vpbxUserUid: 8, durable: true, recordStereo: false, recordAll: true, hangupWebhook: false,
       }).some(line => line.includes('hangup_handler_push)=krsk-hangup-handler'))).toBe(true);
     });
+
+    it('pushes hangup_handler when analytics projectId is set even without hangup webhook', () => {
+      const lines = recordingDialplanLines({
+        vpbxUserUid: 8,
+        durable: false,
+        recordStereo: false,
+        recordAll: false,
+        hangupWebhook: false,
+        analyticsProjectId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee4001',
+      });
+      expect(lines.some((line) => line.includes('hangup_handler_push)=krsk-hangup-handler'))).toBe(true);
+      expect(lines.join('\n')).not.toMatch(/SpeechToText|STT|Recognize/i);
+    });
+
+    it('does not push hangup_handler for non-durable capture without webhook or project', () => {
+      const lines = recordingDialplanLines({
+        vpbxUserUid: 8,
+        durable: false,
+        recordStereo: false,
+        recordAll: false,
+        hangupWebhook: false,
+      });
+      expect(lines.some((line) => line.includes('hangup_handler_push'))).toBe(false);
+    });
   });
 });
