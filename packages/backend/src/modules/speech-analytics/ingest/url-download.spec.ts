@@ -100,7 +100,54 @@ describe('UrlIngestService batch (D-40, D-41, D-42)', () => {
     expect(invokeSaChargeRun).not.toHaveBeenCalled();
   });
 
+  it('sync≠true returns accepted before deferred runAnalysis resolves (CR-03 / D-40)', async () => {
+    let resolveAnalysis!: (value: { summary: string }) => void;
+    const deferred = new Promise<{ summary: string }>((resolve) => {
+      resolveAnalysis = resolve;
+    });
+    const deps = {
+      download: jest.fn(async () => ({ ok: true as const, bytes: Buffer.from('audio') })),
+      putUploadContent: jest.fn(async (bytes: Buffer) => ({ storedBytes: bytes.length })),
+      createJournalRow: jest.fn(async () => ({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' })),
+      runAnalysis: jest.fn(() => deferred),
+      invokeSaChargeRun: jest.fn(),
+    };
+    const service = new UrlIngestService(deps);
+
+    let submitDone = false;
+    const submitPromise = service.submit({
+      tokenProjectId: PROJECT,
+      sync: false,
+      moduleActive: true,
+      urls: [{ url: 'https://cdn.example/one.wav' }],
+    }).then((result) => {
+      submitDone = true;
+      return result;
+    });
+
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      expect(submitDone).toBe(true);
+
+      const result = await submitPromise;
+      expect(result.kind).toBe('accepted');
+      expect(result.results[0]).toMatchObject({
+        ok: true,
+        journalId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      });
+      expect(result.results[0].scored).toBeUndefined();
+      expect(deps.runAnalysis).toHaveBeenCalledTimes(1);
+    } finally {
+      resolveAnalysis({ summary: 'late' });
+      await submitPromise;
+    }
+  });
+
   it('incomplete download skips runAnalysis/SA-CHARGE-RUN and continues the batch', async () => {
+    let resolveAnalysis!: (value: { summary: string }) => void;
+    const deferred = new Promise<{ summary: string }>((resolve) => {
+      resolveAnalysis = resolve;
+    });
     const invokeSaChargeRun = jest.fn();
     const deps = {
       download: jest.fn(async (url: string) => (
@@ -110,11 +157,13 @@ describe('UrlIngestService batch (D-40, D-41, D-42)', () => {
       )),
       putUploadContent: jest.fn(async (bytes: Buffer) => ({ storedBytes: bytes.length })),
       createJournalRow: jest.fn(async () => ({ id: 'j-ok' })),
-      runAnalysis: jest.fn(async () => ({ summary: 'scored' })),
+      runAnalysis: jest.fn(() => deferred),
       invokeSaChargeRun,
     };
     const service = new UrlIngestService(deps);
-    const result = await service.submit({
+
+    let submitDone = false;
+    const submitPromise = service.submit({
       tokenProjectId: PROJECT,
       sync: false,
       moduleActive: true,
@@ -123,11 +172,25 @@ describe('UrlIngestService batch (D-40, D-41, D-42)', () => {
         { url: 'https://cdn.example/bad.wav' },
         { url: 'https://cdn.example/good2.wav' },
       ],
+    }).then((result) => {
+      submitDone = true;
+      return result;
     });
-    expect(result.kind).toBe('accepted');
-    expect(result.results.map((r) => r.ok)).toEqual([true, false, true]);
-    expect(deps.runAnalysis).toHaveBeenCalledTimes(2);
-    expect(invokeSaChargeRun).not.toHaveBeenCalled();
+
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      expect(submitDone).toBe(true);
+
+      const result = await submitPromise;
+      expect(result.kind).toBe('accepted');
+      expect(result.results.map((r) => r.ok)).toEqual([true, false, true]);
+      expect(result.results[1].error).toBe('incomplete');
+      expect(deps.runAnalysis).toHaveBeenCalledTimes(2);
+      expect(invokeSaChargeRun).not.toHaveBeenCalled();
+    } finally {
+      resolveAnalysis({ summary: 'late' });
+      await submitPromise;
+    }
   });
 });
 

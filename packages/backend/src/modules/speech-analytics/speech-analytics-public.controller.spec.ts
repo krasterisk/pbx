@@ -12,7 +12,7 @@ import {
   isUuidRecordingId,
   type PublicIngestAnalytics,
 } from './ingest/public-ingest.wiring';
-import { UrlIngestService } from './ingest/url-download';
+import { UrlIngestService, urlApiWaitsForResult } from './ingest/url-download';
 import type { TenantContext } from '../integration-credentials/tenant-context';
 
 const PROJECT_A = '00000000-0000-4000-8000-00000000000a';
@@ -45,6 +45,10 @@ describe('speech-analytics-public upload contract (D-17, D-32)', () => {
     expect(apiWaitsForResult(true, 1)).toBe(true);
     expect(apiWaitsForResult(true, 2)).toBe(false);
     expect(apiWaitsForResult(false, 1)).toBe(false);
+    expect(urlApiWaitsForResult(true, 1)).toBe(true);
+    expect(urlApiWaitsForResult(true, 2)).toBe(false);
+    expect(urlApiWaitsForResult(false, 1)).toBe(false);
+    expect(urlApiWaitsForResult(undefined, 1)).toBe(false);
   });
 });
 
