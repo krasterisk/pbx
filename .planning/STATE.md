@@ -2,14 +2,14 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 status: executing
-stopped_at: Phase 18 UI-SPEC approved
-last_updated: "2026-09-23T01:31:08.539Z"
-state_head: 05b40c10d6afd15a6369d846d4fb3deacc9cad43
+stopped_at: Completed 18-17-PLAN.md
+last_updated: "2026-09-23T04:08:40.863Z"
+state_head: b8be769cc7084db1dfc019ce05059e535f9dffb5
 progress:
   total_phases: 26
   completed_phases: 6
-  total_plans: 212
-  completed_plans: 193
+  total_plans: 215
+  completed_plans: 210
   total_phase_directories: 25
   phases_with_plan_summaries: 18
 milestone_name: milestone
@@ -453,6 +453,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 16.1]: Guest join requires a non-empty trimmed displayName unless token.display_name is already set; otherwise 400 CONFERENCE_DISPLAY_NAME_REQUIRED before createEphemeralGuestEndpoint
 - [Phase 16.1]: Staff rename writes only ConferenceStateService.setDisplayName; endpoint/user models are never updated
 - [Phase 16.1]: Telemetry ingest strips unknown keys and invalid qualityLimitationReason/packetsLost/totalFreezesDuration inside the service; controllers do not use class-validator IsIn/IsNumber
+- [Phase 15]: Public ingest createJournalRow uses createRun UUID recordingId (G-18-03)
 
 ## Roadmap Evolution
 
@@ -657,12 +658,13 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16.2 P02 | 9 | 3 tasks | 16 files |
 | Phase 16.2 P03 | 11 | 3 tasks | 14 files |
 | Phase 16.2-telekonferentsii-zapis-vstrech-i-otchetnost P04 | 6 | 2 tasks | 6 files |
+| Phase 18 P17 | 6min | 2 tasks | 4 files |
 
 ## Session
 
-**Last session:** 2026-09-22T10:08:02.192Z
-**Stopped at:** Phase 18 UI-SPEC approved
-**Resume file:** .planning/phases/18-polnyy-refaktoring-rechevoy-analitiki/18-UI-SPEC.md
+**Last session:** 2026-09-23T02:03:36.533Z
+**Stopped at:** Completed 18-17-PLAN.md
+**Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 
 ## Accumulated Context

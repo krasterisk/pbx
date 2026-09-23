@@ -1430,13 +1430,19 @@ Plans:
 
 **Wave 10 — gap closure** *(verification 14/20)*
 
-- [ ] 18-16-PLAN.md — Nest hangup port + worker runAnalysis + AI adapter DI (G-18-01, G-18-02, G-18-04)
-- [ ] 18-17-PLAN.md — Public upload/URL → real sa_* journal UUIDs (G-18-03)
-- [ ] 18-18-PLAN.md — HTTP insights persist SA-CHARGE-INSIGHTS (G-18-05)
+- [x] 18-16-PLAN.md — Nest hangup port + worker runAnalysis + AI adapter DI (G-18-01, G-18-02, G-18-04)
+- [x] 18-17-PLAN.md — Public upload/URL → real sa_* journal UUIDs (G-18-03)
+- [x] 18-18-PLAN.md — HTTP insights persist SA-CHARGE-INSIGHTS (G-18-05)
 
 **Wave 11 — gap closure** *(blocked on 18-17)*
 
-- [ ] 18-19-PLAN.md — UUID recording proof + live API re-check checklist (G-18-06)
+- [x] 18-19-PLAN.md — UUID recording proof + live API re-check checklist (G-18-06)
+
+**Wave 12 — gap closure** *(verification 20/23)*
+
+- [ ] 18-20-PLAN.md — AI apply keeps the full merged draft (CR-01, D-27)
+- [ ] 18-21-PLAN.md — Hangup audioMs from duration, not file bytes (CR-02, D-46)
+- [ ] 18-22-PLAN.md — Public accepted batch returns without awaiting score (CR-03, D-17)
 
 **Cross-cutting constraints:**
 
