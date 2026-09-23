@@ -16,7 +16,7 @@ import {
   downloadAnalyticsUrl,
   type UrlFetchResponse,
 } from './ingest/url-download';
-import { buildPublicUploadDeps } from './ingest/public-ingest.wiring';
+import { buildPublicUploadDeps, buildPublicUrlDeps } from './ingest/public-ingest.wiring';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import { URL } from 'node:url';
@@ -176,16 +176,11 @@ export class SpeechAnalyticsPublicController {
 
     const service = new UrlIngestService({
       download: (url) => downloadAnalyticsUrl(url, { fetch: defaultUrlFetch }),
-      putUploadContent: async (bytes) => {
-        const allocated = await this.analytics.allocateUpload(ctx, projectId, bytes.length);
-        await this.analytics.putUploadContent(ctx, allocated.id, bytes);
-        await this.analytics.completeUpload(ctx, allocated.id);
-        return { storedBytes: bytes.length };
-      },
-      createJournalRow: async (row) => ({
-        id: `journal-url:${Date.now()}:${row.projectId}`,
+      ...buildPublicUrlDeps({
+        analytics: this.analytics,
+        context: ctx,
+        projectId,
       }),
-      runAnalysis: async ({ journalId }) => ({ summary: `analyzed:${journalId}` }),
     });
 
     return service.submit({
