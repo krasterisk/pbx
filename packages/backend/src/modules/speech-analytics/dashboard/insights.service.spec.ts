@@ -1,7 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as saChargeInsights from '../charging/sa-charge-insights';
 import {
   generateInsights,
+  InsightsService,
   insightsSkillPath,
   INSIGHTS_MIN_CONVERSATIONS,
   type InsightsGenerateDeps,
@@ -35,6 +37,74 @@ function baseDeps(overrides: Partial<InsightsGenerateDeps> = {}): InsightsGenera
     updateInsightsRequest: async () => undefined,
     ...overrides,
   };
+}
+
+type InsightsRequestModelMock = {
+  create: jest.Mock;
+  update: jest.Mock;
+  findOne: jest.Mock;
+  sequelize?: { models?: Record<string, unknown> };
+};
+
+type PriceRevisionModelMock = {
+  findAll: jest.Mock;
+};
+
+function buildHttpService(opts?: {
+  rates?: Array<{ unit: string; rate: string | null; currency: string | null; scale: number }>;
+  priceRevisions?: PriceRevisionModelMock | null;
+}) {
+  const patches: Array<{
+    id: string;
+    tenantUid: number;
+    patch: Record<string, unknown>;
+  }> = [];
+  const creates: Array<Record<string, unknown>> = [];
+  const insightsRequests: InsightsRequestModelMock = {
+    create: jest.fn(async (row: Record<string, unknown>) => {
+      creates.push(row);
+      return row;
+    }),
+    update: jest.fn(async (patch: Record<string, unknown>, options: { where: { id: string; tenant_uid: number } }) => {
+      patches.push({
+        id: options.where.id,
+        tenantUid: options.where.tenant_uid,
+        patch,
+      });
+      return [1];
+    }),
+    findOne: jest.fn(async () => null),
+    sequelize: { models: {} },
+  };
+  const priceRevisions: PriceRevisionModelMock | null = opts?.priceRevisions === null
+    ? null
+    : (opts?.priceRevisions ?? {
+      findAll: jest.fn(async () => (opts?.rates ?? [
+        {
+          unit: 'provider_tokens',
+          rate: '0.01',
+          currency: 'RUB',
+          scale: 2,
+          product: 'speech_analytics',
+          effective_at: new Date('2026-01-01'),
+          created_at: new Date('2026-01-01'),
+        },
+      ]).map((row) => ({
+        unit: row.unit,
+        rate: row.rate,
+        currency: row.currency,
+        scale: row.scale,
+        product: 'speech_analytics',
+        effective_at: new Date('2026-01-01'),
+        created_at: new Date('2026-01-01'),
+      }))),
+    });
+
+  const service = new InsightsService(
+    insightsRequests as never,
+    priceRevisions as never,
+  );
+  return { service, insightsRequests, priceRevisions, patches, creates };
 }
 
 describe('generateInsights (D-35, D-36, D-47)', () => {
@@ -147,5 +217,123 @@ describe('generateInsights (D-35, D-36, D-47)', () => {
   it('never imports wallet debit helpers', () => {
     const src = fs.readFileSync(path.join(__dirname, 'insights.service.ts'), 'utf8');
     expect(src).not.toMatch(/settleShadow|BillingBalanceService/);
+  });
+});
+
+describe('InsightsService.requestForTenant HTTP SA-CHARGE-INSIGHTS (G-18-05, D-47)', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('persists amount with charged=false via invokeSaChargeInsights when conversationCount >= 10', async () => {
+    const invokeSpy = jest.spyOn(saChargeInsights, 'invokeSaChargeInsights');
+    const { service, patches, creates, insightsRequests } = buildHttpService({
+      rates: [{ unit: 'provider_tokens', rate: '0.01', currency: 'RUB', scale: 2 }],
+    });
+
+    const result = await service.requestForTenant(
+      { tenantUid: 11 },
+      {
+        projectId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        conversationCount: 12,
+        currency: 'RUB',
+        filterDigest: 'http-persist-ok',
+      },
+    );
+
+    expect(result.status).toBe('ok');
+    expect(result.charged).toBe(false);
+    expect(result.amount).toBeTruthy();
+    expect(result.fromCache).toBe(false);
+    expect(invokeSpy).toHaveBeenCalledTimes(1);
+    expect(creates.length + patches.length).toBeGreaterThanOrEqual(1);
+    const persisted = patches[0]?.patch ?? creates[0];
+    expect(persisted).toEqual(expect.objectContaining({
+      amount: expect.any(String),
+      charged: false,
+    }));
+    if (patches[0]) {
+      expect(patches[0].tenantUid).toBe(11);
+      expect(insightsRequests.update).toHaveBeenCalledWith(
+        expect.objectContaining({ charged: false }),
+        expect.objectContaining({
+          where: expect.objectContaining({ tenant_uid: 11 }),
+        }),
+      );
+    }
+  });
+
+  it('persists amount 0 with charged=false when depot rates are missing', async () => {
+    const { service, patches, creates } = buildHttpService({
+      rates: [],
+      priceRevisions: {
+        findAll: jest.fn(async () => []),
+      },
+    });
+
+    const result = await service.requestForTenant(
+      { tenantUid: 3 },
+      {
+        projectId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        conversationCount: 10,
+        filterDigest: 'http-missing-rates',
+      },
+    );
+
+    expect(result.status).toBe('ok');
+    expect(result.charged).toBe(false);
+    expect(result.amount).toBe('0');
+    const persisted = patches[0]?.patch ?? creates[0];
+    expect(persisted).toEqual(expect.objectContaining({
+      amount: '0',
+      charged: false,
+    }));
+  });
+
+  it('skips a second SA-CHARGE-INSIGHTS invoke on cache hit (refresh false)', async () => {
+    const invokeSpy = jest.spyOn(saChargeInsights, 'invokeSaChargeInsights');
+    const { service } = buildHttpService();
+    const body = {
+      projectId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      conversationCount: 15,
+      filterDigest: 'http-cache-key',
+      refresh: false as boolean | undefined,
+    };
+
+    const first = await service.requestForTenant({ tenantUid: 7 }, body);
+    expect(first.fromCache).toBe(false);
+    expect(invokeSpy).toHaveBeenCalledTimes(1);
+
+    const second = await service.requestForTenant({ tenantUid: 7 }, body);
+    expect(second.fromCache).toBe(true);
+    expect(second.amount).toBe(first.amount);
+    expect(invokeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns empty without charge invoke when below INSIGHTS_MIN_CONVERSATIONS', async () => {
+    const invokeSpy = jest.spyOn(saChargeInsights, 'invokeSaChargeInsights');
+    const { service, patches, creates } = buildHttpService();
+
+    const result = await service.requestForTenant(
+      { tenantUid: 1 },
+      {
+        projectId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        conversationCount: INSIGHTS_MIN_CONVERSATIONS - 1,
+        filterDigest: 'http-below-min',
+      },
+    );
+
+    expect(result.status).toBe('empty');
+    expect(result.emptyReason).toBe('below_min_conversations');
+    expect(result.insights).toEqual([]);
+    expect(invokeSpy).not.toHaveBeenCalled();
+    expect(patches).toHaveLength(0);
+    expect(creates).toHaveLength(0);
+  });
+
+  it('does not reference settleShadow or BillingBalanceService in the HTTP insights module', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'insights.service.ts'), 'utf8');
+    expect(src).not.toMatch(/\bsettleShadow\b/);
+    expect(src).not.toMatch(/\bBillingBalanceService\b/);
   });
 });
