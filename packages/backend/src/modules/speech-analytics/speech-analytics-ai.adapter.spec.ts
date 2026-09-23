@@ -177,6 +177,84 @@ describe('SpeechAnalyticsAiAdapter', () => {
     );
   });
 
+  it('metric-only apply merges onto live draft and preserves non-metric sections (CR-01, D-27)', async () => {
+    const seeded = defaultSaProjectConfig();
+    seeded.customMetrics = [{ id: 'm1', name: 'Greeting', type: 'boolean' }];
+    seeded.topics = ['upsell', 'retention-cr01'];
+    seeded.eventWebhook = {
+      url: 'https://hooks.example.test/sa-cr01',
+      headers: { 'X-Hook': 'keep-me' },
+      events: ['analysis.completed'],
+    };
+    seeded.digest = {
+      ...seeded.digest,
+      enabled: true,
+      integrationUids: ['digest-uid-cr01'],
+      schedule: 'daily',
+    };
+    seeded.alerts = {
+      ...seeded.alerts,
+      enabled: true,
+      integrationUids: ['alert-uid-cr01'],
+    };
+    seeded.budget = { softLimit: 4242 };
+    seeded.systemPrompt = 'CR-01 keep this system prompt';
+
+    projects.getEditorState.mockImplementation(async (tenantUid: number) => {
+      expect(tenantUid).toBe(TENANT_A);
+      const state: EditorProjectState = {
+        draft: seeded,
+        draftRevision: 2,
+        published: defaultSaProjectConfig(),
+        versionNo: 1,
+        versions: [],
+      };
+      return state;
+    });
+
+    const tool = getTool(adapter, 'edit_speech_analytics_project');
+    const metricOnly = {
+      customMetrics: [{ id: 'm2', name: 'Bye', type: 'boolean' }],
+    };
+
+    await tool.mutation!.apply(
+      {
+        project_id: PROJECT_ID,
+        expected_revision: 2,
+        config: metricOnly,
+        publish: true,
+      },
+      { ...mutationCtx, vpbxUserUid: TENANT_A },
+    );
+
+    expect(projects.getEditorState).toHaveBeenCalledWith(TENANT_A, PROJECT_ID);
+    expect(projects.applyEditorUpdate).toHaveBeenCalledWith(
+      TENANT_A,
+      expect.objectContaining({
+        projectId: PROJECT_ID,
+        expectedRevision: 2,
+        publish: true,
+        config: expect.objectContaining({
+          customMetrics: metricOnly.customMetrics,
+          topics: seeded.topics,
+          eventWebhook: seeded.eventWebhook,
+          digest: seeded.digest,
+          alerts: seeded.alerts,
+          budget: seeded.budget,
+          systemPrompt: seeded.systemPrompt,
+        }),
+      }),
+    );
+    const appliedConfig = projects.applyEditorUpdate.mock.calls[0][1].config;
+    const defaults = defaultSaProjectConfig();
+    expect(appliedConfig.topics).not.toEqual(defaults.topics);
+    expect(appliedConfig.eventWebhook.url).not.toBe(defaults.eventWebhook.url);
+    expect(appliedConfig.digest.enabled).toBe(true);
+    expect(appliedConfig.alerts.enabled).toBe(true);
+    expect(appliedConfig.budget.softLimit).toBe(4242);
+    expect(appliedConfig.systemPrompt).toBe('CR-01 keep this system prompt');
+  });
+
   it('pauses new auto-analysis via module settings (D-19)', async () => {
     const tool = getTool(adapter, 'pause_speech_analytics');
     const proposal = await tool.handler({ pause_new: true }, TENANT_A);
