@@ -3,13 +3,19 @@
  * Cabinets cannot edit the repo skill. Cache hits skip SA-CHARGE-INSIGHTS.
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { Op } from 'sequelize';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { AiPriceRevision } from '../../ai-usage/usage.models';
+import { SaInsightsRequest } from '../speech-analytics.models';
 import {
   invokeSaChargeInsights,
   type SaChargeInsightsDeps,
+  type SaChargeInsightsPatch,
+  type SaInsightsChargeRate,
 } from '../charging/sa-charge-insights';
 
 export const INSIGHTS_MIN_CONVERSATIONS = 10;
@@ -165,6 +171,88 @@ export async function generateInsights(
 export class InsightsService {
   private readonly cache = new Map<string, InsightsResult>();
 
+  constructor(
+    @InjectModel(SaInsightsRequest)
+    private readonly insightsRequests: typeof SaInsightsRequest,
+    @Optional()
+    @InjectModel(AiPriceRevision)
+    private readonly priceRevisions: typeof AiPriceRevision | null = null,
+  ) {}
+
+  /** Latest speech_analytics rates; missing model/rows → [] so seam writes amount 0. */
+  async findLatestRates(product: string, units: string[]): Promise<SaInsightsChargeRate[]> {
+    const model = this.resolvePriceRevisionModel();
+    if (!model || units.length === 0) {
+      return [];
+    }
+
+    const rows = await model.findAll({
+      where: {
+        product,
+        unit: { [Op.in]: units },
+      },
+      order: [['effective_at', 'DESC'], ['created_at', 'DESC']],
+    });
+
+    const latest = new Map<string, SaInsightsChargeRate>();
+    for (const row of rows) {
+      if (latest.has(row.unit)) continue;
+      latest.set(row.unit, {
+        unit: row.unit,
+        rate: row.rate,
+        currency: row.currency,
+        scale: row.scale,
+      });
+    }
+    return [...latest.values()];
+  }
+
+  /**
+   * Persist SA-CHARGE-INSIGHTS patch scoped by request id AND tenant (T-18-18-TENANT).
+   * Creates the row when missing so the charge target exists (charged forced false).
+   */
+  async updateInsightsRequest(
+    insightsRequestId: string,
+    tenantUid: number,
+    patch: SaChargeInsightsPatch,
+    projectId: string,
+  ): Promise<void> {
+    const now = new Date();
+    const forced: SaChargeInsightsPatch = {
+      amount: patch.amount,
+      currency: patch.currency,
+      provider_tokens: patch.provider_tokens,
+      charged: false,
+    };
+
+    const [affected] = await this.insightsRequests.update(
+      {
+        amount: forced.amount,
+        currency: forced.currency,
+        provider_tokens: forced.provider_tokens,
+        charged: false,
+        updated_at: now,
+      },
+      { where: { id: insightsRequestId, tenant_uid: tenantUid } },
+    );
+
+    if (affected > 0) {
+      return;
+    }
+
+    await this.insightsRequests.create({
+      id: insightsRequestId,
+      tenant_uid: tenantUid,
+      project_id: projectId,
+      amount: forced.amount,
+      currency: forced.currency,
+      provider_tokens: forced.provider_tokens,
+      charged: false,
+      created_at: now,
+      updated_at: now,
+    });
+  }
+
   /**
    * HTTP entry — uses depot rates + in-memory cache. LLM is injected later;
    * until then returns a skill-bounded stub insight so charge/cache contracts stay live.
@@ -222,8 +310,13 @@ export class InsightsService {
             : [],
           providerTokens: conversationCount >= INSIGHTS_MIN_CONVERSATIONS ? 1 : 0,
         }),
-        findLatestRates: async () => [],
-        updateInsightsRequest: async () => undefined,
+        findLatestRates: (product, units) => this.findLatestRates(product, units),
+        updateInsightsRequest: (insightsRequestId, tenantUid, patch) => this.updateInsightsRequest(
+          insightsRequestId,
+          tenantUid,
+          patch,
+          body.projectId,
+        ),
       },
     );
   }
@@ -244,5 +337,13 @@ export class InsightsService {
         this.cache.set(key, value);
       },
     });
+  }
+
+  private resolvePriceRevisionModel(): typeof AiPriceRevision | null {
+    if (this.priceRevisions) {
+      return this.priceRevisions;
+    }
+    const registered = this.insightsRequests?.sequelize?.models?.AiPriceRevision;
+    return (registered as typeof AiPriceRevision | undefined) ?? null;
   }
 }
