@@ -154,6 +154,49 @@ describe('SaAnalysisWorker file wait (D-03)', () => {
     expect(String(FILE_WAIT_POLL_MS)).toContain('500');
     expect(String(FILE_WAIT_CEILING_MS / 1000)).toContain('60');
   });
+
+  it('Nest runAnalysis passes audioMs from durationSec not waitForFile bytes (CR-02, D-46)', async () => {
+    const pipeline = require('../pipeline/run-analysis') as typeof import('../pipeline/run-analysis');
+    const spy = jest.spyOn(pipeline, 'runAnalysis').mockResolvedValue({ state: 'completed' });
+
+    const { createSaAnalysisWorker } = require('./sa-analysis.worker.nest');
+    const nestWorker = createSaAnalysisWorker({
+      moduleSettings: {
+        get: () => ({
+          pauseNew: false,
+          sttModelId: 'stt-a',
+          scoreModelId: 'score-a',
+          insightsModelId: null,
+          cabinetCanEditModels: false,
+          modelAllowlist: ['stt-a', 'score-a'],
+        }),
+      },
+      config: { get: () => undefined },
+      runs: { findOne: jest.fn().mockResolvedValue(null) },
+      stt: async () => null,
+      score: async () => null,
+      findLatestRates: async () => [],
+    });
+
+    const hugeBytes = 4_194_304;
+    (nestWorker as unknown as { deps: { waitForFile: () => Promise<{ ok: true; bytes: number }> } })
+      .deps.waitForFile = async () => ({ ok: true, bytes: hugeBytes });
+
+    await nestWorker.processJob({
+      jobId: 'job-cr02',
+      runId: 'run-cr02',
+      recordPath: '/tmp/big.mp3',
+      tenantUid: 8,
+      durationSec: 45,
+      audioMs: 45_000,
+    });
+
+    expect(spy).toHaveBeenCalled();
+    const chargeInput = spy.mock.calls[0][0] as { audioMs: number };
+    expect(chargeInput.audioMs).toBe(45_000);
+    expect(chargeInput.audioMs).not.toBe(hugeBytes);
+    spy.mockRestore();
+  });
 });
 
 describe('krsk-hangup-handler dialplan order (D-03)', () => {

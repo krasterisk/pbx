@@ -182,6 +182,8 @@ describe('HangupAnalyticsPortService (G-18-01, D-03)', () => {
         jobId: 'job-new',
         recordPath: jobInput.recordPath,
         tenantUid: 8,
+        durationSec: 45,
+        audioMs: 45_000,
       }),
     );
   });
