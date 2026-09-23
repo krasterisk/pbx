@@ -95,38 +95,73 @@ describe('UploadService batch ingest (D-14, D-15, D-16, D-17)', () => {
     expect(result.total).toBe(1);
   });
 
-  it('API without sync returns accepted immediately and still processes files', async () => {
-    const d = deps();
+  it('API without sync returns accepted before deferred runAnalysis resolves (CR-03 / D-17)', async () => {
+    let resolveAnalysis!: (value: { summary: string }) => void;
+    const deferred = new Promise<{ summary: string }>((resolve) => {
+      resolveAnalysis = resolve;
+    });
+    const d = deps({
+      runAnalysis: jest.fn(() => deferred),
+      createJournalRow: jest.fn(async () => ({
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        createsCdr: false as const,
+      })),
+    });
     const service = new UploadService(d);
-    const result = await service.submit({
+
+    let submitDone = false;
+    const submitPromise = service.submit({
       channel: 'api',
       projectId: PROJECT_A,
       tokenProjectId: PROJECT_A,
       sync: false,
       moduleActive: true,
       files: [tinyWav()],
+    }).then((result) => {
+      submitDone = true;
+      return result;
     });
-    expect(result.kind).toBe('accepted');
-    // Background work completes for the batch progress counters.
-    expect(result.done).toBe(1);
-    expect(d.runAnalysis).toHaveBeenCalled();
+
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      expect(submitDone).toBe(true);
+
+      const result = await submitPromise;
+      expect(result.kind).toBe('accepted');
+      expect(result.done).toBe(1);
+      expect(result.results[0]).toMatchObject({
+        ok: true,
+        journalId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      });
+      expect(result.results[0].scored).toBeUndefined();
+      expect(d.runAnalysis).toHaveBeenCalledTimes(1);
+    } finally {
+      resolveAnalysis({ summary: 'late-score' });
+      await submitPromise;
+    }
   });
 
-  it('processes files one at a time; one failure does not stop the rest', async () => {
-    const order: string[] = [];
+  it('API multi-file sync=true returns accepted without awaiting score; item persist failure does not abort the rest', async () => {
+    let resolveAnalysis!: (value: { summary: string }) => void;
+    const deferred = new Promise<{ summary: string }>((resolve) => {
+      resolveAnalysis = resolve;
+    });
     const d = deps({
-      runAnalysis: jest.fn(async ({ journalId }) => {
-        order.push(journalId);
-        if (journalId === 'j-bad') throw new Error('analyze_failed');
-        return { summary: 'ok' };
+      createJournalRow: jest.fn(async ({ filename }) => {
+        if (filename.includes('bad')) {
+          throw new Error('persist_failed');
+        }
+        return {
+          id: `j-${filename}`,
+          createsCdr: false as const,
+        };
       }),
-      createJournalRow: jest.fn(async ({ filename }) => ({
-        id: filename.includes('bad') ? 'j-bad' : `j-${filename}`,
-        createsCdr: false as const,
-      })),
+      runAnalysis: jest.fn(() => deferred),
     });
     const service = new UploadService(d);
-    const result = await service.submit({
+
+    let submitDone = false;
+    const submitPromise = service.submit({
       channel: 'api',
       projectId: PROJECT_A,
       tokenProjectId: PROJECT_A,
@@ -137,14 +172,49 @@ describe('UploadService batch ingest (D-14, D-15, D-16, D-17)', () => {
         tinyWav('bad.wav'),
         tinyWav('good2.wav'),
       ],
+    }).then((result) => {
+      submitDone = true;
+      return result;
     });
-    // sync with >1 file does not wait — but sequential processing still runs.
-    expect(apiWaitsForResult(true, 3)).toBe(false);
-    expect(result.kind).toBe('accepted');
-    expect(order).toEqual(['j-good1.wav', 'j-bad', 'j-good2.wav']);
-    expect(result.results.map((r) => r.ok)).toEqual([true, false, true]);
-    expect(d.runAnalysis).toHaveBeenCalledTimes(3);
-    expect(result.done).toBe(3);
+
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      expect(submitDone).toBe(true);
+
+      const result = await submitPromise;
+      expect(apiWaitsForResult(true, 3)).toBe(false);
+      expect(result.kind).toBe('accepted');
+      expect(result.results.map((r) => r.ok)).toEqual([true, false, true]);
+      expect(result.results[1].error).toBe('persist_failed');
+      expect(d.runAnalysis).toHaveBeenCalledTimes(2);
+      expect(result.done).toBe(3);
+    } finally {
+      resolveAnalysis({ summary: 'late' });
+      await submitPromise;
+    }
+  });
+
+  it('same file bytes in two submits still create two journal rows', async () => {
+    const d = deps();
+    const service = new UploadService(d);
+    const file = tinyWav('dup.wav');
+    await service.submit({
+      channel: 'api',
+      projectId: PROJECT_A,
+      tokenProjectId: PROJECT_A,
+      sync: false,
+      moduleActive: true,
+      files: [file],
+    });
+    await service.submit({
+      channel: 'api',
+      projectId: PROJECT_A,
+      tokenProjectId: PROJECT_A,
+      sync: false,
+      moduleActive: true,
+      files: [file],
+    });
+    expect(d.createJournalRow).toHaveBeenCalledTimes(2);
   });
 
   it('rejects oversized and disallowed formats without calling runAnalysis', async () => {
