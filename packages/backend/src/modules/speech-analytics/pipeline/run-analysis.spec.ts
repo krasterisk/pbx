@@ -215,4 +215,97 @@ describe('runAnalysis (D-23, D-38, D-46)', () => {
     expect(invokeCharge).not.toHaveBeenCalled();
     expect(persistError).toHaveBeenCalled();
   });
+
+  it('uses STT durationSec*1000 for SA-CHARGE-RUN when hangup audioMs is 0 or unknown (D-46)', async () => {
+    const invokeCharge = jest.fn(async () => ({ amount: '0', currency: 'RUB', charged: false as const }));
+    const deps: RunAnalysisDeps = {
+      stt: async () => ({
+        text: 'hi',
+        durationSec: 37.4,
+        segments: [{ start: 0, end: 1, text: 'hi' }],
+        providerTokens: 2,
+        modelId: 'stt-default',
+      }),
+      score: async () => ({
+        metrics: [],
+        summary: 'ok',
+        providerTokens: 1,
+        modelId: 'score-default',
+      }),
+      diarize: async ({ segments }) => ({
+        mode: 'llm_roles',
+        segments: segments.map((s, i) => ({
+          id: `seg-${i}`,
+          ordinal: i,
+          startMs: 0,
+          endMs: 1000,
+          channel: 0,
+          speakerRole: 'operator' as const,
+          roleSource: 'llm' as const,
+          text: s.text,
+        })),
+        requestSecondStt: false,
+      }),
+      persistSuccess: async () => undefined,
+      persistError: async () => undefined,
+      invokeSaChargeRun: invokeCharge,
+      findLatestRates: async () => [],
+      updateRunCharge: async () => undefined,
+    };
+
+    const result = await runAnalysis(baseInput({ runId: 'run-stt-fallback', audioMs: 0 }), deps);
+
+    expect(result.state).toBe('completed');
+    expect(invokeCharge).toHaveBeenCalledWith(
+      expect.objectContaining({ audioMs: Math.round(37.4 * 1000) }),
+      expect.any(Object),
+    );
+  });
+
+  it('prefers positive hangup audioMs over STT duration for SA-CHARGE-RUN (D-46)', async () => {
+    const invokeCharge = jest.fn(async () => ({ amount: '0', currency: 'RUB', charged: false as const }));
+    const deps: RunAnalysisDeps = {
+      stt: async () => ({
+        text: 'hi',
+        durationSec: 99,
+        segments: [{ start: 0, end: 1, text: 'hi' }],
+        providerTokens: 2,
+        modelId: 'stt-default',
+      }),
+      score: async () => ({
+        metrics: [],
+        summary: 'ok',
+        providerTokens: 1,
+        modelId: 'score-default',
+      }),
+      diarize: async ({ segments }) => ({
+        mode: 'llm_roles',
+        segments: segments.map((s, i) => ({
+          id: `seg-${i}`,
+          ordinal: i,
+          startMs: 0,
+          endMs: 1000,
+          channel: 0,
+          speakerRole: 'operator' as const,
+          roleSource: 'llm' as const,
+          text: s.text,
+        })),
+        requestSecondStt: false,
+      }),
+      persistSuccess: async () => undefined,
+      persistError: async () => undefined,
+      invokeSaChargeRun: invokeCharge,
+      findLatestRates: async () => [],
+      updateRunCharge: async () => undefined,
+    };
+
+    const result = await runAnalysis(baseInput({ runId: 'run-hangup-wins', audioMs: 45_000 }), deps);
+
+    expect(result.state).toBe('completed');
+    expect(invokeCharge).toHaveBeenCalledWith(
+      expect.objectContaining({ audioMs: 45_000 }),
+      expect.any(Object),
+    );
+    expect(invokeCharge.mock.calls[0][0].audioMs).not.toBe(99_000);
+  });
 });
