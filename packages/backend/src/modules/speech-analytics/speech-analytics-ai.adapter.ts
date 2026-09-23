@@ -208,7 +208,10 @@ export class SpeechAnalyticsAiAdapter implements DomainAiAdapter, OnModuleInit {
         return { ok: true, args };
       },
       apply: async (args, ctx) => {
-        const merged = this.mergeConfig(args.config);
+        // D-27 / CR-01: re-merge partial applyPayload onto live tenant draft so
+        // metric-only confirm cannot wipe topics/webhooks/digest/alerts/budget/prompts.
+        const state = await this.projects.getEditorState(ctx.vpbxUserUid, args.project_id);
+        const merged = this.mergeConfig({ ...state.draft, ...args.config });
         return this.projects.applyEditorUpdate(ctx.vpbxUserUid, {
           projectId: args.project_id,
           expectedRevision: args.expected_revision,
