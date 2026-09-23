@@ -1,138 +1,129 @@
 ---
 phase: 18-polnyy-refaktoring-rechevoy-analitiki
-reviewed: 2026-09-23T03:00:00Z
+reviewed: 2026-09-23T04:36:00Z
 depth: standard
-files_reviewed: 16
+files_reviewed: 14
 files_reviewed_list:
-  - packages/backend/src/modules/routes/dialplan-webhooks.service.spec.ts
-  - packages/backend/src/modules/routes/routes.module.ts
-  - packages/backend/src/modules/speech-analytics/dashboard/insights.service.spec.ts
-  - packages/backend/src/modules/speech-analytics/dashboard/insights.service.ts
-  - packages/backend/src/modules/speech-analytics/hangup-analytics.port.spec.ts
-  - packages/backend/src/modules/speech-analytics/hangup-analytics.port.ts
-  - packages/backend/src/modules/speech-analytics/ingest/public-ingest.wiring.spec.ts
-  - packages/backend/src/modules/speech-analytics/ingest/public-ingest.wiring.ts
-  - packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.nest.ts
-  - packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.spec.ts
-  - packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.ts
-  - packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.spec.ts
   - packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.ts
+  - packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.spec.ts
+  - packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.ts
+  - packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.spec.ts
+  - packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.nest.ts
+  - packages/backend/src/modules/speech-analytics/hangup-analytics.port.ts
+  - packages/backend/src/modules/speech-analytics/hangup-analytics.port.spec.ts
+  - packages/backend/src/modules/speech-analytics/pipeline/run-analysis.ts
+  - packages/backend/src/modules/speech-analytics/pipeline/run-analysis.spec.ts
+  - packages/backend/src/modules/speech-analytics/ingest/upload.service.ts
+  - packages/backend/src/modules/speech-analytics/ingest/upload.service.spec.ts
+  - packages/backend/src/modules/speech-analytics/ingest/url-download.ts
+  - packages/backend/src/modules/speech-analytics/ingest/url-download.spec.ts
   - packages/backend/src/modules/speech-analytics/speech-analytics-public.controller.spec.ts
-  - packages/backend/src/modules/speech-analytics/speech-analytics-public.controller.ts
-  - packages/backend/src/modules/speech-analytics/speech-analytics.module.ts
 findings:
-  critical: 3
+  critical: 0
   warning: 5
   info: 3
-  total: 11
+  total: 8
 status: issues_found
 ---
 
-# Phase 18: Code Review Report (gap-closure)
+# Phase 18: Code Review Report
 
-**Reviewed:** 2026-09-23T03:00:00Z
+**Reviewed:** 2026-09-23T04:36:00Z
 **Depth:** standard
-**Files Reviewed:** 16
+**Files Reviewed:** 14
 **Status:** issues_found
 
 ## Summary
 
-Adversarial review of the post-`2f60a1c1` gap-closure delta (plans 18-16…18-19): hangup port + Nest worker binding, public ingest UUID wiring, insights charge persistence, AI adapter Nest registration, and Routes↔SA module wiring.
+Adversarial review of the second gap-closure delta after `d48bfba1` (plans 18-20, 18-21, 18-22): AI apply draft merge, hangup/Nest `audioMs` from duration (with STT fallback), and public upload/URL fire-and-forget accepted paths.
 
-Locked product rules that hold in this delta: no `settleShadow` / `BillingBalanceService` / wallet debit; runs and insights persist `charged: false`; public success ids are UUID `createRun` recording ids (not `journal:` stubs); body cannot override token project; batch item failures continue; >50MB rejected before createRun; duplicate hangup origin replays; pause gates hangup enqueue in dialplan (not manual upload); Nest worker factory always injects `runAnalysis`; stereo path does not request dual-STT; no analyst role; token secret stripped from chat-history proposals.
+Prior blockers from the previous REVIEW are **closed** in this scope:
+- **CR-01 / D-27:** `edit_speech_analytics_project` apply reloads live draft and merges `{ ...state.draft, ...args.config }` before `applyEditorUpdate`; metric-only confirm preserves topics/webhooks/digest/alerts/budget/prompts. No wallet imports in the adapter.
+- **CR-02 / D-46:** Hangup passes `durationSec` + `audioMs: durationSec*1000`; Nest ignores `waitForFile` bytes for charge; `runAnalysis` prefers positive job `audioMs` else STT `durationSec*1000`. Charge seam keeps `charged: false`. Hangup HTTP uses `void worker.processJob(...).catch(...)` (does not await STT).
+- **CR-03 / D-17 / D-40:** When `sync !== true` or item count ≠ 1, upload/URL schedule `void runAnalysis(...).catch(...)` and return `accepted` without score; sync+one item still awaits. Batch item failures continue. Journal ids come from deps/`createRun` UUIDs (public controller specs). Upload guards `createsCdr !== false`. No CDR/wallet debit in these paths.
 
-Three critical defects remain: AI project apply wipes draft fields on partial config, hangup Nest path bills `audioMs` from file byte size, and public “accepted” batches still await full scored analysis on the HTTP thread.
+Residual issues are robustness, authz defense-in-depth, and test flakiness — not reopenings of the three locked contracts.
 
 ## Narrative Findings (AI reviewer)
 
-## Critical Issues
-
-### CR-01: AI project apply merges partial config onto defaults and wipes the draft
-
-**File:** `packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.ts:210-218`
-**Issue:** `proposeEdit` correctly merges `{ ...state.draft, ...input.config }` when deciding publish, but the apply payload stores only the partial `input.config`. `apply` then calls `mergeConfig(args.config)` which does `{ ...defaultSaProjectConfig(), ...partial }`. Confirming a metric-only edit therefore resets topics, webhooks, digest, alerts, budget, prompts, and other draft fields to defaults, and can publish that wiped config when `publish: true`.
-**Fix:**
-```typescript
-apply: async (args, ctx) => {
-  const state = await this.projects.getEditorState(ctx.vpbxUserUid, args.project_id);
-  const merged = this.mergeConfig({ ...state.draft, ...args.config });
-  return this.projects.applyEditorUpdate(ctx.vpbxUserUid, {
-    projectId: args.project_id,
-    expectedRevision: args.expected_revision,
-    config: merged,
-    publish: args.publish,
-    level: ctx.role,
-  });
-},
-```
-Alternatively put the full merged config into `applyPayload` during `proposeEdit` and keep apply as a pure write of that snapshot (still re-validate revision).
-
-### CR-02: Hangup Nest worker passes file byte size as `audioMs`
-
-**File:** `packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.nest.ts:130-136`
-**Issue:** `createSaAnalysisWorker` calls `pipelineRunAnalysis` with `audioMs: Math.max(0, bytes)` where `bytes` is the stable file size from `waitForFile`. SA-CHARGE-RUN then persists that value as `audio_ms` and uses it for amount math (even with `charged: false`). A multi‑MB recording is stored as millions of “milliseconds”. Hangup already has `durationSec` on `HangupAnalysisJobInput`, but `SaAnalysisJob` / fire-and-forget payload never carry it.
-**Fix:** Extend `SaAnalysisJob` with `audioMs` (or `durationSec`), set it from hangup `durationSec * 1000` in `HangupAnalyticsPortService.enqueueAnalysisJob`, and pass that into the Nest `runAnalysis` wrapper. Fall back to STT `durationSec` when duration is unknown — never use raw file bytes as ms.
-
-### CR-03: Public “accepted” batches still await scored analysis on the request thread
-
-**File:** `packages/backend/src/modules/speech-analytics/speech-analytics-public.controller.ts:103-149`
-**Issue:** Controller docs claim `sync=true` + one file waits, otherwise an accepted batch returns. Gap-closure wires `buildPublicUploadDeps` / `buildPublicUrlDeps` so `runAnalysis` is real `pipeline/run-analysis`. `UploadService` / `UrlIngestService` still `await` analysis for every item before returning, including `sync: false` and multi-file/URL batches — only the response `kind` changes. With real STT this blocks HTTP for the full batch, contradicts D-17/D-39 “accepted immediately”, and amplifies timeouts; stubs previously hid the bug.
-**Fix:** When `apiWaitsForResult` / `urlApiWaitsForResult` is false, persist the journal/run, schedule analysis asynchronously (same fire-and-forget pattern as hangup), and return `kind: 'accepted'` with UUID `journalId`s without awaiting score. Keep await only for the single-item `sync=true` path.
-
 ## Warnings
 
-### WR-01: Production public + hangup Nest paths default STT/score to null
+### WR-01: Accepted-path analysis failures are swallowed with no log
 
-**File:** `packages/backend/src/modules/speech-analytics/ingest/public-ingest.wiring.ts:105-110`
-**Issue:** `defaultPipelineDeps` uses `stt: async () => null` and `score: async () => null`. The public controller never injects `pipelineDeps` / `runScoredAnalysis`. Nest hangup worker (`sa-analysis.worker.nest.ts:49-58`) similarly defaults to null providers. Every scored path therefore ends in `stt_silent` / error after `createRun` / enqueue — UUID rows exist, but analysis never completes until providers are wired.
-**Fix:** Inject real STT/score ports from the AI media stack into `buildPublicUploadDeps` / `createSaAnalysisWorker` (or fail closed at module boot if required providers are missing), and surface a clear `provider_unconfigured` reason instead of a silent null.
+**File:** `packages/backend/src/modules/speech-analytics/ingest/upload.service.ts:161-165`
+**Also:** `packages/backend/src/modules/speech-analytics/ingest/url-download.ts:186-190`
+**Issue:** Fire-and-forget correctly unblocks HTTP, but `.catch(() => { /* ... */ })` discards all background errors. Hangup logs worker failures (`hangup-analytics.port.ts:296-298`). A thrown/`run_binding_missing`/unexpected failure can leave a run stuck in `queued` with no HTTP signal and no warn log, which is hard to operate and debug.
+**Fix:** Mirror hangup: log at warn with `journalId` / filename / url, and ensure the wired `runAnalysis` always persists an error state before rethrowing (or catch and call `persistError` in the ingest wiring).
 
-### WR-02: Hangup Nest forces stereo + verified on MP3 paths
+```typescript
+void this.deps.runAnalysis(analysisArgs).catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  // use Nest Logger if injected, else deps.onBackgroundError?.(…)
+  console.warn(`SA upload analysis failed journal=${analysisArgs.journalId}: ${message}`);
+});
+```
 
-**File:** `packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.nest.ts:84-93,137-140`
-**Issue:** Worker reads the recording as a Buffer (typically `.mp3` after dialplan ffmpeg) and passes `channels: 2`, `stereoVerified: true` into diarize. Energy stereo labeling expects PCM WAV; MP3 bytes will not parse, so channel-energy stereo never works for route hangup despite the flags claiming verified stereo.
-**Fix:** Detect container/codec (or convert to WAV before energy), or set `stereoVerified: false` / `channels: 1` until a WAV energy path exists. Prefer passing true channel metadata from MixMonitor/ffmpeg rather than hardcoding.
+### WR-02: URL download treats non-2xx HTTP bodies as successful audio
 
-### WR-03: Optional missing `SA_ANALYSIS_WORKER` silently drops hangup jobs
+**File:** `packages/backend/src/modules/speech-analytics/ingest/url-download.ts:48-98`
+**Issue:** `downloadAnalyticsUrl` never inspects `response.statusCode`. A 404/500 HTML (or redirect body) with non-empty bytes and plausible Content-Length becomes `{ ok: true }`, then journals and schedules STT. That pollutes the journal and burns analysis work on non-audio.
+**Fix:** Reject non-success statuses before buffering (and map to `network` or a dedicated `http_error` code):
 
-**File:** `packages/backend/src/modules/speech-analytics/hangup-analytics.port.ts:48,285-296`
-**Issue:** Worker is `@Optional()`. If DI fails to bind `SA_ANALYSIS_WORKER`, `enqueueAnalysisJob` still admits `ai_jobs` / `sa_analysis_runs` (`charged: false`) but never schedules `processJob`. Specs treat null worker as acceptable; production would leave queued runs stuck with no error transition.
-**Fix:** Make `SA_ANALYSIS_WORKER` required in production, or on missing worker mark the run `error` / `worker_unbound` inside the same transaction instead of returning success.
+```typescript
+if (response.statusCode < 200 || response.statusCode >= 300) {
+  return { ok: false, error: 'network' };
+}
+```
 
-### WR-04: `enqueueAnalysisJob` does not re-check `pauseNew`
+### WR-03: Nested partial apply still shallow-replaces whole sections
 
-**File:** `packages/backend/src/modules/speech-analytics/hangup-analytics.port.ts:105-150`
-**Issue:** Pause is enforced in `DialplanWebhooksService` via `resolveHangupContext` + admission. `enqueueAnalysisJob` itself only checks project active/published and product entitlement. Any future caller that bypasses dialplan can enqueue automatic analyses while pause is on, violating “pause blocks only new automatic analyses” at the port boundary.
-**Fix:** Re-read module settings / capture policy inside `enqueueAnalysisJob` and reject with a non-chargeable `pause_new` reason before `admit` / run create.
+**File:** `packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.ts:210-221`
+**Issue:** Top-level metric-only merge is fixed, but `{ ...state.draft, ...args.config }` still replaces entire nested objects. An applyPayload like `{ digest: { enabled: true } }` or `{ eventWebhook: { url: '…' } }` wipes sibling nested fields (`integrationUids`, headers, events, etc.) that live under that key. Same pattern exists in `proposeEdit`’s merge for publish decisions.
+**Fix:** Deep-merge known nested config sections (digest/alerts/eventWebhook/budget) or reject incomplete nested objects in `revalidate` / Zod refine; keep top-level shallow merge only for arrays like `customMetrics` / `topics`.
 
-### WR-05: Insights cache is process-local; cache misses re-charge
+### WR-04: AI projects port ignores `level` on publish
 
-**File:** `packages/backend/src/modules/speech-analytics/dashboard/insights.service.ts:172,331-338`
-**Issue:** `InsightsService` keeps an in-memory `Map`. Multi-instance or restart always miss cache, call LLM stub/provider again, and invoke SA-CHARGE-INSIGHTS for a new `insightsRequestId` (still `charged: false`). Duplicate amount rows accumulate per refresh/miss.
-**Fix:** Back cache with a shared store keyed by `cacheKey` + tenant, or persist “latest insights for digest” and skip charge when a non-refresh hit exists in DB.
+**File:** `packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.ts:368-409`
+**Issue:** `applyEditorUpdate` accepts `level` but never calls `canPublishProject(level)` (unlike `project-editor.service`). Any principal that can confirm the AI mutation can force `publish: true` through this Nest-bound port, bypassing the editor’s publish gate.
+**Fix:**
+
+```typescript
+import { canPublishProject } from './projects/project-editor.service';
+// inside applyEditorUpdate, before publish branch:
+if (input.publish && !canPublishProject(input.level)) {
+  throw new Error('resource_permission_denied');
+}
+```
+
+### WR-05: Accepted-before-score specs race on a fixed 30ms sleep
+
+**File:** `packages/backend/src/modules/speech-analytics/ingest/upload.service.spec.ts:125-127`
+**Also:** `packages/backend/src/modules/speech-analytics/ingest/url-download.spec.ts:128-130` (and the multi-item variants)
+**Issue:** Tests `await setTimeout(30)` then assert `submitDone === true`. On a slow CI agent, `submit` may still be in `putUploadContent` / `createJournalRow`, causing intermittent RED without a product regression.
+**Fix:** Poll until `submitDone` with a ceiling (or resolve a latch when `submit`’s microtask completes) instead of a single 30ms sleep; keep the deferred `runAnalysis` unresolved until after assertions.
 
 ## Info
 
-### IN-01: Hangup media asset `sha256` is a hash of the origin key, not file bytes
+### IN-01: Knowledge block still claims full-draft rewrite
 
-**File:** `packages/backend/src/modules/speech-analytics/hangup-analytics.port.ts:163`
-**Issue:** `sha256: createHash('sha256').update(originKey).digest('hex')` with `bytes: String(0)` while `state: 'ready'`. Downstream integrity checks that trust asset digests will be wrong.
-**Fix:** Hash the recording after the worker’s stable-file wait (or leave `state` non-ready until content is hashed).
+**File:** `packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.ts:128`
+**Issue:** `getKnowledgeBlock` says edit “меняет весь черновик”, but apply now merges partials onto the live draft. Misleading for the agent/tool user.
+**Fix:** Update the bullet to describe partial merge + publish-on-metric-change.
 
-### IN-02: `createSaAiProjectsPort` ignores `level` on apply
+### IN-02: URL ingest drops `createsCdr` and never asserts it
 
-**File:** `packages/backend/src/modules/speech-analytics/speech-analytics-ai.adapter.ts:365-406`
-**Issue:** `applyEditorUpdate` accepts `level` but never uses it; permission checks that live in `ProjectEditorService` are bypassed by this Nest port.
-**Fix:** Delegate to `ProjectEditorService` or mirror `canPublishProject` / model-edit gates inside the port.
+**File:** `packages/backend/src/modules/speech-analytics/ingest/url-download.ts:133-138, 177-181`
+**Issue:** Upload refuses `createsCdr !== false`. URL `createJournalRow` only requires `{ id }`; production wiring returns `{ id }` only (`buildPublicUrlDeps` strips `createsCdr`). Behavior is safe with current wiring, but the URL path lacks the same CDR hard-stop if a future deps impl regresses.
+**Fix:** Align types/return with upload (`createsCdr: false`) and assert in `UrlIngestService.submit`.
 
-### IN-03: Nest worker “always injects runAnalysis” test does not exercise the factory path
+### IN-03: `UrlIngestDeps.invokeSaChargeRun` is dead API surface
 
-**File:** `packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.spec.ts:105-156`
-**Issue:** The test builds `createSaAnalysisWorker` then scores via a separately constructed `SaAnalysisWorker` with a mocked `runAnalysis`. It never calls `processJob` on the factory-built instance, so regressions that omit `runAnalysis` from the Nest factory would not fail this assertion strongly.
-**Fix:** Call `nestWorker.processJob` with a mocked `waitForFile` (or spy factory deps) and assert the factory-injected pipeline path runs.
+**File:** `packages/backend/src/modules/speech-analytics/ingest/url-download.ts:139`
+**Issue:** Optional `invokeSaChargeRun` is never read by `submit`; specs only assert the mock was unused. Charge correctly lives inside `runAnalysis`. The field suggests a second charge seam that does not exist.
+**Fix:** Remove the optional field from `UrlIngestDeps` (and from specs’ deps objects).
 
 ---
 
-_Reviewed: 2026-09-23T03:00:00Z_
+_Reviewed: 2026-09-23T04:36:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
