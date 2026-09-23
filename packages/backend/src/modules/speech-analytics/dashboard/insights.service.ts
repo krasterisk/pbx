@@ -176,7 +176,7 @@ export class InsightsService {
     private readonly insightsRequests: typeof SaInsightsRequest,
     @Optional()
     @InjectModel(AiPriceRevision)
-    private readonly priceRevisions: typeof AiPriceRevision | null = null,
+    private readonly priceRevisions?: typeof AiPriceRevision | null,
   ) {}
 
   /** Latest speech_analytics rates; missing model/rows → [] so seam writes amount 0. */
