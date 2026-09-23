@@ -179,26 +179,40 @@ export class UrlIngestService {
           sourceKind: 'url',
           consent: input.consent,
         });
-        try {
-          const scored = await this.deps.runAnalysis({
-            journalId: journal.id,
-            bytes: downloaded.bytes,
+        const analysisArgs = {
+          journalId: journal.id,
+          bytes: downloaded.bytes,
+        };
+        if (!wait) {
+          // D-40 / CR-03: accepted path schedules analysis without awaiting score.
+          void this.deps.runAnalysis(analysisArgs).catch(() => {
+            /* Background failure surfaces via run state, not HTTP abort. */
           });
           results.push({
             url: item.url,
             ok: true,
             journalId: journal.id,
-            scored: { summary: scored.summary },
             consentStored: consentStored || undefined,
           });
-        } catch (error) {
-          results.push({
-            url: item.url,
-            ok: false,
-            journalId: journal.id,
-            error: error instanceof Error ? error.message : 'analyze_failed',
-            consentStored: consentStored || undefined,
-          });
+        } else {
+          try {
+            const scored = await this.deps.runAnalysis(analysisArgs);
+            results.push({
+              url: item.url,
+              ok: true,
+              journalId: journal.id,
+              scored: { summary: scored.summary },
+              consentStored: consentStored || undefined,
+            });
+          } catch (error) {
+            results.push({
+              url: item.url,
+              ok: false,
+              journalId: journal.id,
+              error: error instanceof Error ? error.message : 'analyze_failed',
+              consentStored: consentStored || undefined,
+            });
+          }
         }
       } catch (error) {
         results.push({
