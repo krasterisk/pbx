@@ -1383,7 +1383,7 @@ Plans:
 **Goal:** Заново собрать модуль речевой аналитики до паритета с aiPBX и удобнее текущего кабинета: проекты и редактор метрик, загрузка записей через интерфейс и API, дашборды и отчёты, диаризация stereo/mono, включение анализа на маршруте, внешний API для чужих АТС, модели из каталога platform/тенанта, биллинг Krasterisk, эталонные оценки, настройка через AI-чат и живой UAT.
 **Depends on:** — (модуль уже в коде; Phase 17 не блокирует)
 **Requirements**: паритет с aiPBX, архитектура `packages/frontend/.idea/ARCHITECTURE.md`, живой прогон `Z:\temp\speech-analytics-samples` (REQ-SA-PARITY, REQ-SA-ARCH, REQ-SA-UAT)
-**Plans:** 15/15 plans executed
+**Plans:** 15 executed + 4 gap-closure plans
 
 Plans:
 **Wave 1**
@@ -1427,6 +1427,16 @@ Plans:
 
 - [x] 18-15-PLAN.md — Module AI adapter + ModuleSettings pause/models (D-27, D-33, D-38)
 - [x] 18-10-PLAN.md — Golden eval + live UAT harness (D-43…D-45, D-50)
+
+**Wave 10 — gap closure** *(verification 14/20)*
+
+- [ ] 18-16-PLAN.md — Nest hangup port + worker runAnalysis + AI adapter DI (G-18-01, G-18-02, G-18-04)
+- [ ] 18-17-PLAN.md — Public upload/URL → real sa_* journal UUIDs (G-18-03)
+- [ ] 18-18-PLAN.md — HTTP insights persist SA-CHARGE-INSIGHTS (G-18-05)
+
+**Wave 11 — gap closure** *(blocked on 18-17)*
+
+- [ ] 18-19-PLAN.md — UUID recording proof + live API re-check checklist (G-18-06)
 
 **Cross-cutting constraints:**
 
