@@ -198,7 +198,8 @@ export function PlatformCatalogEditor() {
                     <Select
                       value={mod.kind}
                       onChange={(e) => changeKind(mod, e.target.value as 'base' | 'market')}
-                      aria-label={`${t('platform.fieldKind')} ${mod.code}`}
+                      id={`kind-${mod.code}`}
+                      aria-label={`kind-${mod.code}`}
                     >
                       <option value="base">{t('platform.kindBase')}</option>
                       <option value="market">{t('platform.kindMarket')}</option>
