@@ -27,12 +27,14 @@ import { DirectoriesModule } from '../directories/directories.module';
 import { TrunksModule } from '../trunks/trunks.module';
 import { CallGroupsModule } from '../call-groups/call-groups.module';
 import { SaProject } from '../speech-analytics/speech-analytics.models';
+import { SpeechAnalyticsModule } from '../speech-analytics/speech-analytics.module';
 
 // RouteDirectoryBinding/Directory/DirectoryField are registered here so
 // RoutesService/RouteApplyService can @InjectModel them without importing
 // DirectoriesModule (avoids a module cycle).
-// SaProject is registered for RoutesAiAdapter list/set analytics tools (D-04)
-// without importing SpeechAnalyticsModule (avoids a module cycle).
+// SaProject is registered for RoutesAiAdapter list/set analytics tools (D-04).
+// SpeechAnalyticsModule is imported via forwardRef so DialplanWebhooksService
+// receives HANGUP_ANALYTICS_PORT without a hard cycle (SA already forwardRefs Routes).
 @Module({
   imports: [
     SequelizeModule.forFeature([Route, ContextInclude, WebhookFailure, Context, RouteDirectoryBinding, Directory, DirectoryField, SaProject]),
@@ -46,6 +48,7 @@ import { SaProject } from '../speech-analytics/speech-analytics.models';
     DirectoriesModule,
     CallGroupsModule,
     forwardRef(() => TrunksModule),
+    forwardRef(() => SpeechAnalyticsModule),
   ],
   controllers: [RoutesController, ContextIncludesController, DialplanWebhooksController],
   providers: [

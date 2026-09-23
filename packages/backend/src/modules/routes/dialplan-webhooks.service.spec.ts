@@ -154,4 +154,57 @@ describe('DialplanWebhooksService handleOnHangup analytics enqueue (D-03)', () =
     expect(enqueueAnalysisJob).toHaveBeenCalled();
     expect(pipeline.runPipeline).not.toHaveBeenCalled();
   });
+
+  it('skips enqueue when recording is off and record_path is empty', async () => {
+    const enqueueAnalysisJob = jest.fn();
+    const { service } = createService({
+      route: {
+        uid: 42,
+        user_uid: 8,
+        options: { record: false, analytics: { projectId } },
+        webhooks: null,
+      },
+      enqueueAnalysisJob,
+    });
+
+    await service.handleOnHangup({ ...hangupParams, record_path: '' });
+
+    expect(enqueueAnalysisJob).not.toHaveBeenCalled();
+  });
+
+  it('skips chargeable enqueue when knownOrigins already has the origin (idempotent)', async () => {
+    const enqueueAnalysisJob = jest.fn();
+    const knownKey = [
+      8,
+      'node-1',
+      hangupParams.uniqueid,
+      projectId,
+      1,
+    ].join(':');
+    const { service } = createService({
+      route: {
+        uid: 42,
+        user_uid: 8,
+        options: { record: true, analytics: { projectId } },
+        webhooks: null,
+      },
+      enqueueAnalysisJob,
+      resolveHangupContext: jest.fn().mockResolvedValue({
+        entitled: true,
+        pauseNew: false,
+        privacyDenied: false,
+        recordingEnabled: true,
+        projectActive: true,
+        projectPublished: true,
+        sameTenantProject: true,
+        policyRevision: 1,
+        nodeId: 'node-1',
+        knownOrigins: new Set([knownKey]),
+      }),
+    });
+
+    await service.handleOnHangup(hangupParams);
+
+    expect(enqueueAnalysisJob).not.toHaveBeenCalled();
+  });
 });

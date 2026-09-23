@@ -5,6 +5,7 @@ import { MediaAssetsModule } from '../media-assets/media-assets.module';
 import { ProductAccessCoreModule } from '../product-access/product-access-core.module';
 import { IntegrationCredentialsModule } from '../integration-credentials/integration-credentials.module';
 import { RoutesModule } from '../routes/routes.module';
+import { HANGUP_ANALYTICS_PORT } from '../routes/dialplan-webhooks.service';
 import { AiMediaAsset, AiUpload } from '../media-assets/media-asset.models';
 import {
   IntegrationCredential, IntegrationGrant, IntegrationPrincipal,
@@ -36,6 +37,8 @@ import { NumberList } from '../numbers/number-list.model';
 import { Route } from '../routes/route.model';
 import { NotificationIntegration } from '../notifications/notification-integration.model';
 import { SaInsightsRequest } from './speech-analytics.models';
+import { HangupAnalyticsPortService } from './hangup-analytics.port';
+import { ModuleSettingsService } from './module-settings.service';
 
 @Module({
   imports: [
@@ -65,6 +68,9 @@ import { SaInsightsRequest } from './speech-analytics.models';
     ProjectEditorService,
     InsightsService,
     DashboardService,
+    ModuleSettingsService,
+    HangupAnalyticsPortService,
+    { provide: HANGUP_ANALYTICS_PORT, useExisting: HangupAnalyticsPortService },
   ],
   controllers: [SpeechAnalyticsJwtController, SpeechAnalyticsPublicController],
   exports: [
@@ -76,6 +82,8 @@ import { SaInsightsRequest } from './speech-analytics.models';
     InsightsService,
     DashboardService,
     SequelizeModule,
+    HANGUP_ANALYTICS_PORT,
+    HangupAnalyticsPortService,
   ],
 })
 export class SpeechAnalyticsModule {}
