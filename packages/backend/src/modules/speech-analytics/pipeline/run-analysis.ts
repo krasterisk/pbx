@@ -266,11 +266,22 @@ export async function runAnalysis(
     providerTokens,
   });
 
+  // D-46: prefer positive hangup/job audioMs; else STT durationSec→ms when known.
+  const hangupAudioMs = typeof input.audioMs === 'number' && Number.isFinite(input.audioMs)
+    ? input.audioMs
+    : 0;
+  const sttAudioMs = typeof sttOutcome.stt.durationSec === 'number'
+    && Number.isFinite(sttOutcome.stt.durationSec)
+    && sttOutcome.stt.durationSec > 0
+    ? Math.round(sttOutcome.stt.durationSec * 1000)
+    : 0;
+  const chargeAudioMs = hangupAudioMs > 0 ? hangupAudioMs : sttAudioMs;
+
   await deps.invokeSaChargeRun(
     {
       runId: input.runId,
       tenantUid: input.tenantUid,
-      audioMs: input.audioMs,
+      audioMs: chargeAudioMs,
       providerTokens,
       currency: input.currency,
     },
