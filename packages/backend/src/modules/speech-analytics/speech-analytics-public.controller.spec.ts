@@ -8,9 +8,11 @@ import {
 } from './ingest/upload.service';
 import {
   buildPublicUploadDeps,
+  buildPublicUrlDeps,
   isUuidRecordingId,
   type PublicIngestAnalytics,
 } from './ingest/public-ingest.wiring';
+import { UrlIngestService } from './ingest/url-download';
 import type { TenantContext } from '../integration-credentials/tenant-context';
 
 const PROJECT_A = '00000000-0000-4000-8000-00000000000a';
@@ -132,5 +134,65 @@ describe('speech-analytics-public uploadBatch wiring (G-18-03)', () => {
     });
     expect(result.results[0].error).toBe('file_too_large');
     expect(createRun).not.toHaveBeenCalled();
+  });
+});
+
+describe('speech-analytics-public analyzeUrl wiring (G-18-03, D-39…D-42)', () => {
+  it('controller source wires buildPublicUrlDeps and drops journal-url stubs', () => {
+    const src = fs.readFileSync(
+      path.join(__dirname, 'speech-analytics-public.controller.ts'),
+      'utf8',
+    );
+    expect(src).toMatch(/buildPublicUrlDeps/);
+    const analyzeBlock = src.slice(src.indexOf('async analyzeUrl'));
+    expect(analyzeBlock).not.toMatch(/id:\s*`journal-url:/);
+    expect(analyzeBlock).not.toMatch(/summary:\s*`analyzed:\$\{journalId\}`/);
+    expect(analyzeBlock).toMatch(/buildPublicUrlDeps/);
+    expect(analyzeBlock).toMatch(/defaultUrlFetch/);
+  });
+
+  it('analyzeUrl success returns UUID journal ids via createRun', async () => {
+    const analytics: PublicIngestAnalytics = {
+      allocateUpload: jest.fn(async () => ({
+        id: 'upload-u1',
+        expiresAt: new Date().toISOString(),
+      })),
+      putUploadContent: jest.fn(async () => ({ receivedBytes: 12 })),
+      completeUpload: jest.fn(async () => ({
+        status: 200,
+        assetId: ASSET_ID,
+        state: 'ready',
+      })),
+      createRun: jest.fn(async () => ({
+        status: 202,
+        runId: RUN_ID,
+        recordingId: RECORDING_ID,
+        projectVersionId: PROJECT_A,
+        replay: false,
+      })),
+    };
+
+    const shared = buildPublicUrlDeps({
+      analytics,
+      context: ctx,
+      projectId: PROJECT_A,
+      runScoredAnalysis: async () => ({ summary: 'url-ok' }),
+    });
+    const service = new UrlIngestService({
+      download: async () => ({ ok: true as const, bytes: Buffer.from('RIFF....WAVEfmt ') }),
+      ...shared,
+    });
+    const result = await service.submit({
+      tokenProjectId: PROJECT_A,
+      sync: true,
+      moduleActive: true,
+      urls: [{ url: 'https://cdn.example/one.wav' }],
+    });
+
+    expect(result.kind).toBe('sync_result');
+    expect(result.results[0].ok).toBe(true);
+    expect(isUuidRecordingId(result.results[0].journalId!)).toBe(true);
+    expect(result.results[0].journalId).not.toMatch(/^journal-url:/);
+    expect(result.results[0].scored?.summary).not.toMatch(/^analyzed:/);
   });
 });

@@ -7,10 +7,12 @@ import {
 } from './upload.service';
 import {
   buildPublicUploadDeps,
+  buildPublicUrlDeps,
   isUuidRecordingId,
   uniquePublicIngestKeys,
   type PublicIngestAnalytics,
 } from './public-ingest.wiring';
+import { UrlIngestService } from './url-download';
 import type { TenantContext } from '../../integration-credentials/tenant-context';
 
 const PROJECT_A = '00000000-0000-4000-8000-00000000000a';
@@ -225,6 +227,95 @@ describe('public-ingest.wiring (G-18-03, D-17, D-32)', () => {
     const src = fs.readFileSync(path.join(__dirname, 'public-ingest.wiring.ts'), 'utf8');
     // GREEN removes stub createJournalRow returning journal:
     expect(src).not.toMatch(/id:\s*`journal:/);
+    expect(src).not.toMatch(/id:\s*`journal-url:/);
     expect(src).not.toMatch(/summary:\s*`analyzed:\$\{journalId\}`/);
+  });
+});
+
+describe('public-ingest.wiring URL path (G-18-03, D-39…D-42)', () => {
+  it('successful URL ingest createJournalRow returns sa_* UUID via createRun', async () => {
+    const analytics = mockAnalytics();
+    const urlDeps = buildPublicUrlDeps({
+      analytics,
+      context: ctx,
+      projectId: PROJECT_A,
+      runScoredAnalysis: async () => ({ summary: 'url-scored' }),
+    });
+
+    await urlDeps.putUploadContent(tinyWav());
+    const row = await urlDeps.createJournalRow({
+      projectId: PROJECT_A,
+      sourceKind: 'url',
+      consent: 'yes',
+    });
+
+    expect(isUuidRecordingId(row.id)).toBe(true);
+    expect(row.id).not.toMatch(/^journal-url:/);
+    expect(analytics.createRun).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        projectId: PROJECT_A,
+        metadata: expect.objectContaining({ source: 'url', consent: 'yes' }),
+      }),
+    );
+  });
+
+  it('incomplete download skips runAnalysis and continues the batch', async () => {
+    const analytics = mockAnalytics();
+    const runScored = jest.fn(async () => ({ summary: 'ok' }));
+    const shared = buildPublicUrlDeps({
+      analytics,
+      context: ctx,
+      projectId: PROJECT_A,
+      runScoredAnalysis: runScored,
+    });
+    const service = new UrlIngestService({
+      download: async (url) => (
+        url.includes('bad')
+          ? { ok: false as const, error: 'incomplete' as const }
+          : { ok: true as const, bytes: tinyWav() }
+      ),
+      ...shared,
+    });
+
+    const result = await service.submit({
+      tokenProjectId: PROJECT_A,
+      sync: false,
+      moduleActive: true,
+      urls: [
+        { url: 'https://cdn.example/good.wav' },
+        { url: 'https://cdn.example/bad.wav' },
+        { url: 'https://cdn.example/good2.wav' },
+      ],
+    });
+
+    expect(result.results.map((r) => r.ok)).toEqual([true, false, true]);
+    expect(result.results[1].error).toBe('incomplete');
+    expect(isUuidRecordingId(result.results[0].journalId!)).toBe(true);
+    expect(isUuidRecordingId(result.results[2].journalId!)).toBe(true);
+    expect(runScored).toHaveBeenCalledTimes(2);
+    expect(analytics.createRun).toHaveBeenCalledTimes(2);
+  });
+
+  it('oversized URL payload is an error for that item without createRun', async () => {
+    const analytics = mockAnalytics();
+    const shared = buildPublicUrlDeps({
+      analytics,
+      context: ctx,
+      projectId: PROJECT_A,
+      runScoredAnalysis: async () => ({ summary: 'ok' }),
+    });
+    const service = new UrlIngestService({
+      download: async () => ({ ok: false as const, error: 'too_large' as const }),
+      ...shared,
+    });
+    const result = await service.submit({
+      tokenProjectId: PROJECT_A,
+      sync: true,
+      moduleActive: true,
+      urls: [{ url: 'https://cdn.example/huge.wav' }],
+    });
+    expect(result.results[0]).toMatchObject({ ok: false, error: 'too_large' });
+    expect(analytics.createRun).not.toHaveBeenCalled();
   });
 });
