@@ -31,7 +31,21 @@ import {
 } from './turn-outcome.util';
 import { isWorkflowPlanView } from './dto/agent-diff.dto';
 import { PbxWorkflowRunnerService } from './pbx-workflow-runner.service';
-import { buildIvrSetupDraft } from './ivr-setup-draft';
+import { buildIvrSetupDraft, type IvrSetupDraft } from './ivr-setup-draft';
+import { compileSetupBrief, parseSetupBrief, SETUP_BRIEF_SYSTEM } from './setup-brief';
+import {
+  clipToolResult,
+  diagnoseNeedsEvidence,
+  EVIDENCE_TOOLS,
+  evidenceReminder,
+  parseTurnModeDecision,
+  providerHasNativeTools,
+  toolsForMode,
+  TURN_MODE_SYSTEM,
+  turnModeHint,
+  type TurnMode,
+  type TurnModeDecision,
+} from './turn-mode';
 
 export const DEFAULT_MAX_AGENT_STEPS = 12;
 export const DEFAULT_TOOL_ARG_RETRIES = 1;
@@ -159,15 +173,9 @@ export class PbxAgentLoopService {
     this.enforcePromptBudget(messages);
 
     const allTools = this.mcpTools.getToolsList(tenantUid);
-    const allowedNames = new Set(
-      this.intentClassifier.filterToolNames(
-        allTools.map((tool) => tool.name),
-        classification,
-      ),
-    );
-    const registered = this.registerTools(allTools.filter((tool) => allowedNames.has(tool.name)
-      && (!readOnlyRequest || READ_TOOL_NAME.test(tool.name))));
-    const tools = registered.map((tool) => tool.spec);
+    let registered: RegisteredTool[];
+    let tools: AgentToolSpec[];
+    const evidenceTools = new Set<string>();
     let steps = 0;
     let incompleteContinues = 0;
     let forceToolChoice = /(?:создай|создать|настрой|проверь|диагност|create |configure |diagnose )/i.test(message);
@@ -235,26 +243,65 @@ export class PbxAgentLoopService {
           'Карточку в UI подтверждает пользователь — не придумывай apply tool.',
       });
       forceToolChoice = true;
-    } else {
-      const compiled = yield* this.tryServerIvrPlan({
-        message,
-        threadUid,
-        tenantUid,
-        authorUid,
-        role,
-        locale: ctx.locale,
-        providerModel,
+    } else if (pendingWorkflow) {
+      messages.push({
+        role: 'system',
+        content:
+          'На треде уже есть незакрытая карточка. Короткое уточнение (номер группы, абонент, цифра, таймаут) — не новый бриф: вызови propose_plan с полным актуальным чеклистом, применив правку к последнему плану. Новая карточка заменит старую. Не проси подтвердить устаревший план.',
       });
-      if (compiled) return;
-      if (pendingWorkflow) {
-        messages.push({
-          role: 'system',
-          content:
-            'На треде уже есть незакрытая карточка. Короткое уточнение (номер группы, абонент, цифра, таймаут) — не новый бриф: вызови propose_plan с полным актуальным чеклистом, применив правку к последнему плану. Новая карточка заменит старую. Не проси подтвердить устаревший план.',
+      forceToolChoice = true;
+    }
+
+    const llmProvider = this.providerPayload(provider);
+    let turnMode: TurnMode = looksLikeUserConfirm(message) ? 'configure' : 'read';
+    let setupDomain: string | null = null;
+    if (!looksLikeUserConfirm(message)) {
+      const decision = await this.resolveTurnMode(llmProvider, message, ctx.signal);
+      turnMode = decision.mode;
+      if (decision.mode === 'clarify') {
+        yield* this.closeWithQuestion({
+          threadUid,
+          tenantUid,
+          authorUid,
+          providerModel,
+          text: decision.missing[0]
+            ? `Уточните: ${decision.missing[0]}`
+            : 'Уточните, что нужно настроить или проверить.',
         });
-        forceToolChoice = true;
+        return;
+      }
+      const nativeTools = typeof this.llm.supportsNativeTools === 'function'
+        ? this.llm.supportsNativeTools(llmProvider)
+        : providerHasNativeTools(llmProvider);
+      if ((decision.mode === 'configure' || decision.mode === 'diagnose') && !nativeTools) {
+        yield {
+          name: 'error',
+          data: {
+            code: 'missing_llm',
+            message: 'Для настройки и диагностики нужен провайдер с tool calling (capabilities: tools).',
+          },
+        };
+        return;
+      }
+      if (decision.mode === 'configure') {
+        const setup = yield* this.tryCompileSetup({
+          message,
+          threadUid,
+          tenantUid,
+          authorUid,
+          role,
+          locale: ctx.locale,
+          providerModel,
+          provider: llmProvider,
+          signal: ctx.signal,
+        });
+        if (setup.done) return;
+        setupDomain = setup.domain;
       }
     }
+    const visible = toolsForMode(allTools, turnMode, readOnlyRequest);
+    registered = this.registerTools(visible);
+    tools = registered.map((tool) => tool.spec);
 
     // Clear multi-domain configure briefs should start by calling tools, not narrating.
     const preferTools =
@@ -288,16 +335,7 @@ export class PbxAgentLoopService {
         (forceToolChoice || (preferTools && !calledToolThisTurn && !hadProposal));
 
       const completion = await this.llm.chat({
-        provider: {
-          uid: provider.uid,
-          tenantUid: provider.user_uid,
-          name: provider.name,
-          endpoint: provider.endpoint,
-          auth_type: provider.auth_type,
-          capabilities: provider.capabilities,
-          defaults: provider.defaults as Record<string, unknown> | null,
-          vendor: provider.vendor,
-        },
+        provider: llmProvider,
         messages: messages as ChatMessage[],
         tools,
         toolChoice: requireTools ? 'required' : 'auto',
@@ -522,7 +560,8 @@ export class PbxAgentLoopService {
             });
           }
           const proposal = this.asProposalView(resultText);
-          resultText = this.truncateToolResult(resultText);
+          if (EVIDENCE_TOOLS.has(normalizedCall.name)) evidenceTools.add(normalizedCall.name);
+          resultText = this.truncateToolResult(normalizedCall.name, resultText);
 
           yield { name: 'item', data: this.stepItem(normalizedCall.name, stepId, true, humanStepDetail(normalizedCall.name, resultText)) };
 
@@ -573,7 +612,15 @@ export class PbxAgentLoopService {
           });
           return;
         }
-        if (!readOnlyRequest && !hadProposal && checklistReads >= 2 && !looksLikeRouteSetup(message)) {
+        const compilerOwnsDomain = setupDomain === 'ivr' || setupDomain === 'route';
+        if (
+          turnMode === 'configure'
+          && !compilerOwnsDomain
+          && !readOnlyRequest
+          && !hadProposal
+          && checklistReads >= 2
+          && !looksLikeRouteSetup(message)
+        ) {
           const compiled = yield* this.tryServerIvrPlan({
             message,
             threadUid,
@@ -595,7 +642,14 @@ export class PbxAgentLoopService {
           yield { name: 'done', data: { closeKind: 'complete' } };
           return;
         }
-        if (!readOnlyRequest && !hadProposal && checklistReads >= 2 && proposePlanAttempts < 2) {
+        if (
+          turnMode === 'configure'
+          && !compilerOwnsDomain
+          && !readOnlyRequest
+          && !hadProposal
+          && checklistReads >= 2
+          && proposePlanAttempts < 2
+        ) {
           messages.push({
             role: 'system',
             content: this.proposePlanNowReminder(ctx.locale, message),
@@ -605,10 +659,13 @@ export class PbxAgentLoopService {
         continue;
       }
 
-      const close = classifyTurnClose(text, {
-        hadProposal,
-        truncated: completion.finishReason === 'length' || looksTruncated(text),
-      });
+      const evidenceBlocked = turnMode === 'diagnose' && diagnoseNeedsEvidence(text, evidenceTools);
+      const close = evidenceBlocked
+        ? 'incomplete'
+        : classifyTurnClose(text, {
+          hadProposal,
+          truncated: completion.finishReason === 'length' || looksTruncated(text),
+        });
       if (close === 'incomplete') {
         incompleteContinues += 1;
         lastAssistant = text || lastAssistant;
@@ -628,7 +685,9 @@ export class PbxAgentLoopService {
         if (incompleteContinues <= maxIncomplete) {
           messages.push({
             role: 'system',
-            content: incompleteReminder(ctx.locale, classification.skillNames),
+            content: evidenceBlocked
+              ? evidenceReminder(ctx.locale)
+              : incompleteReminder(ctx.locale, classification.skillNames),
           });
           continue;
         }
@@ -663,8 +722,6 @@ export class PbxAgentLoopService {
           continue;
         }
       }
-
-      forceToolChoice = false;
 
       const closeKind: AgentTurnCloseKind = close;
       const closing = scrubToolIdsFromPublicText(
@@ -934,7 +991,49 @@ export class PbxAgentLoopService {
     yield { name: 'done', data: { closeKind } };
   }
 
-  private async *tryServerIvrPlan(opts: {
+  private providerPayload(provider: {
+    uid: number;
+    user_uid: number;
+    name: string;
+    endpoint: string;
+    auth_type?: string | null;
+    capabilities?: string[] | null;
+    defaults?: unknown;
+    vendor?: string | null;
+  }) {
+    return {
+      uid: provider.uid,
+      tenantUid: provider.user_uid,
+      name: provider.name,
+      endpoint: provider.endpoint,
+      auth_type: provider.auth_type as 'bearer' | 'api_key_header' | 'none' | 'custom' | undefined,
+      capabilities: provider.capabilities ?? [],
+      defaults: (provider.defaults as Record<string, unknown> | null) ?? null,
+      vendor: provider.vendor ?? undefined,
+    };
+  }
+
+  private async resolveTurnMode(
+    provider: ReturnType<PbxAgentLoopService['providerPayload']>,
+    message: string,
+    signal?: AbortSignal,
+  ): Promise<TurnModeDecision> {
+    const fallback: TurnModeDecision = { mode: 'read', domain: null, missing: [] };
+    try {
+      const result = await this.llm.completeJson({
+        provider,
+        system: `${TURN_MODE_SYSTEM}\n${turnModeHint(message)}`,
+        user: message,
+        signal,
+      });
+      if (result.error || !result.text) return fallback;
+      return parseTurnModeDecision(result.text) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  private async *tryCompileSetup(opts: {
     message: string;
     threadUid: number;
     tenantUid: number;
@@ -942,8 +1041,88 @@ export class PbxAgentLoopService {
     role: number;
     locale?: string;
     providerModel: string;
+    provider: ReturnType<PbxAgentLoopService['providerPayload']>;
+    signal?: AbortSignal;
+  }): AsyncGenerator<AgentStreamEvent, { done: boolean; domain: string | null }> {
+    let raw: string;
+    try {
+      const result = await this.llm.completeJson({
+        provider: opts.provider,
+        system: SETUP_BRIEF_SYSTEM,
+        user: opts.message,
+        signal: opts.signal,
+      });
+      if (result.error || !result.text) return { done: false, domain: null };
+      raw = result.text;
+    } catch {
+      return { done: false, domain: null };
+    }
+    const brief = parseSetupBrief(raw);
+    if (!brief) return { done: false, domain: null };
+    const compiled = compileSetupBrief(brief);
+    if (compiled.kind === 'clarify') {
+      yield* this.closeWithQuestion({
+        threadUid: opts.threadUid,
+        tenantUid: opts.tenantUid,
+        authorUid: opts.authorUid,
+        providerModel: opts.providerModel,
+        text: compiled.question,
+      });
+      return { done: true, domain: compiled.domain };
+    }
+    if (compiled.kind === 'plan') {
+      const applied = yield* this.tryServerIvrPlan({
+        message: opts.message,
+        draft: compiled.draft,
+        threadUid: opts.threadUid,
+        tenantUid: opts.tenantUid,
+        authorUid: opts.authorUid,
+        role: opts.role,
+        locale: opts.locale,
+        providerModel: opts.providerModel,
+      });
+      return { done: applied, domain: compiled.domain };
+    }
+    return { done: false, domain: compiled.domain };
+  }
+
+  private async *closeWithQuestion(opts: {
+    threadUid: number;
+    tenantUid: number;
+    authorUid: number;
+    providerModel: string;
+    text: string;
+  }): AsyncGenerator<AgentStreamEvent, void> {
+    const row = await this.threads.appendMessage(opts.threadUid, opts.tenantUid, opts.authorUid, {
+      role: 'assistant',
+      content: opts.text,
+      close_kind: 'question',
+      visibility: 'public',
+    });
+    yield {
+      name: 'item',
+      data: {
+        kind: 'assistant',
+        id: `m${row.uid}`,
+        text: opts.text,
+        closeKind: 'question',
+        createdAt: this.createdAtIso(row.created_at),
+      },
+    };
+    yield { name: 'done', data: { closeKind: 'question' } };
+  }
+
+  private async *tryServerIvrPlan(opts: {
+    message: string;
+    draft?: IvrSetupDraft;
+    threadUid: number;
+    tenantUid: number;
+    authorUid: number;
+    role: number;
+    locale?: string;
+    providerModel: string;
   }): AsyncGenerator<AgentStreamEvent, boolean> {
-    const draft = buildIvrSetupDraft(opts.message);
+    const draft = opts.draft ?? buildIvrSetupDraft(opts.message);
     if (!draft) return false;
     const stepId = `s${opts.threadUid}_plan`;
     yield { name: 'item', data: this.stepItem('propose_plan', stepId, false) };
@@ -1122,7 +1301,10 @@ export class PbxAgentLoopService {
     if (row.role === 'tool') {
       return {
         role: 'tool' as LoopChatMessage['role'],
-        content: this.toModelToolContent(row.tool_name ?? 'unknown', this.truncateToolResult(row.content ?? '')),
+        content: this.toModelToolContent(
+          row.tool_name ?? 'unknown',
+          this.truncateToolResult(row.tool_name ?? 'unknown', row.content ?? ''),
+        ),
         name: row.tool_name ?? undefined,
         tool_call_id: row.tool_call_id ?? undefined,
       };
@@ -1194,9 +1376,8 @@ export class PbxAgentLoopService {
     return wrapUntrustedData(`tool:${toolName}`, content);
   }
 
-  private truncateToolResult(content: string): string {
-    if (content.length <= TOOL_RESULT_MAX_CHARS) return content;
-    return `${content.slice(0, TOOL_RESULT_MAX_CHARS)}\n[truncated]`;
+  private truncateToolResult(toolName: string, content: string): string {
+    return clipToolResult(toolName, content, TOOL_RESULT_MAX_CHARS);
   }
 
   /**

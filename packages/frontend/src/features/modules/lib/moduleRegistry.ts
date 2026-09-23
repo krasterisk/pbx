@@ -33,7 +33,6 @@ import {
   Database,
   Gauge,
   FolderKanban,
-  FileSpreadsheet,
   Wrench,
 } from 'lucide-react';
 import { UserLevel } from '@krasterisk/shared';
@@ -265,7 +264,12 @@ export const BASELINE_MODULES: ModuleDef[] = [
     navVariant: 'sidebar',
     labelKey: 'nav.speechAnalytics',
     pages: [
-      { id: 'speech-analytics-landing', path: '/speech-analytics', labelKey: 'nav.speechAnalytics', icon: BarChart3 },
+      {
+        id: 'speech-analytics-conversations',
+        path: '/speech-analytics/conversations',
+        labelKey: 'nav.speechAnalyticsJournal',
+        icon: List,
+      },
       {
         id: 'speech-analytics-projects',
         path: '/speech-analytics/projects',
@@ -277,12 +281,6 @@ export const BASELINE_MODULES: ModuleDef[] = [
         path: '/speech-analytics/dashboard',
         labelKey: 'nav.speechAnalyticsDashboard',
         icon: LayoutDashboard,
-      },
-      {
-        id: 'speech-analytics-reports',
-        path: '/speech-analytics/reports',
-        labelKey: 'nav.speechAnalyticsReports',
-        icon: FileSpreadsheet,
       },
       {
         id: 'speech-analytics-connections',
@@ -483,7 +481,9 @@ export function findModuleByPath(
       const nested =
         page.path !== '/' &&
         (pathname === page.path || pathname.startsWith(`${page.path}/`));
-      if (exact || nested) {
+      const moduleRoot =
+        pathname === '/speech-analytics' && page.path.startsWith('/speech-analytics/');
+      if (exact || nested || moduleRoot) {
         if (!best || page.path.length > best.len) {
           best = { mod, len: page.path.length };
         }

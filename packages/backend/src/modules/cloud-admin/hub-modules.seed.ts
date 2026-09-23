@@ -98,12 +98,10 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'ai', page_code: 'ai_providers', path: '/ai-providers', sort_order: 10 },
   { hub_code: 'ai', page_code: 'ai_agents', path: '/ai-agents', sort_order: 20 },
 
-  // Independent AI products (landing + connections; scenario robots stay under apps)
-  { hub_code: 'speech_analytics', page_code: 'speech_analytics_landing', path: '/speech-analytics', sort_order: 10 },
+  // Independent AI products (speech analytics starts at the journal; robots keep a landing)
+  { hub_code: 'speech_analytics', page_code: 'speech_analytics_conversations', path: '/speech-analytics/conversations', sort_order: 10 },
   { hub_code: 'speech_analytics', page_code: 'speech_analytics_projects', path: '/speech-analytics/projects', sort_order: 15 },
   { hub_code: 'speech_analytics', page_code: 'speech_analytics_dashboard', path: '/speech-analytics/dashboard', sort_order: 16 },
-  // D-37: journal replaces Reports product path; Excel is a journal toolbar action
-  { hub_code: 'speech_analytics', page_code: 'speech_analytics_conversations', path: '/speech-analytics/conversations', sort_order: 17 },
   { hub_code: 'speech_analytics', page_code: 'speech_analytics_connections', path: '/speech-analytics/connections', sort_order: 20 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_landing', path: '/ai-robots', sort_order: 10 },
   { hub_code: 'ai_voice_robots', page_code: 'ai_voice_robots_studio', path: '/ai-robots/studio', sort_order: 12 },

@@ -124,6 +124,10 @@ describe('SaJournalService list/detail/regenerate/delete (D-05, D-12, D-13)', ()
       ...(overrides.users as object),
     };
     const numberLists = { findOne: jest.fn().mockResolvedValue(null) };
+    const projects = {
+      findAll: jest.fn().mockResolvedValue([]),
+      ...(overrides.projects as object),
+    };
     const wallet = { refund: jest.fn(), settleShadow: jest.fn() };
 
     const service = new SaJournalService(
@@ -136,6 +140,7 @@ describe('SaJournalService list/detail/regenerate/delete (D-05, D-12, D-13)', ()
       reviews as any,
       users as any,
       numberLists as any,
+      projects as any,
     );
     service.wallet = wallet;
     return { service, recordings, runs, results, reviews, wallet, users, relations };

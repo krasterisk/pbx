@@ -19,6 +19,8 @@ export interface IAiProvider {
   defaults: Record<string, unknown>;
   pricing: Record<string, number>;
   enabled: boolean;
+  /** Platform catalog row. Cabinet lists drop these. */
+  is_global?: boolean;
   user_uid: number;
   created_at?: string;
   updated_at?: string;
@@ -74,6 +76,20 @@ export interface ICreateAiAgent {
   enabled?: boolean;
 }
 
+export interface ISpeechAnalyticsModelOption {
+  uid: number;
+  name: string;
+  capabilities: string[];
+  model: string | null;
+  enabled: boolean;
+}
+
+export interface ISpeechAnalyticsModels {
+  sttProviderUid: number | null;
+  llmProviderUid: number | null;
+  providers: ISpeechAnalyticsModelOption[];
+}
+
 export interface ICreateAiProvider {
   name: string;
   kind: AiProviderKind;
@@ -119,6 +135,8 @@ const aiAgentsApi = rtkApi.injectEndpoints({
     // Providers
     getAiProviders: build.query<IAiProvider[], void>({
       query: () => '/ai-agents/providers/list',
+      transformResponse: (rows: IAiProvider[]) =>
+        (Array.isArray(rows) ? rows : []).filter((row) => row.is_global !== true),
       providesTags: ['AiProviders'],
     }),
     createAiProvider: build.mutation<IAiProvider, ICreateAiProvider>({
@@ -132,6 +150,33 @@ const aiAgentsApi = rtkApi.injectEndpoints({
     deleteAiProvider: build.mutation<{ success: boolean }, number>({
       query: (id) => ({ url: `/ai-agents/providers/${id}`, method: 'DELETE' }),
       invalidatesTags: ['AiProviders'],
+    }),
+    getGlobalAiProviders: build.query<IAiProvider[], void>({
+      query: () => '/cloud-admin/global-providers',
+      providesTags: [{ type: 'AiProviders', id: 'GLOBAL' }],
+    }),
+    createGlobalAiProvider: build.mutation<IAiProvider, ICreateAiProvider>({
+      query: (body) => ({ url: '/cloud-admin/global-providers', method: 'POST', body }),
+      invalidatesTags: [{ type: 'AiProviders', id: 'GLOBAL' }, { type: 'AiProviders', id: 'SPEECH' }],
+    }),
+    updateGlobalAiProvider: build.mutation<IAiProvider, { id: number; data: Partial<ICreateAiProvider> }>({
+      query: ({ id, data }) => ({ url: `/cloud-admin/global-providers/${id}`, method: 'PUT', body: data }),
+      invalidatesTags: [{ type: 'AiProviders', id: 'GLOBAL' }, { type: 'AiProviders', id: 'SPEECH' }],
+    }),
+    deleteGlobalAiProvider: build.mutation<{ success: boolean }, number>({
+      query: (id) => ({ url: `/cloud-admin/global-providers/${id}`, method: 'DELETE' }),
+      invalidatesTags: [{ type: 'AiProviders', id: 'GLOBAL' }, { type: 'AiProviders', id: 'SPEECH' }],
+    }),
+    getSpeechAnalyticsModels: build.query<ISpeechAnalyticsModels, void>({
+      query: () => '/cloud-admin/speech-analytics-models',
+      providesTags: [{ type: 'AiProviders', id: 'SPEECH' }],
+    }),
+    saveSpeechAnalyticsModels: build.mutation<ISpeechAnalyticsModels, {
+      sttProviderUid: number | null;
+      llmProviderUid: number | null;
+    }>({
+      query: (body) => ({ url: '/cloud-admin/speech-analytics-models', method: 'PUT', body }),
+      invalidatesTags: [{ type: 'AiProviders', id: 'SPEECH' }],
     }),
 
     // Toolsets
@@ -163,6 +208,12 @@ export const {
   useCreateAiProviderMutation,
   useUpdateAiProviderMutation,
   useDeleteAiProviderMutation,
+  useGetGlobalAiProvidersQuery,
+  useCreateGlobalAiProviderMutation,
+  useUpdateGlobalAiProviderMutation,
+  useDeleteGlobalAiProviderMutation,
+  useGetSpeechAnalyticsModelsQuery,
+  useSaveSpeechAnalyticsModelsMutation,
   useGetAiToolsetsQuery,
   useCreateAiToolsetMutation,
   useUpdateAiToolsetMutation,

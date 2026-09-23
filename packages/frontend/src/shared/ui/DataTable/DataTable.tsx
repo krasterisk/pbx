@@ -61,6 +61,10 @@ export interface DataTableProps<TData> {
   getRowClassName?: (row: TData) => string;
   /** Aria-label for the header “select page” checkbox */
   selectAllAriaLabel?: string;
+  /** Row click (journal and other non-CRUD lists). */
+  onRowClick?: (row: TData) => void;
+  /** Stable test id for a data row. */
+  getRowTestId?: (row: TData) => string;
 
   // ─── Server-side pagination ────────────────────────────────
   /**
@@ -225,6 +229,8 @@ function DataTableInner<TData>(
     renderBanner,
     getRowClassName,
     selectAllAriaLabel,
+    onRowClick,
+    getRowTestId,
     paginationMode = 'client',
     totalRows: serverTotalRows,
     currentPage: serverCurrentPage,
@@ -423,7 +429,11 @@ function DataTableInner<TData>(
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
+                data-testid={getRowTestId?.(row.original)}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 className={`border-border/50 transition-colors ${
+                  onRowClick ? 'cursor-pointer' : ''
+                } ${
                   row.getIsSelected()
                     ? 'bg-primary/5 hover:bg-primary/10'
                     : 'hover:bg-white/[0.02]'

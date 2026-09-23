@@ -25,26 +25,6 @@ const ALWAYS_AVAILABLE_TOOLS = new Set([
   'list_dialplan_apps',
 ]);
 
-const DOMAIN_TOOL_PREFIX: Record<string, string[]> = {
-  callcenter: ['cc_get_queue_snapshot', 'cc_get_agents', 'cc_get_today_kpi', 'cc_force_pause_agent', 'cc_force_unpause_agent'],
-  users: ['list_portal_users', 'describe_portal_user'],
-  'route_templates': ['list_templates', 'apply_template', 'build_from_description'],
-  conferences: ['list_conference_rooms', 'create_conference_room', 'update_conference_room', 'cf_force_mute_participant', 'cf_force_kick_participant'],
-  ivrs: ['list_ivrs', 'create_ivr', 'update_ivr', 'delete_ivr', 'list_tts_engines', 'list_dialplan_apps'],
-  endpoints: ['list_endpoints', 'create_endpoint', 'create_endpoints_bulk', 'delete_endpoint', 'update_endpoint'],
-  'call-groups': ['list_call_groups', 'create_call_group', 'update_call_group', 'delete_call_group'],
-  queues: ['list_queues', 'create_queue', 'update_queue', 'delete_queue'],
-  routes: ['list_routes', 'describe_route_chain', 'list_dialplan_apps', 'create_route', 'delete_route', 'update_route'],
-  'time-groups': ['list_time_groups', 'evaluate_time_group', 'create_time_group', 'update_time_group'],
-  trunks: ['list_trunks', 'create_trunk', 'delete_trunk', 'update_trunk'],
-  contexts: ['list_contexts', 'create_context', 'update_context', 'delete_context'],
-  directories: ['list_directories', 'create_directory', 'delete_directory', 'remove_directory_records'],
-  moh: ['list_moh_classes', 'assign_moh_class', 'create_moh_class'],
-  diagnostics: ['get_pbx_state', 'get_cdr_summary', 'find_cdr_calls', 'get_endpoint_registration',
-    'get_live_channels', 'get_recent_call_events', 'get_compiled_dialplan', 'describe_number',
-    'evaluate_time_group', 'list_endpoints', 'list_routes', 'list_trunks'],
-};
-
 /**
  * Server-side intent → skill selection. Prefer deterministic matches against the
  * new user turn, pinned brief and active workflow; fall back to a broad but
@@ -191,26 +171,14 @@ export class AgentIntentClassifierService {
     };
   }
 
+  /**
+   * Skill scores no longer hide tools. Turn mode decides which names the model sees.
+   */
   filterToolNames(
     allToolNames: string[],
-    classification: IntentClassification,
+    _classification: IntentClassification,
   ): string[] {
-    const allowed = new Set<string>(ALWAYS_AVAILABLE_TOOLS);
-    for (const domain of classification.domains) {
-      for (const name of DOMAIN_TOOL_PREFIX[domain] ?? []) {
-        allowed.add(name);
-      }
-      for (const name of allToolNames) {
-        if (name.includes(domain.replace(/-/g, '_')) || name.includes(domain)) {
-          allowed.add(name);
-        }
-      }
-    }
-    // Low confidence: keep discovery tools plus everything (fail open on reads).
-    if (classification.confidence < 0.35) {
-      return allToolNames;
-    }
-    return allToolNames.filter((name) => allowed.has(name) || ALWAYS_AVAILABLE_TOOLS.has(name));
+    return allToolNames;
   }
 
   isAlwaysAvailableTool(name: string): boolean {

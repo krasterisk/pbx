@@ -1,0 +1,63 @@
+﻿node.exe : npm notice run @krasterisk/backend@4.4.3 test
+строка:1 знак:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\Professional\AppData\R ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm notice run ...kend@4.4.3 test:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm notice run jest --testPathPattern=sa-analysis.worker|hangup-analytics.port --no-coverage
+FAIL src/modules/speech-analytics/hangup-analytics.port.spec.ts
+  тЧП HangupAnalyticsPortService (G-18-01, D-03) тА║ enqueueAnalysisJob creates recording/run + AiJobAdmission and sche
+dules worker async
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"audioMs": 45000, "durationSec": 45, "jobId": "job-new", "recordPath": "8/calls/2026092
+2/rec-1", "tenantUid": 8}
+    Received: {"jobId": "job-new", "recordPath": "8/calls/20260922/rec-1", "runId": "db5879de-7931-48c2-89e5-5faccf5c5d
+77", "tenantUid": 8}
+
+    Number of calls: 1
+
+      178 |     );
+      179 |     // Worker is fire-and-forget тАФ processJob scheduled, hangup does not await STT
+    > 180 |     expect(worker.processJob).toHaveBeenCalledWith(
+          |                               ^
+      181 |       expect.objectContaining({
+      182 |         jobId: 'job-new',
+      183 |         recordPath: jobInput.recordPath,
+
+      at Object.<anonymous> (modules/speech-analytics/hangup-analytics.port.spec.ts:180:31)
+
+FAIL src/modules/speech-analytics/jobs/sa-analysis.worker.spec.ts
+  тЧП SaAnalysisWorker file wait (D-03) тА║ Nest runAnalysis passes audioMs from durationSec not waitForFile bytes (CR-
+02, D-46)
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 45000
+    Received: 4194304
+
+      194 |     expect(spy).toHaveBeenCalled();
+      195 |     const chargeInput = spy.mock.calls[0][0] as { audioMs: number };
+    > 196 |     expect(chargeInput.audioMs).toBe(45_000);
+          |                                 ^
+      197 |     expect(chargeInput.audioMs).not.toBe(hugeBytes);
+      198 |     spy.mockRestore();
+      199 |   });
+
+      at Object.<anonymous> (modules/speech-analytics/jobs/sa-analysis.worker.spec.ts:196:33)
+
+Test Suites: 2 failed, 2 total
+Tests:       2 failed, 11 passed, 13 total
+Snapshots:   0 total
+Time:        3.32 s
+Ran all test suites matching /sa-analysis.worker|hangup-analytics.port/i.
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend
+npm error workspace @krasterisk/backend@4.4.3
+npm error location C:\Users\Professional\WebstormProjects\krasterisk_v4\packages\backend
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c jest --testPathPattern=sa-analysis.worker^^^|hangup-analytics.po
+rt --no-coverage

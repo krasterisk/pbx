@@ -11,6 +11,7 @@ import { invokeSaChargeRun } from '../charging/sa-charge-run';
 import { diarizeChannels } from '../pipeline/channel-diarize';
 import { runAnalysis as pipelineRunAnalysis } from '../pipeline/run-analysis';
 import type { RunAnalysisDeps } from '../pipeline/run-analysis';
+import { PlatformSpeechModelsService } from '../../ai-connectivity/platform-speech-models.service';
 import { ModuleSettingsService } from '../module-settings.service';
 import { SaAnalysisRun } from '../speech-analytics.models';
 import {
@@ -33,6 +34,8 @@ export type SaAnalysisWorkerNestDeps = {
   /** Optional score provider — null result → runAnalysis error path (no charge). */
   score?: RunAnalysisDeps['score'];
   findLatestRates?: RunAnalysisDeps['findLatestRates'];
+  /** Platform STT/LLM ids used when the cabinet cannot edit its own models. */
+  resolvePlatformModels?: () => Promise<{ sttModelId: string | null; scoreModelId: string | null }>;
 };
 
 /**
@@ -84,11 +87,21 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
     const audioMs = fromAudioMs ?? fromDurationSec ?? 0;
 
     const settings = deps.moduleSettings.get(job.tenantUid);
-    const sttModelId = settings.sttModelId || 'default-stt';
-    const scoreModelId = settings.scoreModelId || 'default-score';
-    const allowlist = settings.modelAllowlist.length > 0
+    const platform = deps.resolvePlatformModels
+      ? await deps.resolvePlatformModels()
+      : { sttModelId: null, scoreModelId: null };
+    const ownStt = settings.cabinetCanEditModels ? settings.sttModelId : null;
+    const ownScore = settings.cabinetCanEditModels ? settings.scoreModelId : null;
+    const sttModelId = ownStt || platform.sttModelId || settings.sttModelId || 'default-stt';
+    const scoreModelId = ownScore || platform.scoreModelId || settings.scoreModelId || 'default-score';
+    const baseAllowlist = settings.modelAllowlist.length > 0
       ? settings.modelAllowlist
       : [sttModelId, scoreModelId];
+    const allowlist = Array.from(new Set([
+      ...baseAllowlist,
+      ...(platform.sttModelId ? [platform.sttModelId] : []),
+      ...(platform.scoreModelId ? [platform.scoreModelId] : []),
+    ]));
 
     const absolute = job.recordPath.endsWith('.mp3')
       ? (job.recordPath.startsWith('/') ? job.recordPath : `${recordsBase}/${job.recordPath}`)
@@ -180,6 +193,20 @@ export const saAnalysisWorkerProvider = {
     moduleSettings: ModuleSettingsService,
     config: ConfigService,
     runs: typeof SaAnalysisRun,
-  ) => createSaAnalysisWorker({ moduleSettings, config, runs }),
-  inject: [ModuleSettingsService, ConfigService, getModelToken(SaAnalysisRun)],
+    platformModels: PlatformSpeechModelsService,
+  ) => createSaAnalysisWorker({
+    moduleSettings,
+    config,
+    runs,
+    resolvePlatformModels: () => platformModels.modelIds().catch(() => ({
+      sttModelId: null,
+      scoreModelId: null,
+    })),
+  }),
+  inject: [
+    ModuleSettingsService,
+    ConfigService,
+    getModelToken(SaAnalysisRun),
+    PlatformSpeechModelsService,
+  ],
 };

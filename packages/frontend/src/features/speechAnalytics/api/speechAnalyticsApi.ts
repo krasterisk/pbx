@@ -77,6 +77,15 @@ export interface SaJournalRow {
   latestAmount: string | null;
   currency: string | null;
   summary: string | null;
+  operatorName?: string | null;
+  callerPhone?: string | null;
+  durationMs?: number | null;
+  score?: number | null;
+  sentiment?: 'positive' | 'neutral' | 'negative' | null;
+  topics?: string[];
+  success?: boolean | null;
+  lowStt?: boolean;
+  projectName?: string | null;
 }
 
 export interface SaJournalList {

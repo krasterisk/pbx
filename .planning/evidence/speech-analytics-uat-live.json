@@ -1,7 +1,7 @@
 {
   "note": "Live UAT evidence. No raw audio or API token plaintext.",
   "samplesDir": "Z:\\temp\\speech-analytics-samples",
-  "updatedAt": "2026-09-22T17:31:42.761Z",
+  "updatedAt": "2026-09-23T05:31:06.762Z",
   "setup": {
     "capabilitiesStatus": 200,
     "capturePolicyStatus": 200,
@@ -1998,5 +1998,38 @@
       "assertion": "uploading the same sample twice creates two journal conversations"
     },
     "batchContinuesOnFailure": true
+  },
+  "apiUuidRecheck": {
+    "at": "2026-09-23T05:31:06.762Z",
+    "httpStatus": 202,
+    "kind": "accepted",
+    "projectId": "9f5dad1a-8219-4872-9028-938a18c10b6b",
+    "files": [
+      "20260922084205-89029193721-2773355.mp3",
+      "20260922101228-89233067621-83912050130.mp3"
+    ],
+    "results": [
+      {
+        "filename": "20260922084205-89029193721-2773355.mp3",
+        "journalId": "e935c2c1-f5c8-45fe-81e2-e1857fc8cd5d",
+        "recordingId": "e935c2c1-f5c8-45fe-81e2-e1857fc8cd5d",
+        "runId": "2a344ae1-0af4-4d02-962b-d50bcfec49bc",
+        "charged": false,
+        "state": "queued"
+      },
+      {
+        "filename": "20260922101228-89233067621-83912050130.mp3",
+        "journalId": "2bd47fa6-39b6-4fba-96a6-f158a52e54d9",
+        "recordingId": "2bd47fa6-39b6-4fba-96a6-f158a52e54d9",
+        "runId": "0de6ae8e-d330-4c85-9605-24bd9152ff6d",
+        "charged": false,
+        "state": "queued"
+      }
+    ],
+    "wallet": {
+      "balanceRow": false,
+      "chargeCountDelta": 0
+    },
+    "token": "digest-only-revoked-after-check"
   }
 }

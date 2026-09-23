@@ -1,6 +1,7 @@
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
+import { AiProductLandingPage } from '@/pages/AiProductLandingPage';
 import { SpeechAnalyticsReportsPage } from '@/pages/SpeechAnalyticsReportsPage/SpeechAnalyticsReportsPage';
 import { router } from './router';
 
@@ -39,6 +40,17 @@ describe('speech-analytics reports route (D-37)', () => {
 
     expect(mountsReportsPage).toBe(false);
 
+    expect(isValidElement(element) && element.type === Navigate).toBe(true);
+    expect(isValidElement(element) && (element.props as { to?: string }).to).toBe(
+      '/speech-analytics/conversations',
+    );
+  });
+
+  it('redirects the module root to the conversations journal', () => {
+    const root = findRouteByPath('speech-analytics');
+    expect(root).toBeDefined();
+    const element = root!.element;
+    expect(isValidElement(element) && element.type === AiProductLandingPage).toBe(false);
     expect(isValidElement(element) && element.type === Navigate).toBe(true);
     expect(isValidElement(element) && (element.props as { to?: string }).to).toBe(
       '/speech-analytics/conversations',

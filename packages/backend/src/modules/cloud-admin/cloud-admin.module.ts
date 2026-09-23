@@ -41,6 +41,8 @@ import { PlatformPricesService } from './platform-prices.service';
 import { PlatformPricesController } from './platform-prices.controller';
 import { ProductAccessModule } from '../product-access/product-access.module';
 import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
+import { GlobalProvidersController } from './global-providers.controller';
 
 @Module({
   imports: [
@@ -64,6 +66,7 @@ import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module'
     BillingModule,
     ProductAccessModule,
     TenantIdentityModule,
+    AiConnectivityModule,
   ],
   providers: [
     TenantsService,
@@ -90,6 +93,7 @@ import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module'
     MarketplaceRoleStartController,
     BillingSellersController,
     PlatformPricesController,
+    GlobalProvidersController,
   ],
   exports: [
     TenantsService,

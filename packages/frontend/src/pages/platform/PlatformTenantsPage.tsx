@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building2, Users } from 'lucide-react';
+import { BarChart3, Building2, Cpu, Settings, Users } from 'lucide-react';
 import { TenantsTable, TenantFormModal } from '@/features/cloud-admin';
 import { SellersTable } from '@/features/cloud-admin/ui/SellersTable/SellersTable';
+import {
+  AgentUsageCard,
+  AiChatSettingsCard,
+} from '@/features/cloud-admin/ui/AiChatSettingsCard/AiChatSettingsCard';
+import { GlobalModelsPanel } from '@/features/cloud-admin/ui/GlobalModelsPanel/GlobalModelsPanel';
+import { SpeechAnalyticsModelsCard } from '@/features/cloud-admin/ui/SpeechAnalyticsModelsCard/SpeechAnalyticsModelsCard';
 import { Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import cls from './PlatformPages.module.scss';
 
-type TenantsTab = 'tenants' | 'sellers';
+type TenantsTab = 'tenants' | 'sellers' | 'usage' | 'settings' | 'models';
 
 /** Platform tenants tools - migrated from SuperAdminPage into /platform/tenants. */
 export const PlatformTenantsPage = () => {
@@ -46,7 +52,34 @@ export const PlatformTenantsPage = () => {
           data-testid="platform-sellers-tab"
         >
           <Building2 size={16} />
-          <Text as="span">{t('platform.sellerTab')}</Text>
+          <Text as="span">{t('platform.sellersTab')}</Text>
+        </button>
+        <button
+          type="button"
+          className={`${cls.tab} ${tab === 'usage' ? cls.tabActive : ''}`}
+          onClick={() => setTab('usage')}
+          data-testid="platform-usage-tab"
+        >
+          <BarChart3 size={16} />
+          <Text as="span">{t('platform.usageTab')}</Text>
+        </button>
+        <button
+          type="button"
+          className={`${cls.tab} ${tab === 'settings' ? cls.tabActive : ''}`}
+          onClick={() => setTab('settings')}
+          data-testid="platform-settings-tab"
+        >
+          <Settings size={16} />
+          <Text as="span">{t('platform.settingsTab')}</Text>
+        </button>
+        <button
+          type="button"
+          className={`${cls.tab} ${tab === 'models' ? cls.tabActive : ''}`}
+          onClick={() => setTab('models')}
+          data-testid="platform-models-tab"
+        >
+          <Cpu size={16} />
+          <Text as="span">{t('platform.modelsTab')}</Text>
         </button>
       </HStack>
 
@@ -58,6 +91,14 @@ export const PlatformTenantsPage = () => {
       )}
 
       {tab === 'sellers' && <SellersTable />}
+      {tab === 'usage' && <AgentUsageCard />}
+      {tab === 'settings' && (
+        <VStack gap="20" max>
+          <AiChatSettingsCard />
+          <SpeechAnalyticsModelsCard />
+        </VStack>
+      )}
+      {tab === 'models' && <GlobalModelsPanel />}
     </VStack>
   );
 };

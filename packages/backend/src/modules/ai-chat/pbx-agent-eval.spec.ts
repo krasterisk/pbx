@@ -72,7 +72,7 @@ describe('pbx-agent-eval', () => {
     const scenarios = loadReferenceScenarios();
     const byBucket = (bucket: EvalScenario['bucket']) => scenarios.filter((row) => row.bucket === bucket);
 
-    expect(scenarios).toHaveLength(15);
+    expect(scenarios).toHaveLength(16);
     expect(byBucket('read').map((row) => row.id)).toEqual([
       'read-list-queues',
       'read-find-cdr-calls',
@@ -80,7 +80,7 @@ describe('pbx-agent-eval', () => {
     ]);
     expect(byBucket('mutating')).toHaveLength(3);
     expect(byBucket('cross-tenant')).toHaveLength(2);
-    expect(byBucket('diagnostic')).toHaveLength(1);
+    expect(byBucket('diagnostic')).toHaveLength(2);
     expect(byBucket('step-budget')).toHaveLength(1);
     expect(byBucket('playbook')).toHaveLength(3);
     expect(byBucket('failure')).toHaveLength(1);
@@ -141,6 +141,22 @@ describe('pbx-agent-eval', () => {
     const forgedResult = await runScenario(forged!);
     expect(forgedResult.peerEntityCountsAfter).toEqual(forgedResult.peerEntityCountsBefore);
     expect(forgedResult.proposals.every((row) => row.status === 'pending' || row.status === undefined)).toBeTruthy();
+  });
+
+  it('refuses a queue-cause until describe_number has run', async () => {
+    const scenario = loadReferenceScenarios().find((row) => row.id === 'diagnostic-wrong-queue-chain');
+    expect(scenario).toBeDefined();
+    const result = await runScenario(scenario!);
+    expect(result.toolSequence).toEqual(['describe_number']);
+    const items = result.events
+      .filter((event) => event.name === 'item')
+      .map((event) => event.data as { kind?: string; text?: string });
+    const assistant = items.find((item) => item.kind === 'assistant');
+    expect(assistant?.text ?? '').toMatch(/Ночная/);
+    expect(assistant?.text ?? '').not.toMatch(/смотрит не в ту очередь/);
+    expect(items.findIndex((item) => item.kind === 'step')).toBeLessThan(
+      items.findIndex((item) => item.kind === 'assistant'),
+    );
   });
 
   it('passes a diagnostic scenario that reads before concluding', async () => {

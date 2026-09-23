@@ -26,8 +26,8 @@ export function useModuleLicenseGate() {
 
     const pathname = location.pathname;
     if (pathname === '/modules' || pathname.startsWith('/modules/')) return;
-    // Product landings show locked/expired themselves; connections stay gated.
-    if (pathname === '/speech-analytics' || pathname === '/ai-robots') return;
+    // AI robots landing shows locked/expired itself; connections stay gated.
+    if (pathname === '/ai-robots') return;
 
     const mod = findModuleByPath(pathname);
     if (!mod) return;

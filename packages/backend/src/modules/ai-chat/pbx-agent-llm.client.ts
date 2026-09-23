@@ -348,6 +348,32 @@ export class PbxAgentLlmClient {
         return out.filter((call) => call.name);
     }
 
+    supportsNativeTools(provider: AgentChatParams['provider']): boolean {
+        return this.supportsTools(provider);
+    }
+
+    /** One JSON object, no tools. Used for turn mode and setup brief extraction. */
+    async completeJson(params: {
+        provider: AgentChatParams['provider'];
+        system: string;
+        user: string;
+        signal?: AbortSignal;
+    }): Promise<{ text: string; error?: AgentLlmError }> {
+        const completion = await this.chat({
+            provider: params.provider,
+            messages: [
+                { role: 'system', content: params.system },
+                { role: 'user', content: params.user },
+            ],
+            tools: [],
+            toolChoice: 'none',
+            signal: params.signal,
+            stream: false,
+        });
+        if (completion.error) return { text: '', error: completion.error };
+        return { text: completion.text ?? '' };
+    }
+
     private supportsTools(provider: AgentChatParams['provider']): boolean {
         const caps = provider.capabilities ?? [];
         if (caps.includes('tools') || caps.includes('function_calling')) return true;

@@ -4,7 +4,7 @@ import { Column, DataType, Model, Table } from 'sequelize-typescript';
  * AI Provider profile — a reusable connection config for a vendor
  * (OpenAI Realtime, Qwen, Yandex SpeechKit, Ollama, custom HTTP/WS, …).
  *
- * `user_uid` is the owning tenant. Every provider is tenant-owned.
+ * `user_uid` is the owning tenant. `is_global` rows belong to the superadmin catalog.
  */
 @Table({ tableName: 'cc_ai_providers', timestamps: false })
 export class CcAiProvider extends Model {
@@ -48,6 +48,10 @@ export class CcAiProvider extends Model {
 
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
   declare enabled: boolean;
+
+  /** Platform catalog row. Hidden from tenant provider lists. */
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare is_global: boolean;
 
   // Tenant isolation (`vpbx_user_uid`). 0 is a valid BOX tenant, not a template.
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0, field: 'vpbx_user_uid' })

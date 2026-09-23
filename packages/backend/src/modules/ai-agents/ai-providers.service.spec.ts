@@ -4,7 +4,7 @@ import { decryptSecret, encryptSecret } from './util/secret-cipher.util';
 
 /**
  * Tenant-owned provider registry — encryption, tenant scoping, and
- * chat-completions default resolution. No global templates.
+ * chat-completions default resolution. Global catalog rows stay out of cabinet queries.
  */
 describe('AiProvidersService', () => {
   let model: any;
@@ -25,9 +25,47 @@ describe('AiProvidersService', () => {
       await service.findAll(7);
 
       expect(model.findAll).toHaveBeenCalledWith({
-        where: { user_uid: 7 },
+        where: { user_uid: 7, is_global: false },
         order: [['name', 'ASC']],
       });
+    });
+
+    it('hides the superadmin catalog from the box cabinet as well', async () => {
+      model.findAll.mockResolvedValueOnce([]);
+      model.findOne.mockResolvedValueOnce(null);
+
+      await service.findAll(0);
+      await expect(service.findOne(4, 0)).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(model.findAll).toHaveBeenCalledWith({
+        where: { user_uid: 0, is_global: false },
+        order: [['name', 'ASC']],
+      });
+      expect(model.findOne).toHaveBeenCalledWith({
+        where: { uid: 4, user_uid: 0, is_global: false },
+      });
+    });
+  });
+
+  describe('global catalog', () => {
+    it('marks a superadmin model global and owned by the platform uid', async () => {
+      let persisted: any;
+      model.create.mockImplementation((row: any) => {
+        persisted = row;
+        return Promise.resolve({ uid: 9, ...row });
+      });
+
+      await service.createGlobal({
+        name: 'Platform STT',
+        kind: 'online',
+        vendor: 'openai',
+        endpoint: 'https://api.openai.com/v1/audio/transcriptions',
+        capabilities: ['stt'],
+        pricing: { audioMinuteUsd: 0.006 },
+      } as any);
+
+      expect(persisted.is_global).toBe(true);
+      expect(persisted.user_uid).toBe(0);
     });
   });
 
@@ -50,6 +88,7 @@ describe('AiProvidersService', () => {
       } as any, 7);
 
       expect(persisted.user_uid).toBe(7);
+      expect(persisted.is_global).toBe(false);
       expect(persisted.auth_type).toBe('bearer');
       expect(persisted.enabled).toBe(true);
       expect(persisted.encrypted_api_key).not.toBe('sk-secret');
@@ -96,7 +135,7 @@ describe('AiProvidersService', () => {
       model.findOne.mockResolvedValueOnce(null);
       await expect(service.update(1, { name: 'changed' } as any, 7))
         .rejects.toBeInstanceOf(NotFoundException);
-      expect(model.findOne).toHaveBeenCalledWith({ where: { uid: 1, user_uid: 7 } });
+      expect(model.findOne).toHaveBeenCalledWith({ where: { uid: 1, user_uid: 7, is_global: false } });
     });
 
     it('re-encrypts apiKey when provided', async () => {
@@ -162,7 +201,7 @@ describe('AiProvidersService', () => {
 
       await expect(service.findDefaultLlm(7, 11)).resolves.toEqual(tenantLlm);
       expect(model.findOne).toHaveBeenCalledWith({
-        where: { uid: 11, user_uid: 7, enabled: true },
+        where: { uid: 11, user_uid: 7, enabled: true, is_global: false },
       });
       expect(model.findAll).not.toHaveBeenCalled();
     });
@@ -172,7 +211,7 @@ describe('AiProvidersService', () => {
 
       await expect(service.findDefaultLlm(7)).resolves.toEqual(tenantLlm);
       expect(model.findAll).toHaveBeenCalledWith({
-        where: { user_uid: 7, enabled: true },
+        where: { user_uid: 7, enabled: true, is_global: false },
         order: [['uid', 'ASC']],
       });
     });
@@ -210,7 +249,7 @@ describe('AiProvidersService', () => {
     expect(JSON.stringify(revision)).not.toMatch(/sk-private|encrypted_api_key|v2:/);
     await expect(service.resolveCredential(revision.credentialRef)).resolves.toBe('sk-private');
     expect(model.findOne).toHaveBeenCalledWith({
-      where: { uid: 11, user_uid: 0, enabled: true },
+      where: { uid: 11, user_uid: 0, enabled: true, is_global: false },
     });
     row.enabled = false;
     model.findOne.mockResolvedValueOnce(null);

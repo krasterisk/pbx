@@ -23,9 +23,11 @@ export interface ProviderRevision {
 }
 
 /**
- * Tenant-owned LLM (and voice) provider connections.
- * Global templates are not used — each tenant creates their own rows.
+ * Provider connections in `cc_ai_providers`.
+ * Tenant rows (`is_global = false`) belong to one cabinet.
+ * Global rows are the superadmin catalog and stay out of tenant lists.
  */
+export const GLOBAL_PROVIDER_OWNER_UID = 0;
 @Injectable()
 export class AiProvidersService {
 
@@ -41,7 +43,7 @@ export class AiProvidersService {
     const selected = Number(preferredUid);
     if (Number.isFinite(selected) && selected > 0) {
       const chosen = await this.model.findOne({
-        where: { uid: selected, user_uid: tenantUid, enabled: true },
+        where: { uid: selected, user_uid: tenantUid, enabled: true, is_global: false },
       });
       if (chosen && chosen.user_uid === tenantUid && chosen.enabled && this.isChatLlm(chosen)) {
         return chosen;
@@ -49,7 +51,7 @@ export class AiProvidersService {
     }
 
     const candidates = await this.model.findAll({
-      where: { user_uid: tenantUid, enabled: true },
+      where: { user_uid: tenantUid, enabled: true, is_global: false },
       order: [['uid', 'ASC']],
     });
     return candidates.find((candidate) => candidate.user_uid === tenantUid
@@ -94,7 +96,7 @@ export class AiProvidersService {
       throw new NotFoundException({ code: 'provider_not_found' });
     }
     const row = await this.model.findOne({
-      where: { uid: providerUid, user_uid: tenantUid, enabled: true },
+      where: { uid: providerUid, user_uid: tenantUid, enabled: true, is_global: false },
     });
     if (!row || row.uid !== providerUid || row.user_uid !== tenantUid || row.enabled !== true
       || !Array.isArray(row.capabilities) || !row.capabilities.includes(capability)) {
@@ -105,20 +107,35 @@ export class AiProvidersService {
 
   async findAll(userUid: number) {
     return this.model.findAll({
-      where: { user_uid: userUid },
+      where: { user_uid: userUid, is_global: false },
+      order: [['name', 'ASC']],
+    });
+  }
+
+  async findGlobal() {
+    return this.model.findAll({
+      where: { is_global: true },
       order: [['name', 'ASC']],
     });
   }
 
   async findOne(id: number, userUid: number) {
     const row = await this.model.findOne({
-      where: { uid: id, user_uid: userUid },
+      where: { uid: id, user_uid: userUid, is_global: false },
     });
     if (!row) throw new NotFoundException('Provider not found');
     return row;
   }
 
   async create(dto: CreateAiProviderDto, userUid: number) {
+    return this.insert(dto, userUid, false);
+  }
+
+  async createGlobal(dto: CreateAiProviderDto) {
+    return this.insert(dto, GLOBAL_PROVIDER_OWNER_UID, true);
+  }
+
+  private async insert(dto: CreateAiProviderDto, userUid: number, isGlobal: boolean) {
     if (!dto.capabilities || dto.capabilities.length === 0) {
       throw new BadRequestException('At least one capability is required');
     }
@@ -137,16 +154,18 @@ export class AiProvidersService {
       defaults: dto.defaults || {},
       pricing: dto.pricing,
       enabled: dto.enabled !== false,
+      is_global: isGlobal,
       user_uid: userUid,
     });
   }
 
   async update(id: number, dto: UpdateAiProviderDto, userUid: number) {
-    const row = await this.model.findOne({ where: { uid: id, user_uid: userUid } });
+    const row = await this.model.findOne({ where: { uid: id, user_uid: userUid, is_global: false } });
     if (!row) throw new NotFoundException('Provider not found');
 
     const patch: any = { ...dto };
     delete patch.apiKey;
+    delete patch.is_global;
     if (typeof dto.apiKey === 'string' && dto.apiKey.length > 0) {
       patch.encrypted_api_key = encryptSecret(dto.apiKey);
     } else if (dto.apiKey === '') {
@@ -157,8 +176,30 @@ export class AiProvidersService {
     return row;
   }
 
+  async updateGlobal(id: number, dto: UpdateAiProviderDto) {
+    const row = await this.model.findOne({ where: { uid: id, is_global: true } });
+    if (!row) throw new NotFoundException('Provider not found');
+    const patch: any = { ...dto };
+    delete patch.apiKey;
+    delete patch.is_global;
+    if (typeof dto.apiKey === 'string' && dto.apiKey.length > 0) {
+      patch.encrypted_api_key = encryptSecret(dto.apiKey);
+    } else if (dto.apiKey === '') {
+      patch.encrypted_api_key = '';
+    }
+    await row.update(patch);
+    return row;
+  }
+
   async remove(id: number, userUid: number) {
-    const row = await this.model.findOne({ where: { uid: id, user_uid: userUid } });
+    const row = await this.model.findOne({ where: { uid: id, user_uid: userUid, is_global: false } });
+    if (!row) throw new NotFoundException('Provider not found');
+    await row.destroy();
+    return { success: true };
+  }
+
+  async removeGlobal(id: number) {
+    const row = await this.model.findOne({ where: { uid: id, is_global: true } });
     if (!row) throw new NotFoundException('Provider not found');
     await row.destroy();
     return { success: true };

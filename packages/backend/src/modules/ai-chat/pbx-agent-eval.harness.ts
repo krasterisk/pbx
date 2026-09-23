@@ -175,6 +175,33 @@ class FixtureModelClient {
   outboundRequests = 0;
   private turns: AgentCompletion[] = [];
   private index = 0;
+  private bucket: EvalBucket = 'read';
+  private input = '';
+
+  setScenario(scenario: EvalScenario): void {
+    this.bucket = scenario.bucket;
+    this.input = scenario.input;
+  }
+
+  supportsNativeTools(): boolean {
+    return true;
+  }
+
+  async completeJson(params: { system: string }): Promise<{ text: string }> {
+    if (/setup brief/i.test(params.system)) {
+      return {
+        text: JSON.stringify({ domain: 'call_group', missing: [], slots: { name: 'passthrough' } }),
+      };
+    }
+    return { text: JSON.stringify({ mode: this.modeForBucket(), domain: null, missing: [] }) };
+  }
+
+  private modeForBucket(): 'read' | 'diagnose' | 'configure' {
+    if (this.bucket === 'diagnostic') return 'diagnose';
+    if (this.bucket === 'read' || this.bucket === 'step-budget') return 'read';
+    if (this.bucket === 'cross-tenant' && !/создай|удали|настрой/i.test(this.input)) return 'read';
+    return 'configure';
+  }
 
   setFixture(turns: EvalModelTurn[]): void {
     this.turns = turns.map((turn, step) => ({
@@ -238,6 +265,7 @@ export async function runScenario(scenario: EvalScenario): Promise<EvalRunResult
 
 async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<EvalRunResult> {
   const llm = new FixtureModelClient();
+  llm.setScenario(scenario);
   llm.setFixture(scenario.modelTurns);
 
   const auditRows: EvalAuditRow[] = [];

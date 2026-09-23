@@ -38,26 +38,19 @@ function tenantDisplayName(
 }
 
 /**
- * Platform-administrator AI Chat card (D-07 / D-08): default model and
- * per-tenant usage. Hidden for every tenant-role session.
+ * Platform-wide AI Chat settings: default model and destructive confirmation.
+ * Hidden for every tenant-role session.
  *
  * @layer features/cloud-admin
  */
 export const AiChatSettingsCard = memo(() => {
   const { t } = useTranslation();
   const isSuperAdmin = useAppSelector(selectIsSuperAdmin);
-  const rangeState = useMemo(() => rangeIso, []);
-  const [rangeDays, setRangeDays] = useState(30);
-  const range = useMemo(() => rangeState(rangeDays), [rangeState, rangeDays]);
 
   const { data, isLoading } = useGetAiChatSettingsQuery(undefined, { skip: !isSuperAdmin });
   const [update, { isLoading: isSaving }] = useUpdateAiChatSettingsMutation();
   const { data: defaultModel } = useGetAgentDefaultModelQuery(undefined, { skip: !isSuperAdmin });
   const [saveDefaultModel] = useUpdateAgentDefaultModelMutation();
-  const { data: usageRows } = useGetAgentUsageQuery(range, { skip: !isSuperAdmin });
-  const { data: funnelRows } = useGetAgentUsageFunnelQuery(range, { skip: !isSuperAdmin });
-  const { data: tenantsData } = useGetTenantsQuery({ limit: 100, offset: 0 }, { skip: !isSuperAdmin });
-  const { data: sellers } = useGetSellersQuery(undefined, { skip: !isSuperAdmin });
 
   const [confirmDestructive, setConfirmDestructive] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -86,23 +79,6 @@ export const AiChatSettingsCard = memo(() => {
     if (providerUid == null) return;
     await saveDefaultModel({ providerUid }).unwrap();
   };
-
-  const funnelByTenant = useMemo(() => {
-    const map = new Map((funnelRows ?? []).map((row) => [row.tenantUid, row]));
-    return map;
-  }, [funnelRows]);
-
-  const tenantNames = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const tenant of tenantsData?.rows ?? []) {
-      const name = tenant.name?.trim();
-      if (name) map.set(tenant.vpbx_user_uid, name);
-    }
-    const defaultSeller = (sellers ?? []).find((s) => s.isDefault) ?? sellers?.[0];
-    const sellerName = defaultSeller?.name?.trim();
-    if (sellerName && !map.has(0)) map.set(0, sellerName);
-    return map;
-  }, [tenantsData, sellers]);
 
   if (!isSuperAdmin) return null;
 
@@ -173,124 +149,6 @@ export const AiChatSettingsCard = memo(() => {
             )}
           </VStack>
 
-          <VStack gap="12" max data-testid="ai-chat-usage" className={cls.usage}>
-            <HStack justify="between" align="center" max className={cls.usageHeader}>
-              <Text variant="h4">{t('aiChat.admin.usageTitle')}</Text>
-              <HStack gap="8" align="center">
-                <Label htmlFor="ai-chat-usage-range">{t('aiChat.admin.range')}</Label>
-                <Select
-                  id="ai-chat-usage-range"
-                  data-testid="ai-chat-usage-range"
-                  value={String(rangeDays)}
-                  onChange={(event) => setRangeDays(Number(event.target.value))}
-                >
-                  <option value="7">{t('aiChat.admin.range7d')}</option>
-                  <option value="30">{t('aiChat.admin.range30d')}</option>
-                  <option value="90">{t('aiChat.admin.range90d')}</option>
-                </Select>
-              </HStack>
-            </HStack>
-
-            {(usageRows ?? []).length === 0 ? (
-              <Text variant="muted">{t('aiChat.admin.emptyUsage')}</Text>
-            ) : (
-              <VStack gap="12" max>
-                {(usageRows ?? []).map((row) => {
-                  const funnel = funnelByTenant.get(row.tenantUid);
-                  const name = tenantDisplayName(
-                    row.tenantUid,
-                    row.tenantName || tenantNames.get(row.tenantUid),
-                    t,
-                  );
-                  return (
-                    <VStack
-                      key={row.tenantUid}
-                      gap="12"
-                      max
-                      className={cls.usageRow}
-                      data-testid={`ai-chat-usage-row-${row.tenantUid}`}
-                    >
-                      <HStack gap="10" align="center" max className={cls.tenantHead}>
-                        <VStack align="center" justify="center" className={cls.tenantIcon}>
-                          <Building2 className={cls.tenantIconSvg} />
-                        </VStack>
-                        <VStack gap="2" max>
-                          <Text variant="muted" className={cls.tenantKicker}>
-                            {t('aiChat.admin.tenant')}
-                          </Text>
-                          <HStack gap="8" align="center" className={cls.tenantTitleRow}>
-                            <Text
-                              variant="h4"
-                              data-testid="ai-chat-usage-tenant-name"
-                            >
-                              {name}
-                            </Text>
-                            <span className={cls.uidBadge} data-testid="ai-chat-usage-tenant-id">
-                              {`(${row.tenantUid})`}
-                            </span>
-                          </HStack>
-                        </VStack>
-                      </HStack>
-
-                      <div className={cls.metrics}>
-                        <div className={cls.metric}>
-                          <span className={cls.metricLabel}>{t('aiChat.admin.tokensIn')}</span>
-                          <span className={cls.metricValue}>{row.tokensIn}</span>
-                        </div>
-                        <div className={cls.metric}>
-                          <span className={cls.metricLabel}>{t('aiChat.admin.tokensOut')}</span>
-                          <span className={cls.metricValue}>{row.tokensOut}</span>
-                        </div>
-                        <div className={cls.metric}>
-                          <span className={cls.metricLabel}>{t('aiChat.admin.turns')}</span>
-                          <span className={cls.metricValue}>{row.turns}</span>
-                        </div>
-                        <div className={cls.metric}>
-                          <span className={cls.metricLabel}>{t('aiChat.admin.spend')}</span>
-                          {row.spendAvailable ? (
-                            <span className={cls.metricValue}>{row.spendUsd}</span>
-                          ) : (
-                            <span
-                              className={cls.metricMuted}
-                              data-testid="ai-chat-spend-unavailable"
-                            >
-                              {t('aiChat.admin.spendUnavailable')}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {funnel && (
-                        <HStack gap="8" className={cls.funnel} wrap="wrap">
-                          <span className={cls.funnelChip}>
-                            {t('aiChat.admin.funnelPending')}
-                            {' '}
-                            <strong>{funnel.pending}</strong>
-                          </span>
-                          <span className={cls.funnelChip}>
-                            {t('aiChat.admin.funnelApplied')}
-                            {' '}
-                            <strong>{funnel.applied}</strong>
-                          </span>
-                          <span className={cls.funnelChip}>
-                            {t('aiChat.admin.funnelRejected')}
-                            {' '}
-                            <strong>{funnel.rejected}</strong>
-                          </span>
-                          <span className={cls.funnelChip}>
-                            {t('aiChat.admin.funnelDenied')}
-                            {' '}
-                            <strong>{funnel.denied}</strong>
-                          </span>
-                        </HStack>
-                      )}
-                    </VStack>
-                  );
-                })}
-              </VStack>
-            )}
-          </VStack>
-
           <HStack justify="between" align="center" className={cls.togglePanel}>
             <VStack gap="2">
               <HStack gap="4" align="center">
@@ -337,3 +195,161 @@ export const AiChatSettingsCard = memo(() => {
 });
 
 AiChatSettingsCard.displayName = 'AiChatSettingsCard';
+
+/** Per-tenant agent token and spend totals for the platform console. */
+export const AgentUsageCard = memo(() => {
+  const { t } = useTranslation();
+  const isSuperAdmin = useAppSelector(selectIsSuperAdmin);
+  const [rangeDays, setRangeDays] = useState(30);
+  const range = useMemo(() => rangeIso(rangeDays), [rangeDays]);
+
+  const { data: usageRows, isLoading } = useGetAgentUsageQuery(range, { skip: !isSuperAdmin });
+  const { data: funnelRows } = useGetAgentUsageFunnelQuery(range, { skip: !isSuperAdmin });
+  const { data: tenantsData } = useGetTenantsQuery({ limit: 100, offset: 0 }, { skip: !isSuperAdmin });
+  const { data: sellers } = useGetSellersQuery(undefined, { skip: !isSuperAdmin });
+
+  const funnelByTenant = useMemo(() => {
+    return new Map((funnelRows ?? []).map((row) => [row.tenantUid, row]));
+  }, [funnelRows]);
+
+  const tenantNames = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const tenant of tenantsData?.rows ?? []) {
+      const name = tenant.name?.trim();
+      if (name) map.set(tenant.vpbx_user_uid, name);
+    }
+    const defaultSeller = (sellers ?? []).find((s) => s.isDefault) ?? sellers?.[0];
+    const sellerName = defaultSeller?.name?.trim();
+    if (sellerName && !map.has(0)) map.set(0, sellerName);
+    return map;
+  }, [tenantsData, sellers]);
+
+  if (!isSuperAdmin) return null;
+
+  if (isLoading) {
+    return (
+      <HStack justify="center" align="center" className={cls.loading}>
+        <Loader2 className={cls.spinner} />
+      </HStack>
+    );
+  }
+
+  return (
+    <Card data-testid="ai-chat-usage">
+      <CardHeader>
+        <HStack justify="between" align="center" max className={cls.usageHeader}>
+          <Text variant="h4">{t('aiChat.admin.usageTitle')}</Text>
+          <HStack gap="8" align="center">
+            <Label htmlFor="ai-chat-usage-range">{t('aiChat.admin.range')}</Label>
+            <Select
+              id="ai-chat-usage-range"
+              data-testid="ai-chat-usage-range"
+              value={String(rangeDays)}
+              onChange={(event) => setRangeDays(Number(event.target.value))}
+            >
+              <option value="7">{t('aiChat.admin.range7d')}</option>
+              <option value="30">{t('aiChat.admin.range30d')}</option>
+              <option value="90">{t('aiChat.admin.range90d')}</option>
+            </Select>
+          </HStack>
+        </HStack>
+      </CardHeader>
+      <CardContent>
+        {(usageRows ?? []).length === 0 ? (
+          <Text variant="muted">{t('aiChat.admin.emptyUsage')}</Text>
+        ) : (
+          <VStack gap="12" max>
+            {(usageRows ?? []).map((row) => {
+              const funnel = funnelByTenant.get(row.tenantUid);
+              const name = tenantDisplayName(
+                row.tenantUid,
+                row.tenantName || tenantNames.get(row.tenantUid),
+                t,
+              );
+              return (
+                <VStack
+                  key={row.tenantUid}
+                  gap="12"
+                  max
+                  className={cls.usageRow}
+                  data-testid={`ai-chat-usage-row-${row.tenantUid}`}
+                >
+                  <HStack gap="10" align="center" max className={cls.tenantHead}>
+                    <VStack align="center" justify="center" className={cls.tenantIcon}>
+                      <Building2 className={cls.tenantIconSvg} />
+                    </VStack>
+                    <VStack gap="2" max>
+                      <Text variant="muted" className={cls.tenantKicker}>
+                        {t('aiChat.admin.tenant')}
+                      </Text>
+                      <HStack gap="8" align="center" className={cls.tenantTitleRow}>
+                        <Text variant="h4" data-testid="ai-chat-usage-tenant-name">
+                          {name}
+                        </Text>
+                        <span className={cls.uidBadge} data-testid="ai-chat-usage-tenant-id">
+                          {`(${row.tenantUid})`}
+                        </span>
+                      </HStack>
+                    </VStack>
+                  </HStack>
+
+                  <div className={cls.metrics}>
+                    <div className={cls.metric}>
+                      <span className={cls.metricLabel}>{t('aiChat.admin.tokensIn')}</span>
+                      <span className={cls.metricValue}>{row.tokensIn}</span>
+                    </div>
+                    <div className={cls.metric}>
+                      <span className={cls.metricLabel}>{t('aiChat.admin.tokensOut')}</span>
+                      <span className={cls.metricValue}>{row.tokensOut}</span>
+                    </div>
+                    <div className={cls.metric}>
+                      <span className={cls.metricLabel}>{t('aiChat.admin.turns')}</span>
+                      <span className={cls.metricValue}>{row.turns}</span>
+                    </div>
+                    <div className={cls.metric}>
+                      <span className={cls.metricLabel}>{t('aiChat.admin.spend')}</span>
+                      {row.spendAvailable ? (
+                        <span className={cls.metricValue}>{row.spendUsd}</span>
+                      ) : (
+                        <span className={cls.metricMuted} data-testid="ai-chat-spend-unavailable">
+                          {t('aiChat.admin.spendUnavailable')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {funnel && (
+                    <HStack gap="8" className={cls.funnel} wrap="wrap">
+                      <span className={cls.funnelChip}>
+                        {t('aiChat.admin.funnelPending')}
+                        {' '}
+                        <strong>{funnel.pending}</strong>
+                      </span>
+                      <span className={cls.funnelChip}>
+                        {t('aiChat.admin.funnelApplied')}
+                        {' '}
+                        <strong>{funnel.applied}</strong>
+                      </span>
+                      <span className={cls.funnelChip}>
+                        {t('aiChat.admin.funnelRejected')}
+                        {' '}
+                        <strong>{funnel.rejected}</strong>
+                      </span>
+                      <span className={cls.funnelChip}>
+                        {t('aiChat.admin.funnelDenied')}
+                        {' '}
+                        <strong>{funnel.denied}</strong>
+                      </span>
+                    </HStack>
+                  )}
+                </VStack>
+              );
+            })}
+          </VStack>
+        )}
+      </CardContent>
+    </Card>
+  );
+});
+
+AgentUsageCard.displayName = 'AgentUsageCard';

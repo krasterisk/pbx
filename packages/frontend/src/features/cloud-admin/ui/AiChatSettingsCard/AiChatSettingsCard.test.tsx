@@ -67,17 +67,18 @@ vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
   ],
 }));
 
-import { AiChatSettingsCard } from './AiChatSettingsCard';
+import { AgentUsageCard, AiChatSettingsCard } from './AiChatSettingsCard';
 
-function renderCard(level: UserLevel) {
+function renderCard(level: UserLevel, view: 'settings' | 'usage' = 'settings') {
   const store = configureStore({
     reducer: {
       auth: () => ({ isAuthenticated: true, user: { level } }),
     },
   });
+  const node = view === 'usage' ? <AgentUsageCard /> : <AiChatSettingsCard />;
   return render(
     <Provider store={store}>
-      <AiChatSettingsCard />
+      {node}
     </Provider>,
   );
 }
@@ -106,7 +107,7 @@ describe('AiChatSettingsCard (15-24 / D-07 / D-08)', () => {
   });
 
   it('shows per-tenant tokens, spend and the proposal funnel', () => {
-    renderCard(UserLevel.SUPERADMIN);
+    renderCard(UserLevel.SUPERADMIN, 'usage');
     const usage = screen.getByTestId('ai-chat-usage');
     expect(usage.textContent).toContain('Acme PBX');
     expect(usage.textContent).toContain('120');
@@ -118,7 +119,7 @@ describe('AiChatSettingsCard (15-24 / D-07 / D-08)', () => {
   });
 
   it('renders unavailable spend instead of a zero amount', () => {
-    renderCard(UserLevel.SUPERADMIN);
+    renderCard(UserLevel.SUPERADMIN, 'usage');
     expect(screen.getByTestId('ai-chat-spend-unavailable')).toBeTruthy();
     const usage = screen.getByTestId('ai-chat-usage');
     expect(usage.textContent).not.toMatch(/\$0(?:\.0+)?\b/);

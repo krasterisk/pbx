@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"run-analysis.spec\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "uses STT durationSec*1000 for SA-CHARGE-RUN when hangup audioMs is 0 or unknown (D-46)",
+  "targetFile": "packages/backend/src/modules/speech-analytics/pipeline/run-analysis.spec.ts",
+  "expected": "37400",
+  "actual": "0",
+  "output": "not ok 1 - uses STT durationSec*1000 for SA-CHARGE-RUN when hangup audioMs is 0 or unknown (D-46)\nok 2 - prefers positive hangup audioMs over STT duration for SA-CHARGE-RUN (D-46)\n# tests 7\n# pass 6\n# fail 1\n\nJest: Expected audioMs 37400 Received 0"
+}

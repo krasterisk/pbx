@@ -19,13 +19,13 @@ describe('AgentIntentClassifierService', () => {
       .toContain('get_endpoint_registration');
   });
 
-  it('keeps domain tools whose names do not contain the domain plural', () => {
+  it('does not hide tools outside the matched domain', () => {
     for (const [domain, names] of Object.entries({ conferences: ['create_conference_room', 'list_conference_rooms'],
       callcenter: ['cc_get_agents', 'cc_get_queue_snapshot'], users: ['list_portal_users', 'describe_portal_user'] })) {
       const filtered = classifier.filterToolNames([...names, 'create_trunk'], {
         domains: [domain], confidence: 1, intents: [], skillNames: [], source: 'deterministic',
       });
-      expect(filtered).toEqual(names);
+      expect(filtered).toEqual([...names, 'create_trunk']);
     }
   });
 
@@ -56,9 +56,8 @@ describe('AgentIntentClassifierService', () => {
       { ...classification, confidence: 0.9 },
     );
     expect(filtered).toEqual(
-      expect.arrayContaining(['list_skills', 'read_skill', 'get_pbx_state', 'create_ivr', 'list_endpoints', 'create_call_group']),
+      expect.arrayContaining(['list_skills', 'read_skill', 'get_pbx_state', 'create_ivr', 'list_endpoints', 'create_call_group', 'create_trunk']),
     );
-    expect(filtered).not.toContain('create_trunk');
   });
 
   it('selects time-groups for a calendar request and keeps create_time_group', () => {
@@ -70,8 +69,7 @@ describe('AgentIntentClassifierService', () => {
       ['list_time_groups', 'create_time_group', 'create_trunk', 'list_skills'],
       { ...result, confidence: 0.9 },
     );
-    expect(filtered).toEqual(expect.arrayContaining(['list_time_groups', 'create_time_group', 'list_skills']));
-    expect(filtered).not.toContain('create_trunk');
+    expect(filtered).toEqual(expect.arrayContaining(['list_time_groups', 'create_time_group', 'list_skills', 'create_trunk']));
   });
 
   it('keeps list_dialplan_apps on an IVR turn', () => {
@@ -84,7 +82,7 @@ describe('AgentIntentClassifierService', () => {
     );
     expect(classifier.isAlwaysAvailableTool('list_dialplan_apps')).toBe(true);
     expect(filtered).toContain('list_dialplan_apps');
-    expect(filtered).not.toContain('create_trunk');
+    expect(filtered).toContain('create_trunk');
   });
 
   it('selects ivrs, endpoints and call-groups for «ничего не нажали» without the word таймаут', () => {

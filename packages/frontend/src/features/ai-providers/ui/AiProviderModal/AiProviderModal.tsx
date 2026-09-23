@@ -19,7 +19,9 @@ import {
 import { HStack, VStack } from '@/shared/ui/Stack';
 import {
   useCreateAiProviderMutation,
+  useCreateGlobalAiProviderMutation,
   useUpdateAiProviderMutation,
+  useUpdateGlobalAiProviderMutation,
   type AiCapability,
   type AiProviderKind,
   type IAiProvider,
@@ -29,6 +31,7 @@ import styles from './AiProviderModal.module.scss';
 interface Props {
   provider: IAiProvider | null;
   onClose: () => void;
+  scope?: 'tenant' | 'global';
 }
 
 const ALL_CAPS: AiCapability[] = ['llm', 'stt', 'tts', 'realtime'];
@@ -42,7 +45,7 @@ const CAP_KEYS: Record<AiCapability, string> = {
   function_calling: 'aiProviders.field.capLlm',
 };
 
-export function AiProviderModal({ provider, onClose }: Props) {
+export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) {
   const { t } = useTranslation();
   const isEdit = !!provider;
 
@@ -62,9 +65,15 @@ export function AiProviderModal({ provider, onClose }: Props) {
   const [extraOpen, setExtraOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [createProvider, { isLoading: isCreating }] = useCreateAiProviderMutation();
-  const [updateProvider, { isLoading: isUpdating }] = useUpdateAiProviderMutation();
-  const submitting = isCreating || isUpdating;
+  const [createTenant, tenantCreateState] = useCreateAiProviderMutation();
+  const [updateTenant, tenantUpdateState] = useUpdateAiProviderMutation();
+  const [createGlobal, globalCreateState] = useCreateGlobalAiProviderMutation();
+  const [updateGlobal, globalUpdateState] = useUpdateGlobalAiProviderMutation();
+  const createProvider = scope === 'global' ? createGlobal : createTenant;
+  const updateProvider = scope === 'global' ? updateGlobal : updateTenant;
+  const submitting = scope === 'global'
+    ? globalCreateState.isLoading || globalUpdateState.isLoading
+    : tenantCreateState.isLoading || tenantUpdateState.isLoading;
 
   const toggleCap = (cap: AiCapability) => {
     setCaps((prev) => (prev.includes(cap) ? prev.filter((item) => item !== cap) : [...prev, cap]));

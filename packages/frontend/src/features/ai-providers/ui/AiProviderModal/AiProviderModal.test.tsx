@@ -18,6 +18,8 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/shared/api/endpoints/aiAgentsApi', () => ({
   useCreateAiProviderMutation: () => [vi.fn(), { isLoading: false }],
   useUpdateAiProviderMutation: () => [vi.fn(), { isLoading: false }],
+  useCreateGlobalAiProviderMutation: () => [vi.fn(), { isLoading: false }],
+  useUpdateGlobalAiProviderMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 import { AiProviderModal } from './AiProviderModal';

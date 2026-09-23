@@ -53,10 +53,6 @@ vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
   useUpdateSellerMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
-vi.mock('../AiChatSettingsCard/AiChatSettingsCard', () => ({
-  AiChatSettingsCard: () => <div data-testid="ai-chat-settings-stub" />,
-}));
-
 vi.mock('../SellerFormModal/SellerFormModal', () => ({
   SellerFormModal: () => null,
 }));
@@ -81,6 +77,7 @@ describe('SellersTable', () => {
     expect(screen.getByText('Default Seller')).toBeInTheDocument();
     expect(screen.getByText('Alt Seller')).toBeInTheDocument();
     expect(screen.getByTestId('seller-default-1')).toBeInTheDocument();
-    expect(screen.getByTestId('ai-chat-settings-stub')).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-chat-usage')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ai-chat-default-model')).not.toBeInTheDocument();
   });
 });

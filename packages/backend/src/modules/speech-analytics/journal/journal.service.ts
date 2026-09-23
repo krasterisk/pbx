@@ -14,8 +14,9 @@ import { normalizeAccessToken } from '../../callcenter/callcenter-access-list.ut
 import { User, UserLevel } from '../../users/user.model';
 import { NumberList } from '../../numbers/number-list.model';
 import {
-  SaAnalysisRun, SaRecording, SaResult, SaTranscript, SaTranscriptSegment,
+  SaAnalysisRun, SaProject, SaRecording, SaResult, SaTranscript, SaTranscriptSegment,
 } from '../speech-analytics.models';
+import { readJournalColumns } from './journal-row-view';
 import { SaRecordingRelation } from '../reporting/reporting.models';
 import { SaHumanReview } from '../metrics/metric.models';
 import {
@@ -129,6 +130,7 @@ export class SaJournalService {
     @InjectModel(SaHumanReview) private readonly reviews: typeof SaHumanReview,
     @InjectModel(User) private readonly users: typeof User,
     @InjectModel(NumberList) private readonly numberLists: typeof NumberList,
+    @InjectModel(SaProject) private readonly projects: typeof SaProject,
   ) {}
 
   private principalUserId(context: TenantContext): number {
@@ -236,18 +238,35 @@ export class SaJournalService {
       : await this.results.findAll({
         where: { tenant_uid: context.tenantUid, id: { [Op.in]: resultIds } },
       });
-    const summaryByResult = new Map(resultRows.map((r) => [r.id, r.summary]));
+    const resultById = new Map(resultRows.map((r) => [r.id, r]));
+    const projectIds = [...new Set(visible.map((row) => row.project_id).filter((id): id is string => Boolean(id)))];
+    const projectRows = projectIds.length === 0
+      ? []
+      : await this.projects.findAll({
+        where: { tenant_uid: context.tenantUid, id: { [Op.in]: projectIds } },
+        attributes: ['id', 'name'],
+      });
+    const projectNameById = new Map(projectRows.map((project) => [project.id, project.name]));
 
     const items = visible.map((row) => {
       const sourceKind = sourceByRecording.get(row.id) ?? 'upload';
       const latest = latestByRecording.get(row.id);
+      const result = latest?.result_id ? resultById.get(latest.result_id) : undefined;
+      const columns = readJournalColumns({
+        metadata: row.metadata,
+        audioMs: latest?.audio_ms ?? null,
+        metricResults: result?.metric_results ?? null,
+        quality: result?.quality ?? null,
+        projectName: projectNameById.get(row.project_id) ?? null,
+      });
       return {
         id: row.id,
         occurredAt: row.occurred_at?.toISOString?.() ?? String(row.occurred_at),
         sourceKind,
         latestAmount: latest?.amount ?? null,
         currency: latest?.currency ?? null,
-        summary: latest?.result_id ? (summaryByResult.get(latest.result_id) ?? null) : null,
+        summary: result?.summary ?? null,
+        ...columns,
       };
     });
 

@@ -18,6 +18,7 @@ import {
 } from '../ai-platform/ai-mutation.contract';
 import { redactSecrets } from '../ai-platform/ai-secret-redaction';
 import { UserLevel } from '../users/user.model';
+import type { TenantContext } from '../integration-credentials/tenant-context';
 import { ModuleSettingsService } from './module-settings.service';
 import {
   stampChanged,
@@ -413,11 +414,26 @@ export function createSaAiProjectsPort(
 /** Factory: SaAiTokensPort over IntegrationCredentialsService.issueSpeechAnalyticsToken. */
 export function createSaAiTokensPort(
   credentials: {
-    issueSpeechAnalyticsToken: SaAiTokensPort['issueSpeechAnalyticsToken'];
+    issueSpeechAnalyticsToken(
+      context: TenantContext,
+      input: { label: string; projectId: string; operationId: string },
+      now?: Date,
+    ): Promise<{
+      principalId: string;
+      projectId: string;
+      token: string | null;
+      replay: boolean;
+    }>;
   },
 ): SaAiTokensPort {
   return {
     issueSpeechAnalyticsToken: (context, input) =>
-      credentials.issueSpeechAnalyticsToken(context, input),
+      credentials.issueSpeechAnalyticsToken({
+        tenantUid: context.tenantUid,
+        principalId: context.principalId,
+        principalKind: 'user',
+        permissionRevision: '1',
+        requestId: randomUUID(),
+      }, input),
   };
 }

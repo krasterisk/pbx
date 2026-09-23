@@ -18,7 +18,9 @@ import {
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
   useDeleteAiProviderMutation,
+  useDeleteGlobalAiProviderMutation,
   useGetAiProvidersQuery,
+  useGetGlobalAiProvidersQuery,
   type IAiProvider,
 } from '@/shared/api/endpoints/aiAgentsApi';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
@@ -28,15 +30,22 @@ import cls from './AiProvidersTable.module.scss';
 
 interface Props {
   onEdit: (provider: IAiProvider) => void;
+  scope?: 'tenant' | 'global';
 }
 
 const PAGE_SIZE = 50;
 
-export const AiProvidersTable = memo(({ onEdit }: Props) => {
+export const AiProvidersTable = memo(({ onEdit, scope = 'tenant' }: Props) => {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
-  const { data: providers = [], isLoading } = useGetAiProvidersQuery();
-  const [deleteProvider] = useDeleteAiProviderMutation();
+  const tenantQuery = useGetAiProvidersQuery(undefined, { skip: scope === 'global' });
+  const globalQuery = useGetGlobalAiProvidersQuery(undefined, { skip: scope !== 'global' });
+  const query = scope === 'global' ? globalQuery : tenantQuery;
+  const providers = query.data ?? [];
+  const isLoading = query.isLoading;
+  const [deleteTenant] = useDeleteAiProviderMutation();
+  const [deleteGlobal] = useDeleteGlobalAiProviderMutation();
+  const deleteProvider = scope === 'global' ? deleteGlobal : deleteTenant;
   const [globalFilter, setGlobalFilter] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const selection = useCrossPageRowSelection({ globalFilter });

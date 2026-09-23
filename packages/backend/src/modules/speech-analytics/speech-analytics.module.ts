@@ -8,6 +8,7 @@ import { IntegrationCredentialsService } from '../integration-credentials/integr
 import { RoutesModule } from '../routes/routes.module';
 import { HANGUP_ANALYTICS_PORT } from '../routes/dialplan-webhooks.service';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { AiMediaAsset, AiUpload } from '../media-assets/media-asset.models';
 import {
   IntegrationCredential, IntegrationGrant, IntegrationPrincipal,
@@ -57,6 +58,7 @@ import {
     AiJobsModule,
     MediaAssetsModule,
     AiPlatformModule,
+    AiConnectivityModule,
     forwardRef(() => RoutesModule),
     SequelizeModule.forFeature([
       SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,

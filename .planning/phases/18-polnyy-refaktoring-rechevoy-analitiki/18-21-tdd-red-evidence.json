@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"sa-analysis.worker|hangup-analytics.port\" --no-coverage",
+  "exitCode": 1,
+  "targetTest": "Nest runAnalysis passes audioMs from durationSec not waitForFile bytes (CR-02, D-46)",
+  "targetFile": "packages/backend/src/modules/speech-analytics/jobs/sa-analysis.worker.spec.ts",
+  "expected": "45000",
+  "actual": "4194304",
+  "output": "not ok 1 - Nest runAnalysis passes audioMs from durationSec not waitForFile bytes (CR-02, D-46)\nnot ok 2 - enqueueAnalysisJob creates recording/run + AiJobAdmission and schedules worker async\nok 3 - exports a 500ms poll interval and 60s total ceiling\n# tests 13\n# pass 11\n# fail 2\n\nJest: Expected: 45000 Received: 4194304 (bytes-as-ms bug)\nJest: processJob missing durationSec/audioMs on hangup enqueue"
+}

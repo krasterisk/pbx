@@ -1,6 +1,10 @@
 import { UNTRUSTED_FENCE_CLOSE, UNTRUSTED_FENCE_OPEN } from '../../shared/utils/prompt-injection.util';
+import { buildIvrSetupDraft, extractDigitMap, extractGreeting, extractIvrName } from './ivr-setup-draft';
 import { PbxAgentLoopService } from './pbx-agent-loop.service';
 import type { AgentStreamEvent, AgentTurnContext } from './pbx-agent-loop.service';
+import type { SetupBrief } from './setup-brief';
+import type { TurnModeDecision } from './turn-mode';
+import { isReadToolName } from './turn-mode';
 import type { AgentCompletion } from './pbx-agent.types';
 
 const TENANT = 42;
@@ -31,6 +35,41 @@ function turnContext(overrides: Partial<AgentTurnContext> = {}): AgentTurnContex
   };
 }
 
+function inferModeForTests(message: string, completions: AgentCompletion[]): TurnModeDecision {
+  if (/не меняй|не изменяй|ничего не менять|только диагностик|без изменений|read.only/i.test(message)) {
+    return { mode: 'diagnose', domain: 'diagnostics', missing: [] };
+  }
+  if (/почему|не работает|не проходит|жалоб|нет регистрац/i.test(message)) {
+    return { mode: 'diagnose', domain: 'diagnostics', missing: [] };
+  }
+  const names = completions.flatMap((completion) => (completion.toolCalls ?? []).map((call) => call.name));
+  const hasMutation = names.some((name) => !isReadToolName(name));
+  if (hasMutation || /создай|создать|настрой|сделай|добав/i.test(message)) {
+    return { mode: 'configure', domain: null, missing: [] };
+  }
+  return { mode: 'read', domain: null, missing: [] };
+}
+
+function briefForTestMessage(message: string): SetupBrief {
+  if (!buildIvrSetupDraft(message)) {
+    return { domain: 'call_group', missing: [], slots: { name: 'passthrough' } };
+  }
+  const digits: Record<string, { kind: string; target: string }> = {};
+  for (const [digit, target] of Object.entries(extractDigitMap(message))) {
+    digits[digit] = { kind: 'extension', target };
+  }
+  return {
+    domain: 'ivr',
+    missing: [],
+    slots: {
+      name: extractIvrName(message) ?? undefined,
+      greeting: extractGreeting(message) ?? undefined,
+      digits,
+      timeout: { kind: 'group' },
+    },
+  };
+}
+
 async function collect(iter: AsyncIterable<AgentStreamEvent>): Promise<AgentStreamEvent[]> {
   const events: AgentStreamEvent[] = [];
   for await (const event of iter) events.push(event);
@@ -44,6 +83,9 @@ function createHarness(
     tools?: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
     pendingWorkflow?: Record<string, unknown> | null;
     skillNames?: string[];
+    modeDecision?: TurnModeDecision;
+    setupBrief?: SetupBrief | null;
+    provider?: ReturnType<typeof providerRow>;
   } = {},
 ) {
   const stored: Array<{
@@ -63,10 +105,18 @@ function createHarness(
       chatCalls += 1;
       return next;
     }),
+    completeJson: jest.fn(async (params: { system: string; user: string }) => {
+      if (/turn mode/i.test(params.system)) {
+        const decision = options.modeDecision ?? inferModeForTests(params.user, completions);
+        return { text: JSON.stringify(decision) };
+      }
+      if (options.setupBrief) return { text: JSON.stringify(options.setupBrief) };
+      return { text: JSON.stringify(briefForTestMessage(params.user)) };
+    }),
   };
 
   const providers = {
-    findDefaultLlm: jest.fn(async () => providerRow()),
+    findDefaultLlm: jest.fn(async () => options.provider ?? providerRow()),
   };
 
   const contextBuilder = {
@@ -1669,6 +1719,69 @@ describe('PbxAgentLoopService', () => {
         events.map((e) => e.name).filter((n) => ['text', 'progress', 'tool_call', 'tool_result', 'proposal'].includes(n)),
       ).toEqual([]);
     });
+  });
+});
+
+describe('turn mode', () => {
+  it('does not force propose_plan after checklist reads on a support complaint', async () => {
+    const { service, llm } = createHarness([
+      { text: '', toolCalls: [{ id: 'a', name: 'list_endpoints', arguments: {} }] },
+      { text: '', toolCalls: [{ id: 'b', name: 'list_ivrs', arguments: {} }] },
+      { text: '', toolCalls: [{ id: 'c', name: 'describe_number', arguments: { number: '100' } }] },
+      { text: 'describe_number вернул unrouted. Номер никуда не назначен.', toolCalls: [] },
+    ], {
+      modeDecision: { mode: 'diagnose', domain: 'diagnostics', missing: [] },
+      tools: [
+        { name: 'list_endpoints', description: 'eps', inputSchema: { type: 'object', properties: {} } },
+        { name: 'list_ivrs', description: 'ivr', inputSchema: { type: 'object', properties: {} } },
+        { name: 'describe_number', description: 'number', inputSchema: { type: 'object', properties: {} } },
+        { name: 'propose_plan', description: 'plan', inputSchema: { type: 'object', properties: {} } },
+      ],
+    });
+
+    await collect(service.runTurn('Почему номер 100 не проходит?', { uid: THREAD }, turnContext()));
+
+    const offered = (llm.chat.mock.calls[0] as [{ tools: Array<{ name: string }> }])[0].tools.map((tool) => tool.name);
+    expect(offered).toContain('describe_number');
+    expect(offered).not.toContain('propose_plan');
+    const reminders = llm.chat.mock.calls.flatMap((call) => {
+      const messages = (call[0] as { messages: Array<{ role?: string; content?: string }> }).messages;
+      return messages.filter((row) => row.role === 'system').map((row) => String(row.content ?? ''));
+    });
+    expect(reminders.join('\n')).not.toMatch(/Сразу вызови propose_plan/);
+  });
+
+  it('asks for the missing IVR slot and does not open the tool loop', async () => {
+    const { service, llm, mcpTools } = createHarness([], {
+      modeDecision: { mode: 'configure', domain: 'ivr', missing: [] },
+      setupBrief: { domain: 'ivr', missing: ['текст приветствия'], slots: { name: 'Продажи' } },
+    });
+
+    const events = await collect(service.runTurn('Собери меню Продажи', { uid: THREAD }, turnContext()));
+
+    expect(llm.chat).not.toHaveBeenCalled();
+    expect(mcpTools.callTool).not.toHaveBeenCalled();
+    expect(events.at(-1)).toEqual(expect.objectContaining({ name: 'done', data: { closeKind: 'question' } }));
+  });
+
+  it('refuses configure when the provider has no tool-calling capability', async () => {
+    const { service, llm } = createHarness([], {
+      modeDecision: { mode: 'configure', domain: 'ivr', missing: [] },
+      provider: {
+        ...providerRow(),
+        capabilities: ['llm'],
+        vendor: 'local',
+        endpoint: 'http://127.0.0.1:11434',
+      },
+    });
+
+    const events = await collect(service.runTurn('Создай очередь Ночная', { uid: THREAD }, turnContext()));
+
+    expect(llm.chat).not.toHaveBeenCalled();
+    expect(events.at(-1)).toEqual(expect.objectContaining({
+      name: 'error',
+      data: expect.objectContaining({ code: 'missing_llm' }),
+    }));
   });
 });
 

@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"upload.service\" --no-coverage --forceExit",
+  "exitCode": 1,
+  "targetTest": "API without sync returns accepted before deferred runAnalysis resolves (CR-03 / D-17)",
+  "targetFile": "packages/backend/src/modules/speech-analytics/ingest/upload.service.spec.ts",
+  "expected": "true",
+  "actual": "false",
+  "output": "not ok 1 - API without sync returns accepted before deferred runAnalysis resolves (CR-03 / D-17)\nnot ok 2 - API multi-file sync=true returns accepted without awaiting score; item persist failure does not abort the rest\nok 3 - API single file sync=true waits for scored result and stores bytes\n# tests 9\n# pass 7\n# fail 2\n\nJest: Expected: true Received: false (submitDone still false — UploadService awaits runAnalysis on accepted path)\n"
+}

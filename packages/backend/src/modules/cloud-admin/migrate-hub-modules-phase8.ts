@@ -163,6 +163,10 @@ async function main() {
   }
 
   console.log('[migration] Seeding hub_module_pages...');
+  await sequelize.query(
+    `DELETE FROM hub_module_pages
+     WHERE hub_code = 'speech_analytics' AND page_code = 'speech_analytics_landing'`,
+  );
   for (const page of HUB_MODULE_PAGES_SEED) {
     const existing = await sequelize.query<{ id: number }>(
       'SELECT id FROM hub_module_pages WHERE hub_code = :hub_code AND page_code = :page_code LIMIT 1',

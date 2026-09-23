@@ -268,6 +268,7 @@ export class AgentUsageService {
   async getDefaultModel(): Promise<DefaultModelView> {
     const rows = await this.providers.findAll({
       attributes: ['uid', 'name', 'defaults', 'capabilities', 'enabled'],
+      where: { is_global: false },
     });
     const providers = rows
       .filter((row) => row.enabled && Array.isArray(row.capabilities) && row.capabilities.includes('llm'))

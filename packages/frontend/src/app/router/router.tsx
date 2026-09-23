@@ -192,7 +192,7 @@ export const router = createBrowserRouter([
       },
       { path: 'ai-providers', element: <AiProvidersPage /> },
       { path: 'ai-agents', element: <AiAgentsPage /> },
-      { path: 'speech-analytics', element: <AiProductLandingPage product="speech_analytics" /> },
+      { path: 'speech-analytics', element: <Navigate to="/speech-analytics/conversations" replace /> },
       { path: 'speech-analytics/connections', element: <AiConnectionsPage product="speech_analytics" /> },
       { path: 'speech-analytics/projects', element: <SpeechAnalyticsProjectsPage /> },
       { path: 'speech-analytics/projects/:id', element: <SpeechAnalyticsProjectPage /> },

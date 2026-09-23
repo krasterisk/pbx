@@ -27,6 +27,8 @@ vi.mock('@/shared/api/endpoints/aiAgentsApi', () => ({
     isLoading: false,
   }),
   useDeleteAiProviderMutation: () => [vi.fn()],
+  useGetGlobalAiProvidersQuery: () => ({ data: [], isLoading: false }),
+  useDeleteGlobalAiProviderMutation: () => [vi.fn()],
 }));
 
 import { AiProvidersTable } from './AiProvidersTable';

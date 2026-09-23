@@ -14,7 +14,6 @@ import {
 import type { IBillingSeller } from '@/entities/tenant';
 import type { ColumnDef } from '@tanstack/react-table';
 import { SellerFormModal } from '../SellerFormModal/SellerFormModal';
-import { AiChatSettingsCard } from '../AiChatSettingsCard/AiChatSettingsCard';
 import cls from './SellersTable.module.scss';
 
 export const SellersTable = memo(function SellersTable() {
@@ -136,8 +135,6 @@ export const SellersTable = memo(function SellersTable() {
           )}
         </CardContent>
       </Card>
-
-      <AiChatSettingsCard />
 
       <SellerFormModal
         open={modalOpen}

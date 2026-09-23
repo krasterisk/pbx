@@ -36,6 +36,7 @@ export function publicProvider(row: any): Record<string, unknown> {
     endpoint: publicEndpoint(value?.endpoint), auth_type: value?.auth_type,
     capabilities: Array.isArray(value?.capabilities) ? value.capabilities : [],
     defaults, pricing, enabled: value?.enabled, user_uid: value?.user_uid,
+    is_global: value?.is_global === true,
     secretConfigured, has_key: secretConfigured,
     authSummary: { type: value?.auth_type, secretConfigured },
   };

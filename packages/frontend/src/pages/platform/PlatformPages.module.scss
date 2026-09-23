@@ -60,6 +60,7 @@
 
 .tabBar {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   border-bottom: 1px solid var(--color-border);
   padding-bottom: 0;

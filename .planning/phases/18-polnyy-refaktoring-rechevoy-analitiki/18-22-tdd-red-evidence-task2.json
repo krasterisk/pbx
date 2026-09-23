@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=\"url-download\" --no-coverage --forceExit",
+  "exitCode": 1,
+  "targetTest": "sync≠true returns accepted before deferred runAnalysis resolves (CR-03 / D-40)",
+  "targetFile": "packages/backend/src/modules/speech-analytics/ingest/url-download.spec.ts",
+  "expected": "true",
+  "actual": "false",
+  "output": "not ok 1 - sync≠true returns accepted before deferred runAnalysis resolves (CR-03 / D-40)\nnot ok 2 - incomplete download skips runAnalysis/SA-CHARGE-RUN and continues the batch\nok 3 - one URL + sync=true waits; multi URL or no sync returns accepted batch\n# tests 6\n# pass 4\n# fail 2\n\nJest: Expected: true Received: false (submitDone still false — UrlIngestService awaits runAnalysis on accepted path)\n"
+}

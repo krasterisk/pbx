@@ -43,6 +43,42 @@ export function isCompleteIvrBrief(message: string): boolean {
   return parseIvrBrief(message) != null;
 }
 
+export interface IvrSlotInput {
+  name?: string;
+  greeting?: string;
+  digits?: Record<string, { kind: string; target?: string }>;
+  timeout?: { kind: string; target?: string };
+  groupExten?: string;
+}
+
+/** Build a propose_plan payload from structured slots. The raw phrase is not parsed here. */
+export function compileIvrFromSlots(slots: IvrSlotInput): IvrSetupDraft | null {
+  const name = slots.name?.trim();
+  const greeting = slots.greeting?.trim();
+  if (!name || !greeting) return null;
+  const digits: Record<string, Dest> = {};
+  for (const [digit, dest] of Object.entries(slots.digits ?? {})) {
+    const key = digit.trim();
+    const kind = dest?.kind?.trim();
+    if (!key || !kind) continue;
+    digits[key] = { kind: kind as DestKind, target: dest.target?.trim() || undefined };
+  }
+  if (Object.keys(digits).length < 1) return null;
+  const timeoutKind = slots.timeout?.kind?.trim() || 'hangup';
+  const timeout: Dest = {
+    kind: timeoutKind as DestKind,
+    target: slots.timeout?.target?.trim() || undefined,
+  };
+  return draftFromParsed({
+    name,
+    greeting,
+    digits,
+    timeout,
+    groupExten: slots.groupExten?.trim() || defaultGroupExten(name),
+    queueExten: defaultQueueExten(name),
+  });
+}
+
 function parseIvrBrief(message: string): ParsedBrief | null {
   const name = extractIvrName(message);
   const greeting = extractGreeting(message);

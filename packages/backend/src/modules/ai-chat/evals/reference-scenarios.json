@@ -313,6 +313,36 @@
     "expectedToolSequence": ["get_pbx_state", "find_cdr_calls"]
   },
   {
+    "id": "diagnostic-wrong-queue-chain",
+    "bucket": "diagnostic",
+    "input": "DID 74951234567 попадает не в ту очередь. Почему?",
+    "tenantUid": 100,
+    "authorUid": 11,
+    "role": 1,
+    "locale": "ru",
+    "modelTurns": [
+      {
+        "text": "Причина: маршрут смотрит не в ту очередь.",
+        "toolCalls": []
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "id": "call_describe",
+            "name": "describe_number",
+            "arguments": { "number": "74951234567" }
+          }
+        ]
+      },
+      {
+        "text": "describe_number вернул очередь Ночная, не Поддержка.",
+        "toolCalls": []
+      }
+    ],
+    "expectedToolSequence": ["describe_number"]
+  },
+  {
     "id": "step-budget-ceiling",
     "bucket": "step-budget",
     "input": "Крутись, пока не закончишь",
