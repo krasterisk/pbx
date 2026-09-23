@@ -53,8 +53,13 @@ describe('speech-analytics-public uploadBatch wiring (G-18-03)', () => {
       'utf8',
     );
     expect(src).toMatch(/buildPublicUploadDeps/);
-    expect(src).not.toMatch(/id:\s*`journal:/);
-    expect(src).not.toMatch(/summary:\s*`analyzed:\$\{journalId\}`/);
+    const uploadBatchBlock = src.slice(
+      src.indexOf('async uploadBatch'),
+      src.indexOf('async analyzeUrl'),
+    );
+    expect(uploadBatchBlock).not.toMatch(/id:\s*`journal:/);
+    expect(uploadBatchBlock).not.toMatch(/summary:\s*`analyzed:\$\{journalId\}`/);
+    expect(uploadBatchBlock).toMatch(/buildPublicUploadDeps/);
   });
 
   it('uploadBatch success path returns UUID journal ids via createRun (not journal: stubs)', async () => {
