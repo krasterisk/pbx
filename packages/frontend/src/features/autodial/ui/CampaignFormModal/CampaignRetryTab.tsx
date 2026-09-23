@@ -23,9 +23,9 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
   return (
     <VStack gap="16" max>
       <div className={cls.grid}>
-        <VStack gap="4" className={cls.field}>
+        <VStack gap="8" max className={cls.field}>
           <HStack gap="4" align="center">
-            <Label htmlFor="autodial-retry-max">
+            <Label htmlFor="autodial-retry-max" className={cls.fieldLabel}>
               {t("autodial.retry.maxAttempts")}
             </Label>
             <InfoTooltip text={t("autodial.retry.maxAttemptsHint")} />
@@ -42,9 +42,9 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
           />
         </VStack>
 
-        <VStack gap="4" className={cls.field}>
+        <VStack gap="8" max className={cls.field}>
           <HStack gap="4" align="center">
-            <Label htmlFor="autodial-retry-default">
+            <Label htmlFor="autodial-retry-default" className={cls.fieldLabel}>
               {t("autodial.retry.defaultInterval")}
             </Label>
             <InfoTooltip text={t("autodial.retry.defaultIntervalHint")} />
@@ -71,8 +71,8 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
         </HStack>
         <div className={cls.grid}>
           {RETRY_INTERVAL_DISPOSITIONS.map((disposition) => (
-            <VStack gap="4" key={disposition} className={cls.field}>
-              <Label htmlFor={`autodial-retry-${disposition}`}>
+            <VStack gap="8" max key={disposition} className={cls.field}>
+              <Label htmlFor={`autodial-retry-${disposition}`} className={cls.fieldLabel}>
                 {autodialDispositionLabel(disposition, t)}
               </Label>
               <Input

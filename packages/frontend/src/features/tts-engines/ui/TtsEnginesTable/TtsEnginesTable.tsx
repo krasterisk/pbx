@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { AudioLines, Loader2, Pencil, Search, Trash2 } from 'lucide-react';
 import {
   Button,
@@ -10,6 +11,8 @@ import {
   Input,
   TableRowAction,
   TableRowActions,
+  TableSelectionBanner,
+  BulkDeleteDialog,
   Text,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
@@ -20,12 +23,15 @@ import {
 } from '@/shared/api/endpoints/ttsEnginesApi';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import type { ITtsEngine } from '@/entities/engines';
 import { TtsEngineFormModal } from '../TtsEngineFormModal/TtsEngineFormModal';
 import { ttsEnginesActions } from '../../model/slice/ttsEnginesSlice';
 import { getTtsEnginesIsModalOpen, getTtsEnginesSelectedEngine } from '../../model/selectors/ttsEnginesSelectors';
 import { useTtsEnginesTableColumns } from './useTtsEnginesTableColumns';
 import cls from './TtsEnginesTable.module.scss';
+
+const PAGE_SIZE = 50;
 
 export const TtsEnginesTable = memo(() => {
   const { t } = useTranslation();
@@ -37,9 +43,8 @@ export const TtsEnginesTable = memo(() => {
   const isModalOpen = useAppSelector(getTtsEnginesIsModalOpen);
   const editEngine = useAppSelector(getTtsEnginesSelectedEngine);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const selection = useCrossPageRowSelection({ globalFilter });
   const columns = useTtsEnginesTableColumns();
-  const selectedCount = Object.keys(rowSelection).length;
 
   const typeLabels: Record<string, string> = {
     google: t('ttsEngines.typeGoogle'),
@@ -57,13 +62,49 @@ export const TtsEnginesTable = memo(() => {
     });
   }, [engines, globalFilter, typeLabels.google, typeLabels.yandex, typeLabels.custom]);
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = engines.find((engine) => String(engine.uid) === id);
+        return row?.name || id;
+      }),
+    [selection.selectedIds, engines],
+  );
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(t('ttsEngines.confirmBulkDelete'))) return;
     await bulkDelete(ids).unwrap();
-    setRowSelection({});
-  }, [rowSelection, bulkDelete, t]);
+    selection.afterBulkDelete();
+  }, [selection, bulkDelete]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<(typeof engines)[number]>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="ttsEngines"
+    />
+  );
 
   const renderRowActions = (engine: ITtsEngine) => (
     <TableRowActions>
@@ -99,14 +140,14 @@ export const TtsEnginesTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('ttsEngines.deleteSelected', { count: selectedCount })}
+            {t('ttsEngines.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -141,6 +182,7 @@ export const TtsEnginesTable = memo(() => {
           </Flex>
         </CardContent>
         {modal}
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -178,6 +220,7 @@ export const TtsEnginesTable = memo(() => {
           </VStack>
         </CardContent>
         {modal}
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -193,21 +236,25 @@ export const TtsEnginesTable = memo(() => {
           data-testid="tts-engines-table-scroll"
         >
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             columns={columns}
             data={engines}
             getRowId={(row) => String(row.uid)}
             selectable
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('ttsEngines.empty')}
             exportFilename="tts_engines_export"
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
       {modal}
+      {bulkDeleteDialog}
     </Card>
   );
 });

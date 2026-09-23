@@ -16,7 +16,7 @@ import {
   useUpdateAgentDefaultModelMutation,
 } from '@/shared/api/endpoints/aiChatApi';
 import {
-  useGetSellerInfoQuery,
+  useGetSellersQuery,
   useGetTenantsQuery,
 } from '@/shared/api/endpoints/cloudAdminApi';
 import cls from './AiChatSettingsCard.module.scss';
@@ -57,7 +57,7 @@ export const AiChatSettingsCard = memo(() => {
   const { data: usageRows } = useGetAgentUsageQuery(range, { skip: !isSuperAdmin });
   const { data: funnelRows } = useGetAgentUsageFunnelQuery(range, { skip: !isSuperAdmin });
   const { data: tenantsData } = useGetTenantsQuery({ limit: 100, offset: 0 }, { skip: !isSuperAdmin });
-  const { data: sellerInfo } = useGetSellerInfoQuery(undefined, { skip: !isSuperAdmin });
+  const { data: sellers } = useGetSellersQuery(undefined, { skip: !isSuperAdmin });
 
   const [confirmDestructive, setConfirmDestructive] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -98,10 +98,11 @@ export const AiChatSettingsCard = memo(() => {
       const name = tenant.name?.trim();
       if (name) map.set(tenant.vpbx_user_uid, name);
     }
-    const sellerName = sellerInfo?.name?.trim();
+    const defaultSeller = (sellers ?? []).find((s) => s.isDefault) ?? sellers?.[0];
+    const sellerName = defaultSeller?.name?.trim();
     if (sellerName && !map.has(0)) map.set(0, sellerName);
     return map;
-  }, [tenantsData, sellerInfo]);
+  }, [tenantsData, sellers]);
 
   if (!isSuperAdmin) return null;
 

@@ -14,6 +14,13 @@ import {
   type AiProductModuleCode, type ProductAccessDecision,
 } from './product-access-policy';
 import { ProductAccessService } from '../product-access/product-access.service';
+import { resolveTenantIdFromJwt as lookupTenantIdFromJwt, type JwtTenantHints } from './tenant-binding';
+import {
+  isBillingPeriod,
+  listPriceRub,
+  normalizeIntervalCount,
+  type BillingPeriod,
+} from './billing/billing-period.util';
 
 export { AI_PRODUCT_MODULE_CODES, type AiProductModuleCode } from './product-access-policy';
 
@@ -25,6 +32,8 @@ export interface PurchaseOffer {
   name: string;
   /** Server-authoritative price in RUB (never trust client). */
   priceRub: number;
+  billingPeriod: BillingPeriod | 'lifetime';
+  billingIntervalCount: number;
 }
 
 /** Initial module catalog — seeded once on startup (page-level; keep for ModuleAccessGuard) */
@@ -82,7 +91,57 @@ export interface HubCatalogItem {
   sort_order: number;
   requires_cloud: boolean;
   licenseStatus: LicenseStatus;
+  accessUntil: string | null;
+  displayPrice: number;
+  billingPeriod: string;
+  billingIntervalCount: number;
   pages: Array<{ page_code: string; path: string | null; sort_order: number }>;
+}
+
+function offerPeriod(row: { billing_period?: string | null; billing_interval_count?: number } | null | undefined): {
+  billingPeriod: BillingPeriod;
+  billingIntervalCount: number;
+} {
+  const period = row && isBillingPeriod(row.billing_period) ? row.billing_period : 'month';
+  return { billingPeriod: period, billingIntervalCount: normalizeIntervalCount(row?.billing_interval_count) };
+}
+
+export function hubListPriceFromRegistry(
+  hubCode: string,
+  registryByCode: Map<string, ModuleRegistry>,
+): { displayPrice: number; billingPeriod: string; billingIntervalCount: number } {
+  const own = registryByCode.get(hubCode);
+  if (own) {
+    const period = offerPeriod(own);
+    return { displayPrice: listPriceRub(own), ...period };
+  }
+  for (const code of LEGACY_HUB_LICENSE_CODES[hubCode] ?? []) {
+    const paid = registryByCode.get(code);
+    if (paid && listPriceRub(paid) > 0) {
+      const period = offerPeriod(paid);
+      return { displayPrice: listPriceRub(paid), ...period };
+    }
+  }
+  return { displayPrice: 0, billingPeriod: 'month', billingIntervalCount: 1 };
+}
+
+function grantExpired(expiresAt: Date | null | undefined, now: Date): boolean {
+  return expiresAt != null && new Date(expiresAt).getTime() <= now.getTime();
+}
+
+function grantOpen(status: string | undefined, expiresAt: Date | null | undefined, now: Date): boolean {
+  if (status !== 'active' && status !== 'trial') return false;
+  return !grantExpired(expiresAt, now);
+}
+
+function moduleAccessUntil(rows: TenantModule[], hubCode: string, now: Date): string | null {
+  const codes = LEGACY_HUB_LICENSE_CODES[hubCode] ?? [hubCode];
+  for (const code of codes) {
+    const row = rows.find((item) => item.module_code === code);
+    if (!row?.expires_at || !grantOpen(row.status, row.expires_at, now)) continue;
+    return new Date(row.expires_at).toISOString();
+  }
+  return null;
 }
 
 @Injectable()
@@ -106,18 +165,39 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
       // the new-product default; the DB model defaults to published for legacy.
       const [row, created] = await this.registryModel.findOrCreate({
         where: { code: mod.code! },
-        defaults: { ...mod, is_published: mod.is_published ?? true } as any,
+        defaults: {
+          ...mod,
+          is_published: mod.is_published ?? true,
+          price_amount: mod.price_monthly ?? 0,
+          billing_period: 'month',
+          billing_interval_count: 1,
+        } as any,
       });
       if (!created) {
+        // Prices and publication are operator-managed after first insert.
         await row.update({
           name: mod.name, description: mod.description,
-          price_monthly: mod.price_monthly, is_paid: mod.is_paid,
+          is_paid: mod.is_paid,
           requires_cloud: mod.requires_cloud, is_core: mod.is_core,
           category: mod.category, version: mod.version,
         });
       }
     }
     this.logger.log(`Module catalog synced (${MODULES_SEED.length} modules)`);
+  }
+
+  /**
+   * JWT carries vpbx_user_uid, not tenants.id.
+   * Returns tenants.id only. Missing cabinet → null (never vpbx 0).
+   */
+  async resolveTenantIdFromJwt(user?: JwtTenantHints): Promise<number | null> {
+    return lookupTenantIdFromJwt(user, async (uid) => {
+      const row = await this.tenantModel.findOne({
+        where: { vpbx_user_uid: uid },
+        attributes: ['id'],
+      });
+      return row ? { id: row.id } : null;
+    });
   }
 
   /** Explicit one-time correction for draft entries created by older seed code. */
@@ -135,7 +215,7 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
   /**
    * Check if a tenant has an active module by vpbx_user_uid.
    *
-   * In BOX/OPENSOURCE mode — always returns true (all modules unlocked).
+   * In BOX/OPENSOURCE mode a module stays available unless its trial clock has passed.
    * In CLOUD mode — checks tenant_modules table.
    */
   async tenantHasModule(vpbxUserUid: number, moduleCode: string): Promise<boolean> {
@@ -143,7 +223,15 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
       return (await this.resolveAiProductAccess(vpbxUserUid, moduleCode)).allowed;
     }
     const mode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
-    if (mode !== 'CLOUD') return true;
+    if (mode !== 'CLOUD' && typeof this.tenantModuleModel.findOne !== 'function') return true;
+    if (mode !== 'CLOUD') {
+      const tenant = await this.tenantModel.findOne({
+        where: { vpbx_user_uid: vpbxUserUid },
+        attributes: ['id'],
+      });
+      if (!tenant) return true;
+      return this.tenantHasModuleById(tenant.id, moduleCode);
+    }
 
     // Resolve the tenant first: querying tenant_modules by module_code alone
     // would let any tenant ride on another tenant's entitlement.
@@ -187,13 +275,16 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
         && (await this.resolveAiProductAccess(tenant.vpbx_user_uid, moduleCode)).allowed;
     }
     const mode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
-    if (mode !== 'CLOUD') return true;
-
     const record = await this.tenantModuleModel.findOne({
       where: { tenant_id: tenantId, module_code: moduleCode },
     });
+    const now = new Date();
+    if (mode !== 'CLOUD') {
+      if (!record) return true;
+      return !grantExpired(record.expires_at, now);
+    }
 
-    return !!record && (record.status === 'active' || record.status === 'trial');
+    return grantOpen(record?.status, record?.expires_at, now);
   }
 
   // ─── Hub catalog + licenseStatus (D-07 / D-17) ─────────────────────────────
@@ -207,34 +298,47 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     deploymentMode: string,
   ): LicenseStatus {
     const mode = deploymentMode.toUpperCase();
-    const statusByCode = new Map(tenantRows.map((r) => [r.module_code, r.status]));
+    const now = new Date();
+    const rowByCode = new Map(tenantRows.map((row) => [row.module_code, row]));
+    const derived = (code: string): LicenseStatus | null => {
+      const row = rowByCode.get(code);
+      if (!row) return null;
+      if (grantExpired(row.expires_at, now)) return 'locked';
+      if (row.status === 'active' || row.status === 'trial') return 'active';
+      if (row.status === 'inactive' || row.status === 'expired') return 'disabled';
+      return null;
+    };
 
     if (isAiProductCode(hub.code)) {
-      const st = statusByCode.get(hub.code);
-      if (st === 'active' || st === 'trial') return 'active';
-      if (st === 'inactive' || st === 'expired') return 'disabled';
-      return 'locked';
+      return derived(hub.code) ?? 'locked';
     }
 
     if (mode !== 'CLOUD') {
-      // BOX: base always active; market requires_cloud → locked (cloud-only); else active
+      // BOX: base always active; market requires_cloud → locked (cloud-only);
+      // otherwise active unless the tenant explicitly disabled the module.
       if (hub.kind === 'base') return 'active';
       if (hub.requires_cloud) return 'locked';
+      const codes = LEGACY_HUB_LICENSE_CODES[hub.code] ?? [hub.code];
+      for (const code of codes) {
+        const st = derived(code);
+        if (st === 'disabled') return 'disabled';
+        if (st === 'locked') return 'locked';
+      }
       return 'active';
     }
 
     const codes = LEGACY_HUB_LICENSE_CODES[hub.code] ?? [hub.code];
     let best: LicenseStatus | null = null;
     for (const code of codes) {
-      const st = statusByCode.get(code);
-      if (st === 'active' || st === 'trial') return 'active';
-      if (st === 'inactive' || st === 'expired') best = 'disabled';
+      const st = derived(code);
+      if (st === 'active') return 'active';
+      if (st === 'disabled') best = 'disabled';
+      if (st === 'locked' && best == null) best = 'locked';
     }
 
     if (hub.kind === 'base') {
-      // Base modules are provisioned; inactive hub row → disabled, else active
-      const direct = statusByCode.get(hub.code);
-      if (direct === 'inactive' || direct === 'expired') return 'disabled';
+      const direct = derived(hub.code);
+      if (direct === 'disabled' || direct === 'locked') return 'disabled';
       return 'active';
     }
 
@@ -256,41 +360,55 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
           pages: [] as HubModulePage[],
         })) as unknown as HubModule[];
 
-    const tenantRows = tenantId
+    const registryRows = typeof this.registryModel.findAll === 'function'
+      ? await this.registryModel.findAll()
+      : [];
+    const registryByCode = new Map(registryRows.map((row) => [row.code, row]));
+
+    const bound = Number.isSafeInteger(tenantId) && tenantId > 0;
+    const tenantRows = bound
       ? await this.tenantModuleModel.findAll({ where: { tenant_id: tenantId } })
       : [];
-    const tenant = tenantId
+    const tenant = bound
       ? await this.tenantModel.findByPk(tenantId, { attributes: ['vpbx_user_uid'] })
       : null;
-    const aiStatus = new Map<string, LicenseStatus>();
+    const aiStatus = new Map<string, { licenseStatus: LicenseStatus; accessUntil: string | null }>();
     if (tenant && Number.isSafeInteger(tenant.vpbx_user_uid) && tenant.vpbx_user_uid >= 0) {
       for (const code of AI_PRODUCT_MODULE_CODES) {
         try {
           const decision = await this.productAccess.decide(tenant.vpbx_user_uid, code);
-          aiStatus.set(code, decision.allowed
-            ? 'active'
-            : decision.reason === 'product_disabled' ? 'disabled' : 'locked');
+          aiStatus.set(code, {
+            licenseStatus: decision.allowed
+              ? 'active'
+              : decision.reason === 'product_disabled' ? 'disabled' : 'locked',
+            accessUntil: decision.allowed ? decision.validUntil : null,
+          });
         } catch {
-          aiStatus.set(code, 'locked');
+          aiStatus.set(code, { licenseStatus: 'locked', accessUntil: null });
         }
       }
     }
 
+    const now = new Date();
     return hubList.map((hub) => {
       const pages = ((hub as any).pages ?? []) as HubModulePage[];
+      const listPrice = hubListPriceFromRegistry(hub.code, registryByCode);
+      const ai = isAiProductCode(hub.code) ? aiStatus.get(hub.code) : undefined;
       return {
         code: hub.code,
         name: hub.name,
         kind: hub.kind,
         sort_order: hub.sort_order,
         requires_cloud: !!hub.requires_cloud,
-        licenseStatus: isAiProductCode(hub.code)
-          ? (aiStatus.get(hub.code) ?? 'locked')
-          : this.computeLicenseStatus(
+        licenseStatus: ai?.licenseStatus ?? this.computeLicenseStatus(
           { code: hub.code, kind: hub.kind, requires_cloud: !!hub.requires_cloud },
           tenantRows,
           mode,
         ),
+        accessUntil: ai ? ai.accessUntil : moduleAccessUntil(tenantRows, hub.code, now),
+        displayPrice: listPrice.displayPrice,
+        billingPeriod: listPrice.billingPeriod,
+        billingIntervalCount: listPrice.billingIntervalCount,
         pages: pages
           .slice()
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -408,6 +526,48 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
       module_code: hubCode,
       status,
       activated_at: status === 'active' ? new Date() : undefined,
+      expires_at: status === 'active' ? null : undefined,
+    } as any);
+    return record;
+  }
+
+  /**
+   * SuperAdmin grant for a non-AI hub module: open-ended or a trial of N days.
+   * AI products are granted through SkuCatalogService.entitleOperator.
+   */
+  async grantHubModule(
+    tenantId: number,
+    hubCode: string,
+    access: 'open' | 'trial',
+    trialDays: number | undefined,
+    _actorUserId = 0,
+  ): Promise<TenantModule> {
+    if (isAiProductCode(hubCode)) {
+      throw new BadRequestException({ code: 'UNKNOWN_AI_PRODUCT' });
+    }
+    if (access !== 'open' && access !== 'trial') {
+      throw new BadRequestException({ code: 'grant_invalid' });
+    }
+    if (access === 'trial' && (!Number.isInteger(trialDays) || (trialDays ?? 0) < 1 || (trialDays ?? 0) > 365)) {
+      throw new BadRequestException({ code: 'trial_days_invalid' });
+    }
+    const hub = await this.hubModuleModel.findOne({ where: { code: hubCode } });
+    const seeded = HUB_MODULES_SEED.find((item) => item.code === hubCode);
+    const kind = hub?.kind ?? seeded?.kind;
+    if (!kind) throw new BadRequestException(`Unknown hub module: ${hubCode}`);
+    if (kind === 'base') {
+      throw new BadRequestException(`Cannot grant base hub module: ${hubCode}`);
+    }
+    const now = new Date();
+    const expiresAt = access === 'trial'
+      ? new Date(now.getTime() + (trialDays as number) * 24 * 60 * 60 * 1000)
+      : null;
+    const [record] = await this.tenantModuleModel.upsert({
+      tenant_id: tenantId,
+      module_code: hubCode,
+      status: access === 'trial' ? 'trial' : 'active',
+      activated_at: now,
+      expires_at: expiresAt,
     } as any);
     return record;
   }
@@ -427,11 +587,22 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
   /** Activate a module for a tenant (idempotent) */
   async activateModule(tenantId: number, moduleCode: string): Promise<TenantModule> {
     // This admin-only method grants entitlement, never product activation.
+    const now = new Date();
+    const registry = await this.registryModel.findOne({ where: { code: moduleCode } });
+    const period = registry && isBillingPeriod(registry.billing_period) ? registry.billing_period : 'month';
+    const interval = normalizeIntervalCount(registry?.billing_interval_count);
+    const amount = listPriceRub(registry);
+    const billingCycle = period === 'year' ? 'yearly' : 'monthly';
     const [record] = await this.tenantModuleModel.upsert({
       tenant_id: tenantId,
       module_code: moduleCode,
       status: 'active',
-      activated_at: new Date(),
+      activated_at: now,
+      last_billed_at: now,
+      billing_cycle: billingCycle,
+      billing_period: period,
+      billing_interval_count: interval,
+      list_price_amount: amount,
     } as any);
     return record;
   }
@@ -450,7 +621,7 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     const registry = await this.registryModel.findOne({ where: { code: moduleCode } });
     if (registry) {
       if (!registry.is_published || (isAiProductCode(moduleCode)
-        && (!registry.is_paid || Number(registry.price_monthly) <= 0))) {
+        && (!registry.is_paid || listPriceRub(registry) <= 0))) {
         throw new BadRequestException({
           code: 'OFFER_NOT_RELEASED',
           message: `Module is not available for purchase: ${moduleCode}`,
@@ -462,10 +633,13 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
           message: `Core module cannot be purchased: ${moduleCode}`,
         });
       }
+      const period = offerPeriod(registry);
       return {
         code: registry.code,
         name: registry.name,
-        priceRub: Number(registry.price_monthly) || 0,
+        priceRub: listPriceRub(registry),
+        billingPeriod: period.billingPeriod,
+        billingIntervalCount: period.billingIntervalCount,
       };
     }
 
@@ -485,10 +659,15 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
 
     const billingCodes = LEGACY_HUB_LICENSE_CODES[moduleCode] ?? [moduleCode];
     let priceRub = 0;
+    let billingPeriod: BillingPeriod = 'month';
+    let billingIntervalCount = 1;
     for (const code of billingCodes) {
       const paid = await this.registryModel.findOne({ where: { code } });
-      if (paid && Number(paid.price_monthly) > 0) {
-        priceRub = Number(paid.price_monthly);
+      if (paid && listPriceRub(paid) > 0) {
+        priceRub = listPriceRub(paid);
+        const period = offerPeriod(paid);
+        billingPeriod = period.billingPeriod;
+        billingIntervalCount = period.billingIntervalCount;
         break;
       }
     }
@@ -497,6 +676,8 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
       code: moduleCode,
       name: hub.name,
       priceRub,
+      billingPeriod,
+      billingIntervalCount,
     };
   }
 
@@ -528,6 +709,10 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
       module_code: code,
       status: 'active',
       billing_cycle: 'lifetime',
+      billing_period: 'lifetime',
+      billing_interval_count: 1,
+      list_price_amount: 0,
+      last_billed_at: new Date(),
       activated_at: new Date(),
     }));
 

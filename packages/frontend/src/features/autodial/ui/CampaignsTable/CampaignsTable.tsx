@@ -183,6 +183,13 @@ export const CampaignsTable = memo(() => {
                           <Badge variant={autodialStatusTone(campaign.status)}>
                             {autodialStatusLabel(campaign.status, t)}
                           </Badge>
+                          {(campaign.apply_error
+                            || (campaign.applied_revision != null
+                              && campaign.applied_revision !== campaign.revision)) && (
+                            <Badge variant="destructive">
+                              {t('autodial.campaigns.applyFailed')}
+                            </Badge>
+                          )}
                           <Badge variant="outline">
                             {autodialDialModeLabel(campaign.dial_mode, t)}
                           </Badge>

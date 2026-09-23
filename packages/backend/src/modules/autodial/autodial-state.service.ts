@@ -137,6 +137,11 @@ export class AutodialStateService {
     return [...this.channels.values()].filter((c) => c.userUid === userUid);
   }
 
+  /** All live channels, used to drop AMI-empty ghosts after a lost ARI hangup. */
+  listAllChannels(): AutodialLiveChannel[] {
+    return [...this.channels.values()];
+  }
+
   // ── reservations ──────────────────────────────────────────────────
 
   /**
@@ -265,6 +270,14 @@ export class AutodialStateService {
     for (const [id, c] of this.channels) {
       if (c.campaignUid === campaignUid) this.channels.delete(id);
     }
+  }
+
+  /** Drop a channel that never reached the network (failover/setup failure). */
+  dropChannel(channelId: string): AutodialLiveChannel | undefined {
+    const channel = this.channels.get(channelId);
+    if (!channel) return undefined;
+    this.channels.delete(channelId);
+    return channel;
   }
 
   // ── SSE ───────────────────────────────────────────────────────────

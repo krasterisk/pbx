@@ -30,10 +30,12 @@ interface AttemptResultBody {
 interface AttemptMachineBody {
   api_key?: string;
   attempt?: string;
+  /** hangup (default) or voicemail after the leave-message Playback */
+  outcome?: string;
 }
 
 /**
- * Post-answer report from the `krsk-ac-finalize` hangup handler. This is the
+ * Post-answer report from the per-tenant `krsk-ac-finalize-{vpbx}` hangup handler. This is the
  * only source for what happened *inside* the scenario — ARI sees the channel,
  * not the queue it landed in or the digits the subscriber pressed.
  *
@@ -103,7 +105,8 @@ export class AutodialInternalController {
     if (!attemptUid) return 'IGNORED';
 
     try {
-      await this.attempts.markAmdMachine(attemptUid);
+      const outcome = body.outcome === 'voicemail' ? 'voicemail' : 'hangup';
+      await this.attempts.markAmdMachine(attemptUid, outcome);
       return 'OK';
     } catch (e) {
       this.logger.error(`attempt-machine failed for ${attemptUid}: ${(e as Error).message}`);

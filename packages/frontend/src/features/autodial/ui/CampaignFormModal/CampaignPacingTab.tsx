@@ -92,9 +92,9 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
       </HStack>
 
       {draft.dial_mode === "power" && (
-        <VStack gap="4" className={cls.field}>
+        <VStack gap="8" max className={cls.field}>
           <HStack gap="4" align="center">
-            <Label htmlFor="autodial-power-ratio">
+            <Label htmlFor="autodial-power-ratio" className={cls.fieldLabel}>
               {t("autodial.pacing.powerRatio")}
             </Label>
             <InfoTooltip text={t("autodial.pacing.powerRatioHint")} />
@@ -129,9 +129,9 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
               text={`${t("autodial.pacing.predictive.intro")}\n${t("autodial.pacing.predictive.hint")}`}
             />
           </HStack>
-          <HStack gap="12" align="end" wrap="wrap">
-            <VStack gap="4" className={cls.field}>
-              <Label htmlFor="autodial-predictive-target">
+          <div className={cls.grid}>
+            <VStack gap="8" max className={cls.field}>
+              <Label htmlFor="autodial-predictive-target" className={cls.fieldLabel}>
                 {t("autodial.pacing.predictive.targetAbandon")}
               </Label>
               <Input
@@ -150,8 +150,8 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
                 }
               />
             </VStack>
-            <VStack gap="4" className={cls.field}>
-              <Label htmlFor="autodial-predictive-max">
+            <VStack gap="8" max className={cls.field}>
+              <Label htmlFor="autodial-predictive-max" className={cls.fieldLabel}>
                 {t("autodial.pacing.predictive.maxOverDial")}
               </Label>
               <Input
@@ -168,8 +168,8 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
                 }
               />
             </VStack>
-            <VStack gap="4" className={cls.field}>
-              <Label htmlFor="autodial-predictive-samples">
+            <VStack gap="8" max className={cls.field}>
+              <Label htmlFor="autodial-predictive-samples" className={cls.fieldLabel}>
                 {t("autodial.pacing.predictive.minSamples")}
               </Label>
               <Input
@@ -183,7 +183,7 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
                 }
               />
             </VStack>
-          </HStack>
+          </div>
           {errors.predictive === "queueAgentsRequired" && (
             <Text className={cls.error}>
               {t("autodial.pacing.predictive.needsQueueAgents")}
@@ -199,76 +199,83 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
 
       <VStack gap="8" max>
         {draft.pacing.providers.map((provider, index) => (
-          <HStack
-            key={provider.type}
-            gap="12"
-            align="end"
-            max
-            wrap="wrap"
-            className={cls.row}
-          >
-            <VStack gap="4" className={cls.field}>
-              <HStack gap="4" align="center">
-                <Label>{t(`autodial.pacing.provider.${provider.type}`)}</Label>
-                <InfoTooltip
-                  text={t(`autodial.pacing.providerHint.${provider.type}`)}
-                />
-              </HStack>
-            </VStack>
-
-            {(provider.type === "static" || provider.type === "tenant_cap") && (
-              <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-pacing-max-${provider.type}`}>
-                  {t("autodial.pacing.maxChannels")}
-                </Label>
-                <Input
-                  id={`autodial-pacing-max-${provider.type}`}
-                  type="number"
-                  min={1}
-                  className={cls.narrowInput}
-                  value={provider.max_channels}
-                  onChange={(e) =>
-                    updateProvider(index, {
-                      ...provider,
-                      max_channels: Number(e.target.value) || 1,
-                    })
-                  }
-                />
+          <div key={provider.type} className={cls.row}>
+            <div className={cls.pacingGrid}>
+              <VStack gap="8" max className={cls.field}>
+                <HStack gap="4" align="center">
+                  <Label className={cls.fieldLabel}>
+                    {t(`autodial.pacing.provider.${provider.type}`)}
+                  </Label>
+                  <InfoTooltip
+                    text={t(`autodial.pacing.providerHint.${provider.type}`)}
+                  />
+                </HStack>
               </VStack>
-            )}
 
-            {provider.type === "queue_agents" && (
-              <VStack gap="4" className={cls.field}>
-                <Label>{t("autodial.pacing.queues")}</Label>
-                <MultiSelect
-                  options={(queues ?? []).map((queue) => ({
-                    value: queue.name,
-                    label: queue.name,
-                  }))}
-                  value={provider.queue_names}
-                  onChange={(queue_names) =>
-                    updateProvider(index, { ...provider, queue_names })
-                  }
-                  placeholder={t("autodial.form.queuesPlaceholder")}
-                />
-              </VStack>
-            )}
+              {(provider.type === "static" || provider.type === "tenant_cap") && (
+                <VStack gap="8" max className={cls.field}>
+                  <Label
+                    htmlFor={`autodial-pacing-max-${provider.type}`}
+                    className={cls.fieldLabel}
+                  >
+                    {t("autodial.pacing.maxChannels")}
+                  </Label>
+                  <Input
+                    id={`autodial-pacing-max-${provider.type}`}
+                    type="number"
+                    min={1}
+                    className={cls.narrowInput}
+                    value={provider.max_channels}
+                    onChange={(e) =>
+                      updateProvider(index, {
+                        ...provider,
+                        max_channels: Number(e.target.value) || 1,
+                      })
+                    }
+                  />
+                </VStack>
+              )}
 
-            <TableRowActions>
-              <TableRowAction
-                danger
-                title={t("common.delete")}
-                aria-label={t("common.delete")}
-                onClick={() =>
-                  setProviders(
-                    draft.pacing.providers.filter((_, i) => i !== index),
-                  )
-                }
-              >
-                <Trash2 />
-              </TableRowAction>
-            </TableRowActions>
-          </HStack>
+              {provider.type === "queue_agents" && (
+                <VStack gap="8" max className={cls.field}>
+                  <HStack gap="4" align="center">
+                    <Label className={cls.fieldLabel}>
+                      {t("autodial.pacing.queues")}
+                    </Label>
+                    <InfoTooltip text={t("autodial.pacing.queuesHint")} />
+                  </HStack>
+                  <MultiSelect
+                    options={(queues ?? []).map((queue) => ({
+                      value: queue.name,
+                      label: queue.name,
+                    }))}
+                    value={provider.queue_names}
+                    onChange={(queue_names) =>
+                      updateProvider(index, { ...provider, queue_names })
+                    }
+                    placeholder={t("autodial.form.queuesPlaceholder")}
+                  />
+                </VStack>
+              )}
+
+              <div className={cls.pacingActions}>
+                <TableRowActions>
+                  <TableRowAction
+                    danger
+                    title={t("common.delete")}
+                    aria-label={t("common.delete")}
+                    onClick={() =>
+                      setProviders(
+                        draft.pacing.providers.filter((_, i) => i !== index),
+                      )
+                    }
+                  >
+                    <Trash2 />
+                  </TableRowAction>
+                </TableRowActions>
+              </div>
+            </div>
+          </div>
         ))}
 
         {errors.pacing && (
@@ -300,61 +307,6 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
           <Plus size={16} />
         </HStack>
       )}
-
-      <VStack gap="8" max>
-        <HStack gap="4" align="center">
-          <Text className={cls.sectionTitle}>{t("autodial.amd.title")}</Text>
-          <InfoTooltip text={t("autodial.amd.hint")} />
-        </HStack>
-        <HStack gap="12" align="end" wrap="wrap">
-          <VStack gap="4" className={cls.field}>
-            <Label htmlFor="autodial-amd-enabled">
-              {t("autodial.amd.enabled")}
-            </Label>
-            <Select
-              id="autodial-amd-enabled"
-              value={draft.amd.enabled ? "on" : "off"}
-              onChange={(e) =>
-                onChange({
-                  ...draft,
-                  amd: { ...draft.amd, enabled: e.target.value === "on" },
-                })
-              }
-              className={cls.narrowInput}
-            >
-              <option value="off">{t("common.disabled")}</option>
-              <option value="on">{t("common.enabled")}</option>
-            </Select>
-          </VStack>
-          <VStack gap="4" className={cls.field}>
-            <Label htmlFor="autodial-amd-action">
-              {t("autodial.amd.onMachine")}
-            </Label>
-            <Select
-              id="autodial-amd-action"
-              value={draft.amd.on_machine}
-              disabled={!draft.amd.enabled}
-              onChange={(e) =>
-                onChange({
-                  ...draft,
-                  amd: {
-                    ...draft.amd,
-                    on_machine: e.target
-                      .value as AutodialCampaignDraft["amd"]["on_machine"],
-                  },
-                })
-              }
-              className={cls.narrowInput}
-            >
-              <option value="hangup">{t("autodial.amd.hangup")}</option>
-              <option value="continue">{t("autodial.amd.continue")}</option>
-              <option value="voicemail" disabled>
-                {t("autodial.amd.voicemailUnavailable")}
-              </option>
-            </Select>
-          </VStack>
-        </HStack>
-      </VStack>
     </VStack>
   );
 });

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { ClipboardList, Download, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import {
@@ -13,6 +14,8 @@ import {
   Skeleton,
   TableRowAction,
   TableRowActions,
+  TableSelectionBanner,
+  BulkDeleteDialog,
   Text,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
@@ -25,6 +28,7 @@ import type { ServiceRequestQueryParams } from '@/shared/api/endpoints/serviceRe
 import type { IServiceRequest } from '@/entities/serviceRequest';
 import { REQUEST_STATUS_OPTIONS, SMS_STATUS_OPTIONS } from '@/entities/serviceRequest';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { ServiceRequestModal } from '../ServiceRequestModal';
 import type { ServiceRequestFilters } from '../ServiceRequestsFilter';
 import {
@@ -164,8 +168,9 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<IServiceRequest | undefined>(undefined);
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-  const selectedCount = Object.keys(rowSelection).length;
+  const selectionFilterKey = useMemo(() => JSON.stringify(filters), [filters]);
+  const selection = useCrossPageRowSelection({ globalFilter: selectionFilterKey });
+  const labelCacheRef = useRef(new Map<string, string>());
 
   useEffect(() => { setCurrentPage(0); }, [filters]);
 
@@ -178,8 +183,28 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
   const [triggerExport] = useLazyGetServiceRequestsQuery();
   const [deleteReq] = useDeleteServiceRequestMutation();
 
-  const rows = data?.rows ?? [];
+  const rows = useMemo(() => data?.rows ?? [], [data?.rows]);
   const totalCount = data?.count ?? 0;
+
+  const hasFilter = Boolean(
+    filters.search?.trim()
+    || filters.statuses?.length
+    || filters.districts?.length
+    || filters.topics?.length
+    || filters.territorialZones?.length
+    || filters.dateFrom
+    || filters.dateTo,
+  );
+
+  const selectedLabels = useMemo(() => {
+    for (const row of rows) {
+      labelCacheRef.current.set(
+        String(row.uid),
+        row.request_number || row.counterparty_name || String(row.uid),
+      );
+    }
+    return selection.selectedIds.map((id) => labelCacheRef.current.get(id) || id);
+  }, [selection.selectedIds, rows]);
 
   const handleEdit = useCallback((record: IServiceRequest) => {
     setSelectedRecord(record);
@@ -197,14 +222,13 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
     }
   }, [deleteReq, t]);
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(t('serviceRequests.confirmBulkDelete'))) return;
     setIsDeleting(true);
     try {
       await Promise.all(ids.map((id) => deleteReq(id).unwrap()));
-      setRowSelection({});
+      selection.afterBulkDelete();
       toast.success(t('common.deleted', 'Удалено'));
     } catch (err: unknown) {
       const message = (err as { data?: { message?: string } })?.data?.message;
@@ -212,7 +236,35 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
     } finally {
       setIsDeleting(false);
     }
-  }, [rowSelection, deleteReq, t]);
+  }, [selection, deleteReq, t]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<IServiceRequest>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={hasFilter}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="serviceRequests"
+    />
+  );
 
   const handleExport = useCallback(async () => {
     if (totalCount === 0) {
@@ -248,14 +300,14 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={() => void handleBulkDelete()}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('serviceRequests.deleteSelected', { count: selectedCount })}
+            {t('serviceRequests.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={handleExport} disabled={isExporting}>
@@ -296,6 +348,7 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
           </VStack>
         </CardContent>
         {modal}
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -371,6 +424,7 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
           </VStack>
         </CardContent>
         {modal}
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -386,13 +440,14 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
           data-testid="service-requests-table-scroll"
         >
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             columns={columns}
             data={rows}
             getRowId={(row) => String(row.uid)}
             selectable
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             pageSize={PAGE_SIZE}
             getRowClassName={(row) => STATUS_ROW_CLASS[row.request_status] || ''}
             paginationMode="server"
@@ -400,10 +455,13 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
             currentPage={currentPage}
             onPageChange={setCurrentPage}
             emptyText={t('common.noData')}
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
       {modal}
+      {bulkDeleteDialog}
     </Card>
   );
 }

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Users, Building2 } from 'lucide-react';
 import { TenantsTable, TenantFormModal } from '@/features/cloud-admin';
-import { SellerSettingsForm } from '@/features/cloud-admin/ui/SellerSettingsForm/SellerSettingsForm';
+import { SellersTable } from '@/features/cloud-admin/ui/SellersTable/SellersTable';
 import { VStack } from '@/shared/ui/Stack';
 import cls from './SuperAdminPage.module.scss';
 
-type AdminTab = 'tenants' | 'settings';
+type AdminTab = 'tenants' | 'sellers';
 
 /** SuperAdmin dashboard - thin orchestrator page (FSD: pages are ≤50-70 lines) */
 export const SuperAdminPage = () => {
@@ -13,9 +13,9 @@ export const SuperAdminPage = () => {
 
   return (
     <VStack gap="20" max>
-      {/* Page tabs */}
       <div className={cls.tabBar}>
         <button
+          type="button"
           className={`${cls.tab} ${tab === 'tenants' ? cls.tabActive : ''}`}
           onClick={() => setTab('tenants')}
         >
@@ -23,11 +23,12 @@ export const SuperAdminPage = () => {
           Кабинеты
         </button>
         <button
-          className={`${cls.tab} ${tab === 'settings' ? cls.tabActive : ''}`}
-          onClick={() => setTab('settings')}
+          type="button"
+          className={`${cls.tab} ${tab === 'sellers' ? cls.tabActive : ''}`}
+          onClick={() => setTab('sellers')}
         >
           <Building2 className="w-4 h-4" />
-          Реквизиты поставщика
+          Поставщики
         </button>
       </div>
 
@@ -38,7 +39,7 @@ export const SuperAdminPage = () => {
         </>
       )}
 
-      {tab === 'settings' && <SellerSettingsForm />}
+      {tab === 'sellers' && <SellersTable />}
     </VStack>
   );
 };

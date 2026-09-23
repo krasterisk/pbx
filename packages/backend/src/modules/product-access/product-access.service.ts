@@ -83,7 +83,9 @@ export class ProductAccessService {
     const sku = tenant ? await this.entitlements.findOne({
       where: { tenant_uid: userUid, product }, transaction,
     }) : null;
-    const grants = mode === 'CLOUD' && tenant
+    // Platform-issued SKU unlocks the product even on BOX (no signed file).
+    const useCloudGrant = !!sku || mode === 'CLOUD';
+    const grants = useCloudGrant && tenant
       ? sku
         ? [{
           module_code: sku.product,
@@ -97,11 +99,13 @@ export class ProductAccessService {
         attributes: ['module_code', 'status', 'expires_at'], transaction,
       }) : [];
     let local: BoxGrant = { grant: null, reason: 'license_invalid' };
-    if (mode === 'BOX' && tenant) {
+    if (mode === 'BOX' && tenant && !sku) {
       local = await this.readBoxGrant(userUid, product, now, transaction);
     }
     const decision = resolveProductAccess({
-      product, deploymentMode: mode, tenant, grants,
+      product,
+      deploymentMode: sku ? 'CLOUD' : mode,
+      tenant, grants,
       activationEnabled: enabled, packageInstalled: mode !== 'OPENSOURCE', now,
       localLicense: local.grant, localLicenseReason: local.reason,
     });

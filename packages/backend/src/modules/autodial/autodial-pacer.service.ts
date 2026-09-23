@@ -13,8 +13,10 @@ import { AcSchedule } from './models/ac-schedule.model';
 import { AcTask } from './models/ac-task.model';
 import { AutodialStateService } from './autodial-state.service';
 import { AutodialOriginatorService } from './autodial-originator.service';
+import { AutodialReservationService } from './autodial-reservation.service';
 import { computeAutodialCapacity, effectivePacing } from './autodial-capacity.util';
 import { campaignWindowOpen } from './autodial-schedule.util';
+import { pacerOwnerClaimWhere } from './autodial-pacer-owner.util';
 import {
   computeOverDialFactor,
   defaultAutodialPredictive,
@@ -51,6 +53,8 @@ export class AutodialPacerService implements OnApplicationShutdown {
   /** Live PJSIP occupancy from CoreShowChannels; falls back to autodial state. */
   private liveTrunkChannels = new Map<string, number>();
   private trunkPictureFresh = false;
+  /** Durable originate holds from every worker, keyed by `${tenant}:${trunk}`. */
+  private trunkReservations = new Map<string, number>();
 
   constructor(
     @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
@@ -62,6 +66,7 @@ export class AutodialPacerService implements OnApplicationShutdown {
     private readonly ccState: CallCenterStateService,
     private readonly state: AutodialStateService,
     private readonly originator: AutodialOriginatorService,
+    private readonly reservations: AutodialReservationService,
   ) {
     this.timer = setInterval(() => void this.tick(), TICK_MS);
   }
@@ -69,6 +74,10 @@ export class AutodialPacerService implements OnApplicationShutdown {
   onApplicationShutdown(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    void this.campaignModel.update(
+      { pacer_owner: null, pacer_heartbeat_at: null },
+      { where: { pacer_owner: this.leaseId } },
+    );
   }
 
   @OnEvent('ari.connection')
@@ -84,6 +93,7 @@ export class AutodialPacerService implements OnApplicationShutdown {
     this.ticking = true;
     try {
       await this.sweepStaleLeases();
+      await this.reservations?.sweepExpired();
       // Without ARI events an originated call is a black box: never dial blind.
       if (this.ariDown || !this.ariConnection.isConnected()) return;
 
@@ -91,6 +101,9 @@ export class AutodialPacerService implements OnApplicationShutdown {
       if (!campaigns.length) return;
 
       await this.refreshTrunkPicture(campaigns);
+      if (this.trunkPictureFresh) {
+        await this.originator.sweepAmiGhosts(this.liveTrunkChannels);
+      }
       const schedules = await this.schedulesByCampaign(campaigns.map((c) => c.uid));
       const now = new Date();
       const degraded = Date.now() - this.startedAt < WARMUP_MS;
@@ -117,6 +130,17 @@ export class AutodialPacerService implements OnApplicationShutdown {
     now: Date,
     degraded: boolean,
   ): Promise<void> {
+    if (!(await this.claimCampaignOwner(campaign, now))) return;
+
+    if (!this.dialplanIsCurrent(campaign)) {
+      this.state.setPacing(campaign.user_uid, campaign.uid, {
+        capacity: 0,
+        limitedBy: 'stale_apply',
+        status: campaign.status,
+      });
+      return;
+    }
+
     if (!campaignWindowOpen(schedules, now)) {
       this.state.setPacing(campaign.user_uid, campaign.uid, {
         capacity: 0,
@@ -163,21 +187,64 @@ export class AutodialPacerService implements OnApplicationShutdown {
 
     const tasks = await this.leaseTasks(campaign, result.slots, now);
     for (const task of tasks) {
+      await this.heartbeatOwnLeases(now);
       // The reservation only covers the gap between deciding to dial and the
       // channel appearing in live state; after that activeChannels accounts
       // for it, so it is always released once originate() returns.
       this.state.reserve(campaign.user_uid, campaign.uid, 1);
+      const firstTrunk = [...(this.availableTrunkIds(campaign) ?? [])][0]
+        ?? campaign.trunk_pool?.[0]?.trunk_id
+        ?? '';
+      if (firstTrunk) {
+        await this.reservations?.reserve({
+          userUid: campaign.user_uid,
+          campaignUid: campaign.uid,
+          taskUid: task.uid,
+          trunkId: firstTrunk,
+          owner: this.leaseId,
+        });
+      }
       try {
-        await this.originator.originate(
+        const originated = await this.originator.originate(
           task,
           campaign,
           this.availableTrunkIds(campaign) ?? undefined,
           this.leaseId,
+          schedules,
         );
+        if (!originated) {
+          await this.taskModel.update(
+            { status: 'pending', leased_by: null, leased_at: null },
+            {
+              where: {
+                uid: task.uid,
+                user_uid: campaign.user_uid,
+                status: 'leased',
+                leased_by: this.leaseId,
+              },
+            },
+          );
+        }
       } catch (e) {
         this.logger.error(`Originate threw for task ${task.uid}: ${(e as Error).message}`);
+        const details = (e as { errors?: Array<{ path?: string; message?: string }> }).errors;
+        if (details?.length) {
+          this.logger.error(`Originate validation: ${details.map((d) => `${d.path}: ${d.message}`).join('; ')}`);
+        }
+        await this.taskModel.update(
+          { status: 'pending', leased_by: null, leased_at: null },
+          {
+            where: {
+              uid: task.uid,
+              user_uid: campaign.user_uid,
+              status: 'leased',
+              leased_by: this.leaseId,
+            },
+          },
+        );
       } finally {
         this.state.release(campaign.user_uid, campaign.uid, 1);
+        await this.reservations?.release(task.uid);
       }
     }
   }
@@ -222,10 +289,42 @@ export class AutodialPacerService implements OnApplicationShutdown {
       );
       if (affected > 0) {
         await candidate.reload();
+        candidate.leased_by = this.leaseId;
+        candidate.status = 'leased';
+        candidate.leased_at = now;
         leased.push(candidate);
       }
     }
     return leased;
+  }
+
+  /**
+   * Keep this worker's unstarted leases alive while a sequential originate
+   * batch runs. A lost owner after restart still expires at LEASE_TTL_MS.
+   */
+  private async heartbeatOwnLeases(now: Date): Promise<void> {
+    await this.taskModel.update(
+      { leased_at: now },
+      { where: { leased_by: this.leaseId, status: 'leased' } },
+    );
+  }
+
+  /**
+   * One worker paces a running campaign. Ownership is a compare-and-set on
+   * `pacer_owner`/`pacer_heartbeat_at` so a second instance cannot also lease.
+   */
+  private async claimCampaignOwner(campaign: AcCampaign, now: Date): Promise<boolean> {
+    const [affected] = await this.campaignModel.update(
+      { pacer_owner: this.leaseId, pacer_heartbeat_at: now },
+      { where: pacerOwnerClaimWhere(campaign.uid, this.leaseId, now) },
+    );
+    return affected > 0;
+  }
+
+  /** Saved JSON revision must match the last successful Asterisk apply. */
+  private dialplanIsCurrent(campaign: AcCampaign): boolean {
+    if (campaign.applied_revision == null) return true;
+    return campaign.applied_revision === campaign.revision;
   }
 
   /** Only unstarted leases expire. Dialing tasks may have live channels. */
@@ -262,7 +361,10 @@ export class AutodialPacerService implements OnApplicationShutdown {
   }
 
   private availableAgents(campaign: AcCampaign): number {
-    const names = new Set<string>(campaign.queue_names ?? []);
+    // Capacity queues come only from the queue_agents pacing provider.
+    // campaign.queue_names is a persisted snapshot of that provider, not a
+    // second editable pool used for routing.
+    const names = new Set<string>();
     for (const provider of campaign.pacing?.providers ?? []) {
       if (provider.type === 'queue_agents') {
         for (const n of provider.queue_names ?? []) names.add(n);
@@ -311,7 +413,8 @@ export class AutodialPacerService implements OnApplicationShutdown {
       anyLimit = true;
       if (!this.trunkPictureFresh) return 0;
       const live = this.liveTrunkChannels.get(trunk.trunk_id);
-      const used = Math.max(live ?? 0, this.state.trunkActiveChannels(campaign.user_uid, trunk.trunk_id));
+      const used = Math.max(live ?? 0, this.state.trunkActiveChannels(campaign.user_uid, trunk.trunk_id))
+        + (this.trunkReservations?.get(`${campaign.user_uid}:${trunk.trunk_id}`) ?? 0);
       free += Math.max(0, limit - used);
     }
     return anyLimit ? free : null;
@@ -345,7 +448,7 @@ export class AutodialPacerService implements OnApplicationShutdown {
       const used = Math.max(
         live ?? 0,
         this.state.trunkActiveChannels(campaign.user_uid, trunk.trunk_id),
-      );
+      ) + (this.trunkReservations?.get(`${campaign.user_uid}:${trunk.trunk_id}`) ?? 0);
       if (used < limit) available.add(trunk.trunk_id);
     }
 
@@ -389,6 +492,13 @@ export class AutodialPacerService implements OnApplicationShutdown {
     } catch (e) {
       this.trunkPictureFresh = false;
       this.logger.warn(`CoreShowChannels occupancy failed: ${(e as Error).message}`);
+    }
+
+    try {
+      this.trunkReservations = (await this.reservations?.countOpenByTrunk()) ?? new Map();
+    } catch (e) {
+      this.trunkReservations = new Map();
+      this.logger.warn(`Trunk reservation snapshot failed: ${(e as Error).message}`);
     }
   }
 

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building2, Users } from 'lucide-react';
 import { TenantsTable, TenantFormModal } from '@/features/cloud-admin';
-import { SellerSettingsForm } from '@/features/cloud-admin/ui/SellerSettingsForm/SellerSettingsForm';
+import { SellersTable } from '@/features/cloud-admin/ui/SellersTable/SellersTable';
 import { Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import cls from './PlatformPages.module.scss';
 
-type TenantsTab = 'tenants' | 'settings';
+type TenantsTab = 'tenants' | 'sellers';
 
 /** Platform tenants tools - migrated from SuperAdminPage into /platform/tenants. */
 export const PlatformTenantsPage = () => {
@@ -41,8 +41,9 @@ export const PlatformTenantsPage = () => {
         </button>
         <button
           type="button"
-          className={`${cls.tab} ${tab === 'settings' ? cls.tabActive : ''}`}
-          onClick={() => setTab('settings')}
+          className={`${cls.tab} ${tab === 'sellers' ? cls.tabActive : ''}`}
+          onClick={() => setTab('sellers')}
+          data-testid="platform-sellers-tab"
         >
           <Building2 size={16} />
           <Text as="span">{t('platform.sellerTab')}</Text>
@@ -56,7 +57,7 @@ export const PlatformTenantsPage = () => {
         </Flex>
       )}
 
-      {tab === 'settings' && <SellerSettingsForm />}
+      {tab === 'sellers' && <SellersTable />}
     </VStack>
   );
 };

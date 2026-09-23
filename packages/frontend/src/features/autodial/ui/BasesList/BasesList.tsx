@@ -1,18 +1,21 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Database, Loader2, Pencil, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
+  BulkDeleteDialog,
   Card,
   CardContent,
   CardHeader,
+  Checkbox,
   TableRowAction,
   TableRowActions,
   Text,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
+  useBulkDeleteAutodialBasesMutation,
   useDeleteAutodialBaseMutation,
   useGetAutodialBasesQuery,
 } from '@/shared/api/endpoints/autodialApi';
@@ -31,33 +34,76 @@ export const BasesList = memo(() => {
   const activeUid = useAppSelector(selectAutodialActiveBaseUid);
   const { data: bases, isLoading, isError, refetch } = useGetAutodialBasesQuery();
   const [deleteBase, { isLoading: isDeleting }] = useDeleteAutodialBaseMutation();
+  const [bulkDelete, { isLoading: isBulkDeleting }] = useBulkDeleteAutodialBasesMutation();
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
-  // Land on the first base so the page is never an empty right-hand pane.
   useEffect(() => {
-    if (bases && !bases.some((base) => base.uid === activeUid) && !isDeleting) {
+    if (bases && !bases.some((base) => base.uid === activeUid) && !isDeleting && !isBulkDeleting) {
       const next = bases[0]?.uid ?? null;
       if (next !== activeUid) dispatch(autodialPageActions.selectBase(next));
     }
-  }, [activeUid, bases, dispatch, isDeleting]);
+  }, [activeUid, bases, dispatch, isDeleting, isBulkDeleting]);
+
+  const labels = useMemo(
+    () => selected.map((uid) => bases?.find((base) => base.uid === uid)?.name ?? String(uid)),
+    [bases, selected],
+  );
+
+  const toggle = (uid: number, checked: boolean) => {
+    setSelected((current) =>
+      checked ? [...new Set([...current, uid])] : current.filter((id) => id !== uid),
+    );
+  };
+
   const remove = async (uid: number) => {
-    if (isDeleting) return;
+    if (isDeleting || isBulkDeleting) return;
     setError(null);
     try {
       await deleteBase(uid).unwrap();
-      // Selection reconciles against the refreshed list, never the stale cache.
+      setSelected((current) => current.filter((id) => id !== uid));
       await refetch();
-    } catch (error) {
-      setError(t(autodialErrorKey(error, 'autodial.common.deleteFailed')));
+    } catch (caught) {
+      setError(t(autodialErrorKey(caught, 'autodial.common.deleteFailed')));
+    }
+  };
+
+  const confirmBulk = async () => {
+    if (!selected.length) return;
+    setError(null);
+    try {
+      const result = await bulkDelete(selected).unwrap();
+      setSelected([]);
+      setBulkOpen(false);
+      if (result.failed.length) {
+        setError(t('autodial.bases.bulkPartialFailed'));
+      }
+      await refetch();
+    } catch (caught) {
+      setError(t(autodialErrorKey(caught, 'autodial.common.deleteFailed')));
     }
   };
 
   return (
     <Card className={cls.card}>
       <CardHeader>
-        <HStack gap="8" align="center">
-          <Database size={20} className={cls.icon} />
-          <Text className={cls.title}>{t('autodial.bases.title')}</Text>
+        <HStack gap="8" align="center" justify="between" max>
+          <HStack gap="8" align="center">
+            <Database size={20} className={cls.icon} />
+            <Text className={cls.title}>{t('autodial.bases.title')}</Text>
+          </HStack>
+          {selected.length > 0 && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkOpen(true)}
+              disabled={isBulkDeleting}
+            >
+              {t('autodial.bases.deleteSelected')}
+            </Button>
+          )}
         </HStack>
       </CardHeader>
       <CardContent className={cls.content}>
@@ -86,6 +132,11 @@ export const BasesList = memo(() => {
                 gap="8"
                 className={classNames(cls.row, { [cls.rowActive]: base.uid === activeUid })}
               >
+                <Checkbox
+                  checked={selected.includes(base.uid)}
+                  onChange={(event) => toggle(base.uid, event.currentTarget.checked)}
+                  aria-label={base.name}
+                />
                 <Button
                   type="button"
                   variant="ghost"
@@ -134,6 +185,16 @@ export const BasesList = memo(() => {
           </VStack>
         )}
       </CardContent>
+      <BulkDeleteDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        labels={labels}
+        allMatching={false}
+        hasFilter={false}
+        isDeleting={isBulkDeleting}
+        onConfirm={() => void confirmBulk()}
+        i18nNs="autodial.bases"
+      />
     </Card>
   );
 });

@@ -168,6 +168,7 @@ It also drops `uq_sa_run_initial` so a recording can have an original run plus r
 `0018-ai-tools.sql` adds business tool revisions and knowledge-base tables.
 `0019-asterisk-odbc.sql` adds full-PBX `queue_log` and `cel` writer tables. It does not recreate `cdr` and is not part of standalone analytics/robot profiles.
 `0020-ai-sku-catalog.sql` adds tenant-owned SKU revisions, trial policy snapshots and entitlements. Publication is separate from app enable. It is shared by full-pbx and standalone AI profiles and applies after the PBX-only 0019 artifact so journal IDs stay sorted.
+`0021-billing-sellers.sql` is full-PBX-only (seller directory). `0022-platform-prices.sql` adds period list prices on `modules_registry` and tenant snapshots on `tenant_modules`. It is shared by full-pbx and standalone AI profiles; `price_monthly` remains a month-period compatibility alias.
 
 The wide Asterisk `ps_endpoints` table stores non-indexed 40-character options
 as `TEXT`, allowing InnoDB DYNAMIC to move values off-page under utf8mb4.

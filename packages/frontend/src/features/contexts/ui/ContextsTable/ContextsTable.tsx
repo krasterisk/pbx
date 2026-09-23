@@ -1,12 +1,26 @@
-import { memo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { Network, Search, Loader2, Trash2 } from 'lucide-react';
-import { Card, CardHeader, CardContent, Input, Button, DataTable, Text } from '@/shared/ui';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Input,
+  Button,
+  DataTable,
+  Text,
+  TableSelectionBanner,
+  BulkDeleteDialog,
+} from '@/shared/ui';
 import { Flex, HStack } from '@/shared/ui/Stack';
 import { useGetContextsQuery, useBulkDeleteContextsMutation } from '@/shared/api/api';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { useContextsTableColumns } from './useContextsTableColumns';
 import cls from './ContextsTable.module.scss';
+
+const PAGE_SIZE = 50;
 
 export const ContextsTable = memo(() => {
   const { t } = useTranslation();
@@ -15,21 +29,52 @@ export const ContextsTable = memo(() => {
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteContextsMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const selection = useCrossPageRowSelection({ globalFilter });
 
   const columns = useContextsTableColumns();
 
-  const selectedCount = Object.keys(rowSelection).length;
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = contexts.find((c) => String(c.uid) === id);
+        return row?.name || id;
+      }),
+    [selection.selectedIds, contexts],
+  );
 
-  const handleBulkDelete = async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
+    await bulkDelete(ids).unwrap();
+    selection.afterBulkDelete();
+  }, [selection, bulkDelete]);
 
-    if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
-      await bulkDelete(ids).unwrap();
-      setRowSelection({});
-    }
-  };
+  const renderSelectionBanner = useCallback(
+    (table: Table<(typeof contexts)[number]>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+    />
+  );
 
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
@@ -43,14 +88,14 @@ export const ContextsTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('common.deleteSelected', { count: selectedCount })}
+            {t('common.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -86,20 +131,24 @@ export const ContextsTable = memo(() => {
       <CardContent className={cls.cardContent}>
         <Flex direction="column" align="stretch" className={cls.tableScroll}>
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             data={contexts}
             columns={columns}
             getRowId={(row) => String(row.uid)}
+            selectable
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            selectable={true}
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('common.noData')}
             exportFilename="contexts_export"
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
+      {bulkDeleteDialog}
     </Card>
   );
 });

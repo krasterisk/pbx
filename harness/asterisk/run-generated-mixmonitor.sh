@@ -9,16 +9,10 @@ mkdir -p "$LOG" "$REC"
 chmod 777 /usr/records /usr/records/8 /usr/records/8/calls "$REC" || true
 install -d /etc/asterisk/krasterisk/ai-lab
 cp -f harness/asterisk/ai-lab/generated.conf /etc/asterisk/krasterisk/ai-lab/generated.conf
-if ! grep -q 'krasterisk/ai-lab/generated.conf' /etc/asterisk/extensions.conf; then
-  printf '\n#tryinclude krasterisk/ai-lab/generated.conf\n' >> /etc/asterisk/extensions.conf
-fi
+# Loaded by `#include krasterisk/*/*.conf`. Do not also tryinclude it from
+# extensions.conf, and do not append it into ai-lab/extensions.conf.
 asterisk -rx 'dialplan reload' >"$LOG/dialplan-reload.txt" 2>&1 || true
 asterisk -rx 'dialplan show krasterisk-ai-generated' >"$LOG/dialplan-show.txt" 2>&1 || true
-if ! grep -q 'Exten s' "$LOG/dialplan-show.txt"; then
-  cat /etc/asterisk/krasterisk/ai-lab/generated.conf >> /etc/asterisk/krasterisk/ai-lab/extensions.conf
-  asterisk -rx 'dialplan reload' >>"$LOG/dialplan-reload.txt" 2>&1 || true
-  asterisk -rx 'dialplan show krasterisk-ai-generated' >"$LOG/dialplan-show.txt" 2>&1 || true
-fi
 asterisk -rx 'core show channels count' >"$LOG/channels-before.txt" 2>&1 || true
 find "$REC" -name '*.wav' -delete 2>/dev/null || true
 asterisk -rx 'channel originate Local/s@krasterisk-ai-generated application Wait 8' \

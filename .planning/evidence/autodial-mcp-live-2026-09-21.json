@@ -1,0 +1,220 @@
+{
+  "at": "2026-09-21T08:58:31.125Z",
+  "tenant": 0,
+  "login": "admin",
+  "campaign": {
+    "uid": 1,
+    "name": "MCP-Live-20260921",
+    "status": "draft",
+    "dial_mode": "agentless",
+    "base_uid": 1,
+    "pacing": {
+      "providers": [
+        {
+          "type": "static",
+          "max_channels": 2
+        },
+        {
+          "type": "trunk_channels"
+        }
+      ],
+      "power_ratio": 1.5
+    },
+    "retry": {
+      "max_attempts": 4,
+      "intervals_sec": {
+        "busy": 60,
+        "failed": 240,
+        "no_answer": 180,
+        "congestion": 90
+      },
+      "default_interval_sec": 900
+    },
+    "trunk_pool": [
+      {
+        "weight": 1,
+        "trunk_id": "t_test_trunk_0",
+        "caller_id": "000090",
+        "max_channels": 1
+      }
+    ],
+    "cid_policy": {
+      "mode": "per_trunk"
+    },
+    "scenario_actions": [
+      {
+        "id": "play",
+        "type": "playback",
+        "params": {
+          "file": "beep",
+          "mode": "plain"
+        },
+        "condition": {}
+      },
+      {
+        "id": "end",
+        "type": "hangup",
+        "params": {},
+        "condition": {}
+      }
+    ],
+    "amd": {
+      "enabled": true,
+      "on_machine": "continue",
+      "message_prompt": null
+    },
+    "success_min_sec": 12,
+    "dial_timeout_sec": 25,
+    "schedules": [
+      {
+        "uid": 1,
+        "campaign_uid": 1,
+        "kind": "weekly",
+        "weekday": 1,
+        "time_from": "00:00",
+        "time_to": "23:59",
+        "timezone": "Asia/Krasnoyarsk",
+        "date_from": null,
+        "date_to": null,
+        "enabled": true
+      }
+    ],
+    "revision": 9
+  },
+  "autodialTools": [
+    "list_autodial_campaigns",
+    "get_autodial_campaign",
+    "list_autodial_bases",
+    "get_autodial_stats",
+    "create_autodial_campaign",
+    "update_autodial_campaign",
+    "pause_autodial_campaign",
+    "add_autodial_dnc"
+  ],
+  "localTrunk": {
+    "id": "t_test_trunk_0",
+    "context": "sip-in"
+  },
+  "appliedUpdates": [
+    {
+      "label": "timeout",
+      "proposalId": "9d81bb3b-7852-4593-9973-1c4da4b0e837",
+      "ok": true,
+      "status": "applied"
+    },
+    {
+      "label": "success",
+      "proposalId": "812f4b06-8d1b-4b3f-969c-2682def9f9c9",
+      "ok": true,
+      "status": "applied"
+    },
+    {
+      "label": "pacing",
+      "proposalId": "c6c61b75-ed15-47c1-89b7-9430ca8f1cb6",
+      "ok": true,
+      "status": "applied"
+    },
+    {
+      "label": "retry",
+      "proposalId": "eafce9b0-ff90-4026-b68f-04226a9f16c0",
+      "ok": true,
+      "status": "applied"
+    },
+    {
+      "label": "amd-hangup",
+      "proposalId": "17400cbd-fd5c-40a2-ac91-68c0459b00d3",
+      "ok": true,
+      "status": "applied"
+    },
+    {
+      "label": "amd-continue",
+      "proposalId": "82b28663-4c14-4a8d-aac6-d647699abc42",
+      "ok": true,
+      "status": "applied"
+    },
+    {
+      "label": "schedule",
+      "proposalId": "5b1a39ee-0a19-4cb5-bb87-81bc63c7bded",
+      "ok": true,
+      "status": "applied"
+    },
+    {
+      "label": "mode-power",
+      "proposalId": "49258bb0-0694-463e-90c9-4e08d53f7b2b",
+      "ok": false,
+      "status": {
+        "ok": false,
+        "reason": "write_failed",
+        "error": "power campaign scenario must end with a toqueue step"
+      }
+    },
+    {
+      "label": "mode-agentless",
+      "proposalId": "661ff698-7994-4f7c-87bf-1ee476e931ff",
+      "ok": true,
+      "status": "applied"
+    }
+  ],
+  "chat": {
+    "threadUid": 146,
+    "status": 201
+  },
+  "started": false,
+  "chatLive": {
+    "provider": {
+      "status": 200,
+      "json": {
+        "providerUid": 16
+      }
+    },
+    "threadUid": 147,
+    "chatStatus": 201,
+    "eventNames": [
+      "thread",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "done"
+    ],
+    "errors": [],
+    "proposalHints": [],
+    "pendingCount": 2,
+    "applied": {
+      "status": 201,
+      "ok": false,
+      "error": "power campaign scenario must end with a toqueue step"
+    },
+    "campaign": {
+      "uid": 1,
+      "dial_timeout_sec": 25,
+      "success_min_sec": 12,
+      "revision": 9,
+      "amd": {
+        "enabled": true,
+        "on_machine": "continue",
+        "message_prompt": null
+      }
+    }
+  },
+  "chatApplied": {
+    "rejectStale": {
+      "status": 201,
+      "json": {
+        "ok": false,
+        "reason": "in_progress_or_reconciliation_required"
+      }
+    },
+    "apply": {
+      "status": 201,
+      "ok": true
+    },
+    "campaign": {
+      "uid": 1,
+      "dial_timeout_sec": 18,
+      "success_min_sec": 10,
+      "revision": 10
+    }
+  }
+}

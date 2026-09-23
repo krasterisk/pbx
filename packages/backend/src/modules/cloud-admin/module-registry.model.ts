@@ -48,6 +48,19 @@ export class ModuleRegistry extends Model {
   @Column(DataType.DECIMAL(10, 2))
   declare price_monthly: number;
 
+  /** List price for the configured billing period (RUB). */
+  @Default(0)
+  @Column(DataType.DECIMAL(10, 2))
+  declare price_amount: number;
+
+  @Default('month')
+  @Column(DataType.STRING(16))
+  declare billing_period: string;
+
+  @Default(1)
+  @Column(DataType.INTEGER)
+  declare billing_interval_count: number;
+
   @Default(true)
   @Column(DataType.BOOLEAN)
   declare is_published: boolean;

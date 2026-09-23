@@ -31,7 +31,7 @@ export function buildAutodialChannelId(
 export function parseAutodialChannelId(
   channelId: string,
 ): { campaignUid: number; taskUid: number; attemptNo: number } | null {
-  const m = /^ac-(\d+)-(\d+)-(\d+)$/.exec(channelId);
+  const m = /^ac-(\d+)-(\d+)-(\d+)(?:f\d+)?$/.exec(channelId);
   if (!m) return null;
   return {
     campaignUid: Number(m[1]),

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { LayoutTemplate, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 import type { IRouteTemplate } from '@krasterisk/shared';
 import {
@@ -10,10 +11,13 @@ import {
   CardHeader,
   DataTable,
   Input,
+  TableSelectionBanner,
+  BulkDeleteDialog,
   Text,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import {
   useDeleteRouteTemplateMutation,
   useGetRouteTemplatesQuery,
@@ -26,15 +30,16 @@ import {
 } from './useRouteTemplatesTableColumns';
 import cls from './RouteTemplatesPage.module.scss';
 
+const PAGE_SIZE = 50;
+
 export function RouteTemplatesPage() {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
   const { data: templates = [], isLoading } = useGetRouteTemplatesQuery();
   const [deleteTemplate] = useDeleteRouteTemplateMutation();
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isDeleting, setIsDeleting] = useState(false);
-  const selectedCount = Object.keys(rowSelection).length;
+  const selection = useCrossPageRowSelection({ globalFilter });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<TemplateModalMode>('create');
@@ -83,23 +88,62 @@ export function RouteTemplatesPage() {
     });
   }, [templates, globalFilter]);
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection)
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = templates.find((item) => String(item.uid) === id);
+        return row?.name || id;
+      }),
+    [selection.selectedIds, templates],
+  );
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds
       .map(Number)
       .filter((uid) => {
         const row = templates.find((item) => item.uid === uid);
         return Boolean(row && !isBuiltinTemplate(row));
       });
-    if (!ids.length) return;
-    if (!window.confirm(t('routes.templates.confirmBulkDelete'))) return;
+    if (!ids.length) {
+      selection.afterBulkDelete();
+      return;
+    }
     setIsDeleting(true);
     try {
       await Promise.all(ids.map((id) => deleteTemplate(id).unwrap()));
-      setRowSelection({});
+      selection.afterBulkDelete();
     } finally {
       setIsDeleting(false);
     }
-  }, [rowSelection, templates, deleteTemplate, t]);
+  }, [selection, templates, deleteTemplate]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<IRouteTemplate>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="routes.templates"
+    />
+  );
 
   const editLabel = t('routes.templates.edit', 'Изменить');
   const copyLabel = t('routes.templates.copy', 'Копировать');
@@ -116,14 +160,14 @@ export function RouteTemplatesPage() {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('routes.templates.deleteSelected', { count: selectedCount })}
+            {t('routes.templates.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -220,15 +264,19 @@ export function RouteTemplatesPage() {
                 data-testid="route-templates-table-scroll"
               >
                 <DataTable
+                  ref={selection.tableRef}
                   className={cls.table}
                   data={templates}
                   columns={columns}
                   getRowId={(row) => String(row.uid)}
                   selectable
-                  rowSelection={rowSelection}
-                  onRowSelectionChange={setRowSelection}
+                  rowSelection={selection.rowSelection}
+                  onRowSelectionChange={selection.onRowSelectionChange}
                   globalFilter={globalFilter}
+                  pageSize={PAGE_SIZE}
                   emptyText={t('routes.templates.emptyTitle')}
+                  selectAllAriaLabel={t('common.selectPageAria')}
+                  renderBanner={renderSelectionBanner}
                 />
               </Flex>
             </CardContent>
@@ -242,6 +290,7 @@ export function RouteTemplatesPage() {
         modalMode={modalMode}
         template={selected}
       />
+      {bulkDeleteDialog}
     </VStack>
   );
 }

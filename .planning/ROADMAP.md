@@ -1383,50 +1383,50 @@ Plans:
 **Goal:** Заново собрать модуль речевой аналитики до паритета с aiPBX и удобнее текущего кабинета: проекты и редактор метрик, загрузка записей через интерфейс и API, дашборды и отчёты, диаризация stereo/mono, включение анализа на маршруте, внешний API для чужих АТС, модели из каталога platform/тенанта, биллинг Krasterisk, эталонные оценки, настройка через AI-чат и живой UAT.
 **Depends on:** — (модуль уже в коде; Phase 17 не блокирует)
 **Requirements**: паритет с aiPBX, архитектура `packages/frontend/.idea/ARCHITECTURE.md`, живой прогон `Z:\temp\speech-analytics-samples` (REQ-SA-PARITY, REQ-SA-ARCH, REQ-SA-UAT)
-**Plans:** 15 plans
+**Plans:** 15/15 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 18-01-PLAN.md — Schema 0023 multi-run + SA-CHARGE-RUN/INSIGHTS persist seams (D-05, D-46…D-49)
-- [ ] 18-02-PLAN.md — Route project Select + capture-policy project-only (D-01, D-02, D-19…D-22)
+- [x] 18-01-PLAN.md — Schema 0023 multi-run + SA-CHARGE-RUN/INSIGHTS persist seams (D-05, D-46…D-49)
+- [x] 18-02-PLAN.md — Route project Select + capture-policy project-only (D-01, D-02, D-19…D-22)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 18-03-PLAN.md — Hangup enqueue + wait non-empty file (500ms/60s), no STT in handler (D-03)
+- [x] 18-03-PLAN.md — Hangup enqueue + wait non-empty file (500ms/60s), no STT in handler (D-03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 18-04-PLAN.md — Real STT/diarize/score pipeline + SA-CHARGE-RUN (D-23, D-24, D-38)
+- [x] 18-04-PLAN.md — Real STT/diarize/score pipeline + SA-CHARGE-RUN (D-23, D-24, D-38)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 18-05-PLAN.md — Journal + sheet + access-scoped journal API (D-05…D-13)
+- [x] 18-05-PLAN.md — Journal + sheet + access-scoped journal API (D-05…D-13)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 18-11-PLAN.md — Excel export + CDR analytics actions + journal i18n/route (D-05, D-16, D-18, D-37)
+- [x] 18-11-PLAN.md — Excel export + CDR analytics actions + journal i18n/route (D-05, D-16, D-18, D-37)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 18-06-PLAN.md — Project-editor backend draft/publish, budget, webhooks (D-25…D-31)
-- [ ] 18-08-PLAN.md — Standard dashboard + on-demand insights (D-34…D-36, D-47)
+- [x] 18-06-PLAN.md — Project-editor backend draft/publish, budget, webhooks (D-25…D-31)
+- [x] 18-08-PLAN.md — Standard dashboard + on-demand insights (D-34…D-36, D-47)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 18-12-PLAN.md — MetricEditor + projects pages UI (D-25, D-36)
-- [ ] 18-14-PLAN.md — Remove Reports product surface (D-37)
-- [ ] 18-07-PLAN.md — Upload/API/URL ingest + hash-only tokens backend (D-14…D-18, D-32, D-33, D-39…D-42)
-- [ ] 18-09-PLAN.md — Routes AI chat tools for analytics project (D-04)
+- [x] 18-12-PLAN.md — MetricEditor + projects pages UI (D-25, D-36)
+- [x] 18-14-PLAN.md — Remove Reports product surface (D-37)
+- [x] 18-07-PLAN.md — Upload/API/URL ingest + hash-only tokens backend (D-14…D-18, D-32, D-33, D-39…D-42)
+- [x] 18-09-PLAN.md — Routes AI chat tools for analytics project (D-04)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 18-13-PLAN.md — UploadForm + TokensTable UI (D-14…D-16, D-32, D-33)
+- [x] 18-13-PLAN.md — UploadForm + TokensTable UI (D-14…D-16, D-32, D-33)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 18-15-PLAN.md — Module AI adapter + ModuleSettings pause/models (D-27, D-33, D-38)
-- [ ] 18-10-PLAN.md — Golden eval + live UAT harness (D-43…D-45, D-50)
+- [x] 18-15-PLAN.md — Module AI adapter + ModuleSettings pause/models (D-27, D-33, D-38)
+- [x] 18-10-PLAN.md — Golden eval + live UAT harness (D-43…D-45, D-50)
 
 **Cross-cutting constraints:**
 

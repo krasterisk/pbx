@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Input,
+  Label,
   Loader,
   MultiSelect,
   Select,
@@ -109,15 +110,21 @@ export function PlatformCatalogEditor() {
 
       <div className={cls.addForm} data-testid="platform-add-module">
         <div className={cls.field}>
-          <span className={cls.label}>code</span>
+          <Label htmlFor="platform-module-code" className={cls.label}>
+            {t('platform.fieldCode', 'Код')}
+          </Label>
           <Input value={newCode} onChange={(e) => setNewCode(e.target.value)} id="platform-module-code" />
         </div>
         <div className={cls.field}>
-          <span className={cls.label}>name</span>
+          <Label htmlFor="platform-module-name" className={cls.label}>
+            {t('platform.fieldName', 'Название')}
+          </Label>
           <Input value={newName} onChange={(e) => setNewName(e.target.value)} id="platform-module-name" />
         </div>
         <div className={cls.field}>
-          <span className={cls.label}>kind</span>
+          <Label htmlFor="platform-module-kind" className={cls.label}>
+            {t('platform.fieldKind', 'Тип')}
+          </Label>
           <Select
             value={newKind}
             onChange={(e) => setNewKind(e.target.value as 'base' | 'market')}
@@ -191,7 +198,7 @@ export function PlatformCatalogEditor() {
                     <Select
                       value={mod.kind}
                       onChange={(e) => changeKind(mod, e.target.value as 'base' | 'market')}
-                      aria-label={`kind-${mod.code}`}
+                      aria-label={`${t('platform.fieldKind')} ${mod.code}`}
                     >
                       <option value="base">{t('platform.kindBase')}</option>
                       <option value="market">{t('platform.kindMarket')}</option>

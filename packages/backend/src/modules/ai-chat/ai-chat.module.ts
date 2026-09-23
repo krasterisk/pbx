@@ -34,7 +34,7 @@ import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
 import { PbxAgentLoopService } from './pbx-agent-loop.service';
 import { McpModule } from '../mcp/mcp.module';
 import { Tenant } from '../cloud-admin/tenant.model';
-import { CloudSetting } from '../cloud-admin/cloud-setting.model';
+import { BillingSeller } from '../cloud-admin/billing-seller.model';
 import { PbxConversationBriefService } from './pbx-conversation-brief.service';
 import { AgentIntentClassifierService } from './agent-intent-classifier.service';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
@@ -58,7 +58,7 @@ import { NumberList } from '../numbers/number-list.model';
             CcAiProvider,
             CcAiAuditLog,
             Tenant,
-            CloudSetting,
+            BillingSeller,
             User,
             NumberList,
         ]),

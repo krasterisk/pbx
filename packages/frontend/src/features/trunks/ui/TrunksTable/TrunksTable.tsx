@@ -1,5 +1,6 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { Search, Loader2, Cable, Trash2, Pencil, Copy } from 'lucide-react';
 import {
   Card,
@@ -11,6 +12,8 @@ import {
   Text,
   TableRowActions,
   TableRowAction,
+  TableSelectionBanner,
+  BulkDeleteDialog,
 } from '@/shared/ui';
 import { HStack, Flex, VStack } from '@/shared/ui/Stack';
 import {
@@ -21,9 +24,12 @@ import {
 import type { ITrunkListItem } from '@/shared/api/endpoints/trunkApi';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { trunksPageActions } from '../../model/slice/trunksPageSlice';
 import { useTrunksTableColumns } from './useTrunksTableColumns';
 import cls from './TrunksTable.module.scss';
+
+const PAGE_SIZE = 50;
 
 export const TrunksTable = memo(() => {
   const { t } = useTranslation();
@@ -34,15 +40,13 @@ export const TrunksTable = memo(() => {
   const [deleteTrunk] = useDeleteTrunkMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const selection = useCrossPageRowSelection({ globalFilter });
 
   const columns = useTrunksTableColumns();
 
   const registeredCount = trunks.filter(
     (tr) => tr.registrationStatus === 'Registered',
   ).length;
-
-  const selectedCount = Object.keys(rowSelection).length;
 
   const filtered = useMemo(() => {
     const q = globalFilter.trim().toLowerCase();
@@ -56,15 +60,49 @@ export const TrunksTable = memo(() => {
     });
   }, [trunks, globalFilter]);
 
-  const handleBulkDelete = async () => {
-    const ids = Object.keys(rowSelection);
-    if (!ids.length) return;
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = trunks.find((tr) => tr.id === id);
+        return row?.name || id;
+      }),
+    [selection.selectedIds, trunks],
+  );
 
-    if (window.confirm(t('common.confirmDelete', 'Вы уверены, что хотите удалить?'))) {
-      await bulkDelete(ids).unwrap();
-      setRowSelection({});
-    }
-  };
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds;
+    if (!ids.length) return;
+    await bulkDelete(ids).unwrap();
+    selection.afterBulkDelete();
+  }, [selection, bulkDelete]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<ITrunkListItem>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="trunks"
+    />
+  );
 
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
@@ -81,14 +119,14 @@ export const TrunksTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('common.deleteSelected', { count: selectedCount })}
+            {t('common.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -202,6 +240,7 @@ export const TrunksTable = memo(() => {
             )}
           </VStack>
         </CardContent>
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -217,20 +256,24 @@ export const TrunksTable = memo(() => {
           data-testid="trunks-table-scroll"
         >
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             data={trunks as ITrunkListItem[]}
             columns={columns}
             getRowId={(row) => row.id}
+            selectable
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            selectable={true}
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('common.noData')}
             exportFilename="trunks_export"
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
+      {bulkDeleteDialog}
     </Card>
   );
 });

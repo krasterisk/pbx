@@ -12,6 +12,8 @@ export interface ITenant {
   email: string | null;
   phone: string | null;
   company_inn: string | null;
+  seller_id: number;
+  seller?: { id: number; name: string } | null;
   max_extensions: number;
   max_trunks: number;
   max_queues: number;
@@ -40,6 +42,7 @@ export interface ICreateTenant {
   max_trunks?: number;
   max_queues?: number;
   trial_days?: number;
+  seller_id?: number;
 }
 
 export interface IUpdateTenant {
@@ -53,4 +56,5 @@ export interface IUpdateTenant {
   max_extensions?: number;
   max_trunks?: number;
   max_queues?: number;
+  seller_id?: number;
 }

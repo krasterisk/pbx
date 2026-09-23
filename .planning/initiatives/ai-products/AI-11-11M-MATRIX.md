@@ -23,11 +23,12 @@ Disposable installs in this slice re-confirm `analytics-api` and `robot-api` rea
 ## Named pending (open)
 
 - Host unixODBC / Asterisk module load | **PASS** (verified Running on ipbx; live DSN untouched)
-- Lab TLS signalling (`127.0.0.1:15061`) | **PASS** (followup-fe-tls-pilot); SRTP media + NAT still open
+- Lab TLS signalling (`127.0.0.1:15061`) | **PASS**
+- Lab SDES offer/answer (`a=crypto` on 200) | **PASS** ([open-gates-1-5](evidence/open-gates-1-5/REMOTE-MATRIX.md)); decrypted SRTP media + NAT still open
 - MET5 30-call dual-human holdout
 - Real local-AI STT hardware
-- Full NAT / SRTP media certification (beyond loopback signalling)
 - `liveMcp=true`
+- Pilot health HTTP contract | **PASS** (loopback; Nest not on production DB)
 - Full frontend vitest suite | **PASS** via chunked Windows runner (`vitest-run-src.cjs`)
 - Commercial launch declaration (pilot opt-in only; default `not-installed`)
 

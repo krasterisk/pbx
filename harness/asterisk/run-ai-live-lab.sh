@@ -6,12 +6,15 @@ LAB=/var/spool/asterisk/monitor/krasterisk-ai-lab
 LOG=logs/ai-live-lab
 mkdir -p "$LAB" "$LOG"
 chmod 777 "$LAB"
-install -d /etc/asterisk/krasterisk/ai-lab
+install -d /etc/asterisk/krasterisk/ai-lab /etc/asterisk/pjsip.d
 cp -f harness/asterisk/ai-lab/extensions.conf /etc/asterisk/krasterisk/ai-lab/extensions.conf
-cp -f harness/asterisk/ai-lab/pjsip.conf /etc/asterisk/krasterisk/ai-lab/pjsip.conf
-if ! grep -q 'krasterisk/ai-lab/pjsip.conf' /etc/asterisk/pjsip.conf; then
-  printf '\n#tryinclude krasterisk/ai-lab/pjsip.conf\n' >> /etc/asterisk/pjsip.conf
+cp -f harness/asterisk/ai-lab/pjsip.conf /etc/asterisk/pjsip.d/ai-lab.conf
+if grep -q 'krasterisk/ai-lab/pjsip.conf' /etc/asterisk/pjsip.conf; then
+  sed -i 's#krasterisk/ai-lab/pjsip.conf#pjsip.d/ai-lab.conf#g' /etc/asterisk/pjsip.conf
+elif ! grep -q 'pjsip.d/ai-lab.conf' /etc/asterisk/pjsip.conf; then
+  printf '\n#tryinclude pjsip.d/ai-lab.conf\n' >> /etc/asterisk/pjsip.conf
 fi
+rm -f /etc/asterisk/krasterisk/ai-lab/pjsip.conf
 asterisk -rx 'dialplan reload' >"$LOG/dialplan-reload.txt" 2>&1 || true
 asterisk -rx 'module reload res_pjsip.so' >"$LOG/pjsip-reload.txt" 2>&1 || true
 asterisk -rx 'dialplan show krasterisk-ai-lab' >"$LOG/dialplan-show.txt" 2>&1 || true

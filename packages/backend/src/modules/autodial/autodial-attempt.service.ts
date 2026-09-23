@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import type { AutodialDisposition, IAutodialRetryConfig } from '@krasterisk/shared';
 import { AcAttempt } from './models/ac-attempt.model';
 import { AcTask } from './models/ac-task.model';
@@ -44,6 +44,15 @@ export class AutodialAttemptService {
    * Persisted before the ARI call so a crash between origination and the first
    * event still leaves a row the reconciler can close.
    */
+  async nextAttemptNo(taskUid: number): Promise<number> {
+    const maxNo = await this.attemptModel.max('attempt_no', { where: { task_uid: taskUid } });
+    return (Number(maxNo) || 0) + 1;
+  }
+
+  /**
+   * Persisted before the ARI call so a crash between origination and the first
+   * event still leaves a row the reconciler can close.
+   */
   async openAttempt(params: {
     userUid: number;
     taskUid: number;
@@ -79,7 +88,11 @@ export class AutodialAttemptService {
     }
     const now = new Date();
     const disposition: AutodialDisposition =
-      attempt.amd_result === 'MACHINE' ? 'amd_machine' : input.disposition;
+      attempt.amd_result === 'VOICEMAIL'
+        ? 'voicemail'
+        : attempt.amd_result === 'MACHINE'
+          ? 'amd_machine'
+          : input.disposition;
     const patch: Partial<AcAttempt> = {
       ended_at: now,
       disposition,
@@ -111,10 +124,15 @@ export class AutodialAttemptService {
    * Mark a confirmed AMD machine result while the channel is still alive. The
    * machine dialplan tail invokes this before Hangup so the ARI finalizer can
    * atomically retain the correct terminal disposition.
+   * `outcome=voicemail` means the leave-message prompt was entered; hangup
+   * (default) means the call ends without playing a message.
    */
-  async markAmdMachine(attemptUid: number): Promise<void> {
+  async markAmdMachine(
+    attemptUid: number,
+    outcome: 'hangup' | 'voicemail' = 'hangup',
+  ): Promise<void> {
     await this.attemptModel.update(
-      { amd_result: 'MACHINE' },
+      { amd_result: outcome === 'voicemail' ? 'VOICEMAIL' : 'MACHINE' },
       { where: { uid: attemptUid, disposition: 'dialing' } },
     );
   }
@@ -144,19 +162,23 @@ export class AutodialAttemptService {
     taskUid: number;
     campaignUid: number;
     attemptNo: number;
+    cycleAttempt?: number;
     channelId: string;
     trunkId: string;
     callerId: string | null;
     leaseId: string;
+    gate?: () => Promise<'ok' | 'dnc'>;
   }): Promise<AcAttempt | null> {
     const sequelize = this.taskModel.sequelize;
     if (!sequelize) throw new Error('Autodial task model is not connected to Sequelize');
 
-    return sequelize.transaction(async (transaction) => {
+    return sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (transaction) => {
       const [claimed] = await this.taskModel.update(
         {
           status: 'dialing',
-          attempt_count: params.attemptNo,
+          attempt_count: params.cycleAttempt ?? params.attemptNo,
           last_disposition: 'dialing',
         },
         {
@@ -170,6 +192,20 @@ export class AutodialAttemptService {
         },
       );
       if (!claimed) return null;
+
+      if (params.gate && (await params.gate()) === 'dnc') {
+        await this.taskModel.update(
+          {
+            status: 'completed',
+            last_disposition: 'dnc',
+            last_cause: 'blocked by dnc',
+            leased_by: null,
+            leased_at: null,
+          },
+          { where: { uid: params.taskUid, user_uid: params.userUid }, transaction },
+        );
+        return null;
+      }
 
       return this.attemptModel.create({
         user_uid: params.userUid,

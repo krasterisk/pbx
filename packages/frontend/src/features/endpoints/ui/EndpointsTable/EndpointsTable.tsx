@@ -1,8 +1,7 @@
-import React, { memo, useState, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type RowSelectionState } from '@tanstack/react-table';
+import { type Table } from '@tanstack/react-table';
 import { Phone, Search, Loader2, Trash2, Download, Pencil, Key } from 'lucide-react';
-import { type DataTableRef } from '@/shared/ui/DataTable/DataTable';
 import {
   Card,
   CardHeader,
@@ -13,6 +12,8 @@ import {
   Text,
   TableRowActions,
   TableRowAction,
+  TableSelectionBanner,
+  BulkDeleteDialog,
 } from '@/shared/ui';
 import { HStack, Flex, VStack } from '@/shared/ui/Stack';
 import {
@@ -25,9 +26,12 @@ import {
 import type { IEndpointListItem } from '@/shared/api/endpoints/endpointApi';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { endpointsPageActions } from '../../model/slice/endpointsPageSlice';
 import { useEndpointsTableColumns } from './useEndpointsTableColumns';
 import cls from './EndpointsTable.module.scss';
+
+const PAGE_SIZE = 50;
 
 function parseCallerName(raw: string): string {
   const match = (raw || '').match(/^"(.+?)"/);
@@ -42,46 +46,36 @@ export const EndpointsTable = memo(() => {
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteEndpointsMutation();
   const [deleteEndpoint] = useDeleteEndpointMutation();
 
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const tableRef = React.useRef<DataTableRef>(null);
-
+  const [globalFilter, setGlobalFilter] = React.useState('');
+  const selection = useCrossPageRowSelection({ globalFilter });
   const columns = useEndpointsTableColumns();
 
-  const selectedCount = Object.keys(rowSelection).length;
-
-  const filtered = useMemo(() => {
-    const q = globalFilter.trim().toLowerCase();
-    if (!q) return endpoints;
-    return endpoints.filter((ep) => {
-      const ext = (ep.extension || '').toLowerCase();
-      const caller = (ep.callerid || '').toLowerCase();
-      const dept = (ep.department || '').toLowerCase();
-      const ctx = (ep.context || '').toLowerCase();
-      return ext.includes(q) || caller.includes(q) || dept.includes(q) || ctx.includes(q);
-    });
-  }, [endpoints, globalFilter]);
-
-  const handleBulkDelete = useCallback(async () => {
-    const sipIds = Object.keys(rowSelection);
-    if (sipIds.length === 0) return;
-
-    const extensions = sipIds
-      .map((id) => {
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
         const ep = endpoints.find((e) => e.id === id);
         return ep?.extension || id;
-      })
-      .join(', ');
+      }),
+    [selection.selectedIds, endpoints],
+  );
 
-    if (!window.confirm(t('endpoints.confirmBulkDelete', { count: sipIds.length, extensions }))) return;
-
+  const handleConfirmBulkDelete = useCallback(async () => {
+    if (selection.selectedIds.length === 0) return;
     try {
-      await bulkDelete(sipIds).unwrap();
-      setRowSelection({});
+      await bulkDelete(selection.selectedIds).unwrap();
+      selection.afterBulkDelete();
     } catch (e) {
       console.error('Bulk delete failed:', e);
     }
-  }, [rowSelection, endpoints, bulkDelete, t]);
+  }, [selection, bulkDelete]);
+
+  const handleExportCsv = useCallback(() => {
+    if (selection.selectedCount > 0) {
+      selection.tableRef.current?.exportCsv({ rows: 'selected' });
+    } else {
+      selection.tableRef.current?.exportCsv();
+    }
+  }, [selection]);
 
   const { data: activeJobData } = useGetActiveBulkJobQuery(undefined, { pollingInterval: 3000 });
   const activeJobId = activeJobData?.jobId || null;
@@ -92,6 +86,18 @@ export const EndpointsTable = memo(() => {
   const isJobActive = jobStatus && (jobStatus.status === 'pending' || jobStatus.status === 'processing');
 
   const onlineCount = endpoints.filter((e) => e.status === 'online').length;
+
+  const filteredForMobile = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return endpoints;
+    return endpoints.filter((ep) => {
+      const ext = (ep.extension || '').toLowerCase();
+      const caller = (ep.callerid || '').toLowerCase();
+      const dept = (ep.department || '').toLowerCase();
+      const ctx = (ep.context || '').toLowerCase();
+      return ext.includes(q) || caller.includes(q) || dept.includes(q) || ctx.includes(q);
+    });
+  }, [endpoints, globalFilter]);
 
   const jobProgress = isJobActive && jobStatus ? (
     <HStack gap="12" align="center" className={cls.jobBar} max>
@@ -113,6 +119,34 @@ export const EndpointsTable = memo(() => {
     </HStack>
   ) : null;
 
+  const renderSelectionBanner = useCallback(
+    (table: Table<IEndpointListItem>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="endpoints"
+    />
+  );
+
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
@@ -128,16 +162,16 @@ export const EndpointsTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
             {isDeleting
               ? t('common.loading')
-              : t('endpoints.deleteSelected', { count: selectedCount })}
+              : t('endpoints.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -151,12 +185,11 @@ export const EndpointsTable = memo(() => {
           />
         </Flex>
         {!isMobile && (
-          <Button
-            variant="outline"
-            onClick={() => tableRef.current?.exportCsv()}
-          >
+          <Button variant="outline" onClick={handleExportCsv}>
             <Download size={16} />
-            {t('endpoints.exportCsv')}
+            {selection.selectedCount > 0
+              ? t('endpoints.exportSelectedCsv', { count: selection.selectedCount })
+              : t('endpoints.exportCsv')}
           </Button>
         )}
       </HStack>
@@ -185,12 +218,12 @@ export const EndpointsTable = memo(() => {
         </CardHeader>
         <CardContent>
           <VStack gap="8" max className={cls.mobileList}>
-            {filtered.length === 0 ? (
+            {filteredForMobile.length === 0 ? (
               <Text variant="muted" className={cls.mobileEmpty}>
                 {t('common.noData')}
               </Text>
             ) : (
-              filtered.map((ep) => {
+              filteredForMobile.map((ep) => {
                 const isOnline = ep.status === 'online';
                 return (
                   <Flex
@@ -248,6 +281,7 @@ export const EndpointsTable = memo(() => {
             )}
           </VStack>
         </CardContent>
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -266,21 +300,24 @@ export const EndpointsTable = memo(() => {
           data-testid="endpoints-table-scroll"
         >
           <DataTable
-            ref={tableRef}
+            ref={selection.tableRef}
             className={cls.table}
             data={endpoints as IEndpointListItem[]}
             columns={columns}
             getRowId={(row) => row.id}
             selectable
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('common.noData')}
             exportFilename="krasterisk_endpoints_export"
+            selectAllAriaLabel={t('endpoints.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
+      {bulkDeleteDialog}
     </Card>
   );
 });

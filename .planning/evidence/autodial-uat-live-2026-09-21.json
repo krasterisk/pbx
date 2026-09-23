@@ -1,0 +1,1002 @@
+{
+  "prep": {
+    "admin": {
+      "login": "admin",
+      "vpbx": 0,
+      "me": 404
+    },
+    "loopback": {
+      "created": true,
+      "reload": "Dialplan reloaded.\n[ Context 'uat-ac-loop-20260921' created by 'pbx_config' ]\n  '000301' =>       1. NoOp(UAT debt loopback ${EXTEN})           [uat-ac-loop-20260921.conf:132]\n                    2. Answer()                                   [uat-ac-loop-20260921.conf:133]\n                    3. Set(TIMEOUT(absolute)=40)                  [uat-ac-loop-20260921.conf:134]\n                    4. Wait(30)                                   [uat-ac-loop-20260921.conf:135]\n                    5. Hangup()                                   [uat-ac-loop-20260921.conf:136]\n  '000302' =>       1. NoOp(UAT debt loopback ${EXTEN})           [uat-ac-loop-20260921.conf:137]\n                    2. Answer()                                   [uat-ac-loop-20260921.conf:138]\n                    3. Set(TIMEOUT(absolute)=40)                  [uat-ac-loop-20260921.conf:139]\n                    4. Wait(30)                                   [uat-ac-loop-20260921.conf:140]\n                    5. Hangup()                                   [uat-ac-loop-20260921.conf:141]\n  '000303' =>       1. NoOp(UAT debt loopback ${EXTEN})           [uat-ac-loop-20260921.conf:142]\n                    2. Answer()                                   [uat-ac-loop-20260921.conf:143]\n                    3. Set(TIMEOUT(absolute)=40)                  [uat-ac-loop-20260921.conf:144]\n                    4. Wait(30)                                   [uat-ac-loop-20260921.conf:145]\n                    5. Hangup()                                   [uat-ac-loop-20260921.conf:146]\n  '000401' =>       1. NoOp(UAT appt loopback ${EXTEN})           [uat-ac-loop-20260921.conf:147]\n                    2. Answer()                                   [uat-ac-loop-20260921.conf:148]\n                    3. Set(TIMEOUT(absolute)=40)                  [uat-ac-loop-20260921.conf:149]\n                    4. Wait(30)                                   [uat-ac-loop-20260921.conf:150]\n                    5. Hangup()                             "
+    },
+    "ttsEngines": [
+      {
+        "uid": 1,
+        "name": "Yandex TTS",
+        "type": "yandex"
+      }
+    ],
+    "debtBase": {
+      "base": {
+        "uid": 2,
+        "user_uid": 0,
+        "name": "UAT-Debt-Base-20260921",
+        "description": "UAT debt CSV 2026-09-21",
+        "dedup_policy": "phone",
+        "phone_normalization": "none",
+        "revision": 0,
+        "contact_count": 0,
+        "fields": [
+          {
+            "uid": 2,
+            "base_uid": 2,
+            "key": "name",
+            "label": "ФИО",
+            "type": "string",
+            "required": true,
+            "position": 0,
+            "is_phone": false,
+            "var_name": "AC_NAME",
+            "enum_values": null
+          },
+          {
+            "uid": 3,
+            "base_uid": 2,
+            "key": "phone",
+            "label": "Телефон",
+            "type": "phone",
+            "required": true,
+            "position": 1,
+            "is_phone": true,
+            "var_name": "AC_PHONE",
+            "enum_values": null
+          },
+          {
+            "uid": 4,
+            "base_uid": 2,
+            "key": "debt",
+            "label": "Сумма долга",
+            "type": "money",
+            "required": true,
+            "position": 2,
+            "is_phone": false,
+            "var_name": "AC_DEBT",
+            "enum_values": null
+          }
+        ],
+        "created_at": "2026-09-21T13:02:55.000Z",
+        "updated_at": "2026-09-21T13:02:55.000Z"
+      },
+      "imported": {
+        "imported": 3,
+        "skipped": 0,
+        "errors": [],
+        "run": {
+          "uid": 1,
+          "base_uid": 2,
+          "profile_uid": null,
+          "filename": "uat-debt-20260921.csv",
+          "total_rows": 3,
+          "imported": 3,
+          "skipped": 0,
+          "errors": [],
+          "created_at": "2026-09-21T13:02:57.310Z"
+        }
+      }
+    },
+    "apptBase": {
+      "base": {
+        "uid": 3,
+        "user_uid": 0,
+        "name": "UAT-Appt-Base-20260921",
+        "description": "UAT appointment CSV 2026-09-21",
+        "dedup_policy": "phone",
+        "phone_normalization": "none",
+        "revision": 0,
+        "contact_count": 0,
+        "fields": [
+          {
+            "uid": 5,
+            "base_uid": 3,
+            "key": "name",
+            "label": "ФИО",
+            "type": "string",
+            "required": true,
+            "position": 0,
+            "is_phone": false,
+            "var_name": "AC_NAME",
+            "enum_values": null
+          },
+          {
+            "uid": 6,
+            "base_uid": 3,
+            "key": "phone",
+            "label": "Телефон",
+            "type": "phone",
+            "required": true,
+            "position": 1,
+            "is_phone": true,
+            "var_name": "AC_PHONE",
+            "enum_values": null
+          },
+          {
+            "uid": 7,
+            "base_uid": 3,
+            "key": "appt_at",
+            "label": "Дата и время приёма",
+            "type": "string",
+            "required": true,
+            "position": 2,
+            "is_phone": false,
+            "var_name": "AC_APPT_AT",
+            "enum_values": null
+          }
+        ],
+        "created_at": "2026-09-21T13:02:57.000Z",
+        "updated_at": "2026-09-21T13:02:57.000Z"
+      },
+      "imported": {
+        "imported": 2,
+        "skipped": 0,
+        "errors": [],
+        "run": {
+          "uid": 2,
+          "base_uid": 3,
+          "profile_uid": null,
+          "filename": "uat-appt-20260921.csv",
+          "total_rows": 2,
+          "imported": 2,
+          "skipped": 0,
+          "errors": [],
+          "created_at": "2026-09-21T13:02:59.135Z"
+        }
+      }
+    }
+  },
+  "at": "2026-09-21T14:03:53.816Z",
+  "chat": {
+    "threadUid": 151,
+    "status": 201,
+    "eventNames": [
+      "thread",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "item",
+      "done"
+    ],
+    "errors": [],
+    "applied": {
+      "pendingCount": 2,
+      "applied": []
+    },
+    "created": []
+  },
+  "tokenHint": {
+    "login": "admin"
+  },
+  "apply": {
+    "appliedWorkflows": [
+      {
+        "workflowId": "aac73e96-18ac-4ba4-a019-a93ab31081fc",
+        "result": {
+          "workflowId": "aac73e96-18ac-4ba4-a019-a93ab31081fc",
+          "threadUid": 151,
+          "title": "Две тестовые кампании автообзвона (loopback)",
+          "summary": [
+            "Создать черновик кампании «UAT-Debt-20260921»",
+            "База 2",
+            "Режим agentless",
+            "Транки: t_uat_ac_loop_20260921",
+            "Создать черновик кампании «UAT-Appt-20260921»",
+            "База 3",
+            "Режим agentless",
+            "Транки: t_uat_ac_loop_20260921"
+          ],
+          "status": "applied",
+          "error": null,
+          "expiresAt": "2026-09-22T13:03:43.000Z",
+          "appliedAt": "2026-09-21T13:13:31.000Z",
+          "steps": [
+            {
+              "stepKey": "debt",
+              "stepIndex": 0,
+              "tool": "create_autodial_campaign",
+              "entityType": "autodial_campaign",
+              "entityLabel": "Черновик кампании «UAT-Debt-20260921»",
+              "status": "applied",
+              "error": null,
+              "dependsOn": [],
+              "requiresSecureInput": false
+            },
+            {
+              "stepKey": "appt",
+              "stepIndex": 1,
+              "tool": "create_autodial_campaign",
+              "entityType": "autodial_campaign",
+              "entityLabel": "Черновик кампании «UAT-Appt-20260921»",
+              "status": "applied",
+              "error": null,
+              "dependsOn": [],
+              "requiresSecureInput": false
+            }
+          ]
+        }
+      }
+    ],
+    "created": [
+      {
+        "uid": 3,
+        "name": "UAT-Appt-20260921",
+        "status": "draft",
+        "dial_mode": "agentless",
+        "base_uid": 3,
+        "trunks": [
+          "t_uat_ac_loop_20260921"
+        ],
+        "amd": {
+          "enabled": false,
+          "on_machine": "hangup"
+        },
+        "revision": 1,
+        "success_min_sec": 5,
+        "max_attempts": 1,
+        "tasks_total": 0,
+        "tasks_pending": 0,
+        "tasks_done": 0
+      },
+      {
+        "uid": 2,
+        "name": "UAT-Debt-20260921",
+        "status": "draft",
+        "dial_mode": "agentless",
+        "base_uid": 2,
+        "trunks": [
+          "t_uat_ac_loop_20260921"
+        ],
+        "amd": {
+          "enabled": false,
+          "on_machine": "hangup"
+        },
+        "revision": 1,
+        "success_min_sec": 5,
+        "max_attempts": 1,
+        "tasks_total": 0,
+        "tasks_pending": 0,
+        "tasks_done": 0
+      }
+    ],
+    "snaps": [
+      {
+        "campaign": {
+          "uid": 3,
+          "name": "UAT-Appt-20260921",
+          "status": "draft",
+          "dial_mode": "agentless",
+          "base_uid": 3,
+          "pacing": {
+            "providers": [
+              {
+                "type": "static",
+                "max_channels": 2
+              }
+            ]
+          },
+          "retry": {
+            "max_attempts": 1,
+            "intervals_sec": {},
+            "default_interval_sec": 3600
+          },
+          "trunk_pool": [
+            {
+              "trunk_id": "t_uat_ac_loop_20260921",
+              "caller_id": "000090",
+              "max_channels": 2
+            }
+          ],
+          "cid_policy": {
+            "mode": "per_trunk"
+          },
+          "scenario_actions": [
+            {
+              "type": "playback",
+              "params": {
+                "file": "beep"
+              }
+            },
+            {
+              "type": "text2speech",
+              "params": {
+                "text": "Здравствуйте {AC_NAME}, напоминаем о приёме {AC_APPT_AT}.",
+                "engine": 1
+              }
+            },
+            {
+              "type": "collect_input",
+              "params": {
+                "digits": 1,
+                "timeout": 12,
+                "variableName": "AC_DTMF"
+              }
+            },
+            {
+              "type": "hangup"
+            }
+          ],
+          "amd": {
+            "enabled": false,
+            "on_machine": "hangup"
+          },
+          "success_min_sec": 5,
+          "dial_timeout_sec": 20,
+          "schedules": [],
+          "revision": 1
+        }
+      },
+      {
+        "campaign": {
+          "uid": 2,
+          "name": "UAT-Debt-20260921",
+          "status": "draft",
+          "dial_mode": "agentless",
+          "base_uid": 2,
+          "pacing": {
+            "providers": [
+              {
+                "type": "static",
+                "max_channels": 2
+              }
+            ]
+          },
+          "retry": {
+            "max_attempts": 1,
+            "intervals_sec": {},
+            "default_interval_sec": 3600
+          },
+          "trunk_pool": [
+            {
+              "trunk_id": "t_uat_ac_loop_20260921",
+              "caller_id": "000090",
+              "max_channels": 2
+            }
+          ],
+          "cid_policy": {
+            "mode": "per_trunk"
+          },
+          "scenario_actions": [
+            {
+              "type": "playback",
+              "params": {
+                "file": "beep"
+              }
+            },
+            {
+              "type": "text2speech",
+              "params": {
+                "text": "Здравствуйте {AC_NAME}, ваша задолженность {AC_DEBT} рублей.",
+                "engine": 1
+              }
+            },
+            {
+              "type": "collect_input",
+              "params": {
+                "digits": 1,
+                "timeout": 12,
+                "variableName": "AC_DTMF"
+              }
+            },
+            {
+              "type": "hangup"
+            }
+          ],
+          "amd": {
+            "enabled": false,
+            "on_machine": "hangup"
+          },
+          "success_min_sec": 5,
+          "dial_timeout_sec": 20,
+          "schedules": [],
+          "revision": 1
+        }
+      }
+    ]
+  },
+  "start": {
+    "admin": {
+      "login": "admin",
+      "vpbx": 0,
+      "me": 404
+    },
+    "started": [
+      {
+        "uid": 3,
+        "already": true
+      },
+      {
+        "uid": 2,
+        "already": true
+      }
+    ],
+    "runtime": {
+      "monitor": [
+        {
+          "campaign_uid": 2,
+          "status": "completed",
+          "active_channels": 0,
+          "reserved": 0,
+          "capacity": 2,
+          "dials_today": 3,
+          "answered_today": 3,
+          "success_today": 3,
+          "contact_rate": 100,
+          "asr": 100,
+          "tasks_pending": 0,
+          "tasks_done": 3,
+          "tasks_total": 3
+        },
+        {
+          "campaign_uid": 3,
+          "status": "completed",
+          "active_channels": 0,
+          "reserved": 0,
+          "capacity": 2,
+          "dials_today": 2,
+          "answered_today": 2,
+          "success_today": 2,
+          "contact_rate": 100,
+          "asr": 100,
+          "tasks_pending": 0,
+          "tasks_done": 2,
+          "tasks_total": 2
+        },
+        {
+          "campaign_uid": 1,
+          "status": "draft",
+          "active_channels": 0,
+          "reserved": 0,
+          "capacity": 0,
+          "dials_today": 0,
+          "answered_today": 0,
+          "success_today": 0,
+          "contact_rate": 0,
+          "asr": 0,
+          "tasks_pending": 0,
+          "tasks_done": 0,
+          "tasks_total": 0
+        }
+      ],
+      "detail": [
+        {
+          "attempt_uid": 191,
+          "campaign_uid": 2,
+          "task_uid": 6,
+          "attempt_no": 4,
+          "started_at": "2026-09-21T14:02:09.000Z",
+          "answered_at": "2026-09-21T14:02:09.000Z",
+          "ended_at": "2026-09-21T14:02:24.000Z",
+          "duration": 15,
+          "billsec": 14,
+          "disposition": "success",
+          "hangup_cause": "Normal Clearing",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 190,
+          "campaign_uid": 3,
+          "task_uid": 2,
+          "attempt_no": 3,
+          "started_at": "2026-09-21T14:01:54.000Z",
+          "answered_at": "2026-09-21T14:01:54.000Z",
+          "ended_at": "2026-09-21T14:02:07.000Z",
+          "duration": 14,
+          "billsec": 13,
+          "disposition": "success",
+          "hangup_cause": "Normal Clearing",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 189,
+          "campaign_uid": 3,
+          "task_uid": 1,
+          "attempt_no": 4,
+          "started_at": "2026-09-21T14:01:53.000Z",
+          "answered_at": "2026-09-21T14:01:53.000Z",
+          "ended_at": "2026-09-21T14:02:07.000Z",
+          "duration": 14,
+          "billsec": 13,
+          "disposition": "success",
+          "hangup_cause": "Normal Clearing",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 188,
+          "campaign_uid": 2,
+          "task_uid": 5,
+          "attempt_no": 3,
+          "started_at": "2026-09-21T14:01:37.000Z",
+          "answered_at": "2026-09-21T14:01:37.000Z",
+          "ended_at": "2026-09-21T14:01:51.000Z",
+          "duration": 15,
+          "billsec": 14,
+          "disposition": "success",
+          "hangup_cause": "Normal Clearing",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 187,
+          "campaign_uid": 2,
+          "task_uid": 4,
+          "attempt_no": 4,
+          "started_at": "2026-09-21T14:01:36.000Z",
+          "answered_at": "2026-09-21T14:01:36.000Z",
+          "ended_at": "2026-09-21T14:01:51.000Z",
+          "duration": 16,
+          "billsec": 15,
+          "disposition": "success",
+          "hangup_cause": "Normal Clearing",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 186,
+          "campaign_uid": 3,
+          "task_uid": 1,
+          "attempt_no": 3,
+          "started_at": "2026-09-21T13:48:59.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T17:01:35.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "stale_after_restart",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 185,
+          "campaign_uid": 2,
+          "task_uid": 6,
+          "attempt_no": 3,
+          "started_at": "2026-09-21T13:48:57.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T17:01:35.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "stale_after_restart",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 184,
+          "campaign_uid": 2,
+          "task_uid": 4,
+          "attempt_no": 3,
+          "started_at": "2026-09-21T13:46:54.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T17:01:35.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "stale_after_restart",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 183,
+          "campaign_uid": 3,
+          "task_uid": 2,
+          "attempt_no": 2,
+          "started_at": "2026-09-21T13:43:48.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T16:46:53.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "stale_after_restart",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 182,
+          "campaign_uid": 2,
+          "task_uid": 4,
+          "attempt_no": 2,
+          "started_at": "2026-09-21T13:43:10.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T16:46:53.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "stale_after_restart",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 181,
+          "campaign_uid": 3,
+          "task_uid": 1,
+          "attempt_no": 2,
+          "started_at": "2026-09-21T13:42:49.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T16:46:53.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "stale_after_restart",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 180,
+          "campaign_uid": 2,
+          "task_uid": 6,
+          "attempt_no": 2,
+          "started_at": "2026-09-21T13:42:13.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T16:46:53.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "stale_after_restart",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 179,
+          "campaign_uid": 2,
+          "task_uid": 5,
+          "attempt_no": 2,
+          "started_at": "2026-09-21T13:42:12.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T16:46:53.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "stale_after_restart",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 5,
+          "campaign_uid": 2,
+          "task_uid": 6,
+          "attempt_no": 1,
+          "started_at": "2026-09-21T13:13:53.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T13:13:54.000Z",
+          "duration": 1,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "Bearer capability not available",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 4,
+          "campaign_uid": 2,
+          "task_uid": 5,
+          "attempt_no": 1,
+          "started_at": "2026-09-21T13:13:51.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T13:13:51.000Z",
+          "duration": 0,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "Bearer capability not available",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 3,
+          "campaign_uid": 2,
+          "task_uid": 4,
+          "attempt_no": 1,
+          "started_at": "2026-09-21T13:13:50.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T13:13:50.000Z",
+          "duration": 1,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "Bearer capability not available",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 2,
+          "campaign_uid": 3,
+          "task_uid": 2,
+          "attempt_no": 1,
+          "started_at": "2026-09-21T13:13:47.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T13:13:47.000Z",
+          "duration": 1,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "Bearer capability not available",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        },
+        {
+          "attempt_uid": 1,
+          "campaign_uid": 3,
+          "task_uid": 1,
+          "attempt_no": 1,
+          "started_at": "2026-09-21T13:13:46.000Z",
+          "answered_at": null,
+          "ended_at": "2026-09-21T13:13:46.000Z",
+          "duration": 1,
+          "billsec": 0,
+          "disposition": "failed",
+          "hangup_cause": "Bearer capability not available",
+          "trunk_id": "t_uat_ac_loop_20260921",
+          "caller_id": "000090",
+          "queue_name": null,
+          "agent_interface": null,
+          "amd_result": null
+        }
+      ]
+    },
+    "campaigns": [
+      {
+        "uid": 3,
+        "user_uid": 0,
+        "name": "UAT-Appt-20260921",
+        "status": "completed",
+        "dial_mode": "agentless",
+        "base_uid": 3,
+        "pacing": {
+          "providers": [
+            {
+              "type": "static",
+              "max_channels": 2
+            }
+          ]
+        },
+        "retry": {
+          "max_attempts": 1,
+          "intervals_sec": {},
+          "default_interval_sec": 3600
+        },
+        "trunk_pool": [
+          {
+            "trunk_id": "t_uat_ac_loop_20260921",
+            "caller_id": "000090",
+            "max_channels": 2
+          }
+        ],
+        "cid_policy": {
+          "mode": "per_trunk"
+        },
+        "queue_names": [],
+        "scenario_actions": [
+          {
+            "type": "playback",
+            "params": {
+              "file": "beep"
+            }
+          },
+          {
+            "type": "text2speech",
+            "params": {
+              "text": "Здравствуйте {AC_NAME}, напоминаем о приёме {AC_APPT_AT}.",
+              "engine": 1
+            }
+          },
+          {
+            "type": "collect_input",
+            "params": {
+              "digits": 1,
+              "timeout": 12,
+              "variableName": "AC_DTMF"
+            }
+          },
+          {
+            "type": "hangup"
+          }
+        ],
+        "amd": {
+          "enabled": false,
+          "on_machine": "hangup"
+        },
+        "success_min_sec": 5,
+        "dial_timeout_sec": 20,
+        "revision": 1,
+        "applied_revision": 1,
+        "apply_error": null,
+        "tasks_total": 2,
+        "tasks_pending": 0,
+        "tasks_done": 2,
+        "schedules": [],
+        "created_at": "2026-09-21T13:13:29.000Z",
+        "updated_at": "2026-09-21T14:03:00.000Z"
+      },
+      {
+        "uid": 2,
+        "user_uid": 0,
+        "name": "UAT-Debt-20260921",
+        "status": "completed",
+        "dial_mode": "agentless",
+        "base_uid": 2,
+        "pacing": {
+          "providers": [
+            {
+              "type": "static",
+              "max_channels": 2
+            }
+          ]
+        },
+        "retry": {
+          "max_attempts": 1,
+          "intervals_sec": {},
+          "default_interval_sec": 3600
+        },
+        "trunk_pool": [
+          {
+            "trunk_id": "t_uat_ac_loop_20260921",
+            "caller_id": "000090",
+            "max_channels": 2
+          }
+        ],
+        "cid_policy": {
+          "mode": "per_trunk"
+        },
+        "queue_names": [],
+        "scenario_actions": [
+          {
+            "type": "playback",
+            "params": {
+              "file": "beep"
+            }
+          },
+          {
+            "type": "text2speech",
+            "params": {
+              "text": "Здравствуйте {AC_NAME}, ваша задолженность {AC_DEBT} рублей.",
+              "engine": 1
+            }
+          },
+          {
+            "type": "collect_input",
+            "params": {
+              "digits": 1,
+              "timeout": 12,
+              "variableName": "AC_DTMF"
+            }
+          },
+          {
+            "type": "hangup"
+          }
+        ],
+        "amd": {
+          "enabled": false,
+          "on_machine": "hangup"
+        },
+        "success_min_sec": 5,
+        "dial_timeout_sec": 20,
+        "revision": 1,
+        "applied_revision": 1,
+        "apply_error": null,
+        "tasks_total": 3,
+        "tasks_pending": 0,
+        "tasks_done": 3,
+        "schedules": [],
+        "created_at": "2026-09-21T13:13:27.000Z",
+        "updated_at": "2026-09-21T14:03:00.000Z"
+      }
+    ]
+  },
+  "live_run": {
+    "verdict": "PASS",
+    "at": "2026-09-21T14:05:16.535Z",
+    "trunk": "t_uat_ac_loop_20260921",
+    "numbers": [
+      "000301",
+      "000302",
+      "000303",
+      "000401",
+      "000402"
+    ],
+    "skipped_campaign_uid": 1,
+    "campaigns": {
+      "debt": {
+        "uid": 2,
+        "name": "UAT-Debt-20260921",
+        "tasks": 3,
+        "success": 3,
+        "scenario": "krsk-ac-2 beep + TTS {AC_NAME}/{AC_DEBT} + Read 12s"
+      },
+      "appt": {
+        "uid": 3,
+        "name": "UAT-Appt-20260921",
+        "tasks": 2,
+        "success": 2,
+        "scenario": "krsk-ac-3 beep + TTS {AC_NAME}/{AC_APPT_AT} + Read 12s"
+      }
+    },
+    "asterisk": {
+      "sampled_at": "2026-09-21T21:01:50+07:00",
+      "observed": [
+        "krsk-ac-3 s Read KRSK_AC_DTMF on 000401 and 000402",
+        "krsk-ac-2 s Read KRSK_AC_DTMF on 000303",
+        "inbound uat-ac-loop-20260921 Wait(30)"
+      ]
+    },
+    "web": {
+      "monitor": "realtime answered channels and 100% contact rate for both UAT campaigns",
+      "reports": "summary 3/3 debt success, 2/2 appt success; detail Normal Clearing 13-15s"
+    },
+    "successful_attempts": [
+      187,
+      188,
+      189,
+      190,
+      191
+    ],
+    "notes": "Loopback only. Remote TTS CURL to 127.0.0.1:5010 from PBX falls back to SayNumber/beep. Campaign uid 1 not started."
+  }
+}

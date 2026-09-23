@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { AmiService } from '../ami/ami.service';
+import { PromptsService } from '../prompts/prompts.service';
 import { AcCampaign } from './models/ac-campaign.model';
 import {
   autodialCampaignContextName,
   autodialConfigFile,
+  AUTODIAL_FINALIZE_CONTEXT,
   generateAutodialCampaignDialplan,
   generateAutodialFinalizeContext,
   withMachineTail,
@@ -23,16 +25,30 @@ export class AutodialDialplanService {
   constructor(
     private readonly dialplanApply: DialplanApplyService,
     private readonly ami: AmiService,
+    private readonly prompts: PromptsService,
   ) {}
 
-  /** Check PBX capability before a campaign can start using AMD. */
+  /** Check PBX capability and voicemail media before a campaign can start using AMD. */
   async assertAmdReady(campaign: AcCampaign): Promise<void> {
     if (!campaign.amd?.enabled) return;
     if (campaign.amd.on_machine === 'voicemail') {
-      throw new BadRequestException({
-        code: 'AC_AMD_MESSAGE_NOT_CONFIGURED',
-        message: 'A message recording must be configured before voicemail mode can be used.',
-      });
+      const filename = String(campaign.amd.message_prompt ?? '').trim();
+      if (!filename) {
+        throw new BadRequestException({
+          code: 'AC_AMD_MESSAGE_NOT_CONFIGURED',
+          message: 'Choose a prompt recording before using leave-a-message AMD mode.',
+        });
+      }
+      const resolved = await this.prompts.resolvePromptAudioFile(
+        campaign.user_uid,
+        filename,
+      );
+      if (!resolved) {
+        throw new BadRequestException({
+          code: 'AC_AMD_MESSAGE_NOT_CONFIGURED',
+          message: 'The selected AMD message prompt file was not found for this tenant.',
+        });
+      }
     }
     let response: unknown;
     try {
@@ -68,11 +84,14 @@ export class AutodialDialplanService {
     );
 
     try {
+      const filename = autodialConfigFile(vpbx);
       await this.dialplanApply.applyCategories(
-        autodialConfigFile(vpbx),
+        filename,
         [category, generateAutodialFinalizeContext(vpbx)],
-        { reload: true },
+        { reload: false },
       );
+      // Drop the legacy shared [krsk-ac-finalize] copied into this tenant file.
+      await this.dialplanApply.deleteCategories(filename, [AUTODIAL_FINALIZE_CONTEXT], { reload: true });
       this.logger.log(`Applied autodial dialplan for campaign ${campaign.uid} (tenant ${vpbx})`);
       return true;
     } catch (e) {

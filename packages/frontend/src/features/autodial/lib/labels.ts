@@ -48,8 +48,9 @@ const LIMITED_BY_FALLBACKS: Record<string, string> = {
   queue_agents_warmup: 'Ожидание данных по операторам',
   trunk_channels: 'Каналы транка',
   tenant_cap: 'Лимит арендатора',
-  schedule: 'Вне расписания',
-  no_providers: 'Пейсинг не настроен',
+      schedule: 'Вне расписания',
+      stale_apply: 'Диаплан не применён',
+      no_providers: 'Пейсинг не настроен',
   none: '-',
 };
 

@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { Copy, Loader2, Pencil, Search, Trash2, Video } from 'lucide-react';
 import {
   Badge,
@@ -17,6 +18,8 @@ import {
   Input,
   TableRowAction,
   TableRowActions,
+  TableSelectionBanner,
+  BulkDeleteDialog,
   Text,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
@@ -26,6 +29,7 @@ import {
 } from '@/shared/api/endpoints/conferenceRoomApi';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { conferencesPageActions } from '../../model/slice/conferencesPageSlice';
 import {
   formatRoomKind,
@@ -36,18 +40,19 @@ import {
 import type { ConferenceListRow } from './conferenceListRow';
 import cls from './ConferencesTable.module.scss';
 
+const PAGE_SIZE = 50;
+
 export const ConferencesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
   const { data, isLoading, isError, refetch } = useGetConferenceRoomsQuery();
-  const rooms = (data ?? []) as ConferenceListRow[];
+  const rooms = useMemo(() => (data ?? []) as ConferenceListRow[], [data]);
   const [deleteRoom] = useDeleteConferenceRoomMutation();
   const [pendingDelete, setPendingDelete] = useState<ConferenceListRow | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isDeleting, setIsDeleting] = useState(false);
-  const selectedCount = Object.keys(rowSelection).length;
+  const selection = useCrossPageRowSelection({ globalFilter });
 
   const onDelete = useCallback((row: ConferenceListRow) => {
     setPendingDelete(row);
@@ -64,18 +69,54 @@ export const ConferencesTable = memo(() => {
     });
   }, [rooms, globalFilter]);
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = rooms.find((room) => String(room.uid) === id);
+        return row?.name || id;
+      }),
+    [selection.selectedIds, rooms],
+  );
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(t('conferences.confirmBulkDelete'))) return;
     setIsDeleting(true);
     try {
       await Promise.all(ids.map((id) => deleteRoom(id).unwrap()));
-      setRowSelection({});
+      selection.afterBulkDelete();
     } finally {
       setIsDeleting(false);
     }
-  }, [rowSelection, deleteRoom, t]);
+  }, [selection, deleteRoom]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<(typeof rooms)[number]>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="conferences"
+    />
+  );
 
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
@@ -87,14 +128,14 @@ export const ConferencesTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={() => void handleBulkDelete()}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('conferences.deleteSelected', { count: selectedCount })}
+            {t('conferences.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -251,6 +292,7 @@ export const ConferencesTable = memo(() => {
           </CardContent>
         </Card>
         {deleteDialog}
+        {bulkDeleteDialog}
       </>
     );
   }
@@ -267,22 +309,26 @@ export const ConferencesTable = memo(() => {
             data-testid="conferences-table-scroll"
           >
             <DataTable
+              ref={selection.tableRef}
               className={cls.table}
               data={rooms}
               columns={columns}
               getRowId={(row) => String(row.uid)}
               selectable
-              rowSelection={rowSelection}
-              onRowSelectionChange={setRowSelection}
+              rowSelection={selection.rowSelection}
+              onRowSelectionChange={selection.onRowSelectionChange}
               globalFilter={globalFilter}
-              pageSize={50}
+              pageSize={PAGE_SIZE}
               emptyText={t('conferences.noRooms')}
               exportFilename="conferences_export"
+              selectAllAriaLabel={t('common.selectPageAria')}
+              renderBanner={renderSelectionBanner}
             />
           </Flex>
         </CardContent>
       </Card>
       {deleteDialog}
+      {bulkDeleteDialog}
     </>
   );
 });

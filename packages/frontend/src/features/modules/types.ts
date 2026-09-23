@@ -28,4 +28,7 @@ export interface HubModuleRow extends ModuleDef {
   favorite: boolean;
   /** Optional display name from hub-catalog API */
   catalogName?: string;
+  displayPrice?: number;
+  billingPeriod?: string;
+  billingIntervalCount?: number;
 }

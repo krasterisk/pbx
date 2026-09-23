@@ -1,6 +1,14 @@
 import { AutodialAttemptService } from './autodial-attempt.service';
 
 describe('AutodialAttemptService', () => {
+  it('allocates the next attempt number after existing rows for the task', async () => {
+    const service = Object.create(AutodialAttemptService.prototype) as AutodialAttemptService;
+    service['attemptModel'] = {
+      max: jest.fn().mockResolvedValue(3),
+    } as unknown as AutodialAttemptService['attemptModel'];
+    await expect(service.nextAttemptNo(22)).resolves.toBe(4);
+  });
+
   function serviceWith(updateResults: number[]) {
     const service = Object.create(
       AutodialAttemptService.prototype,
@@ -66,6 +74,20 @@ describe('AutodialAttemptService', () => {
     expect(service['advanceTask']).toHaveBeenCalledWith(22, 'amd_machine', null);
   });
 
+  it('retains a leave-message classification as voicemail disposition', async () => {
+    const { service, update } = serviceWith([1]);
+    const attempt = await service['attemptModel'].findByPk(41);
+    attempt.amd_result = 'VOICEMAIL';
+
+    await service.finalize({ attemptUid: 41, disposition: 'success' });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ disposition: 'voicemail' }),
+      { where: { uid: 41, disposition: 'dialing' } },
+    );
+    expect(service['advanceTask']).toHaveBeenCalledWith(22, 'voicemail', null);
+  });
+
   it('marks only an attempt that has not already reached a terminal state', async () => {
     const { service, update } = serviceWith([1]);
 
@@ -73,6 +95,17 @@ describe('AutodialAttemptService', () => {
 
     expect(update).toHaveBeenCalledWith(
       { amd_result: 'MACHINE' },
+      { where: { uid: 41, disposition: 'dialing' } },
+    );
+  });
+
+  it('marks a voicemail leave-message outcome separately from hangup', async () => {
+    const { service, update } = serviceWith([1]);
+
+    await service.markAmdMachine(41, 'voicemail');
+
+    expect(update).toHaveBeenCalledWith(
+      { amd_result: 'VOICEMAIL' },
       { where: { uid: 41, disposition: 'dialing' } },
     );
   });
@@ -95,7 +128,12 @@ describe('AutodialAttemptService', () => {
     const taskUpdate = jest.fn().mockResolvedValue([1]);
     const create = jest.fn().mockResolvedValue({ uid: 88 });
     service['taskModel'] = {
-      sequelize: { transaction: (work: (tx: unknown) => unknown) => work(transaction) },
+      sequelize: {
+        transaction: (_opts: unknown, work?: (tx: unknown) => unknown) => {
+          const fn = typeof _opts === 'function' ? _opts : work;
+          return fn!(transaction);
+        },
+      },
       update: taskUpdate,
     } as unknown as AutodialAttemptService['taskModel'];
     service['attemptModel'] = { create } as unknown as AutodialAttemptService['attemptModel'];
@@ -119,7 +157,12 @@ describe('AutodialAttemptService', () => {
     const service = Object.create(AutodialAttemptService.prototype) as AutodialAttemptService;
     const create = jest.fn();
     service['taskModel'] = {
-      sequelize: { transaction: (work: (tx: unknown) => unknown) => work({ id: 'tx' }) },
+      sequelize: {
+        transaction: (_opts: unknown, work?: (tx: unknown) => unknown) => {
+          const fn = typeof _opts === 'function' ? _opts : work;
+          return fn!({ id: 'tx' });
+        },
+      },
       update: jest.fn().mockResolvedValue([0]),
     } as unknown as AutodialAttemptService['taskModel'];
     service['attemptModel'] = { create } as unknown as AutodialAttemptService['attemptModel'];
@@ -130,5 +173,37 @@ describe('AutodialAttemptService', () => {
     })).resolves.toBeNull();
 
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('completes the task as DNC inside the claim transaction without opening an attempt', async () => {
+    const service = Object.create(AutodialAttemptService.prototype) as AutodialAttemptService;
+    const transaction = { id: 'tx' };
+    const taskUpdate = jest.fn()
+      .mockResolvedValueOnce([1])
+      .mockResolvedValueOnce([1]);
+    const create = jest.fn();
+    service['taskModel'] = {
+      sequelize: {
+        transaction: (_opts: unknown, work?: (tx: unknown) => unknown) => {
+          const fn = typeof _opts === 'function' ? _opts : work;
+          return fn!(transaction);
+        },
+      },
+      update: taskUpdate,
+    } as unknown as AutodialAttemptService['taskModel'];
+    service['attemptModel'] = { create } as unknown as AutodialAttemptService['attemptModel'];
+
+    await expect(service.claimAndOpenAttempt({
+      userUid: 7, taskUid: 22, campaignUid: 11, attemptNo: 1,
+      channelId: 'ac-11-22-1', trunkId: 'trunk-1', callerId: null, leaseId: 'pacer-a',
+      gate: async () => 'dnc',
+    })).resolves.toBeNull();
+
+    expect(create).not.toHaveBeenCalled();
+    expect(taskUpdate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ last_disposition: 'dnc', status: 'completed' }),
+      expect.objectContaining({ transaction }),
+    );
   });
 });

@@ -36,6 +36,39 @@ export function selectAutodialTrunk(
   }
 
   const picked = expanded[Math.abs(cursor) % expanded.length];
+  return toDialTarget(picked, cidPolicy, number, cursor);
+}
+
+/**
+ * Primary trunk plus remaining eligible trunks for a technical failover.
+ * Busy/no_answer stay on retry policy and must not call this.
+ */
+export function selectAutodialTrunkLegs(
+  pool: IAutodialTrunkPoolItem[],
+  cidPolicy: IAutodialCidPolicy,
+  number: string,
+  cursor: number,
+  allowedTrunkIds?: ReadonlySet<string>,
+): AutodialDialTarget[] {
+  const first = selectAutodialTrunk(pool, cidPolicy, number, cursor, allowedTrunkIds);
+  if (!first) return [];
+  const seen = new Set([first.trunkId]);
+  const rest: AutodialDialTarget[] = [];
+  for (const item of pool ?? []) {
+    if (!item.trunk_id || seen.has(item.trunk_id)) continue;
+    if (allowedTrunkIds && !allowedTrunkIds.has(item.trunk_id)) continue;
+    seen.add(item.trunk_id);
+    rest.push(toDialTarget(item, cidPolicy, number, cursor));
+  }
+  return [first, ...rest];
+}
+
+function toDialTarget(
+  picked: IAutodialTrunkPoolItem,
+  cidPolicy: IAutodialCidPolicy,
+  number: string,
+  cursor: number,
+): AutodialDialTarget {
   return {
     trunkId: picked.trunk_id,
     callerId: resolveAutodialCallerId(cidPolicy, picked, cursor),

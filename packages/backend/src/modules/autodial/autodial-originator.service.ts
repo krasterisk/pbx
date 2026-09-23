@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/sequelize';
+import type { IAutodialSchedule } from '@krasterisk/shared';
 import { AriHttpClientService } from '../ari/ari-http-client.service';
 import { DirectoriesService } from '../directories/directories.service';
 import { AcCampaign } from './models/ac-campaign.model';
@@ -13,12 +14,15 @@ import { AutodialDncService } from './autodial-dnc.service';
 import { AutodialStateService } from './autodial-state.service';
 import { buildAutodialChannelId, parseAutodialChannelId } from './autodial-phone.util';
 import { autodialCampaignContextName } from './autodial-dialplan.util';
-import { selectAutodialTrunk, type AutodialDialTarget } from './autodial-trunk.util';
+import { selectAutodialTrunkLegs, type AutodialDialTarget } from './autodial-trunk.util';
 import { autodialContactVariables } from './autodial-contact-variables.util';
 import {
   dispositionFromAnsweredCall,
   dispositionFromHangupCause,
 } from './autodial-disposition.util';
+import { subscriberHoursAllowForSchedules } from './autodial-schedule.util';
+
+const SUBSCRIBER_HOURS_RETRY_MS = 15 * 60 * 1000;
 
 interface AriChannelEvent {
   channel?: { id?: string; state?: string; name?: string };
@@ -62,12 +66,19 @@ export class AutodialOriginatorService {
     campaign: AcCampaign,
     allowedTrunkIds?: ReadonlySet<string>,
     leaseId?: string,
+    schedules: IAutodialSchedule[] = [],
   ): Promise<boolean> {
     const phone = await this.phoneModel.findOne({
       where: { uid: task.phone_uid, base_uid: campaign.base_uid },
     });
     if (!phone?.normalized) {
       await this.failTask(task, 'invalid_number', 'no normalized phone');
+      return false;
+    }
+
+    const tzOffset = phone.tz_offset_min ?? 180;
+    if (!subscriberHoursAllowForSchedules(tzOffset, new Date(), schedules)) {
+      await this.deferTask(task, 'subscriber_hours');
       return false;
     }
 
@@ -84,95 +95,163 @@ export class AutodialOriginatorService {
       return false;
     }
 
-    const target = selectAutodialTrunk(
+    const legs = selectAutodialTrunkLegs(
       campaign.trunk_pool,
       campaign.cid_policy,
       phone.normalized,
       task.uid + task.attempt_count,
       allowedTrunkIds,
     );
-    if (!target) {
+    if (!legs.length) {
+      const hasConfiguredTrunk = (campaign.trunk_pool ?? []).some((trunk) => !!trunk.trunk_id);
+      if (hasConfiguredTrunk) {
+        // Saturated or filtered-out trunks are capacity, not a bad contact.
+        await this.deferTask(task, 'no trunk in pool');
+        return false;
+      }
       await this.failTask(task, 'failed', 'no trunk in pool');
       return false;
     }
 
-    const attemptNo = task.attempt_count + 1;
-    const channelId = buildAutodialChannelId(campaign.uid, task.uid, attemptNo);
     const { variables, contactValues } = await this.buildChannelVariables(
       task,
       campaign,
       phone.normalized,
     );
-    const callerId = await this.resolveCallerId(target, campaign, contactValues);
+    const first = legs[0];
+    const callerId = await this.resolveCallerId(first, campaign, contactValues);
 
     // A pacer can lose a stale lease while it is resolving DNC, directories or
     // caller ID. Re-check ownership immediately before opening the call. This
     // is deliberately conditional: another worker may now own the task.
-    if (leaseId && task.leased_by !== leaseId) return false;
+    // Skip the in-memory check when leased_by is empty — leaseTasks may not
+    // have stamped the instance, and claimAndOpenAttempt is the real fence.
+    if (leaseId && task.leased_by && task.leased_by !== leaseId) return false;
 
+    const cycleAttempt = task.attempt_count + 1;
+    const attemptNo = Math.max(cycleAttempt, await this.attempts.nextAttemptNo(task.uid));
+    const channelId = buildAutodialChannelId(campaign.uid, task.uid, attemptNo);
     const attemptInput = {
       userUid: campaign.user_uid,
       taskUid: task.uid,
       campaignUid: campaign.uid,
       attemptNo,
       channelId,
-      trunkId: target.trunkId,
+      trunkId: first.trunkId,
       callerId,
     };
+    const dncGate = async (): Promise<'ok' | 'dnc'> =>
+      (await this.dnc.isBlocked(campaign.user_uid, phone.normalized, {
+        campaignUid: campaign.uid,
+        baseUid: campaign.base_uid,
+      }))
+        ? 'dnc'
+        : 'ok';
     const attempt = leaseId
-      ? await this.attempts.claimAndOpenAttempt({ ...attemptInput, leaseId })
+      ? await this.attempts.claimAndOpenAttempt({
+        ...attemptInput,
+        leaseId,
+        cycleAttempt,
+        gate: dncGate,
+      })
       : await this.attempts.openAttempt(attemptInput);
     if (!attempt) return false;
 
     if (!leaseId) {
-      await task.update({ status: 'dialing', attempt_count: attemptNo, last_disposition: 'dialing' });
+      await task.update({ status: 'dialing', attempt_count: cycleAttempt, last_disposition: 'dialing' });
     }
 
-    // Register durable and in-memory correlation before the first ARI request.
-    // Originate can emit channel events before its HTTP response resolves.
-    this.attemptByChannel.set(channelId, attempt.uid);
-    this.state.addChannel({
-      channelId,
-      campaignUid: campaign.uid,
-      taskUid: task.uid,
-      attemptUid: attempt.uid,
+    return this.originateLegs({
+      legs,
+      campaign,
+      task,
+      attempt,
       attemptNo,
-      userUid: campaign.user_uid,
+      baseChannelId: channelId,
+      variables,
+      contactValues,
       number: phone.normalized,
-      trunkId: target.trunkId,
-      startedAt: Date.now(),
-      answeredAt: null,
+      initialCallerId: callerId,
     });
+  }
 
-    try {
-      await this.ari.originateChannel({
-        endpoint: target.endpoint,
-        app: this.ari.getAutodialAppName(),
-        appArgs: `autodial-v1,${campaign.uid},${task.uid}`,
+  /**
+   * Technical originate failures may try the next eligible trunk inside this
+   * attempt. Busy/no_answer stay with retry policy and never enter this loop.
+   */
+  private async originateLegs(input: {
+    legs: AutodialDialTarget[];
+    campaign: AcCampaign;
+    task: AcTask;
+    attempt: { uid: number; update?: (patch: Record<string, unknown>) => Promise<unknown> };
+    attemptNo: number;
+    baseChannelId: string;
+    variables: Record<string, string>;
+    contactValues: Record<string, string | number | boolean>;
+    number: string;
+    initialCallerId: string | null;
+  }): Promise<boolean> {
+    let lastError = 'no trunk in pool';
+    for (let index = 0; index < input.legs.length; index += 1) {
+      const target = input.legs[index];
+      const channelId = index === 0 ? input.baseChannelId : `${input.baseChannelId}f${index}`;
+      const callerId = index === 0
+        ? input.initialCallerId
+        : await this.resolveCallerId(target, input.campaign, input.contactValues);
+      if (index > 0) {
+        await input.attempt.update?.({
+          channel_id: channelId,
+          trunk_id: target.trunkId,
+          caller_id: callerId,
+        });
+      }
+
+      this.attemptByChannel.set(channelId, input.attempt.uid);
+      this.state.addChannel({
         channelId,
-        ...(callerId ? { callerId } : {}),
-        timeout: campaign.dial_timeout_sec,
-        variables: {
-          ...variables,
-          KRSK_AC_TASK: String(task.uid),
-          KRSK_AC_ATTEMPT: String(attempt.uid),
-          KRSK_AC_CAMPAIGN: String(campaign.uid),
-        },
+        campaignUid: input.campaign.uid,
+        taskUid: input.task.uid,
+        attemptUid: input.attempt.uid,
+        attemptNo: input.attemptNo,
+        userUid: input.campaign.user_uid,
+        number: input.number,
+        trunkId: target.trunkId,
+        startedAt: Date.now(),
+        answeredAt: null,
       });
 
-      return true;
-    } catch (e) {
-      const message = (e as Error).message;
-      this.logger.error(`Originate failed for task ${task.uid}: ${message}`);
-      this.attemptByChannel.delete(channelId);
-      this.state.removeChannel(channelId, 'failed');
-      await this.attempts.finalize({
-        attemptUid: attempt.uid,
-        disposition: 'failed',
-        hangupCause: message.slice(0, 64),
-      });
-      return false;
+      try {
+        await this.ari.originateChannel({
+          endpoint: target.endpoint,
+          app: this.ari.getAutodialAppName(),
+          appArgs: `autodial-v1,${input.campaign.uid},${input.task.uid}`,
+          channelId,
+          ...(callerId ? { callerId } : {}),
+          timeout: input.campaign.dial_timeout_sec,
+          variables: {
+            ...input.variables,
+            KRSK_AC_TASK: String(input.task.uid),
+            KRSK_AC_ATTEMPT: String(input.attempt.uid),
+            KRSK_AC_CAMPAIGN: String(input.campaign.uid),
+          },
+        });
+        return true;
+      } catch (e) {
+        lastError = (e as Error).message;
+        this.logger.error(
+          `Originate failed for task ${input.task.uid} on ${target.trunkId}: ${lastError}`,
+        );
+        this.attemptByChannel.delete(channelId);
+        this.state.dropChannel(channelId);
+      }
     }
+
+    await this.attempts.finalize({
+      attemptUid: input.attempt.uid,
+      disposition: 'failed',
+      hangupCause: lastError.slice(0, 64),
+    });
+    return false;
   }
 
   // ── ARI events ────────────────────────────────────────────────────
@@ -317,6 +396,21 @@ export class AutodialOriginatorService {
   }
 
   /**
+   * Subscriber is outside the campaign clock window in their own offset.
+   * Release the lease without burning an attempt (B04 / R2c).
+   */
+  private async deferTask(task: AcTask, reason: string): Promise<void> {
+    this.logger.debug(`Task ${task.uid} deferred: ${reason}`);
+    await task.update({
+      status: 'pending',
+      leased_by: null,
+      leased_at: null,
+      next_attempt_at: new Date(Date.now() + SUBSCRIBER_HOURS_RETRY_MS),
+      last_cause: reason.slice(0, 64),
+    });
+  }
+
+  /**
    * StasisStart at channel creation is not an answer. The scenario only starts
    * after ARI reports `Up`; duplicate Up/Stasis events are collapsed here.
    */
@@ -346,6 +440,30 @@ export class AutodialOriginatorService {
         `continueInDialplan failed for ${channelId}: ${(e as Error).message}`,
       );
     }
+  }
+
+  /**
+   * Drop in-memory channels whose trunk has been empty on AMI longer than
+   * `graceMs`. Lost ARI ChannelDestroyed events otherwise pin trunk capacity.
+   */
+  async sweepAmiGhosts(
+    liveByTrunk: ReadonlyMap<string, number>,
+    graceMs = 25_000,
+  ): Promise<number> {
+    const now = Date.now();
+    let swept = 0;
+    for (const channel of this.state.listAllChannels()) {
+      if (now - channel.startedAt < graceMs) continue;
+      if ((liveByTrunk.get(channel.trunkId) ?? 0) > 0) continue;
+      this.logger.warn(`Sweeping AMI-empty ghost channel ${channel.channelId}`);
+      await this.onChannelDestroyed({
+        channel: { id: channel.channelId },
+        cause: 0,
+        cause_txt: 'ghost_ami_empty',
+      });
+      swept += 1;
+    }
+    return swept;
   }
 
   /** Exposed for the reconciler: forget cached mappings for a closed channel. */

@@ -27,6 +27,7 @@ export interface AutodialCampaignDraft {
   retry: IAutodialRetryConfig;
   trunk_pool: IAutodialTrunkPoolItem[];
   cid_policy: IAutodialCidPolicy;
+  /** Snapshot of pacing queue_agents queues; not edited on the General tab. */
   queue_names: string[];
   scenario_actions: IRouteAction[];
   amd: IAutodialAmdConfig;
@@ -67,34 +68,95 @@ export function emptyCampaignDraft(): AutodialCampaignDraft {
     cid_policy: { mode: "per_trunk" },
     queue_names: [],
     scenario_actions: [],
-    amd: { enabled: false, on_machine: "hangup" },
+    amd: { enabled: false, on_machine: "hangup", message_prompt: null },
     success_min_sec: 20,
     dial_timeout_sec: 30,
     schedules: [],
   };
 }
 
+/** Unique queue names from the queue_agents capacity provider. */
+export function queueNamesFromPacing(pacing: IAutodialPacingConfig): string[] {
+  const names = new Set<string>();
+  for (const provider of pacing.providers ?? []) {
+    if (provider.type !== "queue_agents") continue;
+    for (const name of provider.queue_names ?? []) {
+      const trimmed = String(name ?? "").trim();
+      if (trimmed) names.add(trimmed);
+    }
+  }
+  return [...names];
+}
+
+/**
+ * Old campaigns stored the operator pool on `queue_names` without a
+ * queue_agents provider. Hydrate that provider so capacity is not lost when
+ * the General-tab MultiSelect is removed.
+ */
+export function hydratePacingFromLegacyQueues(
+  pacing: IAutodialPacingConfig,
+  legacyQueues: string[],
+): IAutodialPacingConfig {
+  const hasAgentProvider = (pacing.providers ?? []).some(
+    (provider) => provider.type === "queue_agents",
+  );
+  const queues = legacyQueues.map((name) => name.trim()).filter(Boolean);
+  if (hasAgentProvider || !queues.length) return pacing;
+  return {
+    ...pacing,
+    providers: [
+      ...pacing.providers,
+      { type: "queue_agents", queue_names: queues },
+    ],
+  };
+}
+
+function scenarioHasFixedQueue(actions: IRouteAction[]): boolean {
+  return actions.some((action) => {
+    if (!action || (action as { enabled?: boolean }).enabled === false) {
+      return false;
+    }
+    if (action.type !== "toqueue") return false;
+    const params = (action.params ?? {}) as Record<string, unknown>;
+    const target = params.target as { source?: unknown; value?: unknown } | undefined;
+    return Boolean(
+      String(params.queue ?? params.queue_name ?? "").trim()
+      || (target?.source === "fixed" && String(target.value ?? "").trim()),
+    );
+  });
+}
+
 export function campaignToDraft(
   campaign: IAutodialCampaign & { schedules?: IAutodialSchedule[] },
 ): AutodialCampaignDraft {
   const base = emptyCampaignDraft();
+  const pacing = campaign.pacing?.providers?.length
+    ? {
+        ...campaign.pacing,
+        predictive: campaign.pacing.predictive ?? base.pacing.predictive,
+      }
+    : base.pacing;
+  const legacyQueues = campaign.queue_names ?? [];
+  const hydrated = hydratePacingFromLegacyQueues(pacing, legacyQueues);
+
   return {
     revision: campaign.revision,
     name: campaign.name,
     dial_mode: campaign.dial_mode,
     base_uid: campaign.base_uid,
-    pacing: campaign.pacing?.providers?.length
-      ? {
-          ...campaign.pacing,
-          predictive: campaign.pacing.predictive ?? base.pacing.predictive,
-        }
-      : base.pacing,
+    pacing: hydrated,
     retry: campaign.retry ?? base.retry,
     trunk_pool: campaign.trunk_pool ?? [],
     cid_policy: campaign.cid_policy ?? base.cid_policy,
-    queue_names: campaign.queue_names ?? [],
+    queue_names: queueNamesFromPacing(hydrated),
     scenario_actions: campaign.scenario_actions ?? [],
-    amd: campaign.amd ?? base.amd,
+    amd: campaign.amd
+      ? {
+          enabled: campaign.amd.enabled,
+          on_machine: campaign.amd.on_machine,
+          message_prompt: campaign.amd.message_prompt ?? null,
+        }
+      : base.amd,
     success_min_sec: campaign.success_min_sec ?? base.success_min_sec,
     dial_timeout_sec: campaign.dial_timeout_sec ?? base.dial_timeout_sec,
     schedules: (campaign.schedules ?? []).map(
@@ -107,10 +169,10 @@ export interface CampaignDraftErrors {
   name?: string;
   base_uid?: string;
   trunk_pool?: string;
-  queue_names?: string;
   pacing?: string;
   predictive?: string;
   scenario_actions?: string;
+  amd?: string;
 }
 
 /**
@@ -128,13 +190,21 @@ export function validateCampaignDraft(
   if (draft.trunk_pool.length === 0) errors.trunk_pool = "required";
   if (draft.pacing.providers.length === 0) errors.pacing = "required";
 
-  // Progressive and Power hand the answered call to a queue; without one the
-  // caller would reach a dead context.
-  if (draft.dial_mode !== "agentless" && draft.queue_names.length === 0) {
-    errors.queue_names = "required";
+  // Progressive and Power hand the answered call to a queue step in the
+  // scenario. Capacity queues live only under the pacing provider.
+  if (draft.dial_mode !== "agentless" && !scenarioHasFixedQueue(draft.scenario_actions)) {
+    errors.scenario_actions = "queueRequired";
   }
   if (draft.dial_mode === "agentless" && draft.scenario_actions.length === 0) {
     errors.scenario_actions = "required";
+  }
+
+  if (
+    draft.amd.enabled
+    && draft.amd.on_machine === "voicemail"
+    && !String(draft.amd.message_prompt ?? "").trim()
+  ) {
+    errors.amd = "messageRequired";
   }
 
   // Predictive over-dials on purpose, so it needs a live agent count to over-dial
@@ -185,7 +255,7 @@ export function draftToPayload(
     retry: { ...draft.retry, intervals_sec: intervals },
     trunk_pool: draft.trunk_pool,
     cid_policy: draft.cid_policy,
-    queue_names: draft.queue_names,
+    queue_names: queueNamesFromPacing(draft.pacing),
     scenario_actions: draft.scenario_actions,
     amd: draft.amd,
     success_min_sec: draft.success_min_sec,

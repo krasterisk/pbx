@@ -1,14 +1,21 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { resolveDatabaseConfig } from '../database/database-config.cjs';
-import { checkSchemaReadiness } from '../database/schema-readiness.cjs';
+import { loadDatabaseCjs } from '../database/load-database-cjs';
+
+const { resolveDatabaseConfig } = loadDatabaseCjs<typeof import('../database/database-config.cjs')>(
+  'database-config.cjs',
+);
+const { checkSchemaReadiness } = loadDatabaseCjs<typeof import('../database/schema-readiness.cjs')>(
+  'schema-readiness.cjs',
+);
 import { User } from '../modules/users/user.model';
 import { UserSession } from '../modules/auth/user-session.model';
 import { Tenant } from '../modules/cloud-admin/tenant.model';
 import { TenantModule } from '../modules/cloud-admin/tenant-module.model';
 import { ModuleRegistry } from '../modules/cloud-admin/module-registry.model';
 import { CloudSetting } from '../modules/cloud-admin/cloud-setting.model';
+import { BillingSeller } from '../modules/cloud-admin/billing-seller.model';
 import { HubModule } from '../modules/cloud-admin/models/hub-module.model';
 import { HubModulePage } from '../modules/cloud-admin/models/hub-module-page.model';
 import { ActionLog } from '../modules/logger/action-log.model';
@@ -82,7 +89,7 @@ export class StandaloneAiCoreModule {
               ...resolveDatabaseConfig(process.env),
               models: [
                 User, UserSession, Tenant, TenantModule, ModuleRegistry,
-                CloudSetting, HubModule, HubModulePage, ActionLog, Role, CcAiProvider,
+                CloudSetting, BillingSeller, HubModule, HubModulePage, ActionLog, Role, CcAiProvider,
                 IntegrationPrincipal, IntegrationCredential, IntegrationGrant,
                 IntegrationAudit, IntegrationCommand, IntegrationAuthLimit,
                 ProductActivation, LocalLicenseDocument, LocalLicenseBinding,

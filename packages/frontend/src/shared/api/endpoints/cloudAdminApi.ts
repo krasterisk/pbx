@@ -1,4 +1,7 @@
-import type { ITenant, ITenantStats, ICreateTenant, IUpdateTenant, IBillingBalance, IBillingTransaction, IDepositRequest, ISellerInfo } from '@/entities/tenant';
+import type {
+  ITenant, ITenantStats, ICreateTenant, IUpdateTenant, IBillingBalance, IBillingTransaction, IDepositRequest,
+  IBillingSeller, ICreateBillingSeller, IUpdateBillingSeller,
+} from '@/entities/tenant';
 import { rtkApi } from '../rtkApi';
 
 export interface ITenantModule {
@@ -15,6 +18,8 @@ export interface ITenantModule {
 
 export type HubLicenseStatus = 'active' | 'locked' | 'disabled';
 
+export type BillingPeriod = 'hour' | 'day' | 'week' | 'month' | 'year' | 'custom';
+
 export interface IHubCatalogItem {
   code: string;
   name: string;
@@ -22,6 +27,10 @@ export interface IHubCatalogItem {
   sort_order: number;
   requires_cloud: boolean;
   licenseStatus: HubLicenseStatus;
+  accessUntil?: string | null;
+  displayPrice?: number;
+  billingPeriod?: string;
+  billingIntervalCount?: number;
   pages: Array<{ page_code: string; path: string | null; sort_order: number }>;
 }
 
@@ -61,6 +70,52 @@ export interface IAiSkuOffer {
   trialDays: number;
   moneyPolicy: 'shadow' | 'local_byok' | 'cloud_wallet';
 }
+
+export interface IPlatformSubscriptionPrice {
+  code: string;
+  name: string;
+  category: string;
+  isCore: boolean;
+  isPaid: boolean;
+  isPublished: boolean;
+  amount: number;
+  period: BillingPeriod;
+  intervalCount: number;
+}
+
+export interface IPlatformAiSkuPrice {
+  skuCode: string;
+  product: 'speech_analytics' | 'ai_voice_robots';
+  status: string;
+  ownerTenantUid: number;
+  revision: number;
+  priceMonthlyMinor: number;
+  currency: string | null;
+  trialDays: number;
+  moneyPolicy: string;
+}
+
+export interface IPlatformUsageRate {
+  id: string;
+  providerUid: string;
+  product: string;
+  unit: string;
+  currency: string | null;
+  rate: number | null;
+  moneyPolicy: string;
+  effectiveAt: string;
+}
+
+export interface IPlatformPrices {
+  subscriptions: IPlatformSubscriptionPrice[];
+  aiSkus: IPlatformAiSkuPrice[];
+  usageRates: IPlatformUsageRate[];
+}
+
+const PRICE_TAGS = [
+  { type: 'Tenants' as const, id: 'PLATFORM-PRICES' },
+  { type: 'Tenants' as const, id: 'HUB-CATALOG' },
+];
 
 export const cloudAdminApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
@@ -148,6 +203,116 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
     getTenantModules: builder.query<any[], number>({
       query: (tenantId) => `/cloud-admin/tenants/${tenantId}/modules`,
       providesTags: (_r, _e, id) => [{ type: 'Tenants', id: `modules-${id}` }],
+    }),
+
+    getTenantHubCatalog: builder.query<IHubCatalogItem[], number>({
+      query: (tenantId) => `/cloud-admin/tenants/${tenantId}/hub-catalog`,
+      providesTags: (_r, _e, tenantId) => [{ type: 'Tenants', id: `hub-${tenantId}` }],
+    }),
+
+    enableTenantHubModule: builder.mutation<unknown, { tenantId: number; code: string }>({
+      query: ({ tenantId, code }) => ({
+        url: `/cloud-admin/tenants/${tenantId}/hub-modules/${code}/enable`,
+        method: 'POST',
+      }),
+      async onQueryStarted({ tenantId, code }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(cloudAdminApi.util.updateQueryData('getTenantHubCatalog', tenantId, (draft) => {
+          const item = draft.find((row) => row.code === code);
+          if (item) item.licenseStatus = 'active';
+        }));
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: (_r, _e, { tenantId }) => [{ type: 'Tenants', id: `hub-${tenantId}` }],
+    }),
+
+    disableTenantHubModule: builder.mutation<unknown, { tenantId: number; code: string }>({
+      query: ({ tenantId, code }) => ({
+        url: `/cloud-admin/tenants/${tenantId}/hub-modules/${code}/disable`,
+        method: 'POST',
+      }),
+      async onQueryStarted({ tenantId, code }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(cloudAdminApi.util.updateQueryData('getTenantHubCatalog', tenantId, (draft) => {
+          const item = draft.find((row) => row.code === code);
+          if (item && item.kind !== 'base') item.licenseStatus = 'disabled';
+        }));
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: (_r, _e, { tenantId }) => [{ type: 'Tenants', id: `hub-${tenantId}` }],
+    }),
+
+    grantTenantHubModule: builder.mutation<
+      unknown,
+      { tenantId: number; code: string; access: 'open' | 'trial'; trialDays?: number }
+    >({
+      query: ({ tenantId, code, access, trialDays }) => ({
+        url: `/cloud-admin/tenants/${tenantId}/hub-modules/${code}/grant`,
+        method: 'POST',
+        body: access === 'trial' ? { access, trialDays } : { access },
+      }),
+      async onQueryStarted({ tenantId, code }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(cloudAdminApi.util.updateQueryData('getTenantHubCatalog', tenantId, (draft) => {
+          const item = draft.find((row) => row.code === code);
+          if (item) item.licenseStatus = 'active';
+        }));
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: (_r, _e, { tenantId }) => [
+        { type: 'Tenants', id: `hub-${tenantId}` },
+        { type: 'Tenants', id: 'AI-PRODUCT-STATUS' },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
+    }),
+
+    entitleTenantAiProduct: builder.mutation<
+      { product: string; enabled: boolean; revision: number },
+      { tenantId: number; code: string }
+    >({
+      query: ({ tenantId, code }) => ({
+        url: `/cloud-admin/tenants/${tenantId}/ai-products/${code}/entitle`,
+        method: 'POST',
+      }),
+      async onQueryStarted({ tenantId, code }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(cloudAdminApi.util.updateQueryData('getTenantHubCatalog', tenantId, (draft) => {
+          const item = draft.find((row) => row.code === code);
+          if (item) item.licenseStatus = 'active';
+        }));
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: (_r, _e, { tenantId }) => [
+        { type: 'Tenants', id: `hub-${tenantId}` },
+        { type: 'Tenants', id: 'AI-PRODUCT-STATUS' },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
+    }),
+
+    entitleCurrentAiProduct: builder.mutation<
+      { product: string; enabled: boolean; revision: number },
+      { code: string }
+    >({
+      query: ({ code }) => ({
+        url: `/cloud-admin/ai-products/${code}/entitle-current`,
+        method: 'POST',
+      }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'AI-PRODUCT-STATUS' },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
     }),
 
     activateModule: builder.mutation<any, { tenantId: number; moduleCode: string }>({
@@ -393,15 +558,83 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
       ],
     }),
 
-    // ─── Platform Settings ─────────────────────────────────────────────────
-    getSellerInfo: builder.query<ISellerInfo, void>({
-      query: () => '/cloud-admin/settings/seller',
-      providesTags: [{ type: 'Tenants', id: 'SELLER' }],
+    // ─── Platform prices (SuperAdmin facade) ───────────────────────────────
+    getPlatformPrices: builder.query<IPlatformPrices, void>({
+      query: () => '/cloud-admin/platform-prices',
+      providesTags: [{ type: 'Tenants', id: 'PLATFORM-PRICES' }],
     }),
 
-    updateSellerInfo: builder.mutation<ISellerInfo, Partial<ISellerInfo>>({
-      query: (body) => ({ url: '/cloud-admin/settings/seller', method: 'PATCH', body }),
-      invalidatesTags: [{ type: 'Tenants', id: 'SELLER' }],
+    patchPlatformSubscriptionPrice: builder.mutation<
+      IPlatformSubscriptionPrice,
+      { code: string; amount: number; period: BillingPeriod; intervalCount?: number }
+    >({
+      query: ({ code, ...body }) => ({
+        url: `/cloud-admin/platform-prices/subscriptions/${code}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: PRICE_TAGS,
+    }),
+
+    patchPlatformAiSkuPrice: builder.mutation<
+      { skuCode: string; revision: number },
+      { ownerTenantUid: number; skuCode: string; priceMonthlyMinor: number; currency?: string | null; trialDays?: number }
+    >({
+      query: (body) => ({
+        url: '/cloud-admin/platform-prices/ai-skus',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: [...PRICE_TAGS, { type: 'Tenants', id: 'AI-SKU-CATALOG' }],
+    }),
+
+    postPlatformUsageRate: builder.mutation<
+      IPlatformUsageRate,
+      { product: 'speech_analytics' | 'ai_voice_robots'; unit: 'audio_ms' | 'provider_tokens'; rate?: number | null; currency?: string | null; moneyPolicy: 'shadow' | 'local_byok' }
+    >({
+      query: (body) => ({
+        url: '/cloud-admin/platform-prices/usage-rates',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: PRICE_TAGS,
+    }),
+
+    // ─── Billing sellers ───────────────────────────────────────────────────
+    getSellers: builder.query<IBillingSeller[], void>({
+      query: () => '/cloud-admin/sellers',
+      providesTags: [{ type: 'Tenants', id: 'SELLERS' }],
+    }),
+
+    getSellerById: builder.query<IBillingSeller, number>({
+      query: (id) => `/cloud-admin/sellers/${id}`,
+      providesTags: (_r, _e, id) => [{ type: 'Tenants', id: `SELLER-${id}` }],
+    }),
+
+    createSeller: builder.mutation<IBillingSeller, ICreateBillingSeller>({
+      query: (body) => ({ url: '/cloud-admin/sellers', method: 'POST', body }),
+      invalidatesTags: [{ type: 'Tenants', id: 'SELLERS' }],
+    }),
+
+    updateSeller: builder.mutation<IBillingSeller, { id: number; data: IUpdateBillingSeller }>({
+      query: ({ id, data }) => ({ url: `/cloud-admin/sellers/${id}`, method: 'PATCH', body: data }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'Tenants', id: 'SELLERS' },
+        { type: 'Tenants', id: `SELLER-${id}` },
+      ],
+    }),
+
+    setDefaultSeller: builder.mutation<IBillingSeller, number>({
+      query: (id) => ({ url: `/cloud-admin/sellers/${id}/set-default`, method: 'POST' }),
+      invalidatesTags: [{ type: 'Tenants', id: 'SELLERS' }],
+    }),
+
+    deleteSeller: builder.mutation<{ success: true }, number>({
+      query: (id) => ({ url: `/cloud-admin/sellers/${id}`, method: 'DELETE' }),
+      invalidatesTags: [
+        { type: 'Tenants', id: 'SELLERS' },
+        { type: 'Tenants', id: 'LIST' },
+      ],
     }),
   }),
 });
@@ -419,6 +652,12 @@ export const {
   useGetTenantTransactionsQuery,
   useDepositBalanceMutation,
   useGetTenantModulesQuery,
+  useGetTenantHubCatalogQuery,
+  useEnableTenantHubModuleMutation,
+  useDisableTenantHubModuleMutation,
+  useGrantTenantHubModuleMutation,
+  useEntitleTenantAiProductMutation,
+  useEntitleCurrentAiProductMutation,
   useActivateModuleMutation,
   useDeactivateModuleMutation,
   useGetModuleCatalogQuery,
@@ -442,7 +681,14 @@ export const {
   useReorderPlatformHubModulesMutation,
   useReplacePlatformHubModulePagesMutation,
   useDeletePlatformHubModuleMutation,
-  useGetSellerInfoQuery,
-  useUpdateSellerInfoMutation,
+  useGetPlatformPricesQuery,
+  usePatchPlatformSubscriptionPriceMutation,
+  usePatchPlatformAiSkuPriceMutation,
+  usePostPlatformUsageRateMutation,
+  useGetSellersQuery,
+  useGetSellerByIdQuery,
+  useCreateSellerMutation,
+  useUpdateSellerMutation,
+  useSetDefaultSellerMutation,
+  useDeleteSellerMutation,
 } = cloudAdminApi;
-

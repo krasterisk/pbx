@@ -57,7 +57,7 @@ describe("autodial campaign configuration transaction", () => {
     const { service } = buildService();
 
     expect(() =>
-      service["assertScenario"]("progressive", [], [
+      service["assertScenario"]("progressive", [
         {
           id: "queue",
           type: "toqueue",
@@ -77,25 +77,50 @@ describe("autodial campaign configuration transaction", () => {
       condition: {},
       params: { target: { source: "fixed", value: "sales" } },
     };
-    expect(() => service["assertScenario"]("agentless", [], [disabledQueue])).not.toThrow();
-    expect(() => service["assertScenario"]("progressive", [], [disabledQueue])).not.toThrow();
+    expect(() => service["assertScenario"]("agentless", [disabledQueue])).not.toThrow();
+    expect(() => service["assertScenario"]("progressive", [disabledQueue])).not.toThrow();
+  });
+
+  it("rejects a toqueue step without a fixed queue", () => {
+    const { service } = buildService();
+
+    expect(() =>
+      service["assertScenario"]("progressive", [
+        { id: "queue", type: "toqueue", condition: {}, params: {} },
+      ]),
+    ).toThrow("Choose a fixed queue in the scenario To queue step");
   });
 
   it("rejects enabled scenario steps the autodial compiler cannot execute", () => {
     const { service } = buildService();
 
     expect(() =>
-      service["assertScenario"]("progressive", ["sales"], [
+      service["assertScenario"]("progressive", [
         { id: "trunk", type: "totrunk", condition: {}, params: {} },
       ]),
     ).toThrow("Autodial does not support scenario step totrunk");
+  });
+
+  it("accepts agentless text2speech so CSV fields can be spoken", () => {
+    const { service } = buildService();
+
+    expect(() =>
+      service["assertScenario"]("agentless", [
+        {
+          id: "tts",
+          type: "text2speech",
+          condition: {},
+          params: { text: "Здравствуйте {AC_NAME} ваш долг {AC_DEBT} рублей", engine: 1 },
+        },
+      ]),
+    ).not.toThrow();
   });
 
   it("rejects conditional and dynamic-target scenario steps before start", () => {
     const { service } = buildService();
 
     expect(() =>
-      service["assertScenario"]("progressive", ["sales"], [
+      service["assertScenario"]("progressive", [
         {
           id: "conditional",
           type: "toqueue",
@@ -105,7 +130,7 @@ describe("autodial campaign configuration transaction", () => {
       ]),
     ).toThrow("Autodial does not support conditional scenario steps yet");
     expect(() =>
-      service["assertScenario"]("progressive", ["sales"], [
+      service["assertScenario"]("progressive", [
         {
           id: "dynamic",
           type: "toqueue",
@@ -219,6 +244,8 @@ describe("autodial campaign configuration transaction", () => {
       [expect.objectContaining({ timezone: "Asia/Krasnoyarsk" })],
       { transaction },
     );
+    expect(service["dialplanService"].applyCampaign).toHaveBeenCalled();
+    expect(row.update).toHaveBeenCalledWith({ applied_revision: 4, apply_error: null });
   });
 
   it("rejects a stale edit before changing campaign or schedules", async () => {
@@ -234,5 +261,19 @@ describe("autodial campaign configuration transaction", () => {
 
     expect(row.update).not.toHaveBeenCalled();
     expect(service["scheduleModel"].destroy).not.toHaveBeenCalled();
+  });
+
+  it("records apply_error when dialplan apply fails after a successful save", async () => {
+    const { service, row } = buildService();
+    service["dialplanService"] = {
+      applyCampaign: jest.fn().mockResolvedValue(false),
+    } as unknown as AutodialDialplanService;
+
+    await service.update(7, 11, {
+      expected_revision: 3,
+      name: "Updated campaign",
+    } as UpdateAutodialCampaignDto);
+
+    expect(row.update).toHaveBeenCalledWith({ apply_error: "AC_DIALPLAN_APPLY_FAILED" });
   });
 });

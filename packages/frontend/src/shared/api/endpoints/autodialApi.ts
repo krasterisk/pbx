@@ -168,6 +168,18 @@ const autodialApi = rtkApi.injectEndpoints({
       invalidatesTags: [{ type: "AutodialBases", id: "LIST" }],
     }),
 
+    bulkDeleteAutodialBases: builder.mutation<
+      { deleted: number[]; failed: Array<{ uid: number; code: string }> },
+      number[]
+    >({
+      query: (uids) => ({
+        url: "/autodial/bases/bulk-delete",
+        method: "POST",
+        body: { uids },
+      }),
+      invalidatesTags: [{ type: "AutodialBases", id: "LIST" }],
+    }),
+
     // ── contacts ──────────────────────────────────────────────────
     getAutodialContact: builder.query<
       IAutodialContact,
@@ -443,6 +455,7 @@ export const {
   useCreateAutodialBaseMutation,
   useUpdateAutodialBaseMutation,
   useDeleteAutodialBaseMutation,
+  useBulkDeleteAutodialBasesMutation,
   useGetAutodialContactsQuery,
   useGetAutodialContactQuery,
   useCreateAutodialContactMutation,

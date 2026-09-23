@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { FileCode, Search, Loader2, Trash2, Pencil } from 'lucide-react';
 import {
   Card,
@@ -11,6 +12,8 @@ import {
   Text,
   TableRowActions,
   TableRowAction,
+  TableSelectionBanner,
+  BulkDeleteDialog,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
@@ -20,9 +23,12 @@ import {
 } from '@/shared/api/api';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { provisionTemplatesActions } from '../../model/slice/provisionTemplatesSlice';
 import { useProvisionTemplatesTableColumns } from './useProvisionTemplatesTableColumns';
 import cls from './ProvisionTemplatesTable.module.scss';
+
+const PAGE_SIZE = 50;
 
 export const ProvisionTemplatesTable = memo(() => {
   const { t } = useTranslation();
@@ -33,10 +39,9 @@ export const ProvisionTemplatesTable = memo(() => {
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteProvisionTemplatesMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const selection = useCrossPageRowSelection({ globalFilter });
 
   const columns = useProvisionTemplatesTableColumns();
-  const selectedCount = Object.keys(rowSelection).length;
 
   const filtered = useMemo(() => {
     const q = globalFilter.trim().toLowerCase();
@@ -49,13 +54,49 @@ export const ProvisionTemplatesTable = memo(() => {
     });
   }, [templates, globalFilter]);
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = templates.find((tpl) => String(tpl.uid) === id);
+        return row?.name || id;
+      }),
+    [selection.selectedIds, templates],
+  );
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(t('provisionTemplates.confirmBulkDelete'))) return;
     await bulkDelete(ids).unwrap();
-    setRowSelection({});
-  }, [rowSelection, bulkDelete, t]);
+    selection.afterBulkDelete();
+  }, [selection, bulkDelete]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<(typeof templates)[number]>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="provisionTemplates"
+    />
+  );
 
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
@@ -67,14 +108,14 @@ export const ProvisionTemplatesTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('provisionTemplates.deleteSelected', { count: selectedCount })}
+            {t('provisionTemplates.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -156,6 +197,7 @@ export const ProvisionTemplatesTable = memo(() => {
             )}
           </VStack>
         </CardContent>
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -171,20 +213,24 @@ export const ProvisionTemplatesTable = memo(() => {
           data-testid="provision-templates-table-scroll"
         >
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             data={templates}
             columns={columns}
             getRowId={(row) => String(row.uid)}
             selectable
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('provisionTemplates.empty')}
             exportFilename="provision_templates_export"
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
+      {bulkDeleteDialog}
     </Card>
   );
 });

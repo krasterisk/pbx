@@ -104,4 +104,14 @@ describe('AutodialBasesService data identity', () => {
     await expect(s.service.deleteContact(7, 1, 61)).rejects.toMatchObject({ response: { code: 'AC_CONTACT_IN_USE' } });
     expect(s.contacts.destroy).not.toHaveBeenCalled();
   });
+  it('bulk-deletes unused bases and reports referenced ones', async () => {
+    const s = setup();
+    jest.spyOn(s.service, 'remove')
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce({ response: { code: 'AC_BASE_IN_USE' } });
+    await expect(s.service.removeMany(7, [1, 2, 2, -1])).resolves.toEqual({
+      deleted: [1],
+      failed: [{ uid: 2, code: 'AC_BASE_IN_USE' }],
+    });
+  });
 });

@@ -5,8 +5,14 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import type { DynamicModule, ForwardReference, Type } from '@nestjs/common';
 import type { ModelCtor } from 'sequelize-typescript';
-import { resolveDatabaseConfig } from '../database/database-config.cjs';
-import { checkSchemaReadiness } from '../database/schema-readiness.cjs';
+import { loadDatabaseCjs } from '../database/load-database-cjs';
+
+const { resolveDatabaseConfig } = loadDatabaseCjs<typeof import('../database/database-config.cjs')>(
+  'database-config.cjs',
+);
+const { checkSchemaReadiness } = loadDatabaseCjs<typeof import('../database/schema-readiness.cjs')>(
+  'schema-readiness.cjs',
+);
 import { RedisModule } from '../modules/redis/redis.module';
 import { AuthModule } from '../modules/auth/auth.module';
 import { UsersModule } from '../modules/users/users.module';
@@ -59,6 +65,7 @@ import { AcDnc } from '../modules/autodial/models/ac-dnc.model';
 import { AcTask } from '../modules/autodial/models/ac-task.model';
 import { AcAttempt } from '../modules/autodial/models/ac-attempt.model';
 import { AcDailyCampaignStats } from '../modules/autodial/models/ac-daily-campaign-stats.model';
+import { AcChannelReservation } from '../modules/autodial/models/ac-channel-reservation.model';
 import { ConferencesModule } from '../modules/conferences/conferences.module';
 import { ConferenceRoom } from '../modules/conferences/models/conference-room.model';
 import { ConferenceRoomModerator } from '../modules/conferences/models/conference-room-moderator.model';
@@ -107,6 +114,7 @@ import { Tenant } from '../modules/cloud-admin/tenant.model';
 import { ModuleRegistry } from '../modules/cloud-admin/module-registry.model';
 import { TenantModule } from '../modules/cloud-admin/tenant-module.model';
 import { CloudSetting } from '../modules/cloud-admin/cloud-setting.model';
+import { BillingSeller } from '../modules/cloud-admin/billing-seller.model';
 import { HubModule } from '../modules/cloud-admin/models/hub-module.model';
 import { HubModulePage } from '../modules/cloud-admin/models/hub-module-page.model';
 import { RoleStartDefault, TenantRoleStart } from '../modules/cloud-admin/models/role-start.model';
@@ -235,7 +243,7 @@ export const PBX_CORE_MODELS = [
   ConferenceRoom, ConferenceRoomModerator, ConferenceGuestToken, ConferenceMeeting,
   ConferenceMeetingParticipant, AcBase, AcBaseField, AcContact, AcContactPhone,
   AcImportProfile, AcImportRun, AcCampaign, AcSchedule, AcDnc, AcTask, AcAttempt,
-  AcDailyCampaignStats, Tenant, ModuleRegistry, TenantModule, CloudSetting,
+  AcDailyCampaignStats, AcChannelReservation, Tenant, BillingSeller, ModuleRegistry, TenantModule, CloudSetting,
   HubModule, HubModulePage, RoleStartDefault, TenantRoleStart, DeviceToken,
   BillingBalance, BillingTransaction, ProductActivation, LocalLicenseDocument,
   LocalLicenseBinding, IntegrationPrincipal, IntegrationCredential, IntegrationGrant,

@@ -41,7 +41,9 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
   useGetTenantsQuery: () => ({ data: undefined }),
-  useGetSellerInfoQuery: () => ({ data: undefined }),
+  useGetSellersQuery: () => ({
+    data: [{ id: 1, name: 'Platform Seller', isDefault: true }],
+  }),
 }));
 
 vi.mock('@/shared/api/endpoints/aiChatApi', () => ({

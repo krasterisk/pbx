@@ -162,6 +162,26 @@ export class AutodialBasesService {
     });
   }
 
+  async removeMany(
+    userUid: number,
+    uids: number[],
+  ): Promise<{ deleted: number[]; failed: Array<{ uid: number; code: string }> }> {
+    const unique = [...new Set(uids.filter((uid) => Number.isSafeInteger(uid) && uid > 0))];
+    const deleted: number[] = [];
+    const failed: Array<{ uid: number; code: string }> = [];
+    for (const uid of unique) {
+      try {
+        await this.remove(userUid, uid);
+        deleted.push(uid);
+      } catch (err) {
+        const code = (err as { response?: { code?: string } })?.response?.code
+          ?? 'AC_BASE_DELETE_FAILED';
+        failed.push({ uid, code });
+      }
+    }
+    return { deleted, failed };
+  }
+
   async listContacts(
     userUid: number,
     baseUid: number,

@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-21T09:52:42.116Z",
+  "api": "http://localhost:5010",
+  "base_uid": 1,
+  "note": "import-preview only; no execute/import, no campaign start",
+  "results": [
+    {
+      "rows": 1000,
+      "http": 201,
+      "ms": 154,
+      "total_rows": 1000,
+      "sample": 5
+    },
+    {
+      "rows": 10000,
+      "http": 413,
+      "ms": 28,
+      "total_rows": null,
+      "sample": null
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { ListOrdered, Search, Loader2, Trash2, Pencil, Copy } from 'lucide-react';
 import {
   Card,
@@ -11,14 +12,19 @@ import {
   Text,
   TableRowActions,
   TableRowAction,
+  TableSelectionBanner,
+  BulkDeleteDialog,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useGetQueuesQuery, useDeleteQueueMutation } from '@/shared/api/endpoints/queueApi';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { queuesPageActions } from '../../model/slice/queuesPageSlice';
 import { formatQueueStrategy, useQueuesTableColumns } from './useQueuesTableColumns';
 import cls from './QueuesTable.module.scss';
+
+const PAGE_SIZE = 50;
 
 export const QueuesTable = memo(() => {
   const { t } = useTranslation();
@@ -28,11 +34,10 @@ export const QueuesTable = memo(() => {
   const [deleteQueue] = useDeleteQueueMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const selection = useCrossPageRowSelection({ globalFilter });
   const [isDeleting, setIsDeleting] = useState(false);
 
   const columns = useQueuesTableColumns();
-  const selectedCount = Object.keys(rowSelection).length;
 
   const filtered = useMemo(() => {
     const q = globalFilter.trim().toLowerCase();
@@ -45,18 +50,54 @@ export const QueuesTable = memo(() => {
     });
   }, [queues, globalFilter]);
 
-  const handleBulkDelete = useCallback(async () => {
-    const names = Object.keys(rowSelection);
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = queues.find((q) => q.name === id);
+        return row?.display_name || row?.exten || row?.name || id;
+      }),
+    [selection.selectedIds, queues],
+  );
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const names = selection.selectedIds;
     if (!names.length) return;
-    if (!window.confirm(t('queues.confirmBulkDelete'))) return;
     setIsDeleting(true);
     try {
       await Promise.all(names.map((name) => deleteQueue(name).unwrap()));
-      setRowSelection({});
+      selection.afterBulkDelete();
     } finally {
       setIsDeleting(false);
     }
-  }, [rowSelection, deleteQueue, t]);
+  }, [selection, deleteQueue]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<(typeof queues)[number]>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="queues"
+    />
+  );
 
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
@@ -68,14 +109,14 @@ export const QueuesTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('queues.deleteSelected', { count: selectedCount })}
+            {t('queues.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -167,6 +208,7 @@ export const QueuesTable = memo(() => {
             )}
           </VStack>
         </CardContent>
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -182,20 +224,24 @@ export const QueuesTable = memo(() => {
           data-testid="queues-table-scroll"
         >
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             data={queues}
             columns={columns}
             getRowId={(row) => row.name}
             selectable
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('queues.noQueues')}
             exportFilename="queues_export"
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
+      {bulkDeleteDialog}
     </Card>
   );
 });

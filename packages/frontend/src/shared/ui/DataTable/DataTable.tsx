@@ -11,7 +11,7 @@ import {
   type RowSelectionState,
   type Table,
 } from '@tanstack/react-table';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { HStack } from '@/shared/ui/Stack';
 import { Table as UITable, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/ui';
@@ -52,8 +52,15 @@ export interface DataTableProps<TData> {
   csvEnclosure?: string;
   /** Render slot above the table (header area) - receives the table instance */
   renderHeader?: (table: Table<TData>) => React.ReactNode;
+  /**
+   * Selection / filter banner above the table body (e.g. “Select all N matching”).
+   * Receives the live table instance so the parent can read filtered/page/selection state.
+   */
+  renderBanner?: (table: Table<TData>) => React.ReactNode;
   /** Custom row className based on row data */
   getRowClassName?: (row: TData) => string;
+  /** Aria-label for the header “select page” checkbox */
+  selectAllAriaLabel?: string;
 
   // ─── Server-side pagination ────────────────────────────────
   /**
@@ -70,8 +77,23 @@ export interface DataTableProps<TData> {
   onPageChange?: (page: number) => void;
 }
 
+export type DataTableExportRows = 'filtered' | 'selected';
+
+export interface DataTableExportCsvOptions {
+  /**
+   * - `filtered` (default): all rows in the current filtered set (all pages).
+   * - `selected`: selected rows only; if none selected, falls back to filtered
+   *   so an empty selection never produces an empty CSV.
+   */
+  rows?: DataTableExportRows;
+}
+
 export interface DataTableRef {
-  exportCsv: () => void;
+  exportCsv: (options?: DataTableExportCsvOptions) => void;
+  /** Select every row in the current filtered set (all pages). */
+  selectAllFiltered: () => void;
+  /** Clear row selection. */
+  clearSelection: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,7 +222,9 @@ function DataTableInner<TData>(
     csvDelimiter = ';',
     csvEnclosure = '"',
     renderHeader,
+    renderBanner,
     getRowClassName,
+    selectAllAriaLabel,
     paginationMode = 'client',
     totalRows: serverTotalRows,
     currentPage: serverCurrentPage,
@@ -259,48 +283,87 @@ function DataTableInner<TData>(
     manualPagination: isServerMode,
   });
 
-  const exportToCsv = useCallback(() => {
-    const enc = csvEnclosure;
-    const esc = (s: string) => `${enc}${s.replace(/"/g, '""')}${enc}`;
+  const selectAllFiltered = useCallback(() => {
+    const next: RowSelectionState = {};
+    for (const row of table.getFilteredRowModel().rows) {
+      next[row.id] = true;
+    }
+    handleRowSelectionChange(next);
+  }, [table, handleRowSelectionChange]);
 
-    // Get visible columns except actions and checkboxes
-    const visibleColumns = table.getVisibleLeafColumns().filter((c) => c.id !== 'actions' && c.id !== 'select');
-    
-    // Header row
-    const headers = visibleColumns.map((c) => {
-      const headerStr = typeof c.columnDef.header === 'string' ? c.columnDef.header : c.id;
-      return esc(headerStr);
-    });
+  const clearSelection = useCallback(() => {
+    handleRowSelectionChange({});
+  }, [handleRowSelectionChange]);
 
-    // Data rows
-    const rows = table.getFilteredRowModel().rows;
-    const csvRows = rows.map((row) => {
-      return visibleColumns.map((col) => {
-        let val = row.getValue(col.id);
-        if (val === null || val === undefined) val = '';
-        return esc(String(val));
-      }).join(csvDelimiter);
-    });
+  const exportToCsv = useCallback(
+    (options?: DataTableExportCsvOptions) => {
+      const enc = csvEnclosure;
+      const esc = (s: string) => `${enc}${s.replace(/"/g, '""')}${enc}`;
 
-    // Combine and download (add BOM for Excel utf-8 recognition)
-    const csvContent = [headers.join(csvDelimiter), ...csvRows].join('\n');
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${exportFilename}.csv`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [table, exportFilename, csvDelimiter, csvEnclosure]);
+      // Get visible columns except actions and checkboxes
+      const visibleColumns = table
+        .getVisibleLeafColumns()
+        .filter((c) => c.id !== 'actions' && c.id !== 'select');
+
+      // Header row
+      const headers = visibleColumns.map((c) => {
+        const headerStr = typeof c.columnDef.header === 'string' ? c.columnDef.header : c.id;
+        return esc(headerStr);
+      });
+
+      // Data rows: selected if requested and non-empty, otherwise all filtered (all pages)
+      const filteredRows = table.getFilteredRowModel().rows;
+      let rows = filteredRows;
+      if (options?.rows === 'selected') {
+        const selectedRows = table.getFilteredSelectedRowModel().rows;
+        if (selectedRows.length > 0) {
+          rows = selectedRows;
+        }
+      }
+
+      const csvRows = rows.map((row) => {
+        return visibleColumns
+          .map((col) => {
+            let val = row.getValue(col.id);
+            if (val === null || val === undefined) val = '';
+            return esc(String(val));
+          })
+          .join(csvDelimiter);
+      });
+
+      // Combine and download (add BOM for Excel utf-8 recognition)
+      const csvContent = [headers.join(csvDelimiter), ...csvRows].join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${exportFilename}.csv`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+    [table, exportFilename, csvDelimiter, csvEnclosure],
+  );
 
   // Expose methods to parent
   React.useImperativeHandle(ref, () => ({
     exportCsv: exportToCsv,
+    selectAllFiltered,
+    clearSelection,
   }));
+
+  const headerCheckboxRef = React.useRef<HTMLInputElement>(null);
+  const isAllPageSelected = table.getIsAllPageRowsSelected();
+  const isSomePageSelected = table.getIsSomePageRowsSelected();
+
+  React.useEffect(() => {
+    if (headerCheckboxRef.current) {
+      headerCheckboxRef.current.indeterminate = isSomePageSelected && !isAllPageSelected;
+    }
+  }, [isSomePageSelected, isAllPageSelected]);
 
   return (
     <div className={className}>
@@ -311,6 +374,8 @@ function DataTableInner<TData>(
         </div>
       )}
 
+      {renderBanner?.(table)}
+
       {/* Table */}
       <UITable>
         <TableHeader>
@@ -319,9 +384,11 @@ function DataTableInner<TData>(
               {selectable && (
                 <TableHead className="px-4 py-3 w-10">
                   <input
+                    ref={headerCheckboxRef}
                     type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
+                    checked={isAllPageSelected}
                     onChange={table.getToggleAllPageRowsSelectedHandler()}
+                    aria-label={selectAllAriaLabel}
                     className="w-4 h-4 rounded border-border bg-background accent-primary cursor-pointer"
                   />
                 </TableHead>

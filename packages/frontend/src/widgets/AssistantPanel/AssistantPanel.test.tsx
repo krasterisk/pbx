@@ -168,30 +168,40 @@ const storedThreadDetail: {
 };
 
 let lastThreadDetail: typeof storedThreadDetail | { uid: number; title: string; readOnly: boolean; ownerName: string } | undefined;
+const threadQueryCalls: Array<{ uid: number | undefined; skip?: boolean }> = [];
+const threadListQueryCalls: Array<{ skip?: boolean }> = [];
+let missingThreadUid: number | null = null;
 
 vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
   useGetAiChatModelsQuery: () => ({ data: undefined }),
-  useGetAiChatThreadsQuery: () => ({
-    data: storedThreads,
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  }),
-  useGetSharedAiChatThreadsQuery: () => ({
+  useGetAiChatThreadsQuery: (_arg?: void, options?: { skip?: boolean }) => {
+    threadListQueryCalls.push({ skip: options?.skip });
+    return {
+      data: storedThreads,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+  },
+  useGetSharedAiChatThreadsQuery: (_arg?: void, options?: { skip?: boolean }) => ({
     data: sharedThreads,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
   }),
   useGetAiChatThreadQuery: (uid: number | undefined, options?: { skip?: boolean }) => {
+    threadQueryCalls.push({ uid, skip: options?.skip });
     if (options?.skip || uid == null) {
-      return { data: lastThreadDetail, currentData: undefined, isFetching: false };
+      return { data: lastThreadDetail, currentData: undefined, isError: false, isFetching: false };
+    }
+    if (missingThreadUid != null && uid === missingThreadUid) {
+      return { data: undefined, currentData: undefined, isError: true, error: { status: 404 }, isFetching: false };
     }
     const data = uid === 8
       ? { ...storedThreadDetail, uid: 8, title: 'Boss chat', readOnly: true, ownerName: 'Anna' }
       : storedThreadDetail;
     lastThreadDetail = data;
-    return { data, currentData: data, isFetching: false };
+    return { data, currentData: data, isError: false, isFetching: false };
   },
   useCreateAiChatThreadMutation: () => [
     () => ({ unwrap: async () => storedThreads[0] }),
@@ -279,6 +289,9 @@ describe('AssistantPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lastThreadDetail = undefined;
+    threadQueryCalls.length = 0;
+    threadListQueryCalls.length = 0;
+    missingThreadUid = null;
     sessionStorage.clear();
     localStorage.removeItem('assistant-panel-layout');
     mockViewport(1280);
@@ -527,6 +540,24 @@ describe('AssistantPanel', () => {
     render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.getByRole('option', { selected: true })).toHaveTextContent(/Yesterday's call/);
     expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
+  });
+
+  it('does not fetch a remembered thread while the panel is closed', () => {
+    sessionStorage.setItem('assistant-selected-thread', '110');
+    render(<AssistantPanel open={false} {...dockProps} onClose={vi.fn()} />);
+    expect(threadQueryCalls.some((call) => call.uid === 110 && !call.skip)).toBe(false);
+    expect(threadQueryCalls.at(-1)).toMatchObject({ uid: 110, skip: true });
+    expect(threadListQueryCalls.every((call) => call.skip === true)).toBe(true);
+  });
+
+  it('clears a remembered thread after the API returns 404', async () => {
+    missingThreadUid = 110;
+    sessionStorage.setItem('assistant-selected-thread', '110');
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    await vi.waitFor(() => {
+      expect(sessionStorage.getItem('assistant-selected-thread')).toBeNull();
+    });
+    expect(screen.getByText('aiChat.welcome')).toBeInTheDocument();
   });
 
   it('clears the conversation column after deleting the selected conversation', async () => {

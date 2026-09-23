@@ -12,6 +12,14 @@
 
 .field {
   min-width: 0;
+  width: 100%;
+}
+
+.fieldLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--color-muted-foreground);
 }
 
 .hint {
@@ -34,14 +42,14 @@
 
 .row {
   width: 100%;
+  min-width: 0;
   padding: 0.75rem;
   border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-muted) 8%, transparent);
-
-  @media (max-width: 640px) {
-    align-items: stretch;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .rowGrid {
@@ -60,11 +68,34 @@
   }
 }
 
+.pacingGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pacingActions,
+.scheduleActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 2.25rem;
+}
+
 .cidEditor {
   display: grid;
   grid-template-columns: minmax(10rem, 0.8fr) minmax(0, 2fr);
   gap: 0.75rem;
-  margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
 
@@ -83,36 +114,32 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   min-width: 0;
+  grid-column: 1 / -1;
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
 }
 
-.cidDirectoryHint {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--color-muted-foreground);
-}
-
 .scheduleGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(
-      0,
-      1fr
-    ) minmax(0, 1.4fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: end;
   width: 100%;
 
-  @media (max-width: 900px) {
+  @media (max-width: 768px) {
     grid-template-columns: 1fr 1fr;
   }
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
+}
+
+.timezoneRow {
+  width: 100%;
+  min-width: 0;
 }
 
 .narrowInput {

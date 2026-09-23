@@ -45,6 +45,9 @@ export interface HubCatalogLicenseItem {
   code: string;
   licenseStatus: LicenseStatus;
   name?: string;
+  displayPrice?: number;
+  billingPeriod?: string;
+  billingIntervalCount?: number;
 }
 
 const ADMIN_PLUS: UserLevel[] = [UserLevel.ADMIN, UserLevel.SUPERADMIN];
@@ -428,6 +431,9 @@ export function mergeModulesWithCatalog(
       licenseStatus: licenseStatusFromCatalog(catalog, mod),
       favorite: favSet.has(mod.code),
       catalogName: cat?.name,
+      displayPrice: cat?.displayPrice,
+      billingPeriod: cat?.billingPeriod,
+      billingIntervalCount: cat?.billingIntervalCount,
     };
   });
 }

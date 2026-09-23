@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { login, clearError } from '@/features/auth/model/authSlice';
 import { resolveRoleStart } from '@/features/modules/lib/roleStartResolver';
 import { ROLE_START_PENDING_KEY } from '@/features/modules/hooks/useRoleStartRedirect';
-import type { UserLevel } from '@krasterisk/shared';
+import { UserLevel } from '@krasterisk/shared';
 
 export const LoginPage = () => {
   const { t } = useTranslation();
@@ -20,8 +20,14 @@ export const LoginPage = () => {
     if (isLoading) return;
     const result = await dispatch(login(form));
     if (login.fulfilled.match(result)) {
+      const level = result.payload.user.level as UserLevel;
+      if (level === UserLevel.SUPERADMIN) {
+        sessionStorage.removeItem(ROLE_START_PENDING_KEY);
+        navigate('/platform');
+        return;
+      }
       sessionStorage.setItem(ROLE_START_PENDING_KEY, '1');
-      navigate(resolveRoleStart(result.payload.user.level as UserLevel));
+      navigate(resolveRoleStart(level));
     }
   };
   return <AuthFrame title={t('auth.title')} description={t('auth.companyLoginHint', 'Войдите в свою организацию. Доступ сотруднику создаёт её администратор.')}>

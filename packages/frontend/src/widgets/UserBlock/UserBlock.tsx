@@ -14,6 +14,7 @@ import {
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { logout } from '@/features/auth/model/authSlice';
+import { readImpersonatedIdentity, readImpersonation } from '@/features/auth/lib/impersonationSession';
 import { buildUserAvatarUrl } from '@/shared/lib/userAvatarUrl';
 import styles from './UserBlock.module.scss';
 
@@ -31,17 +32,24 @@ export function UserBlock({ displayName, secondaryLine, className }: UserBlockPr
   const navigate = useNavigate();
   const user = useAppSelector((s) => s.auth.user);
   const accessToken = useAppSelector((s) => s.auth.accessToken);
+  const impersonation = readImpersonation(accessToken);
+  const identity = readImpersonatedIdentity(accessToken);
+  const impersonationLabel = impersonation
+    ? t('cloudAdmin.impersonation.asSuperadmin', 'Вход из-под суперадмина')
+    : null;
 
-  const name = displayName || user?.name || user?.login || 'U';
+  const name = identity?.name || displayName || user?.name || user?.login || 'U';
   const secondary =
     secondaryLine !== undefined
       ? secondaryLine
       : user?.exten
         ? `ext. ${user.exten}`
         : null;
+  const triggerSecondary = impersonationLabel ?? secondary;
 
-  const avatarSrc = user
-    ? buildUserAvatarUrl(user.uniqueid, user.avatar, accessToken)
+  const avatarUserId = identity?.uniqueid ?? user?.uniqueid;
+  const avatarSrc = avatarUserId != null
+    ? buildUserAvatarUrl(avatarUserId, identity ? null : user?.avatar, accessToken)
     : undefined;
 
   const handleLogout = () => {
@@ -61,7 +69,11 @@ export function UserBlock({ displayName, secondaryLine, className }: UserBlockPr
           <HStack gap="8" align="center">
             <VStack gap="0" className={styles.meta}>
               <Text className={styles.name}>{name}</Text>
-              {secondary ? <Text className={styles.secondary}>{secondary}</Text> : null}
+              {triggerSecondary ? (
+                <Text className={impersonationLabel ? styles.impersonation : styles.secondary}>
+                  {triggerSecondary}
+                </Text>
+              ) : null}
             </VStack>
             <Avatar name={name} src={avatarSrc} size={36} />
             <ChevronDown className={styles.chevron} />

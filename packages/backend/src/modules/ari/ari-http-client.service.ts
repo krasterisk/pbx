@@ -205,7 +205,11 @@ export class AriHttpClientService implements OnModuleInit {
       params.variables && Object.keys(params.variables).length
         ? { variables: params.variables }
         : undefined,
-      { params: query },
+      {
+        params: query,
+        // ARI holds this request until the dial is answered or `timeout` fires.
+        timeout: ((params.timeout ?? 30) + 5) * 1000,
+      },
     );
     return response.data;
   }

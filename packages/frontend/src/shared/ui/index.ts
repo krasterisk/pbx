@@ -15,9 +15,18 @@ export * from './Sheet/Sheet';
 export * from './DropdownMenu';
 export * from './Stack';
 export { DataTable } from './DataTable';
-export type { DataTableProps, DataTableRef } from './DataTable';
+export type {
+  DataTableProps,
+  DataTableRef,
+  DataTableExportCsvOptions,
+  DataTableExportRows,
+} from './DataTable';
 export { TableRowActions, TableRowAction, tableRowActionsStyles } from './TableRowActions';
 export type { TableRowActionsProps, TableRowActionProps } from './TableRowActions';
+export { TableSelectionBanner } from './TableSelectionBanner';
+export type { TableSelectionBannerProps } from './TableSelectionBanner';
+export { BulkDeleteDialog } from './BulkDeleteDialog';
+export type { BulkDeleteDialogProps } from './BulkDeleteDialog';
 export * from './Tooltip/Tooltip';
 export * from './WebhookAuthConfig/WebhookAuthConfig';
 export { MultiSelect } from './MultiSelect/MultiSelect';

@@ -78,3 +78,40 @@ for (const lang of ['ru', 'en'] as const) {
     }
   });
 }
+
+for (const lang of ['ru', 'en'] as const) {
+  test(`campaign form Chromium pageScale 200% ${lang}`, async ({ authenticatedPage: page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.addInitScript((language) => localStorage.setItem('i18nextLng', language), lang);
+    await page.goto('/autodial');
+    await closeAssistantIfOpen(page);
+    await page.getByTestId('autodial-create-campaign').click();
+    const modal = page.getByTestId('autodial-campaign-form-modal');
+    await expect(modal).toBeVisible();
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor: 2 });
+    await expect(modal).toBeVisible();
+    const metrics = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+      innerWidth: window.innerWidth,
+      visualWidth: window.visualViewport?.width ?? null,
+      scale: window.visualViewport?.scale ?? null,
+    }));
+    expect(metrics.scale, 'visualViewport.scale').toBeGreaterThanOrEqual(1.9);
+    expect(metrics.scrollWidth, 'document overflow at 200%')
+      .toBeLessThanOrEqual(metrics.clientWidth + 1);
+    await expect(modal).toBeVisible();
+    const tabs = modal.getByRole('tab');
+    await expect(tabs).toHaveCount(7);
+    for (let index = 0; index < 7; index += 1) {
+      await tabs.nth(index).click({ force: true });
+      const overflow = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }));
+      expect(overflow.scrollWidth, `tab ${index} overflow at 200%`)
+        .toBeLessThanOrEqual(overflow.clientWidth + 1);
+    }
+  });
+}

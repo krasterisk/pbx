@@ -13,6 +13,7 @@ import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { UserLevel } from '@krasterisk/shared';
 import { CheckoutSheet } from '@/features/modules/ui/CheckoutSheet';
 import { resolveHubDisplayPrice } from '@/features/modules/lib/hubMarketPrices';
+import { hubPageLabelKey } from '@/features/modules/lib/hubPageLabel';
 import { isAiProductCode } from '@/features/modules/lib/aiProductCodes';
 import cls from './TenantModulesPanel.module.scss';
 
@@ -23,8 +24,7 @@ import cls from './TenantModulesPanel.module.scss';
 export function TenantModulesPanel() {
   const { t } = useTranslation();
   const user = useAppSelector((s) => s.auth.user);
-  const isAdmin =
-    user?.level === UserLevel.ADMIN || user?.level === UserLevel.SUPERADMIN;
+  const isAdmin = user?.level === UserLevel.ADMIN;
 
   const { data: catalog, isLoading } = useGetHubCatalogQuery(undefined, {
     skip: !user,
@@ -63,7 +63,7 @@ export function TenantModulesPanel() {
     setCheckout({
       code: sku?.skuCode ?? item.code,
       name: item.name,
-      priceRub: sku ? Math.round(sku.priceMonthlyMinor / 100) : resolveHubDisplayPrice(item.code),
+      priceRub: sku ? Math.round(sku.priceMonthlyMinor / 100) : resolveHubDisplayPrice(item),
       checkoutKind: isAiProductCode(item.code) ? 'ai-sku' : 'hub-module',
     });
   };
@@ -81,7 +81,11 @@ export function TenantModulesPanel() {
   return (
     <VStack gap="16" max data-testid="tenant-modules-panel">
       <Text as="h1">{t('nav.modules', 'Modules')}</Text>
-      <Text variant="muted">{t('platform.compositionReadonly')}</Text>
+      {user?.level === UserLevel.SUPERADMIN && (
+        <Text variant="muted" data-testid="tenant-modules-platform-hint">
+          {t('system.modulesPlatformOnly', 'Platform operator manages cabinets in the platform console, not this tenant page.')}
+        </Text>
+      )}
 
       {rows.length === 0 ? (
         <Text variant="muted">{t('platform.noModules')}</Text>
@@ -94,7 +98,7 @@ export function TenantModulesPanel() {
             const unpublishedAi = isAiProductCode(item.code)
               && !(skus ?? []).some((row) => row.skuCode === item.code || row.product === item.code);
             const pagesLabel = (item.pages ?? [])
-              .map((p) => p.page_code)
+              .map((p) => t(hubPageLabelKey(p)))
               .join(', ');
 
             return (
@@ -106,7 +110,7 @@ export function TenantModulesPanel() {
                 <div className={cls.nameBlock}>
                   <div className={cls.moduleName}>{item.name}</div>
                   <div className={cls.pages} data-testid={`tenant-module-pages-${item.code}`}>
-                    {t('platform.compositionReadonly')}: {pagesLabel || '-'}
+                    {t('platform.modulePages', 'Pages')}: {pagesLabel || '-'}
                   </div>
                 </div>
 
@@ -124,7 +128,7 @@ export function TenantModulesPanel() {
                       type="button"
                       size="sm"
                       onClick={() => handleBuy(item)}
-                      disabled={unpublishedAi}
+                      disabled={!isAdmin || unpublishedAi}
                       id={`tenant-buy-${item.code}`}
                     >
                       {unpublishedAi

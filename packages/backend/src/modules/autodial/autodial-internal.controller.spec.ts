@@ -18,7 +18,7 @@ describe('AutodialInternalController', () => {
     await expect(
       controller.attemptMachine({ api_key: 'test-key', attempt: '41' }),
     ).resolves.toBe('OK');
-    expect(markAmdMachine).toHaveBeenCalledWith(41);
+    expect(markAmdMachine).toHaveBeenCalledWith(41, 'hangup');
   });
 
   it('does not mutate data for a malformed attempt id', async () => {

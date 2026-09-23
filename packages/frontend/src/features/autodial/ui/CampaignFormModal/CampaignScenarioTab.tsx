@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Text } from '@/shared/ui';
-import { VStack } from '@/shared/ui/Stack';
+import { InfoTooltip, Text } from '@/shared/ui';
+import { HStack, VStack } from '@/shared/ui/Stack';
 import { DialplanAppsEditor } from '@/features/dialplan-apps';
 import { allowedTypesForHost } from '@/features/dialplan-apps/model/hostTypes';
 import { useGetAutodialBaseQuery } from '@/shared/api/endpoints/autodialApi';
@@ -33,11 +33,21 @@ export const CampaignScenarioTab = memo(({ draft, onChange, errors }: Props) => 
     [base],
   );
 
+  const scenarioError =
+    errors.scenario_actions === 'queueRequired'
+      ? t('autodial.scenario.queueRequired')
+      : errors.scenario_actions
+        ? t('autodial.scenario.requiredAgentless')
+        : null;
+
   return (
     <VStack gap="12" max>
-      <Text className={cls.hint}>{t('autodial.scenario.intro')}</Text>
-      {errors.scenario_actions && (
-        <Text className={cls.error}>{t('autodial.scenario.requiredAgentless')}</Text>
+      <HStack gap="4" align="center">
+        <Text className={cls.sectionTitle}>{t('autodial.form.tabs.scenario')}</Text>
+        <InfoTooltip text={t('autodial.scenario.intro')} />
+      </HStack>
+      {scenarioError && (
+        <Text className={cls.error}>{scenarioError}</Text>
       )}
       <DialplanAppsEditor
         host="autodial"

@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/sequelize";
@@ -23,6 +24,7 @@ import {
 import { AcCampaign } from "./models/ac-campaign.model";
 import { AcSchedule } from "./models/ac-schedule.model";
 import { AcTask } from "./models/ac-task.model";
+import { AcAttempt } from "./models/ac-attempt.model";
 import { AcContactPhone } from "./models/ac-contact-phone.model";
 import { AcDnc } from "./models/ac-dnc.model";
 import { PsEndpoint } from "../endpoints/ps-endpoint.model";
@@ -41,6 +43,7 @@ import {
   defaultAutodialTrunkPool,
   normalizeAutodialPacing,
   normalizeAutodialRetry,
+  queueNamesFromPacing,
 } from "./autodial-campaign.defaults";
 
 /** Statuses from which the pacer may pick tasks. */
@@ -49,6 +52,7 @@ export const AUTODIAL_ACTIVE_STATUSES: AutodialCampaignStatus[] = ["running"];
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const AUTODIAL_SUPPORTED_ACTIONS = new Set([
   "playback",
+  "text2speech",
   "toqueue",
   "toexten",
   "voicerobot",
@@ -69,13 +73,14 @@ function isSupportedTimeZone(timeZone: string): boolean {
 }
 
 @Injectable()
-export class AutodialCampaignsService {
+export class AutodialCampaignsService implements OnModuleInit {
   private readonly logger = new Logger(AutodialCampaignsService.name);
 
   constructor(
     @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
     @InjectModel(AcSchedule) private readonly scheduleModel: typeof AcSchedule,
     @InjectModel(AcTask) private readonly taskModel: typeof AcTask,
+    @InjectModel(AcAttempt) private readonly attemptModel: typeof AcAttempt,
     @InjectModel(AcContactPhone)
     private readonly phoneModel: typeof AcContactPhone,
     @InjectModel(AcDnc) private readonly dncModel: typeof AcDnc,
@@ -86,6 +91,60 @@ export class AutodialCampaignsService {
     private readonly directoriesService: DirectoriesService,
     private readonly dialplanService: AutodialDialplanService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.ensureCampaignColumn(
+      'applied_revision',
+      'ALTER TABLE `ac_campaigns` ADD COLUMN `applied_revision` INT NULL',
+    );
+    await this.ensureCampaignColumn(
+      'apply_error',
+      'ALTER TABLE `ac_campaigns` ADD COLUMN `apply_error` VARCHAR(255) NULL',
+    );
+    await this.ensureCampaignColumn(
+      'pacer_owner',
+      'ALTER TABLE `ac_campaigns` ADD COLUMN `pacer_owner` VARCHAR(64) NULL',
+    );
+    await this.ensureCampaignColumn(
+      'pacer_heartbeat_at',
+      'ALTER TABLE `ac_campaigns` ADD COLUMN `pacer_heartbeat_at` DATETIME NULL',
+    );
+    try {
+      await this.sequelize.query(
+        "UPDATE `ac_campaigns` SET `applied_revision` = `revision` WHERE `applied_revision` IS NULL",
+      );
+    } catch (err) {
+      this.logger.warn(`applied_revision backfill: ${(err as Error).message}`);
+    }
+    try {
+      await this.sequelize.query(`CREATE TABLE IF NOT EXISTS \`ac_channel_reservations\` (
+        \`uid\` INT NOT NULL AUTO_INCREMENT,
+        \`vpbx_user_uid\` INT NOT NULL,
+        \`campaign_uid\` INT NOT NULL,
+        \`task_uid\` INT NOT NULL,
+        \`trunk_id\` VARCHAR(128) NOT NULL,
+        \`owner\` VARCHAR(64) NOT NULL,
+        \`expires_at\` DATETIME NOT NULL,
+        \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`uid\`),
+        UNIQUE KEY \`uq_ac_res_task\` (\`task_uid\`),
+        KEY \`idx_ac_res_trunk\` (\`vpbx_user_uid\`, \`trunk_id\`, \`expires_at\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    } catch (err) {
+      this.logger.warn(`ac_channel_reservations ensure: ${(err as Error).message}`);
+    }
+  }
+
+  private async ensureCampaignColumn(label: string, sql: string): Promise<void> {
+    try {
+      await this.sequelize.query(sql);
+    } catch (err) {
+      const msg = String((err as Error).message ?? err);
+      if (!msg.includes("Duplicate column")) {
+        this.logger.warn(`${label} column ensure: ${msg}`);
+      }
+    }
+  }
 
   async findAll(userUid: number): Promise<IAutodialCampaign[]> {
     const rows = await this.campaignModel.findAll({
@@ -116,12 +175,13 @@ export class AutodialCampaignsService {
     const trunkPool = toAutodialTrunkPool(dto.trunk_pool ?? []);
     const base = await this.basesService.findOne(userUid, dto.base_uid);
     await this.assertTrunkPoolConfig(userUid, base.fields ?? [], trunkPool);
+    const pacing = normalizeAutodialPacing(dto.pacing);
+    const queueNames = queueNamesFromPacing(pacing);
     this.assertScenario(
       dto.dial_mode ?? "progressive",
-      dto.queue_names,
       dto.scenario_actions,
     );
-    await this.assertQueueReferences(userUid, dto.queue_names, dto.scenario_actions);
+    await this.assertQueueReferences(userUid, queueNames, dto.scenario_actions);
     await this.assertExtensionReferences(userUid, dto.scenario_actions);
 
     const row = await this.sequelize.transaction(async (transaction) => {
@@ -132,11 +192,11 @@ export class AutodialCampaignsService {
           status: "draft",
           dial_mode: dto.dial_mode ?? "progressive",
           base_uid: dto.base_uid,
-          pacing: normalizeAutodialPacing(dto.pacing),
+          pacing,
           retry: normalizeAutodialRetry(dto.retry),
           trunk_pool: dto.trunk_pool == null ? defaultAutodialTrunkPool() : trunkPool,
           cid_policy: dto.cid_policy ?? defaultAutodialCidPolicy(),
-          queue_names: dto.queue_names ?? [],
+          queue_names: queueNames,
           scenario_actions: (dto.scenario_actions ?? []) as IRouteAction[],
           amd: dto.amd ?? defaultAutodialAmd(),
           success_min_sec: dto.success_min_sec ?? 15,
@@ -155,7 +215,7 @@ export class AutodialCampaignsService {
       }
       return created;
     });
-    await this.dialplanService.applyCampaign(row);
+    await this.applyAndRecord(row, row.revision);
     return this.findOne(userUid, row.uid);
   }
 
@@ -165,7 +225,7 @@ export class AutodialCampaignsService {
     dto: UpdateAutodialCampaignDto,
   ): Promise<IAutodialCampaign> {
     const trunkPool = dto.trunk_pool == null ? undefined : toAutodialTrunkPool(dto.trunk_pool);
-    const row = await this.sequelize.transaction(async (transaction) => {
+    const { row, revision } = await this.sequelize.transaction(async (transaction) => {
       const locked = await this.getOrThrow(userUid, uid, transaction);
       if (dto.expected_revision !== locked.revision) {
         throw new ConflictException({
@@ -182,14 +242,19 @@ export class AutodialCampaignsService {
           });
         }
       }
+      const pacing = dto.pacing != null
+        ? normalizeAutodialPacing(dto.pacing)
+        : locked.pacing;
+      const queueNames = dto.pacing != null
+        ? queueNamesFromPacing(pacing)
+        : (locked.queue_names ?? queueNamesFromPacing(pacing));
       this.assertScenario(
         dto.dial_mode ?? locked.dial_mode,
-        dto.queue_names ?? locked.queue_names,
         dto.scenario_actions ?? locked.scenario_actions,
       );
       await this.assertQueueReferences(
         userUid,
-        dto.queue_names ?? locked.queue_names,
+        queueNames,
         dto.scenario_actions ?? locked.scenario_actions,
       );
       await this.assertExtensionReferences(userUid, dto.scenario_actions ?? locked.scenario_actions);
@@ -198,16 +263,19 @@ export class AutodialCampaignsService {
         await this.assertTrunkPoolConfig(userUid, base.fields ?? [], trunkPool);
       }
 
-      const patch: Partial<AcCampaign> = { revision: locked.revision + 1 };
+      const nextRevision = locked.revision + 1;
+      const patch: Partial<AcCampaign> = { revision: nextRevision };
       if (dto.name != null) patch.name = dto.name.trim();
       if (dto.dial_mode != null) patch.dial_mode = dto.dial_mode;
       if (dto.base_uid != null) patch.base_uid = dto.base_uid;
-      if (dto.pacing != null)
-        patch.pacing = normalizeAutodialPacing(dto.pacing);
+      if (dto.pacing != null) {
+        patch.pacing = pacing;
+        // Snapshot stays aligned with the capacity provider when pacing changes.
+        patch.queue_names = queueNames;
+      }
       if (dto.retry != null) patch.retry = normalizeAutodialRetry(dto.retry);
       if (trunkPool != null) patch.trunk_pool = trunkPool;
       if (dto.cid_policy != null) patch.cid_policy = dto.cid_policy;
-      if (dto.queue_names != null) patch.queue_names = dto.queue_names;
       if (dto.scenario_actions != null) {
         patch.scenario_actions = dto.scenario_actions as IRouteAction[];
       }
@@ -221,9 +289,9 @@ export class AutodialCampaignsService {
       if (dto.schedules !== undefined) {
         await this.replaceSchedules(userUid, uid, dto.schedules, transaction);
       }
-      return locked;
+      return { row: locked, revision: nextRevision };
     });
-    await this.dialplanService.applyCampaign(row);
+    await this.applyAndRecord(row, revision);
     return this.findOne(userUid, uid);
   }
 
@@ -249,6 +317,11 @@ export class AutodialCampaignsService {
       });
     }
     await this.dialplanService.removeCampaign(row);
+    // ac_attempts.campaign_uid has no FK. Delete history with the campaign so
+    // reports never keep rows pointing at a missing campaign (orphan policy).
+    await this.attemptModel.destroy({
+      where: { campaign_uid: uid, user_uid: userUid },
+    });
     await this.taskModel.destroy({
       where: { campaign_uid: uid, user_uid: userUid },
     });
@@ -275,14 +348,14 @@ export class AutodialCampaignsService {
         message: "Configure at least one trunk before starting",
       });
     }
-    this.assertScenario(row.dial_mode, row.queue_names, row.scenario_actions);
+    this.assertScenario(row.dial_mode, row.scenario_actions);
     await this.assertQueueReferences(userUid, row.queue_names, row.scenario_actions);
     await this.assertExtensionReferences(userUid, row.scenario_actions);
     await this.assertStoredTrunkPoolConfig(userUid, row.base_uid, row.trunk_pool);
     await this.dialplanService.assertAmdReady(row);
     // Re-apply so a dialplan lost to a failed apply or an Asterisk reinstall
     // is present before the first channel lands in the context.
-    if (!(await this.dialplanService.applyCampaign(row))) {
+    if (!(await this.applyAndRecord(row, row.revision))) {
       throw new ServiceUnavailableException({
         code: "AC_DIALPLAN_APPLY_FAILED",
         message:
@@ -313,12 +386,12 @@ export class AutodialCampaignsService {
         message: "Only a paused or scheduled campaign can be resumed",
       });
     }
-    this.assertScenario(row.dial_mode, row.queue_names, row.scenario_actions);
+    this.assertScenario(row.dial_mode, row.scenario_actions);
     await this.assertQueueReferences(userUid, row.queue_names, row.scenario_actions);
     await this.assertExtensionReferences(userUid, row.scenario_actions);
     await this.assertStoredTrunkPoolConfig(userUid, row.base_uid, row.trunk_pool);
     await this.dialplanService.assertAmdReady(row);
-    if (!(await this.dialplanService.applyCampaign(row))) {
+    if (!(await this.applyAndRecord(row, row.revision))) {
       throw new ServiceUnavailableException({
         code: "AC_DIALPLAN_APPLY_FAILED",
         message:
@@ -573,7 +646,6 @@ export class AutodialCampaignsService {
    */
   private assertScenario(
     dialMode: string,
-    queueNames: string[] | undefined,
     actions: unknown[] | undefined,
   ): void {
     const list = (Array.isArray(actions) ? actions : []) as IRouteAction[];
@@ -596,7 +668,7 @@ export class AutodialCampaignsService {
         message: `${dialMode} campaign scenario must end with a toqueue step`,
       });
     }
-    if (hasQueue && !queueNames?.length) {
+    if (hasQueue) {
       const inlineQueue = enabled.some(
         (action) => {
           if (action?.type !== "toqueue") return false;
@@ -604,6 +676,7 @@ export class AutodialCampaignsService {
           const target = params?.target as { source?: unknown; value?: unknown } | undefined;
           return Boolean(
             params?.queue
+            || params?.queue_name
             || (target?.source === "fixed" && String(target.value ?? "").trim()),
           );
         },
@@ -611,7 +684,7 @@ export class AutodialCampaignsService {
       if (!inlineQueue) {
         throw new BadRequestException({
           code: "AC_NO_QUEUE",
-          message: "Select at least one queue for the campaign",
+          message: "Choose a fixed queue in the scenario To queue step",
         });
       }
     }
@@ -801,6 +874,16 @@ export class AutodialCampaignsService {
     }
   }
 
+  private async applyAndRecord(row: AcCampaign, revision: number): Promise<boolean> {
+    const applied = await this.dialplanService.applyCampaign(row);
+    if (applied) {
+      await row.update({ applied_revision: revision, apply_error: null });
+    } else {
+      await row.update({ apply_error: "AC_DIALPLAN_APPLY_FAILED" });
+    }
+    return applied;
+  }
+
   private toDto(
     row: AcCampaign,
     schedules: IAutodialSchedule[],
@@ -823,6 +906,8 @@ export class AutodialCampaignsService {
       success_min_sec: row.success_min_sec,
       dial_timeout_sec: row.dial_timeout_sec,
       revision: row.revision,
+      applied_revision: row.applied_revision ?? null,
+      apply_error: row.apply_error ?? null,
       tasks_total: counters?.total ?? 0,
       tasks_pending: counters?.pending ?? 0,
       tasks_done: counters?.done ?? 0,

@@ -274,8 +274,14 @@ export interface IAutodialCidPolicy {
 
 export interface IAutodialAmdConfig {
   enabled: boolean;
-  /** Hang up / disposition when machine detected */
+  /** Hang up / continue scenario / leave a recorded message when machine detected */
   on_machine: "hangup" | "continue" | "voicemail";
+  /**
+   * Tenant prompt filename (module Prompts) played in the machine branch when
+   * `on_machine` is `voicemail`. Stored without directory; dialplan resolves
+   * `/usr/records/{tenant}/sounds/{stem}`.
+   */
+  message_prompt?: string | null;
 }
 
 export interface IAutodialCampaign {
@@ -295,6 +301,10 @@ export interface IAutodialCampaign {
   success_min_sec: number;
   dial_timeout_sec: number;
   revision: number;
+  /** Last revision whose Asterisk apply succeeded. Null if never applied. */
+  applied_revision?: number | null;
+  /** Last dialplan apply failure. Null when the saved revision is applied. */
+  apply_error?: string | null;
   /** Counters for list UI */
   tasks_total?: number;
   tasks_pending?: number;

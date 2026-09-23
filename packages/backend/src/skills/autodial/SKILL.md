@@ -71,9 +71,11 @@ AMD (детект автоответчика) опционален. `MACHINE` д
 
 ## Что агент делает и чего не делает
 
-Читает: `list_autodial_campaigns`, `list_autodial_bases`, `get_autodial_stats`.
+Читает: `list_autodial_campaigns`, `get_autodial_campaign`, `list_autodial_bases`, `get_autodial_stats`.
 
-Предлагает: `pause_autodial_campaign` (пауза кампании), `add_autodial_dnc` (номер в стоп-лист).
+Предлагает: `create_autodial_campaign` (черновик), `update_autodial_campaign` (пейсинг, повторы, транки, CID, AMD, сценарий, расписание, таймауты), `pause_autodial_campaign` (пауза), `add_autodial_dnc` (номер в стоп-лист).
+
+Перед правкой читай `get_autodial_campaign` и меняй только запрошенные поля. Ревизию карточка берёт сама — модель её не угадывает.
 
 **Запуск кампании агенту недоступен.** Это реальные звонки реальным людям — кнопку «Запустить» нажимает человек. Просьбу «запусти обзвон» отрабатывай подготовкой: проверь базу, сценарий и пейсинг, затем скажи, что осталось нажать запуск.
 

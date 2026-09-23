@@ -38,6 +38,52 @@ describe('AutodialOriginatorService', () => {
     expect(originateChannel).not.toHaveBeenCalled();
   });
 
+  it('defers an out-of-hours subscriber without burning the attempt', async () => {
+    const originator = Object.create(
+      AutodialOriginatorService.prototype,
+    ) as AutodialOriginatorService;
+    const originateChannel = jest.fn();
+    originator['phoneModel'] = {
+      findOne: jest.fn().mockResolvedValue({ normalized: '79991234567', tz_offset_min: 0 }),
+    } as unknown as AutodialOriginatorService['phoneModel'];
+    originator['dnc'] = { isBlocked: jest.fn() } as unknown as AutodialOriginatorService['dnc'];
+    originator['ari'] = { originateChannel } as unknown as AutodialOriginatorService['ari'];
+    originator['logger'] = { debug: jest.fn(), warn: jest.fn() } as unknown as AutodialOriginatorService['logger'];
+
+    const update = jest.fn().mockResolvedValue(undefined);
+    const task = { uid: 22, phone_uid: 33, update };
+    const schedules = [{
+      uid: 1,
+      campaign_uid: 11,
+      kind: 'weekly' as const,
+      weekday: null,
+      time_from: '18:00',
+      time_to: '09:00',
+      timezone: 'UTC',
+      date_from: null,
+      date_to: null,
+      enabled: true,
+    }];
+
+    await expect(
+      originator.originate(
+        task as Parameters<AutodialOriginatorService['originate']>[0],
+        { uid: 11, user_uid: 7, base_uid: 8 } as Parameters<AutodialOriginatorService['originate']>[1],
+        undefined,
+        undefined,
+        schedules,
+      ),
+    ).resolves.toBe(false);
+
+    expect(originator['dnc'].isBlocked).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'pending',
+      last_cause: 'subscriber_hours',
+      leased_by: null,
+    }));
+    expect(originateChannel).not.toHaveBeenCalled();
+  });
+
   it('starts the scenario only after Up and only once for duplicate ARI events', async () => {
     const originator = Object.create(
       AutodialOriginatorService.prototype,
@@ -119,7 +165,7 @@ describe('AutodialOriginatorService', () => {
       findAll: jest.fn().mockResolvedValue([]),
     } as unknown as AutodialOriginatorService['fieldModel'];
     originator['dnc'] = { isBlocked: jest.fn().mockResolvedValue(false) } as unknown as AutodialOriginatorService['dnc'];
-    originator['attempts'] = { openAttempt } as unknown as AutodialOriginatorService['attempts'];
+    originator['attempts'] = { openAttempt, nextAttemptNo: jest.fn().mockResolvedValue(1) } as unknown as AutodialOriginatorService['attempts'];
     originator['state'] = { addChannel } as unknown as AutodialOriginatorService['state'];
     originator['ari'] = {
       getAutodialAppName: () => 'krasterisk_autodial',
@@ -174,6 +220,43 @@ describe('AutodialOriginatorService', () => {
     expect(originator['ari'].originateChannel).not.toHaveBeenCalled();
   });
 
+  it('still fences through claimAndOpenAttempt when the in-memory lease field is empty', async () => {
+    const originator = Object.create(AutodialOriginatorService.prototype) as AutodialOriginatorService;
+    const claimAndOpenAttempt = jest.fn().mockResolvedValue({ uid: 44 });
+    const originateChannel = jest.fn().mockResolvedValue(undefined);
+    originator['phoneModel'] = { findOne: jest.fn().mockResolvedValue({ normalized: '79991234567' }) } as unknown as AutodialOriginatorService['phoneModel'];
+    originator['contactModel'] = { findOne: jest.fn().mockResolvedValue(null) } as unknown as AutodialOriginatorService['contactModel'];
+    originator['fieldModel'] = { findAll: jest.fn().mockResolvedValue([]) } as unknown as AutodialOriginatorService['fieldModel'];
+    originator['dnc'] = { isBlocked: jest.fn().mockResolvedValue(false) } as unknown as AutodialOriginatorService['dnc'];
+    originator['attempts'] = { claimAndOpenAttempt, nextAttemptNo: jest.fn().mockResolvedValue(1) } as unknown as AutodialOriginatorService['attempts'];
+    originator['state'] = { addChannel: jest.fn() } as unknown as AutodialOriginatorService['state'];
+    originator['ari'] = {
+      getAutodialAppName: () => 'krasterisk_autodial',
+      originateChannel,
+    } as unknown as AutodialOriginatorService['ari'];
+    originator['attemptByChannel'] = new Map<string, number>();
+
+    await originator.originate(
+      { uid: 22, phone_uid: 33, attempt_count: 0 } as Parameters<AutodialOriginatorService['originate']>[0],
+      {
+        uid: 11,
+        user_uid: 7,
+        base_uid: 8,
+        trunk_pool: [{ trunk_id: 'trunk-1', caller_id: '70000000000' }],
+        cid_policy: { mode: 'per_trunk' },
+        dial_timeout_sec: 30,
+      } as Parameters<AutodialOriginatorService['originate']>[1],
+      new Set(['trunk-1']),
+      'pacer-live',
+    );
+
+    expect(claimAndOpenAttempt).toHaveBeenCalledWith(expect.objectContaining({
+      leaseId: 'pacer-live',
+      taskUid: 22,
+    }));
+    expect(originateChannel).toHaveBeenCalled();
+  });
+
   it('resolves a per-trunk Caller ID from the directory by an explicit contact field', async () => {
     const originator = Object.create(
       AutodialOriginatorService.prototype,
@@ -192,7 +275,7 @@ describe('AutodialOriginatorService', () => {
     originator['directories'] = {
       lookup: jest.fn().mockResolvedValue({ status: 'FOUND', values: ['74951112233'] }),
     } as unknown as AutodialOriginatorService['directories'];
-    originator['attempts'] = { openAttempt: jest.fn().mockResolvedValue({ uid: 44 }) } as unknown as AutodialOriginatorService['attempts'];
+    originator['attempts'] = { openAttempt: jest.fn().mockResolvedValue({ uid: 44 }), nextAttemptNo: jest.fn().mockResolvedValue(1) } as unknown as AutodialOriginatorService['attempts'];
     originator['state'] = { addChannel: jest.fn() } as unknown as AutodialOriginatorService['state'];
     originator['ari'] = {
       getAutodialAppName: () => 'krasterisk_autodial',
@@ -230,5 +313,146 @@ describe('AutodialOriginatorService', () => {
       fieldUids: [17],
     });
     expect(originateChannel.mock.calls[0][0].callerId).toBe('74951112233');
+  });
+
+  it('fails over to the next trunk after a technical originate error', async () => {
+    const originator = Object.create(
+      AutodialOriginatorService.prototype,
+    ) as AutodialOriginatorService;
+    const originateChannel = jest.fn()
+      .mockRejectedValueOnce(new Error('Originate failed'))
+      .mockResolvedValueOnce(undefined);
+    originator['phoneModel'] = {
+      findOne: jest.fn().mockResolvedValue({ normalized: '79991234567' }),
+    } as unknown as AutodialOriginatorService['phoneModel'];
+    originator['contactModel'] = {
+      findOne: jest.fn().mockResolvedValue(null),
+    } as unknown as AutodialOriginatorService['contactModel'];
+    originator['fieldModel'] = {
+      findAll: jest.fn().mockResolvedValue([]),
+    } as unknown as AutodialOriginatorService['fieldModel'];
+    originator['dnc'] = { isBlocked: jest.fn().mockResolvedValue(false) } as unknown as AutodialOriginatorService['dnc'];
+    originator['attempts'] = {
+      openAttempt: jest.fn().mockResolvedValue({ uid: 44, update: jest.fn() }),
+      nextAttemptNo: jest.fn().mockResolvedValue(1),
+      finalize: jest.fn(),
+    } as unknown as AutodialOriginatorService['attempts'];
+    originator['state'] = {
+      addChannel: jest.fn(),
+      dropChannel: jest.fn(),
+    } as unknown as AutodialOriginatorService['state'];
+    originator['ari'] = {
+      getAutodialAppName: () => 'krasterisk_autodial',
+      originateChannel,
+    } as unknown as AutodialOriginatorService['ari'];
+    originator['attemptByChannel'] = new Map<string, number>();
+    originator['logger'] = { error: jest.fn() } as unknown as AutodialOriginatorService['logger'];
+
+    await expect(originator.originate(
+      { uid: 22, phone_uid: 33, attempt_count: 0, update: jest.fn() } as Parameters<AutodialOriginatorService['originate']>[0],
+      {
+        uid: 11,
+        user_uid: 7,
+        base_uid: 8,
+        trunk_pool: [{ trunk_id: 'a' }, { trunk_id: 'b' }],
+        cid_policy: { mode: 'per_trunk' },
+        dial_timeout_sec: 30,
+      } as Parameters<AutodialOriginatorService['originate']>[1],
+    )).resolves.toBe(true);
+
+    expect(originateChannel).toHaveBeenCalledTimes(2);
+    expect(originateChannel.mock.calls[0][0].endpoint).toBe('PJSIP/79991234567@a');
+    expect(originateChannel.mock.calls[1][0].endpoint).toBe('PJSIP/79991234567@b');
+    expect(originator['state'].dropChannel).toHaveBeenCalledWith('ac-11-22-1');
+    expect(originator['attempts'].finalize).not.toHaveBeenCalled();
+  });
+
+  it('defers when trunks are configured but none are currently allowed', async () => {
+    const originator = Object.create(
+      AutodialOriginatorService.prototype,
+    ) as AutodialOriginatorService;
+    originator['phoneModel'] = {
+      findOne: jest.fn().mockResolvedValue({ normalized: '79991234567' }),
+    } as unknown as AutodialOriginatorService['phoneModel'];
+    originator['dnc'] = { isBlocked: jest.fn().mockResolvedValue(false) } as unknown as AutodialOriginatorService['dnc'];
+    originator['logger'] = { debug: jest.fn(), warn: jest.fn() } as unknown as AutodialOriginatorService['logger'];
+    const update = jest.fn().mockResolvedValue(undefined);
+    const task = { uid: 22, phone_uid: 33, attempt_count: 0, update };
+
+    await expect(
+      originator.originate(
+        task as Parameters<AutodialOriginatorService['originate']>[0],
+        {
+          uid: 11,
+          user_uid: 7,
+          base_uid: 8,
+          trunk_pool: [{ trunk_id: 't_uat_ac_loop_20260921', max_channels: 2 }],
+          cid_policy: { mode: 'per_trunk' },
+        } as Parameters<AutodialOriginatorService['originate']>[1],
+        new Set(),
+      ),
+    ).resolves.toBe(false);
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'pending',
+      last_cause: 'no trunk in pool',
+      leased_by: null,
+    }));
+  });
+
+  it('sweeps AMI-empty ghost channels after grace and leaves fresh or live ones', async () => {
+    const originator = Object.create(
+      AutodialOriginatorService.prototype,
+    ) as AutodialOriginatorService;
+    const { AutodialStateService } = require('./autodial-state.service') as typeof import('./autodial-state.service');
+    const state = new AutodialStateService();
+    originator['state'] = state;
+    originator['attemptByChannel'] = new Map<string, number>([['ac-2-6-3', 185]]);
+    originator['handedOffChannels'] = new Set<string>();
+    originator['logger'] = { warn: jest.fn(), error: jest.fn() } as unknown as AutodialOriginatorService['logger'];
+    const finalize = jest.fn().mockResolvedValue(undefined);
+    originator['attempts'] = {
+      findOpenByChannelId: jest.fn(),
+      finalize,
+    } as unknown as AutodialOriginatorService['attempts'];
+
+    const ghost = {
+      channelId: 'ac-2-6-3',
+      campaignUid: 2,
+      taskUid: 6,
+      attemptUid: 185,
+      attemptNo: 3,
+      userUid: 0,
+      number: '000303',
+      trunkId: 't_uat_ac_loop_20260921',
+      startedAt: Date.now() - 60_000,
+      answeredAt: null,
+    };
+    const fresh = { ...ghost, channelId: 'ac-2-4-4', taskUid: 4, attemptUid: 190, startedAt: Date.now() };
+    const liveOther = {
+      ...ghost,
+      channelId: 'ac-3-1-3',
+      campaignUid: 3,
+      taskUid: 1,
+      attemptUid: 186,
+      trunkId: 'other-trunk',
+      startedAt: Date.now() - 60_000,
+    };
+    state.addChannel(ghost);
+    state.addChannel(fresh);
+    state.addChannel(liveOther);
+
+    await originator.sweepAmiGhosts(new Map([
+      ['t_uat_ac_loop_20260921', 0],
+      ['other-trunk', 1],
+    ]), 25_000);
+
+    expect(state.getChannel('ac-2-6-3')).toBeUndefined();
+    expect(state.getChannel('ac-2-4-4')).toBeDefined();
+    expect(state.getChannel('ac-3-1-3')).toBeDefined();
+    expect(finalize).toHaveBeenCalledWith(expect.objectContaining({
+      attemptUid: 185,
+      hangupCause: 'ghost_ami_empty',
+    }));
   });
 });

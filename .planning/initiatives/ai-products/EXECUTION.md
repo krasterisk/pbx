@@ -4,13 +4,13 @@
 
 | Поле | Значение |
 |---|---|
-| Updated | 2026-09-20 |
+| Updated | 2026-09-22 |
 | Mode | `codex-direct` |
-| Coordination status | `idle` — FE chunked green; lab TLS signalling PASS; pilot smoke documented |
+| Coordination status | `idle` — open gates 1–5 recorded (SDES + pilot HTTP PASS; media/NAT/MET5/local-AI/liveMcp BLOCKED). Рефакторинг речевой аналитики — корневая Phase 18, не назначение этой инициативы |
 | Active implementation coordinator | `/root` |
-| Active PLAN / revision | [AI-11-PLAN](AI-11-PLAN.md) post-followup, SHA-256 `134627CF6136025BB0E1C76A3FD91F8405803E4D2F0F52394EDC1B42A42F5756` |
-| Active workers / owned paths | none. FE hang workaround shipped; lab TLS 15061 PASS (SRTP/NAT still BLOCKED); pilot opt-in only |
-| Next action | Wait for user. Remaining open: MET5, local-AI, liveMcp, SRTP media, NAT, commit if requested |
+| Active PLAN / revision | [AI-11-PLAN](AI-11-PLAN.md) post open-gates, SHA-256 `134627CF6136025BB0E1C76A3FD91F8405803E4D2F0F52394EDC1B42A42F5756` |
+| Active workers / owned paths | none |
+| Next action | Wait for user on open gates. Speech analytics refactor is `/gsd-discuss-phase 18`, not an assignment here. Still need: decrypted SRTP media, NAT second host, MET5 corpus, GPU/ollama, vendor MCP |
 | Implementation state | Default `productRuntime: not-installed`. Opt-in pilot: `AI_PRODUCT_RUNTIME_PILOT=1` + schema/workers flags. No live tenant debit. `cloud_wallet` off unless both COM2 flags |
 
 ## Следующее исполнение
@@ -61,6 +61,7 @@ Design only: COM1–COM4 / 10A / 10R, I1–I4, 11L/11F/11O/11A/11R/11M. Не act
 
 | Assignment | Executor identity | PLAN / task IDs / revision | Owned paths | Status / evidence |
 |---|---|---|---|---|
+| AI-11-open-gates-1-5 | `/root`, текущая задача | post-push open gates SRTP/NAT, MET5, local-AI, liveMcp, pilot boot; SHA-256 `134627CF6136025BB0E1C76A3FD91F8405803E4D2F0F52394EDC1B42A42F5756` | evidence/open-gates-1-5; bounded lab dialplan under krasterisk/ai-lab only; no live DSN, no autodial/`xray-ui`, no live debit | **closed**: [SUMMARY](OPEN-GATES-1-5-SUMMARY.md), [VERIFICATION](OPEN-GATES-1-5-VERIFICATION.md), [evidence](evidence/open-gates-1-5/REMOTE-MATRIX.md). SDES 200+crypto **PASS**; pilot HTTP **PASS**; SRTP media/NAT/MET5/local-AI/liveMcp **BLOCKED** |
 | AI-11-followup-fe-tls-pilot | `/root`, текущая задача | AI-11 post-gates follow-up 1→2→4 (no commit), SHA-256 `134627CF6136025BB0E1C76A3FD91F8405803E4D2F0F52394EDC1B42A42F5756` | Frontend vitest hang diagnosis/fix under `packages/frontend`; lab TLS disposable transport evidence under `evidence/followup-fe-tls-pilot/` + harness docs; pilot health smoke. No live Adaptive DSN overwrite, no autodial/`xray-ui`, no live debit, no commercial launch, no commit | **closed**: [SUMMARY](FOLLOWUP-FE-TLS-PILOT-SUMMARY.md), [VERIFICATION](FOLLOWUP-FE-TLS-PILOT-VERIFICATION.md), [evidence](evidence/followup-fe-tls-pilot/REMOTE-MATRIX.md). FE **264/1421** chunked PASS; lab TLS **401** PASS; SRTP/NAT BLOCKED; pilot helper PASS |
 | DB-04-I4-odbc | `/root`, текущая задача | DB-04 I4, SHA-256 `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` | ODBC installer templates + generate DSN/res_odbc/cdr_adaptive_odbc/cel_odbc/extconfig; operator credentials file; disposable Asterisk/DB apply; writer golden CDR/queue_log; app user ≠ ODBC user. No live DSN overwrite, no autodial/`xray-ui`, no production DB | **closed**: [SUMMARY](DB-04-I4-SUMMARY.md), [VERIFICATION](DB-04-I4-VERIFICATION.md), [ODBC](DB-04-I4-ODBC.md), [evidence/i4](evidence/i4/REMOTE-MATRIX.md). MySQL TAP **2/2** + PG TAP **2/2**. Host unixODBC/Asterisk module load and live Adaptive DSN not this slice. AI-11 not assigned |
 | DB-04-I3-upgrade | `/root`, текущая задача | DB-04 I3, SHA-256 `83F520D6B208EE6177C0ADD77D380DBA1CC01A28BA2B5EECCDAA9345305FF085` | upgrade harness: N-1 fixture packs, remaining migrations, replay no-op, dirty refuse, runbook backup→migrate→readiness→drain→admit. Wrap run-migrations. No I4, no autodial/`xray-ui`, no production DB, no `--rollback` | **closed**: [SUMMARY](DB-04-I3-SUMMARY.md), [VERIFICATION](DB-04-I3-VERIFICATION.md), [UPGRADE](DB-04-I3-UPGRADE.md), [evidence/i3](evidence/i3/REMOTE-MATRIX.md). MySQL **4/4** + PG **4/4**. I4 not this slice |

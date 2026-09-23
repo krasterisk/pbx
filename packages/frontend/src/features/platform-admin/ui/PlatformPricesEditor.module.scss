@@ -1,0 +1,60 @@
+.section {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 160px;
+  flex: 1;
+}
+
+.code {
+  font-size: 12px;
+  color: var(--color-muted-foreground, var(--color-text-muted));
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+
+.fieldNarrow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 88px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted-foreground, var(--color-text-muted));
+}
+
+.addForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+}

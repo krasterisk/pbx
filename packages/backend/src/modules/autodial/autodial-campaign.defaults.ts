@@ -29,7 +29,7 @@ export function defaultAutodialRetry(): IAutodialRetryConfig {
 }
 
 export function defaultAutodialAmd(): IAutodialAmdConfig {
-  return { enabled: false, on_machine: 'hangup' };
+  return { enabled: false, on_machine: 'hangup', message_prompt: null };
 }
 
 export function defaultAutodialCidPolicy(): IAutodialCidPolicy {
@@ -38,6 +38,19 @@ export function defaultAutodialCidPolicy(): IAutodialCidPolicy {
 
 export function defaultAutodialTrunkPool(): IAutodialTrunkPoolItem[] {
   return [];
+}
+
+/** Persisted snapshot of the queue_agents capacity provider. */
+export function queueNamesFromPacing(pacing: IAutodialPacingConfig | undefined | null): string[] {
+  const names = new Set<string>();
+  for (const provider of pacing?.providers ?? []) {
+    if (provider.type !== 'queue_agents') continue;
+    for (const name of provider.queue_names ?? []) {
+      const trimmed = String(name ?? '').trim();
+      if (trimmed) names.add(trimmed);
+    }
+  }
+  return [...names];
 }
 
 /**

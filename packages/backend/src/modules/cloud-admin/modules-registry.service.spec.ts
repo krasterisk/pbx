@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { ModulesRegistryService } from './modules-registry.service';
+import { hubListPriceFromRegistry, ModulesRegistryService } from './modules-registry.service';
 import type { HubModule } from './models/hub-module.model';
 import type { TenantModule } from './tenant-module.model';
 
@@ -26,7 +26,7 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
     configGet = jest.fn().mockReturnValue('CLOUD');
 
     service = new ModulesRegistryService(
-      {} as any,
+      { findAll: jest.fn().mockResolvedValue([]) } as any,
       { findAll: tenantFindAll, findOne: jest.fn(), upsert: jest.fn(), update: jest.fn(), bulkCreate: jest.fn() } as any,
       { findOne: jest.fn(), findByPk: jest.fn().mockResolvedValue(null) } as any,
       { get: configGet } as unknown as ConfigService,
@@ -80,6 +80,20 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
     expect(catalog.find((m) => m.code === 'callcenter')?.licenseStatus).toBe('active');
   });
 
+  it('BOX mode honors an explicit hub disable for the cabinet', async () => {
+    configGet.mockReturnValue('BOX');
+    hubFindAll.mockResolvedValue([
+      mockHub({ code: 'ai', kind: 'market', requires_cloud: false }),
+    ]);
+    tenantFindAll.mockResolvedValue([
+      { module_code: 'ai', status: 'inactive' },
+    ] as TenantModule[]);
+
+    const catalog = await service.getHubCatalogForTenant(4);
+    expect(tenantFindAll).toHaveBeenCalledWith({ where: { tenant_id: 4 } });
+    expect(catalog.find((m) => m.code === 'ai')?.licenseStatus).toBe('disabled');
+  });
+
   it('never accepts client licenseStatus — field is computed server-side', async () => {
     hubFindAll.mockResolvedValue([mockHub({ code: 'callcenter', kind: 'market' })]);
     tenantFindAll.mockResolvedValue([]);
@@ -95,7 +109,7 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
         : { allowed: false, reason: 'not_entitled' }
     ));
     service = new ModulesRegistryService(
-      {} as any,
+      { findAll: jest.fn().mockResolvedValue([]) } as any,
       { findAll: tenantFindAll, findOne: jest.fn(), upsert: jest.fn(), update: jest.fn(), bulkCreate: jest.fn() } as any,
       { findOne: jest.fn(), findByPk: jest.fn().mockResolvedValue({ vpbx_user_uid: 8 }) } as any,
       { get: configGet } as unknown as ConfigService,
@@ -196,6 +210,9 @@ describe('ModulesRegistryService A1 catalog and offers', () => {
     await service.onApplicationBootstrap();
     expect(rows.get('voice_robot').is_published).toBe(false);
     expect(rows.get('ai_voice_robots').is_published).toBe(true);
+    expect(rows.get('voice_robot').update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ price_monthly: expect.anything() }),
+    );
   });
 
   it('rejects direct purchases of unpublished or unreleased AI offers', async () => {
@@ -268,6 +285,11 @@ describe('ModulesRegistryService A1 catalog and offers', () => {
       [],
       'BOX',
     )).toBe('active');
+    expect(service.computeLicenseStatus(
+      { code: 'ai', kind: 'market', requires_cloud: false },
+      [{ module_code: 'ai', status: 'inactive' } as any],
+      'BOX',
+    )).toBe('disabled');
   });
 
   it('routes Hub enable for AI products through activation, not tenant_modules upsert', async () => {
@@ -284,5 +306,48 @@ describe('ModulesRegistryService A1 catalog and offers', () => {
       .resolves.toMatchObject({ product: 'speech_analytics', enabled: true });
     expect(setActivation).toHaveBeenCalledWith(8, 'speech_analytics', true, 77);
     expect(upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('ModulesRegistryService module trial expiry', () => {
+  function serviceWith(record: { status: string; expires_at: Date | null } | null, mode = 'CLOUD') {
+    return new ModulesRegistryService(
+      {} as any,
+      { findOne: jest.fn().mockResolvedValue(record) } as any,
+      {} as any,
+      { get: jest.fn().mockReturnValue(mode) } as unknown as ConfigService,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+  }
+
+  it('denies a hub module whose trial clock has passed', async () => {
+    const service = serviceWith({ status: 'trial', expires_at: new Date('2020-01-01') });
+    await expect(service.tenantHasModuleById(9, 'analytics')).resolves.toBe(false);
+  });
+
+  it('allows an open grant and a trial that is still running', async () => {
+    const open = serviceWith({ status: 'active', expires_at: null });
+    await expect(open.tenantHasModuleById(9, 'analytics')).resolves.toBe(true);
+    const future = new Date(Date.now() + 86_400_000);
+    const trial = serviceWith({ status: 'trial', expires_at: future });
+    await expect(trial.tenantHasModuleById(9, 'analytics')).resolves.toBe(true);
+  });
+});
+
+describe('hubListPriceFromRegistry', () => {
+  it('reads own registry price then first paid legacy hub code', () => {
+    const registry = new Map<string, any>([
+      ['autodial', { price_amount: 3500, billing_period: 'month', billing_interval_count: 1 }],
+      ['service_requests', { price_amount: 1500, billing_period: 'day', billing_interval_count: 1 }],
+    ]);
+    expect(hubListPriceFromRegistry('autodial', registry)).toEqual({
+      displayPrice: 3500, billingPeriod: 'month', billingIntervalCount: 1,
+    });
+    expect(hubListPriceFromRegistry('callcenter', registry)).toEqual({
+      displayPrice: 1500, billingPeriod: 'day', billingIntervalCount: 1,
+    });
+    expect(hubListPriceFromRegistry('unknown', registry).displayPrice).toBe(0);
   });
 });

@@ -111,9 +111,12 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
         setSelectedReadOnly(readOnly);
         writeStoredThreadUid(uid);
     }, []);
-    const { currentData: detail } = useGetAiChatThreadQuery(selectedThreadUid ?? 0, {
-        skip: selectedThreadUid == null,
-    });
+    const { currentData: detail, isError: isThreadError, error: threadError } = useGetAiChatThreadQuery(
+        selectedThreadUid ?? 0,
+        {
+            skip: !open || selectedThreadUid == null,
+        },
+    );
     const { data: pendingWorkflows } = useGetPendingAiChatWorkflowsQuery(undefined, {
         skip: !open,
     });
@@ -177,6 +180,15 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
             setLastError(null);
         }
     }, [dispatch, selectThread, selectedThreadUid]);
+
+    useEffect(() => {
+        if (!isThreadError || selectedThreadUid == null) return;
+        const status = (threadError as { status?: number } | undefined)?.status;
+        if (status !== 404) return;
+        selectThread(null);
+        dispatch(aiChatActions.resetTurn());
+        setLastError(null);
+    }, [dispatch, isThreadError, selectThread, selectedThreadUid, threadError]);
 
     const handleClearChat = useCallback(() => {
         abort();
@@ -388,6 +400,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                         >
                             <ThreadList
                                 selectedUid={selectedThreadUid}
+                                skip={!open}
                                 onSelect={handleSelectThread}
                                 onDeleted={handleDeletedThread}
                             />

@@ -31,6 +31,7 @@ describe('autodial labels', () => {
     expect(autodialLimitedByLabel('queue_agents_warmup', t)).toBe(
       'Ожидание данных по операторам',
     );
+    expect(autodialLimitedByLabel('stale_apply', t)).toBe('Диаплан не применён');
   });
 
   it('falls back to the raw reason for an unknown limit', () => {

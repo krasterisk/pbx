@@ -8,7 +8,7 @@ import { AgentThread } from './models/agent-thread.model';
 import { AgentProposal } from './models/agent-proposal.model';
 import { AiChatSettings } from './ai-chat-settings.model';
 import { Tenant } from '../cloud-admin/tenant.model';
-import { CloudSetting } from '../cloud-admin/cloud-setting.model';
+import { BillingSeller } from '../cloud-admin/billing-seller.model';
 
 const SILENT_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const SILENT_WRITE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -99,7 +99,7 @@ export class AgentUsageService {
     @InjectModel(CcAiAuditLog) private readonly audit: typeof CcAiAuditLog,
     @InjectModel(AiChatSettings) private readonly settings: typeof AiChatSettings,
     @InjectModel(Tenant) private readonly tenants?: typeof Tenant,
-    @InjectModel(CloudSetting) private readonly cloudSettings?: typeof CloudSetting,
+    @InjectModel(BillingSeller) private readonly sellers?: typeof BillingSeller,
   ) {}
 
   async queryTenantUsage(from: Date, to: Date): Promise<TenantUsageRow[]> {
@@ -171,12 +171,13 @@ export class AgentUsageService {
       }
     }
 
-    if (uids.includes(0) && !names.has(0) && this.cloudSettings) {
+    if (uids.includes(0) && !names.has(0) && this.sellers) {
       try {
-        const seller = await this.cloudSettings.findOne({
-          where: { key: 'billing.seller.name' },
+        const seller = await this.sellers.findOne({
+          where: { isDefault: true },
+          order: [['id', 'ASC']],
         });
-        const sellerName = seller?.value?.trim();
+        const sellerName = seller?.name?.trim();
         if (sellerName) names.set(0, sellerName);
       } catch (error) {
         this.logger.warn(`seller name unavailable: ${(error as Error).message}`);

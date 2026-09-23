@@ -2,13 +2,14 @@ import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Input, Label, Text,
+  Button, Input, Label, Text, Select, PasswordInput,
 } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
+import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import {
   useCreateTenantMutation,
   useUpdateTenantMutation,
+  useGetSellersQuery,
 } from '@/shared/api/endpoints/cloudAdminApi';
 import { tenantsPageActions } from '../../model/slice/tenantsPageSlice';
 import cls from './TenantFormModal.module.scss';
@@ -19,28 +20,29 @@ export const TenantFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { isModalOpen, modalMode, selectedTenant } = useAppSelector((s) => s.tenantsPage);
+  const { data: sellers = [] } = useGetSellersQuery(undefined, { skip: !isModalOpen });
 
   const [activeTab, setActiveTab] = useState<Tab>('general');
 
-  // Form state
-  const [name, setName]           = useState('');
-  const [slug, setSlug]           = useState('');
-  const [email, setEmail]         = useState('');
-  const [phone, setPhone]         = useState('');
-  const [inn, setInn]             = useState('');
-  const [password, setPassword]   = useState('');
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [inn, setInn] = useState('');
+  const [password, setPassword] = useState('');
   const [adminName, setAdminName] = useState('');
   const [trialDays, setTrialDays] = useState('14');
-  const [maxExt, setMaxExt]       = useState('10');
+  const [maxExt, setMaxExt] = useState('10');
   const [maxTrunks, setMaxTrunks] = useState('2');
   const [maxQueues, setMaxQueues] = useState('3');
+  const [sellerId, setSellerId] = useState<number | ''>('');
 
   const [createTenant, { isLoading: isCreating }] = useCreateTenantMutation();
   const [updateTenant, { isLoading: isUpdating }] = useUpdateTenantMutation();
   const isLoading = isCreating || isUpdating;
 
-  // Prefill on edit
   useEffect(() => {
+    if (!isModalOpen) return;
     if (modalMode === 'edit' && selectedTenant) {
       setName(selectedTenant.name);
       setSlug(selectedTenant.slug ?? '');
@@ -50,22 +52,37 @@ export const TenantFormModal = memo(() => {
       setMaxExt(String(selectedTenant.max_extensions));
       setMaxTrunks(String(selectedTenant.max_trunks));
       setMaxQueues(String(selectedTenant.max_queues));
+      setSellerId(selectedTenant.seller_id);
       setPassword('');
     } else {
-      setName(''); setSlug(''); setEmail(''); setPhone('');
-      setInn(''); setPassword(''); setAdminName('');
+      setName('');
+      setSlug('');
+      setEmail('');
+      setPhone('');
+      setInn('');
+      setPassword('');
+      setAdminName('');
       setTrialDays('14');
-      setMaxExt('10'); setMaxTrunks('2'); setMaxQueues('3');
+      setMaxExt('10');
+      setMaxTrunks('2');
+      setMaxQueues('3');
+      const def = sellers.find((s) => s.isDefault) ?? sellers[0];
+      setSellerId(def?.id ?? '');
     }
     setActiveTab('general');
-  }, [modalMode, selectedTenant, isModalOpen]);
+  }, [modalMode, selectedTenant, isModalOpen, sellers]);
 
   const handleClose = () => dispatch(tenantsPageActions.closeModal());
 
-  const isValid = name.trim() && email.trim() && (modalMode === 'edit' || password.trim());
+  const isValid = Boolean(
+    name.trim()
+    && email.trim()
+    && sellerId
+    && (modalMode === 'edit' || password.trim()),
+  );
 
   const handleSubmit = async () => {
-    if (!isValid) return;
+    if (!isValid || !sellerId) return;
     try {
       if (modalMode === 'create') {
         await createTenant({
@@ -80,6 +97,7 @@ export const TenantFormModal = memo(() => {
           max_extensions: parseInt(maxExt, 10) || 10,
           max_trunks: parseInt(maxTrunks, 10) || 2,
           max_queues: parseInt(maxQueues, 10) || 3,
+          seller_id: sellerId,
         }).unwrap();
       } else if (selectedTenant) {
         await updateTenant({
@@ -93,6 +111,7 @@ export const TenantFormModal = memo(() => {
             max_extensions: parseInt(maxExt, 10) || 10,
             max_trunks: parseInt(maxTrunks, 10) || 2,
             max_queues: parseInt(maxQueues, 10) || 3,
+            seller_id: sellerId,
           },
         }).unwrap();
       }
@@ -108,42 +127,38 @@ export const TenantFormModal = memo(() => {
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'general', label: t('cloudAdmin.tenants.tabGeneral', 'Основные') },
-    { key: 'limits',  label: t('cloudAdmin.tenants.tabLimits', 'Лимиты') },
+    { key: 'limits', label: t('cloudAdmin.tenants.tabLimits', 'Лимиты') },
   ];
 
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent size="xl">
-        <DialogHeader>
+      <DialogContent size="large" className={cls.dialog} data-testid="tenant-form-modal">
+        <DialogHeader className={cls.header}>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        {/* Tabs */}
-        <VStack className={cls.tabsRow} max>
-          <HStack gap="8" className="-mb-[1px] flex overflow-x-auto">
+        <Flex direction="column" className={cls.tabsWrap} max>
+          <Flex className={cls.tabsRow} role="tablist" max>
             {TABS.map((tab) => (
-              <Button
+              <button
                 key={tab.key}
-                variant="ghost"
-                className={`rounded-none relative px-4 py-2 text-sm ${activeTab === tab.key ? 'text-primary' : 'text-muted-foreground'}`}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                className={[cls.tab, activeTab === tab.key && cls.tabActive].filter(Boolean).join(' ')}
                 onClick={() => setActiveTab(tab.key)}
               >
-                {tab.label}
-                {activeTab === tab.key && (
-                  <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
-                )}
-              </Button>
+                <Text as="span">{tab.label}</Text>
+              </button>
             ))}
-          </HStack>
-        </VStack>
+          </Flex>
+        </Flex>
 
-        <VStack className={cls.scrollBody} gap="0">
-          {/* ── Tab: General ─────────────────────────────────── */}
+        <VStack className={cls.scrollBody} gap="0" max>
           {activeTab === 'general' && (
-            <VStack gap="16">
-              <div className={cls.formGrid}>
-                {/* Название кабинета */}
-                <VStack gap="6">
+            <VStack gap="16" max>
+              <Flex className={cls.formGrid} max>
+                <VStack gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-name">
                     {t('cloudAdmin.tenants.field.name', 'Название организации')} *
                   </Label>
@@ -155,8 +170,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                {/* Slug */}
-                <VStack gap="6">
+                <VStack gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-slug">
                     {t('cloudAdmin.tenants.field.slug', 'Идентификатор (slug)')}
                   </Label>
@@ -168,8 +182,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                {/* Email */}
-                <VStack gap="6">
+                <VStack gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-email">
                     {t('cloudAdmin.tenants.field.email', 'Email (логин администратора)')} *
                   </Label>
@@ -183,8 +196,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                {/* Телефон */}
-                <VStack gap="6">
+                <VStack gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-phone">
                     {t('cloudAdmin.tenants.field.phone', 'Телефон')}
                   </Label>
@@ -196,8 +208,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                {/* ИНН */}
-                <VStack gap="6">
+                <VStack gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-inn">
                     {t('cloudAdmin.tenants.field.inn', 'ИНН')}
                   </Label>
@@ -208,16 +219,37 @@ export const TenantFormModal = memo(() => {
                     placeholder="7712345678"
                   />
                 </VStack>
-              </div>
 
-              {/* Раздел: Учётные данные администратора (только при создании) */}
+                <VStack gap="8" max className={cls.field}>
+                  <Label htmlFor="tenant-seller">
+                    {t('cloudAdmin.tenants.field.seller', 'Поставщик')} *
+                  </Label>
+                  <Select
+                    id="tenant-seller"
+                    data-testid="tenant-seller-select"
+                    value={sellerId === '' ? '' : String(sellerId)}
+                    onChange={(e) => setSellerId(e.target.value ? Number(e.target.value) : '')}
+                    error={!sellerId}
+                  >
+                    <option value="" disabled>
+                      {t('cloudAdmin.tenants.placeholder.seller', 'Выберите поставщика')}
+                    </option>
+                    {sellers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}{s.isDefault ? ` (${t('cloudAdmin.sellers.defaultBadge', 'по умолчанию')})` : ''}
+                      </option>
+                    ))}
+                  </Select>
+                </VStack>
+              </Flex>
+
               {modalMode === 'create' && (
-                <div className={cls.section}>
+                <VStack gap="12" max className={cls.section}>
                   <Text className={cls.sectionTitle}>
                     {t('cloudAdmin.tenants.sectionAdmin', 'Администратор кабинета')}
                   </Text>
-                  <div className={cls.formGrid}>
-                    <VStack gap="6">
+                  <Flex className={cls.formGrid} max>
+                    <VStack gap="8" max className={cls.field}>
                       <Label htmlFor="tenant-admin-name">
                         {t('cloudAdmin.tenants.field.adminName', 'Имя администратора')}
                       </Label>
@@ -228,22 +260,22 @@ export const TenantFormModal = memo(() => {
                         placeholder={t('cloudAdmin.tenants.placeholder.adminName', 'Иванов Иван')}
                       />
                     </VStack>
-                    <VStack gap="6">
+                    <VStack gap="8" max className={cls.field}>
                       <Label htmlFor="tenant-password">
                         {t('cloudAdmin.tenants.field.password', 'Пароль')} *
                       </Label>
-                      <Input
+                      <PasswordInput
                         id="tenant-password"
-                        type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
+                        autoComplete="new-password"
                       />
                       <Text className={cls.hint}>
                         {t('cloudAdmin.tenants.passwordHint', 'Пароль для входа администратора в кабинет')}
                       </Text>
                     </VStack>
-                    <VStack gap="6">
+                    <VStack gap="8" max className={cls.field}>
                       <Label htmlFor="tenant-trial-days">
                         {t('cloudAdmin.tenants.field.trialDays', 'Пробный период (дней)')}
                       </Label>
@@ -255,17 +287,16 @@ export const TenantFormModal = memo(() => {
                         onChange={(e) => setTrialDays(e.target.value)}
                       />
                     </VStack>
-                  </div>
-                </div>
+                  </Flex>
+                </VStack>
               )}
             </VStack>
           )}
 
-          {/* ── Tab: Limits ──────────────────────────────────── */}
           {activeTab === 'limits' && (
-            <VStack gap="16">
-              <div className={cls.formGrid}>
-                <VStack gap="6">
+            <VStack gap="16" max>
+              <Flex className={cls.formGrid} max>
+                <VStack gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-max-ext">
                     {t('cloudAdmin.tenants.field.maxExtensions', 'Макс. внутренних номеров')}
                   </Label>
@@ -277,7 +308,7 @@ export const TenantFormModal = memo(() => {
                     onChange={(e) => setMaxExt(e.target.value)}
                   />
                 </VStack>
-                <VStack gap="6">
+                <VStack gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-max-trunks">
                     {t('cloudAdmin.tenants.field.maxTrunks', 'Макс. транков')}
                   </Label>
@@ -289,7 +320,7 @@ export const TenantFormModal = memo(() => {
                     onChange={(e) => setMaxTrunks(e.target.value)}
                   />
                 </VStack>
-                <VStack gap="6">
+                <VStack gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-max-queues">
                     {t('cloudAdmin.tenants.field.maxQueues', 'Макс. очередей')}
                   </Label>
@@ -301,18 +332,20 @@ export const TenantFormModal = memo(() => {
                     onChange={(e) => setMaxQueues(e.target.value)}
                   />
                 </VStack>
-              </div>
+              </Flex>
             </VStack>
           )}
         </VStack>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isLoading}>
-            {t('common.cancel', 'Отмена')}
-          </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || isLoading}>
-            {isLoading ? t('common.saving', 'Сохранение...') : t('common.save', 'Сохранить')}
-          </Button>
+        <DialogFooter className={cls.footer}>
+          <HStack gap="8" justify="end" max wrap="wrap">
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
+              {t('common.cancel', 'Отмена')}
+            </Button>
+            <Button type="button" onClick={() => void handleSubmit()} disabled={!isValid || isLoading}>
+              {isLoading ? t('common.saving', 'Сохранение...') : t('common.save', 'Сохранить')}
+            </Button>
+          </HStack>
         </DialogFooter>
       </DialogContent>
     </Dialog>

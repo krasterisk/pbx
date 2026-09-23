@@ -7,6 +7,7 @@ import {
 import { getAuthApiBase } from '@/shared/api/apiBase';
 import { isNativePlatform } from '@/shared/lib/capacitor/isNative';
 import { registerPush } from '@/shared/lib/capacitor/push';
+import { clearImpersonation, readImpersonatedIdentity } from '@/features/auth/lib/impersonationSession';
 
 export interface AuthState {
   user: ILoginResponse['user'] | null;
@@ -32,9 +33,25 @@ function readWebInitialState(): Pick<
       isHydrated: false,
     };
   }
+  const accessToken = localStorage.getItem(TOKEN_STORAGE_KEYS.accessToken);
+  let user = JSON.parse(localStorage.getItem(TOKEN_STORAGE_KEYS.user) || 'null');
+  const identity = readImpersonatedIdentity(accessToken);
+  if (identity) {
+    user = {
+      ...(user ?? {}),
+      uniqueid: identity.uniqueid,
+      login: identity.login,
+      name: identity.name,
+      level: identity.level,
+      role: identity.role,
+      vpbx_user_uid: identity.vpbx_user_uid,
+      exten: '',
+      avatar: null,
+    };
+  }
   return {
-    user: JSON.parse(localStorage.getItem(TOKEN_STORAGE_KEYS.user) || 'null'),
-    accessToken: localStorage.getItem(TOKEN_STORAGE_KEYS.accessToken),
+    user,
+    accessToken,
     refreshToken: localStorage.getItem(TOKEN_STORAGE_KEYS.refreshToken),
     isAuthenticated: !!localStorage.getItem(TOKEN_STORAGE_KEYS.accessToken),
     isHydrated: true,
@@ -63,6 +80,7 @@ async function clearPersistedSession(): Promise<void> {
   await storage.remove(TOKEN_STORAGE_KEYS.accessToken);
   await storage.remove(TOKEN_STORAGE_KEYS.refreshToken);
   await storage.remove(TOKEN_STORAGE_KEYS.user);
+  clearImpersonation();
 }
 
 /** Native boot: load tokens from Secure Storage into Redux. */
@@ -99,6 +117,7 @@ export const login = createAsyncThunk(
         return rejectWithValue(err.message || 'Ошибка авторизации');
       }
       const data: ILoginResponse & { refreshToken: string } = await response.json();
+      clearImpersonation();
       await persistSession(data.accessToken, data.refreshToken, data.user);
       // FCM foundation after native login (D-32) - non-blocking
       if (isNativePlatform()) {

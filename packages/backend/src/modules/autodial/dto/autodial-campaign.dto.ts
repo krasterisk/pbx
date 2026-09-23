@@ -192,6 +192,11 @@ export class AutodialAmdDto {
 
   @IsIn(["hangup", "continue", "voicemail"])
   on_machine!: "hangup" | "continue" | "voicemail";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  message_prompt?: string | null;
 }
 
 export class AutodialScheduleDraftDto {

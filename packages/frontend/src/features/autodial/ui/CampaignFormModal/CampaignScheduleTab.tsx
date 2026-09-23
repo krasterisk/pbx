@@ -64,8 +64,8 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
         {draft.schedules.map((schedule, index) => (
           <div key={index} className={cls.row}>
             <div className={cls.scheduleGrid}>
-              <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-sched-kind-${index}`}>
+              <VStack gap="8" max className={cls.field}>
+                <Label htmlFor={`autodial-sched-kind-${index}`} className={cls.fieldLabel}>
                   {t("autodial.schedule.kind")}
                 </Label>
                 <Select
@@ -87,8 +87,8 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
               </VStack>
 
               {schedule.kind === "weekly" ? (
-                <VStack gap="4" className={cls.field}>
-                  <Label htmlFor={`autodial-sched-weekday-${index}`}>
+                <VStack gap="8" max className={cls.field}>
+                  <Label htmlFor={`autodial-sched-weekday-${index}`} className={cls.fieldLabel}>
                     {t("autodial.schedule.weekday")}
                   </Label>
                   <Select
@@ -109,8 +109,8 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
                   </Select>
                 </VStack>
               ) : (
-                <VStack gap="4" className={cls.field}>
-                  <Label htmlFor={`autodial-sched-from-${index}`}>
+                <VStack gap="8" max className={cls.field}>
+                  <Label htmlFor={`autodial-sched-from-${index}`} className={cls.fieldLabel}>
                     {t("autodial.schedule.dateFrom")}
                   </Label>
                   <Input
@@ -127,8 +127,8 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
                 </VStack>
               )}
 
-              <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-sched-timefrom-${index}`}>
+              <VStack gap="8" max className={cls.field}>
+                <Label htmlFor={`autodial-sched-timefrom-${index}`} className={cls.fieldLabel}>
                   {t("autodial.schedule.timeFrom")}
                 </Label>
                 <Input
@@ -144,8 +144,8 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
                 />
               </VStack>
 
-              <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-sched-timeto-${index}`}>
+              <VStack gap="8" max className={cls.field}>
+                <Label htmlFor={`autodial-sched-timeto-${index}`} className={cls.fieldLabel}>
                   {t("autodial.schedule.timeTo")}
                 </Label>
                 <Input
@@ -161,23 +161,7 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
                 />
               </VStack>
 
-              <VStack gap="4" className={cls.field}>
-                <HStack gap="4" align="center">
-                  <Label htmlFor={`autodial-sched-tz-${index}`}>
-                    {t("autodial.schedule.timezone")}
-                  </Label>
-                  <InfoTooltip text={t("autodial.schedule.timezoneHint")} />
-                </HStack>
-                <TimeZoneSelect
-                  id={`autodial-sched-tz-${index}`}
-                  value={schedule.timezone}
-                  onChange={(timezone) =>
-                    updateSchedule(index, { ...schedule, timezone })
-                  }
-                />
-              </VStack>
-
-              <HStack gap="8" align="center">
+              <HStack gap="8" align="center" className={cls.scheduleActions}>
                 <Switch
                   checked={schedule.enabled}
                   onCheckedChange={(enabled) =>
@@ -202,9 +186,25 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
               </HStack>
             </div>
 
+            <VStack gap="8" max className={cls.timezoneRow}>
+              <HStack gap="4" align="center">
+                <Label htmlFor={`autodial-sched-tz-${index}`} className={cls.fieldLabel}>
+                  {t("autodial.schedule.timezone")}
+                </Label>
+                <InfoTooltip text={t("autodial.schedule.timezoneHint")} />
+              </HStack>
+              <TimeZoneSelect
+                id={`autodial-sched-tz-${index}`}
+                value={schedule.timezone}
+                onChange={(timezone) =>
+                  updateSchedule(index, { ...schedule, timezone })
+                }
+              />
+            </VStack>
+
             {schedule.kind === "date_range" && (
-              <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-sched-dateto-${index}`}>
+              <VStack gap="8" max className={cls.field}>
+                <Label htmlFor={`autodial-sched-dateto-${index}`} className={cls.fieldLabel}>
                   {t("autodial.schedule.dateTo")}
                 </Label>
                 <Input

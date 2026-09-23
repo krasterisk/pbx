@@ -46,7 +46,13 @@ const campaign = {
   trunk_pool: [{ trunk_id: 'trunk-1' }],
   cid_policy: { mode: 'per_trunk' },
   queue_names: ['sales'],
-  scenario_actions: [],
+  scenario_actions: [
+    {
+      id: 'q1',
+      type: 'toqueue',
+      params: { target: { source: 'fixed', value: 'sales' } },
+    },
+  ],
   amd: { enabled: false, on_machine: 'hangup' },
   success_min_sec: 20,
   dial_timeout_sec: 30,

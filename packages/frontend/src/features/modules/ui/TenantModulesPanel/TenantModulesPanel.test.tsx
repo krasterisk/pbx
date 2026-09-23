@@ -88,7 +88,7 @@ describe('TenantModulesPanel (D-22)', () => {
     expect(screen.getByTestId('tenant-no-membership-editor')).toBeInTheDocument();
     expect(screen.queryByTestId('platform-membership-editor')).not.toBeInTheDocument();
     expect(screen.queryByText('platform.saveMembership')).not.toBeInTheDocument();
-    expect(screen.getByTestId('tenant-module-pages-core')).toHaveTextContent('endpoints');
+    expect(screen.getByTestId('tenant-module-pages-core')).toHaveTextContent('endpoints.title');
   });
 
   it('enable/disable calls tenant Hub APIs only', async () => {
@@ -98,6 +98,15 @@ describe('TenantModulesPanel (D-22)', () => {
     fireEvent.click(toggle);
     expect(enableModule).toHaveBeenCalledWith('ai');
     expect(disableModule).not.toHaveBeenCalled();
+  });
+
+  it('does not toggle hub modules for a platform superadmin', () => {
+    renderPanel(UserLevel.SUPERADMIN);
+    expect(screen.getByTestId('tenant-modules-platform-hint')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/AI/));
+    expect(enableModule).not.toHaveBeenCalled();
+    expect(disableModule).not.toHaveBeenCalled();
+    expect(screen.getByText('Buy')).toBeDisabled();
   });
 
   it('Buy for locked opens CheckoutSheet', () => {

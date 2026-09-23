@@ -1,9 +1,8 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(2px);
-  z-index: 40;
+  background: rgba(0, 0, 0, 0.62);
+  z-index: 45;
   animation: fadeIn 0.2s ease;
 }
 
@@ -12,20 +11,23 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 480px;
-  max-width: 100vw;
-  background: hsl(var(--background));
-  border-left: 1px solid hsl(var(--border));
-  z-index: 50;
+  width: 100%;
+  background: var(--color-sidebar);
+  border-left: 1px solid color-mix(in srgb, var(--color-foreground) 18%, transparent);
+  z-index: var(--z-index-modal);
   display: flex;
   flex-direction: column;
   animation: slideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15);
+  box-shadow: -24px 0 48px rgba(0, 0, 0, 0.55);
+
+  @media (min-width: 769px) {
+    width: 40vw;
+  }
 }
 
 .header {
   padding: 20px 24px 0;
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
@@ -149,6 +151,22 @@
   transition: border-color 0.15s;
 
   &:hover { border-color: hsl(var(--primary) / 0.4); }
+}
+
+.aiLockedHint {
+  color: var(--color-muted-foreground);
+  line-height: 1.35;
+}
+
+.trialDays {
+  width: 4.25rem;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  padding: 0 8px;
+  font-size: 0.8rem;
 }
 
 .moduleStatus { flex-shrink: 0; }

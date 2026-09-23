@@ -42,6 +42,9 @@ describe('SkuCatalogService purchase persistence', () => {
       {} as any,
       { charge, deposit } as any,
       sequelize as any,
+      { setActivation: jest.fn().mockResolvedValue({
+        product: 'speech_analytics', enabled: true, revision: 1,
+      }) } as any,
     );
     return { service, charge, deposit, entitlementsCreate, tenantModulesUpsert };
   }
@@ -78,5 +81,139 @@ describe('SkuCatalogService purchase persistence', () => {
     const { service, entitlementsCreate } = build();
     entitlementsCreate.mockRejectedValue(new UniqueConstraintError({ errors: [] }));
     await expect(service.purchase(8, 'speech_analytics', 1)).rejects.toBeInstanceOf(ConflictException);
+  });
+});
+
+describe('SkuCatalogService operator entitle', () => {
+  function buildEntitle(
+    existing: { status: string } | null = null,
+    tenantPatch: Record<string, unknown> = {},
+  ) {
+    const setActivation = jest.fn().mockResolvedValue({
+      product: 'speech_analytics', enabled: true, revision: 1,
+    });
+    const charge = jest.fn();
+    const tenantModulesUpsert = jest.fn();
+    const tenant = {
+      id: 10, vpbx_user_uid: 8, status: 'active', trial_ends_at: null,
+      update: jest.fn(async (patch: Record<string, unknown>) => Object.assign(tenant, patch)),
+      ...tenantPatch,
+    };
+    const row = {
+      status: existing?.status ?? 'active',
+      trial_ends_at: null as Date | null,
+      update: jest.fn(async (patch: Record<string, unknown>) => Object.assign(row, patch)),
+    };
+    const entitlementFind = jest.fn()
+      .mockResolvedValueOnce(existing ? row : null)
+      .mockResolvedValue(row);
+    const service = new SkuCatalogService(
+      { findByPk: jest.fn().mockResolvedValue(tenant) } as any,
+      { upsert: tenantModulesUpsert } as any,
+      {} as any,
+      {} as any,
+      { findOne: jest.fn().mockResolvedValue(offer('published')) } as any,
+      { findOne: entitlementFind, create: jest.fn() } as any,
+      { bulkCreate: jest.fn() } as any,
+      {} as any,
+      { charge, deposit: jest.fn() } as any,
+      { transaction: jest.fn(async (fn: any) => fn({ LOCK: { UPDATE: 'UPDATE' } })) } as any,
+      { setActivation } as any,
+    );
+    return { service, setActivation, charge, tenant, row, tenantModulesUpsert };
+  }
+
+  it('purchases a published 0 RUB SKU then activates', async () => {
+    const { service, setActivation, charge } = buildEntitle();
+    jest.spyOn(service, 'purchase').mockResolvedValue({
+      skuCode: 'speech_analytics', product: 'speech_analytics',
+      amountRub: 0, entitled: true, enabled: false,
+    } as any);
+    await expect(service.entitleOperator(10, 'speech_analytics', 1)).resolves.toMatchObject({
+      enabled: true, product: 'speech_analytics',
+    });
+    expect(service.purchase).toHaveBeenCalledWith(8, 'speech_analytics', 1);
+    expect(setActivation).toHaveBeenCalledWith(8, 'speech_analytics', true, 1);
+    expect(charge).not.toHaveBeenCalled();
+  });
+
+  it('skips purchase when the cabinet is already entitled', async () => {
+    const { service, setActivation } = buildEntitle({ status: 'active' });
+    const purchase = jest.spyOn(service, 'purchase');
+    await service.entitleOperator(10, 'speech_analytics', 1);
+    expect(purchase).not.toHaveBeenCalled();
+    expect(setActivation).toHaveBeenCalledWith(8, 'speech_analytics', true, 1);
+  });
+
+  it('opens a trial or suspended cabinet before activation', async () => {
+    const { service, tenant } = buildEntitle(null, {
+      status: 'trial', trial_ends_at: null,
+    });
+    jest.spyOn(service, 'purchase').mockResolvedValue({
+      skuCode: 'speech_analytics', product: 'speech_analytics',
+      amountRub: 0, entitled: true, enabled: false,
+    } as any);
+    await service.entitleOperator(10, 'speech_analytics', 1);
+    expect(tenant.update).toHaveBeenCalledWith({ status: 'active', trial_ends_at: null });
+  });
+
+  it('refuses a cancelled cabinet', async () => {
+    const { service, tenant } = buildEntitle(null, { status: 'cancelled' });
+    await expect(service.entitleOperator(10, 'speech_analytics', 1))
+      .rejects.toMatchObject({ response: expect.objectContaining({ code: 'tenant_inactive' }) });
+    expect(tenant.update).not.toHaveBeenCalled();
+  });
+
+  it('sets a trial clock without charging the wallet', async () => {
+    const { service, row, tenantModulesUpsert, charge } = buildEntitle({ status: 'active' });
+    const before = Date.now();
+    await service.entitleOperator(10, 'speech_analytics', 1, { trialDays: 14 });
+    expect(charge).not.toHaveBeenCalled();
+    expect(row.update).toHaveBeenCalledWith(expect.objectContaining({ status: 'trial' }));
+    const ends = row.update.mock.calls[0][0].trial_ends_at as Date;
+    expect(ends.getTime()).toBeGreaterThan(before + 13 * 86400000);
+    expect(tenantModulesUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      tenant_id: 10, module_code: 'speech_analytics', status: 'trial', expires_at: ends,
+    }));
+  });
+});
+
+describe('SkuCatalogService draft snapshot reuse', () => {
+  it('reuses an existing policy snapshot with the same digest', async () => {
+    const snapshotFind = jest.fn().mockResolvedValue({ id: 'snap-existing' });
+    const snapshotCreate = jest.fn();
+    const revisionCreate = jest.fn().mockResolvedValue({});
+    const offerCreate = jest.fn().mockResolvedValue({});
+    const query = jest.fn();
+    const service = new SkuCatalogService(
+      {} as any,
+      {} as any,
+      { findOne: snapshotFind, create: snapshotCreate } as any,
+      { create: revisionCreate } as any,
+      { create: offerCreate } as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      { transaction: jest.fn(async (fn: any) => fn({})) } as any,
+      {} as any,
+    );
+    (service as any).sequelize.query = query;
+    await expect(service.createDraft({
+      ownerTenantUid: 362,
+      skuCode: 'speech_analytics',
+      product: 'speech_analytics',
+      moneyPolicy: 'shadow',
+      priceMonthlyMinor: 0,
+      currency: 'RUB',
+      trialDays: 0,
+    })).resolves.toMatchObject({ skuCode: 'speech_analytics', status: 'draft' });
+    expect(snapshotCreate).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
+    expect(revisionCreate).toHaveBeenCalledWith(expect.objectContaining({
+      owner_tenant_uid: 362,
+      sku_code: 'speech_analytics',
+      policy_snapshot_id: 'snap-existing',
+    }), expect.anything());
   });
 });

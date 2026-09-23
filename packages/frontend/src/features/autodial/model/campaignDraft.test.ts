@@ -4,8 +4,18 @@ import {
   draftToPayload,
   emptyCampaignDraft,
   hasCampaignErrors,
+  hydratePacingFromLegacyQueues,
+  queueNamesFromPacing,
   validateCampaignDraft,
 } from "./campaignDraft";
+
+const fixedQueueScenario = [
+  {
+    id: "q1",
+    type: "toqueue",
+    params: { target: { source: "fixed", value: "sales" } },
+  },
+] as never;
 
 function draftWith(
   overrides: Partial<ReturnType<typeof emptyCampaignDraft>> = {},
@@ -15,7 +25,7 @@ function draftWith(
     name: "Продление подписки",
     base_uid: 7,
     trunk_pool: [{ trunk_id: "mts", caller_id: "74950000000" }],
-    queue_names: ["sales"],
+    scenario_actions: fixedQueueScenario,
     ...overrides,
   };
 }
@@ -40,19 +50,19 @@ describe("validateCampaignDraft", () => {
     ).toBe("required");
   });
 
-  it("demands a queue for progressive and power, but not for agentless", () => {
+  it("demands a fixed toqueue step for progressive and power, not General queues", () => {
     expect(
-      validateCampaignDraft(draftWith({ queue_names: [] })).queue_names,
-    ).toBe("required");
+      validateCampaignDraft(draftWith({ scenario_actions: [] })).scenario_actions,
+    ).toBe("queueRequired");
     expect(
-      validateCampaignDraft(draftWith({ dial_mode: "power", queue_names: [] }))
-        .queue_names,
-    ).toBe("required");
+      validateCampaignDraft(
+        draftWith({ dial_mode: "power", scenario_actions: [] }),
+      ).scenario_actions,
+    ).toBe("queueRequired");
     expect(
       validateCampaignDraft(
         draftWith({
           dial_mode: "agentless",
-          queue_names: [],
           scenario_actions: [{ id: "a", type: "hangup" }] as never,
         }),
       ),
@@ -63,11 +73,19 @@ describe("validateCampaignDraft", () => {
     const errors = validateCampaignDraft(
       draftWith({
         dial_mode: "agentless",
-        queue_names: [],
         scenario_actions: [],
       }),
     );
     expect(errors.scenario_actions).toBe("required");
+  });
+
+  it("demands a prompt when AMD leave-a-message is selected", () => {
+    const errors = validateCampaignDraft(
+      draftWith({
+        amd: { enabled: true, on_machine: "voicemail", message_prompt: null },
+      }),
+    );
+    expect(errors.amd).toBe("messageRequired");
   });
 
   it("rejects a campaign with no pacing provider", () => {
@@ -137,6 +155,56 @@ describe("draftToPayload", () => {
   it("trims the campaign name", () => {
     expect(draftToPayload(draftWith({ name: "  Опрос  " })).name).toBe("Опрос");
   });
+
+  it("snapshots queue_names from the queue_agents pacing provider", () => {
+    const payload = draftToPayload(
+      draftWith({
+        pacing: {
+          providers: [
+            { type: "static", max_channels: 2 },
+            { type: "queue_agents", queue_names: [" sales ", "support", "sales"] },
+          ],
+        },
+      }),
+    );
+    expect(payload.queue_names).toEqual(["sales", "support"]);
+  });
+});
+
+describe("hydratePacingFromLegacyQueues", () => {
+  it("adds queue_agents from legacy campaign.queue_names when missing", () => {
+    const pacing = hydratePacingFromLegacyQueues(
+      { providers: [{ type: "static", max_channels: 2 }] },
+      ["sales", "support"],
+    );
+    expect(pacing.providers).toEqual([
+      { type: "static", max_channels: 2 },
+      { type: "queue_agents", queue_names: ["sales", "support"] },
+    ]);
+  });
+
+  it("does not duplicate an existing queue_agents provider", () => {
+    const pacing = hydratePacingFromLegacyQueues(
+      { providers: [{ type: "queue_agents", queue_names: ["priority"] }] },
+      ["sales"],
+    );
+    expect(pacing.providers).toEqual([
+      { type: "queue_agents", queue_names: ["priority"] },
+    ]);
+  });
+});
+
+describe("queueNamesFromPacing", () => {
+  it("returns unique trimmed names from queue_agents only", () => {
+    expect(
+      queueNamesFromPacing({
+        providers: [
+          { type: "static", max_channels: 1 },
+          { type: "queue_agents", queue_names: ["a", " a ", "b"] },
+        ],
+      }),
+    ).toEqual(["a", "b"]);
+  });
 });
 
 describe("campaignToDraft", () => {
@@ -181,5 +249,23 @@ describe("campaignToDraft", () => {
 
     expect(draft.pacing.providers).toHaveLength(1);
     expect(draft.dial_mode).toBe("power");
+  });
+
+  it("hydrates queue_agents from legacy queue_names on open", () => {
+    const draft = campaignToDraft({
+      uid: 1,
+      name: "Legacy",
+      base_uid: 3,
+      status: "draft",
+      dial_mode: "progressive",
+      pacing: { providers: [{ type: "static", max_channels: 3 }] },
+      queue_names: ["sales", "support"],
+    } as unknown as IAutodialCampaign);
+
+    expect(draft.pacing.providers).toContainEqual({
+      type: "queue_agents",
+      queue_names: ["sales", "support"],
+    });
+    expect(draft.queue_names).toEqual(["sales", "support"]);
   });
 });

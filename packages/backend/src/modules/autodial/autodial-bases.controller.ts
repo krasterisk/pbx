@@ -23,6 +23,7 @@ import { AutodialImportUploadDto } from './dto/autodial-import.dto';
 import {
   CreateAutodialBaseDto,
   CreateAutodialContactDto,
+  BulkDeleteAutodialBasesDto,
   UpdateAutodialBaseDto,
   UpdateAutodialContactDto,
 } from './dto/autodial-base.dto';
@@ -48,6 +49,11 @@ export class AutodialBasesController {
   @Post()
   create(@Req() req: AuthedRequest, @Body() body: CreateAutodialBaseDto) {
     return this.basesService.create(req.user.vpbx_user_uid, body);
+  }
+
+  @Post('bulk-delete')
+  bulkRemove(@Req() req: AuthedRequest, @Body() body: BulkDeleteAutodialBasesDto) {
+    return this.basesService.removeMany(req.user.vpbx_user_uid, body.uids);
   }
 
   @Get(':base_uid')

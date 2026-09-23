@@ -25,6 +25,16 @@
   color: var(--color-muted-foreground);
 }
 
+.impersonation {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-warning);
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chevron {
   width: 0.875rem;
   height: 0.875rem;

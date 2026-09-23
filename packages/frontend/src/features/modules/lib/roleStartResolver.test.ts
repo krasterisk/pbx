@@ -15,6 +15,11 @@ describe('resolveRoleStart (NAV-05 / D-16)', () => {
     expect(resolveRoleStart(UserLevel.ADMIN)).toBe('/');
   });
 
+  it('returns SUPERADMIN → platform console, ignoring tenant role-start', () => {
+    expect(resolveRoleStart(UserLevel.SUPERADMIN)).toBe('/platform');
+    expect(resolveRoleStart(UserLevel.SUPERADMIN, { apiPath: '/' })).toBe('/platform');
+  });
+
   it('falls back to Overview when Call Center is off (D-16 CC-off)', () => {
     expect(
       resolveRoleStart(UserLevel.OPERATOR, { callCenterEnabled: false }),

@@ -45,6 +45,18 @@ export class TenantModule extends Model {
   declare billing_cycle: BillingCycle;
 
   @AllowNull(true)
+  @Column(DataType.STRING(16))
+  declare billing_period: string | null;
+
+  @Default(1)
+  @Column(DataType.INTEGER)
+  declare billing_interval_count: number;
+
+  @AllowNull(true)
+  @Column(DataType.DECIMAL(10, 2))
+  declare list_price_amount: number | null;
+
+  @AllowNull(true)
   @Column(DataType.DATE)
   declare last_billed_at: Date | null;
 

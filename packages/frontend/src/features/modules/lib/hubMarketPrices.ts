@@ -1,15 +1,14 @@
 /**
- * Display prices for Hub market modules (RUB/month).
- * Must stay aligned with backend LEGACY_HUB_LICENSE_CODES → modules_registry.price_monthly.
- * Server remains authoritative at purchase time.
+ * Hub display price comes from the hub-catalog API (`displayPrice`).
+ * Fallback is 0 — the server remains authoritative at purchase time.
  */
-export const HUB_MARKET_DISPLAY_PRICES: Record<string, number> = {
-  callcenter: 1500,
-  analytics: 3000,
-  ai: 2500,
-  autodial: 3500,
-};
-
-export function resolveHubDisplayPrice(moduleCode: string, fallback = 0): number {
-  return HUB_MARKET_DISPLAY_PRICES[moduleCode] ?? fallback;
+export function resolveHubDisplayPrice(
+  item: { displayPrice?: number | null } | number | null | undefined,
+  fallback = 0,
+): number {
+  if (typeof item === 'number' && Number.isFinite(item)) return item;
+  if (item && typeof item === 'object' && typeof item.displayPrice === 'number' && Number.isFinite(item.displayPrice)) {
+    return item.displayPrice;
+  }
+  return fallback;
 }

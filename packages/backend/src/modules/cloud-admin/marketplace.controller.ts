@@ -9,6 +9,7 @@ import { UserLevel } from '../users/user.model';
 import { PurchaseModuleDto } from './dto/purchase-module.dto';
 import { PurchaseModuleService } from './purchase-module.service';
 import { TenantsService } from './tenants.service';
+import { resolveTenantIdFromJwt } from './tenant-binding';
 
 /**
  * Marketplace purchase — tenant ADMIN JWT only (NAV-07 / D-23).
@@ -40,21 +41,19 @@ export class MarketplacePurchaseController {
 
   /**
    * Tenant id from JWT only — never from body.
-   * Fallback: resolve tenants.id via vpbx_user_uid when JWT lacks tenant_id
-   * (payload currently carries vpbx_user_uid; billing/modules keys use tenants.id).
+   * ADMIN may omit tenant_id; tenants.id is resolved via vpbx_user_uid.
+   * SUPERADMIN is not a cabinet: entitlements use /cloud-admin/tenants/:id.
    */
   private async requireTenantAdmin(req: any): Promise<number> {
-    let tenantId: number | undefined = req.user?.tenant_id;
-    if (!tenantId && req.user?.vpbx_user_uid) {
-      const tenant = await this.tenantsService.findByVpbxUid(req.user.vpbx_user_uid);
-      tenantId = tenant?.id;
-    }
-    if (!tenantId) {
+    if (req.user?.level !== UserLevel.ADMIN) {
       throw new ForbiddenException('Tenant binding required');
     }
-    const level = req.user?.level;
-    if (level !== UserLevel.ADMIN && level !== UserLevel.SUPERADMIN) {
-      throw new ForbiddenException('Tenant ADMIN required');
+    const tenantId = await resolveTenantIdFromJwt(
+      req.user,
+      (uid) => this.tenantsService.findByVpbxUid(uid),
+    );
+    if (tenantId == null) {
+      throw new ForbiddenException('Tenant binding required');
     }
     return tenantId;
   }

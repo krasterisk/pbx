@@ -17,11 +17,14 @@ scp -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes \
 
 ssh -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes "$HOST" bash -s <<EOF
 set -euo pipefail
-install -d /etc/asterisk/krasterisk/ai-lab
-cp -f $REMOTE_DIR/pjsip.conf /etc/asterisk/krasterisk/ai-lab/pjsip.conf
-if ! grep -q 'krasterisk/ai-lab/pjsip.conf' /etc/asterisk/pjsip.conf; then
-  printf '\n#tryinclude krasterisk/ai-lab/pjsip.conf\n' >> /etc/asterisk/pjsip.conf
+install -d /etc/asterisk/krasterisk/ai-lab /etc/asterisk/pjsip.d
+cp -f $REMOTE_DIR/pjsip.conf /etc/asterisk/pjsip.d/ai-lab.conf
+if grep -q 'krasterisk/ai-lab/pjsip.conf' /etc/asterisk/pjsip.conf; then
+  sed -i 's#krasterisk/ai-lab/pjsip.conf#pjsip.d/ai-lab.conf#g' /etc/asterisk/pjsip.conf
+elif ! grep -q 'pjsip.d/ai-lab.conf' /etc/asterisk/pjsip.conf; then
+  printf '\n#tryinclude pjsip.d/ai-lab.conf\n' >> /etc/asterisk/pjsip.conf
 fi
+rm -f /etc/asterisk/krasterisk/ai-lab/pjsip.conf
 asterisk -rx 'module reload res_pjsip.so' >$REMOTE_DIR/pjsip-reload.txt 2>&1 || true
 sleep 1
 asterisk -rx 'pjsip show transports' >$REMOTE_DIR/transports.txt 2>&1 || true

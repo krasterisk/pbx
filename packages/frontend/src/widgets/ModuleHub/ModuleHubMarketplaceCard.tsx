@@ -33,7 +33,7 @@ export const ModuleHubMarketplaceCard = memo(function ModuleHubMarketplaceCard({
   );
   const priceRub = isAi
     ? Math.round((publishedSku?.priceMonthlyMinor ?? 0) / 100)
-    : resolveHubDisplayPrice(row.code);
+    : resolveHubDisplayPrice(row);
   const canBuy = !isAi || !!publishedSku;
 
   const motionProps = reduceMotion

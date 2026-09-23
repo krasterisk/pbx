@@ -154,4 +154,17 @@ HTTP-тесты используют настоящий локальный HTTP 
 - Удаление остановленной кампании теперь блокируется, пока остаются leased/dialing задачи, чтобы живой вызов не потерял сценарий и родительскую запись. Новые ошибки чужого/недоступного транка, очереди, внутреннего номера и активного вызова локализованы на ru/en; неизвестные server messages по-прежнему не показываются пользователю.
 - Диалог удаления кампании больше не закрывается до ответа API. При ошибке он остаётся открыт и показывает локализованную причину; после успеха закрывается. Текст подтверждения исправлен: существующий hard delete удаляет задачи, но не записи `ac_attempts`, поэтому прежнее обещание удалить историю было неверным. Два UI-теста проверяют обе ветки.
 
-Проверки после этих изменений: полный backend suite 250 passed suites / 2892 passed tests, 11 skipped; targeted attempt/originator suite: 2 suites / 10 tests passed; DB integration: 11 tests passed с удалением отдельной тестовой схемы. Targeted campaign config: 11 tests; dialplan util: 22 tests. Профильный frontend suite: 17 files / 87 tests passed. `npm run lint` без errors; scoped ESLint для нового кода и backend build прошли, `dist/database/database-config.cjs` присутствует. Полный frontend suite снова воспроизвёл unrelated conference locale failure и завис, поэтому не объявлен зелёным. Не закрыты успешный SIP campaign gate, durable fencing/restart, AMD voicemail, load и политика хранения истории после удаления кампании.
+Проверки после этих изменений: полный backend suite 250 passed suites / 2892 passed tests, 11 skipped; targeted attempt/originator suite: 2 suites / 10 tests passed; DB integration: 11 tests passed с удалением отдельной тестовой схемы. Targeted campaign config: 11 tests; dialplan util: 22 tests. Профильный frontend suite: 17 files / 87 tests passed. `npm run lint` без errors; scoped ESLint для нового кода и backend build прошли, `dist/database/database-config.cjs` присутствует. Полный frontend suite снова воспроизвёл unrelated conference locale failure и завис, поэтому не объявлен зелёным.
+
+## Закрытие модуля 2026-09-21
+
+Пользователь запросил реализовать и закрыть план. Исходный PLAN-файл не редактировался. Кампания uid 1 не запускалась. GSD STATE/ROADMAP фазы 17 не обновлялись.
+
+Добавлено в код этого close: campaign `pacer_owner` CAS, `ac_channel_reservations`, `apply_error`, adapter `renderActionChain` и TTS CURL, технические failover legs, DNC `gate` в claim tx, bulk-delete баз.
+
+Live: isolated Local AMD voicemail на ipbx — `AMD=MACHINE/MAXWORDS-3-2`, `TRYSTATUS=SUCCESS`, `Playback(beep)`; контекст удалён, 0 каналов. Browser: 1920 7 вкладок без overflow документа; Playwright CDP pageScale 200% ru/en 2 passed (open-then-scale). Import-preview 1k = 154 ms; 10k = HTTP 413.
+
+Профильные тесты close: backend autodial 230 passed; frontend autodial 18 files / 96 passed; scoped ESLint autodial 0 errors (1 прежний warning ReportsView).
+
+Артефакты: [SUMMARY](AUTODIAL-REFACTOR-SUMMARY-2026-09-21.md), [VERIFICATION](AUTODIAL-REFACTOR-VERIFICATION-2026-09-21.md), [ADR](AUTODIAL-REFACTOR-ADR-B01-B13-2026-09-21.md). Модуль закрыт как implemented-in-scope, не released.
+

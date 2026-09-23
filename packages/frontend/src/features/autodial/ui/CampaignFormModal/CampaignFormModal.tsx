@@ -70,7 +70,7 @@ const TABS: Array<{ id: TabId; labelKey: string }> = [
 const ERROR_TAB: Record<string, TabId> = {
   name: "general",
   base_uid: "general",
-  queue_names: "general",
+  amd: "general",
   pacing: "pacing",
   predictive: "pacing",
   trunk_pool: "trunks",

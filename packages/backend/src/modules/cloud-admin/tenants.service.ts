@@ -9,6 +9,8 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Tenant, TenantStatus } from './tenant.model';
+import { BillingSeller } from './billing-seller.model';
+import { BillingSellersService } from './billing-sellers.service';
 import { User } from '../users/user.model';
 import { UsersService } from '../users/users.service';
 import { MailerService } from '../mailer/mailer.service';
@@ -31,6 +33,7 @@ export interface CreateTenantDto {
   max_trunks?: number;
   max_queues?: number;
   trial_days?: number;       // По умолчанию 14 дней
+  seller_id?: number;        // По умолчанию — дефолтный поставщик
 }
 
 export interface UpdateTenantDto {
@@ -44,6 +47,7 @@ export interface UpdateTenantDto {
   max_extensions?: number;
   max_trunks?: number;
   max_queues?: number;
+  seller_id?: number;
 }
 
 export interface TenantFilters {
@@ -67,6 +71,7 @@ export class TenantsService {
     private readonly configService: ConfigService,
     private readonly sequelize: Sequelize,
     private readonly identities: TenantIdentityService,
+    private readonly sellersService: BillingSellersService,
   ) {}
 
   // ─── Список тенантов (только SuperAdmin) ───────────────────────────────────
@@ -89,13 +94,16 @@ export class TenantsService {
       limit,
       offset,
       order: [['created_at', 'DESC']],
+      include: [{ model: BillingSeller, as: 'seller', attributes: ['id', 'name'], required: false }],
     });
   }
 
   // ─── Один тенант ───────────────────────────────────────────────────────────
 
   async findOne(id: number): Promise<Tenant> {
-    const tenant = await this.tenantModel.findByPk(id);
+    const tenant = await this.tenantModel.findByPk(id, {
+      include: [{ model: BillingSeller, as: 'seller', attributes: ['id', 'name'], required: false }],
+    });
     if (!tenant) throw new NotFoundException(`Tenant #${id} not found`);
     return tenant;
   }
@@ -139,6 +147,8 @@ export class TenantsService {
     if (existingUser) throw new ConflictException(`User with login '${dto.email}' already exists`);
 
     const trialDays = dto.trial_days ?? 14;
+    const sellerId = dto.seller_id ?? (await this.sellersService.findDefault()).id;
+    await this.sellersService.findOne(sellerId);
 
     const provisionResult = await this.sequelize.transaction(async (t) => {
       // 1. Создать root-пользователя (admin уровень 1)
@@ -164,6 +174,7 @@ export class TenantsService {
         email: dto.email,
         phone: dto.phone || null,
         company_inn: dto.company_inn || null,
+        seller_id: sellerId,
         max_extensions: dto.max_extensions ?? 10,
         max_trunks: dto.max_trunks ?? 2,
         max_queues: dto.max_queues ?? 3,
@@ -229,6 +240,10 @@ export class TenantsService {
       if (existingSlug) throw new ConflictException(`Slug '${dto.slug}' is already taken`);
     }
 
+    if (dto.seller_id != null) {
+      await this.sellersService.findOne(dto.seller_id);
+    }
+
     await tenant.update(dto);
 
     if (updatedBy) {
@@ -238,7 +253,7 @@ export class TenantsService {
       ).catch(() => {});
     }
 
-    return tenant;
+    return this.findOne(id);
   }
 
   // ─── Смена статуса ─────────────────────────────────────────────────────────

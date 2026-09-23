@@ -1,13 +1,16 @@
+import { createHash, randomUUID } from 'crypto';
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { UniqueConstraintError } from 'sequelize';
+import { UniqueConstraintError, type Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Tenant } from '../cloud-admin/tenant.model';
 import { TenantModule } from '../cloud-admin/tenant-module.model';
 import { isAiProductCode, type AiProductModuleCode } from '../cloud-admin/product-access-policy';
 import { BillingBalanceService } from '../cloud-admin/billing/billing-balance.service';
+import { ProductAccessService } from './product-access.service';
 import { purchaseChargeOperationKey } from '../cloud-admin/billing/idempotent-charge';
 import {
   AiPriceRevision, AiQuotaCounter, AiSkuEntitlement, AiSkuOffer, AiSkuRevision,
@@ -16,7 +19,7 @@ import {
 import { utcMonthStart } from '../ai-usage/usage-engine';
 import {
   AI_SKU_PRODUCTS, createDraftSku, emptySkuStores, publishSku, reviseSkuPrice,
-  revokeSku, type TrialLimits,
+  revokeSku, type PolicySnapshot, type TrialLimits,
 } from '../ai-usage/sku-catalog';
 
 const DEFAULT_LIMITS: TrialLimits = {
@@ -53,6 +56,7 @@ export class SkuCatalogService {
     @InjectModel(AiPriceRevision) private readonly prices: typeof AiPriceRevision,
     private readonly billing: BillingBalanceService,
     private readonly sequelize: Sequelize,
+    private readonly productAccess: ProductAccessService,
   ) {}
 
   async listPublished(viewerUid: number) {
@@ -106,15 +110,7 @@ export class SkuCatalogService {
     } catch (error) { boom(error); }
     return this.sequelize.transaction(async (t) => {
       const snapshot = [...stores.snapshots.values()][0];
-      await this.snapshots.create({
-        id: snapshot.id, digest: snapshot.digest,
-        concurrent_jobs: String(snapshot.limits.concurrent_jobs),
-        concurrent_sessions: String(snapshot.limits.concurrent_sessions),
-        storage_bytes: String(snapshot.limits.storage_bytes),
-        audio_ms: String(snapshot.limits.audio_ms),
-        provider_tokens: String(snapshot.limits.provider_tokens),
-        payload_json: snapshot.payload, created_at: now,
-      } as any, { transaction: t });
+      const snapshotId = await this.persistPolicySnapshot(snapshot, now, t);
       const price = [...stores.prices.values()][0];
       if (price) {
         await this.prices.create({
@@ -128,7 +124,7 @@ export class SkuCatalogService {
         id: created.id, owner_tenant_uid: created.ownerTenantUid, sku_code: created.skuCode,
         revision: created.revision, product: created.product, money_policy: created.moneyPolicy,
         price_monthly_minor: String(created.priceMonthlyMinor), currency: created.currency,
-        trial_days: created.trialDays, policy_snapshot_id: created.policySnapshotId,
+        trial_days: created.trialDays, policy_snapshot_id: snapshotId,
         usage_price_revision_id: created.usagePriceRevisionId, config_digest: created.configDigest,
         created_at: now,
       } as any, { transaction: t });
@@ -142,6 +138,42 @@ export class SkuCatalogService {
       if (error instanceof UniqueConstraintError) throw new ConflictException({ code: 'sku_exists' });
       throw error;
     });
+  }
+
+  private async persistPolicySnapshot(
+    snapshot: PolicySnapshot,
+    now: Date,
+    transaction: Transaction,
+  ): Promise<string> {
+    const existing = await this.snapshots.findOne({
+      where: { digest: snapshot.digest },
+      transaction,
+    });
+    if (existing) return existing.id;
+    const savepoint = `sku_snap_${snapshot.id.replace(/-/g, '')}`;
+    await this.sequelize.query(`SAVEPOINT ${savepoint}`, { transaction });
+    try {
+      await this.snapshots.create({
+        id: snapshot.id, digest: snapshot.digest,
+        concurrent_jobs: String(snapshot.limits.concurrent_jobs),
+        concurrent_sessions: String(snapshot.limits.concurrent_sessions),
+        storage_bytes: String(snapshot.limits.storage_bytes),
+        audio_ms: String(snapshot.limits.audio_ms),
+        provider_tokens: String(snapshot.limits.provider_tokens),
+        payload_json: snapshot.payload, created_at: now,
+      } as any, { transaction });
+      await this.sequelize.query(`RELEASE SAVEPOINT ${savepoint}`, { transaction });
+      return snapshot.id;
+    } catch (error) {
+      await this.sequelize.query(`ROLLBACK TO SAVEPOINT ${savepoint}`, { transaction });
+      if (!(error instanceof UniqueConstraintError)) throw error;
+      const raced = await this.snapshots.findOne({
+        where: { digest: snapshot.digest },
+        transaction,
+      });
+      if (!raced) throw error;
+      return raced.id;
+    }
   }
 
   async setStatus(ownerTenantUid: number, skuCode: string, status: 'published' | 'revoked', now = new Date()) {
@@ -324,5 +356,231 @@ export class SkuCatalogService {
       }
       throw error;
     }
+  }
+
+  async listAllOffers() {
+    const rows = await this.offers.findAll({ order: [['sku_code', 'ASC']] });
+    if (rows.length === 0) return [];
+    const revisions = await this.revisions.findAll({
+      where: { id: rows.map((row) => row.current_revision_id) },
+    });
+    const byId = new Map(revisions.map((row) => [row.id, row]));
+    return rows.map((offer) => {
+      const revision = byId.get(offer.current_revision_id);
+      return {
+        skuCode: offer.sku_code,
+        product: offer.product,
+        status: offer.status,
+        ownerTenantUid: offer.owner_tenant_uid,
+        revision: revision?.revision ?? 1,
+        priceMonthlyMinor: Number(revision?.price_monthly_minor ?? 0),
+        currency: revision?.currency ?? null,
+        trialDays: revision?.trial_days ?? 0,
+        moneyPolicy: revision?.money_policy ?? 'shadow',
+      };
+    });
+  }
+
+  async listLatestUsageRates() {
+    const rows = await this.prices.findAll({ order: [['effective_at', 'DESC'], ['created_at', 'DESC']] });
+    const latest = new Map<string, typeof rows[number]>();
+    for (const row of rows) {
+      const key = `${row.product}:${row.unit}`;
+      if (!latest.has(key)) latest.set(key, row);
+    }
+    return [...latest.values()].map((row) => ({
+      id: row.id,
+      providerUid: row.provider_uid,
+      product: row.product,
+      unit: row.unit,
+      currency: row.currency,
+      rate: row.rate == null ? null : Number(row.rate),
+      moneyPolicy: row.money_policy,
+      effectiveAt: row.effective_at,
+    }));
+  }
+
+  async insertUsageRate(input: {
+    product: string;
+    unit: string;
+    rate?: number | null;
+    currency?: string | null;
+    moneyPolicy: 'shadow' | 'local_byok';
+    providerUid?: string;
+    now?: Date;
+  }) {
+    if (input.product !== 'speech_analytics' && input.product !== 'ai_voice_robots') {
+      throw new BadRequestException({ code: 'UNKNOWN_AI_PRODUCT' });
+    }
+    if (input.unit !== 'audio_ms' && input.unit !== 'provider_tokens') {
+      throw new BadRequestException({ code: 'sku_price_invalid' });
+    }
+    if (input.moneyPolicy !== 'shadow' && input.moneyPolicy !== 'local_byok') {
+      throw new BadRequestException({ code: 'sku_money_policy_invalid' });
+    }
+    const now = input.now ?? new Date();
+    const providerUid = input.providerUid ?? 'platform-catalog';
+    const localByok = input.moneyPolicy === 'local_byok';
+    const rate = localByok ? null : input.rate;
+    const currency = localByok ? null : (input.currency ?? 'RUB');
+    if (!localByok && !(typeof rate === 'number' && Number.isFinite(rate) && rate > 0 && currency)) {
+      throw new BadRequestException({ code: 'sku_price_invalid' });
+    }
+    const digest = createHash('sha256').update(JSON.stringify({
+      providerUid, product: input.product, unit: input.unit, currency, rate,
+      moneyPolicy: input.moneyPolicy, scale: 2, roundingMode: 'half_up',
+    })).digest('hex');
+    try {
+      const row = await this.prices.create({
+        id: randomUUID(),
+        provider_uid: providerUid,
+        product: input.product,
+        unit: input.unit,
+        currency,
+        rate: rate == null ? null : String(rate),
+        scale: 2,
+        rounding_mode: 'half_up',
+        money_policy: input.moneyPolicy,
+        effective_at: now,
+        config_digest: digest,
+        created_at: now,
+      } as any);
+      return {
+        id: row.id,
+        providerUid: row.provider_uid,
+        product: row.product,
+        unit: row.unit,
+        currency: row.currency,
+        rate: row.rate == null ? null : Number(row.rate),
+        moneyPolicy: row.money_policy,
+        effectiveAt: row.effective_at,
+      };
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        const existing = await this.prices.findOne({
+          where: {
+            provider_uid: providerUid,
+            product: input.product,
+            unit: input.unit,
+            effective_at: now,
+            config_digest: digest,
+          },
+        });
+        if (existing) {
+          return {
+            id: existing.id,
+            providerUid: existing.provider_uid,
+            product: existing.product,
+            unit: existing.unit,
+            currency: existing.currency,
+            rate: existing.rate == null ? null : Number(existing.rate),
+            moneyPolicy: existing.money_policy,
+            effectiveAt: existing.effective_at,
+          };
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * SuperAdmin grant: 0 ₽ shadow SKU + purchase + activation.
+   * Does not debit the tenant wallet and does not enable cloud_wallet.
+   */
+  async entitleOperator(
+    tenantId: number,
+    product: string,
+    actorUserId: number,
+    options?: { trialDays?: number },
+  ) {
+    const trialDays = options?.trialDays ?? 0;
+    if (!Number.isInteger(trialDays) || trialDays < 0 || trialDays > 365) {
+      throw new BadRequestException({ code: 'trial_days_invalid' });
+    }
+    if (!isAiProductCode(product)) {
+      throw new BadRequestException({ code: 'UNKNOWN_AI_PRODUCT' });
+    }
+    const tenant = await this.tenants.findByPk(tenantId);
+    if (!tenant) throw new NotFoundException({ code: 'tenant_not_found' });
+    const uid = tenant.vpbx_user_uid;
+    if (!Number.isSafeInteger(uid) || uid < 0) {
+      throw new BadRequestException({ code: 'tenant_invalid' });
+    }
+    if (tenant.status === 'cancelled') {
+      throw new ForbiddenException({ code: 'tenant_inactive', product });
+    }
+    // Trial with a null/expired clock and trial→suspended cabinets stay
+    // tenant_inactive in decide(); SuperAdmin grant opens the cabinet first.
+    if (tenant.status !== 'active') {
+      await tenant.update({ status: 'active', trial_ends_at: null });
+    }
+    const offer = await this.ensureOperatorOffer(uid, product);
+    let row = await this.entitlements.findOne({
+      where: { tenant_uid: uid, product },
+    });
+    if (!row) {
+      try {
+        await this.purchase(uid, offer.sku_code, actorUserId);
+      } catch (error) {
+        if (!(error instanceof ConflictException)) throw error;
+      }
+      row = await this.entitlements.findOne({
+        where: { tenant_uid: uid, product },
+      });
+    }
+    if (!row) throw new BadRequestException({ code: 'sku_not_found' });
+    const trialEndsAt = trialDays > 0
+      ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
+      : null;
+    await row.update({
+      status: trialDays > 0 ? 'trial' : 'active',
+      trial_ends_at: trialEndsAt,
+    });
+    await this.tenantModules.upsert({
+      tenant_id: tenantId,
+      module_code: product,
+      status: trialDays > 0 ? 'trial' : 'active',
+      activated_at: new Date(),
+      expires_at: trialEndsAt,
+    } as any);
+    return this.productAccess.setActivation(uid, product, true, actorUserId);
+  }
+
+  private async ensureOperatorOffer(uid: number, product: AiProductModuleCode) {
+    const skuCode = product;
+    let offer = await this.offers.findOne({
+      where: { owner_tenant_uid: uid, sku_code: skuCode },
+    });
+    let conflict: ConflictException | null = null;
+    if (!offer) {
+      try {
+        await this.createDraft({
+          ownerTenantUid: uid,
+          skuCode,
+          product,
+          moneyPolicy: 'shadow',
+          priceMonthlyMinor: 0,
+          currency: 'RUB',
+          trialDays: 0,
+        });
+      } catch (error) {
+        if (!(error instanceof ConflictException)) throw error;
+        conflict = error;
+      }
+      offer = await this.offers.findOne({
+        where: { owner_tenant_uid: uid, sku_code: skuCode },
+      });
+    }
+    if (!offer) {
+      if (conflict) throw conflict;
+      throw new BadRequestException({ code: 'sku_not_found' });
+    }
+    if (offer.status === 'revoked') {
+      throw new ConflictException({ code: 'sku_revoked' });
+    }
+    if (offer.status === 'draft') {
+      await this.setStatus(uid, offer.sku_code, 'published');
+    }
+    return offer;
   }
 }

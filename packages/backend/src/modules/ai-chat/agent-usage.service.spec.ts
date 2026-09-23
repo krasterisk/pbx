@@ -65,8 +65,8 @@ describe('AgentUsageService (15-24 / D-07 / D-08)', () => {
 
   it('attaches tenant names from the tenants table and seller fallback for uid 0', async () => {
     const tenants = { findAll: jest.fn().mockResolvedValue([{ vpbx_user_uid: 10, name: 'Acme PBX' }]) };
-    const cloudSettings = {
-      findOne: jest.fn().mockResolvedValue({ key: 'billing.seller.name', value: 'Локальный офис' }),
+    const sellers = {
+      findOne: jest.fn().mockResolvedValue({ name: 'Локальный офис', isDefault: true }),
     };
     service = new AgentUsageService(
       threads as any,
@@ -75,7 +75,7 @@ describe('AgentUsageService (15-24 / D-07 / D-08)', () => {
       undefined as any,
       undefined as any,
       tenants as any,
-      cloudSettings as any,
+      sellers as any,
     );
     threads.findAll.mockResolvedValue([
       { vpbx_user_uid: 10, provider_uid: 1, tokens_in: 10, tokens_out: 2 },

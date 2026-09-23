@@ -7,11 +7,16 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Label, Loader, Switch
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { useGetAiProvidersQuery } from '@/shared/api/endpoints/aiAgentsApi';
-import { useGetAiProductsStatusQuery } from '@/shared/api/endpoints/cloudAdminApi';
+import {
+  useEntitleCurrentAiProductMutation,
+  useGetAiProductsStatusQuery,
+} from '@/shared/api/endpoints/cloudAdminApi';
 import {
   useSetProductActivationMutation,
   type AiProductCode,
 } from '@/shared/api/endpoints/integrationsApi';
+import { selectIsSuperAdmin } from '@/entities/User';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { resolveAiProductLandingState } from './resolveAiProductLandingState';
 import cls from './AiProductLandingPage.module.scss';
 
@@ -32,14 +37,18 @@ const PRODUCTS: Record<AiProductCode, {
 
 function activationErrorCode(error: unknown): string {
   if (error && typeof error === 'object' && 'data' in error) {
-    const data = (error as { data?: { code?: string } }).data;
+    const data = (error as { data?: { code?: string; message?: { code?: string } | string } }).data;
     if (typeof data?.code === 'string' && data.code.length > 0) return data.code;
+    if (data?.message && typeof data.message === 'object' && typeof data.message.code === 'string') {
+      return data.message.code;
+    }
   }
   return 'product_activation_failed';
 }
 
 export const AiProductLandingPage = memo(({ product }: { product: AiProductCode }) => {
   const { t } = useTranslation();
+  const isSuperAdmin = useAppSelector(selectIsSuperAdmin);
   const { active, marketplace, isLoading: hubLoading } = useHubModules();
   const statusQuery = useGetAiProductsStatusQuery();
   const row = [...active, ...marketplace].find((item) => item.code === product);
@@ -48,6 +57,7 @@ export const AiProductLandingPage = memo(({ product }: { product: AiProductCode 
     skip: hubLoading || statusQuery.isLoading,
   });
   const [setActivation, activationState] = useSetProductActivationMutation();
+  const [entitleCurrent, entitleState] = useEntitleCurrentAiProductMutation();
   const Icon = PRODUCTS[product].icon;
   const licenseStatus = row?.licenseStatus ?? 'locked';
   const loading = hubLoading || statusQuery.isLoading;
@@ -108,6 +118,29 @@ export const AiProductLandingPage = memo(({ product }: { product: AiProductCode 
             <CardContent>
               <VStack gap="12">
                 <Text variant="muted">{t(`aiProducts.states.${stateKey}.body`)}</Text>
+                {stateKey === 'locked' && isSuperAdmin ? (
+                  <>
+                    <Text variant="muted">{t('aiProducts.states.locked.superadminHint')}</Text>
+                    <HStack gap="12">
+                      <Button
+                        type="button"
+                        disabled={entitleState.isLoading}
+                        onClick={() => {
+                          void entitleCurrent({ code: product })
+                            .unwrap()
+                            .catch((error: unknown) => {
+                              toast.error(t(`aiProducts.errors.${activationErrorCode(error)}`));
+                            });
+                        }}
+                      >
+                        {t('aiProducts.entitleCurrent')}
+                      </Button>
+                      <Button asChild variant="outline">
+                        <Link to="/platform/tenants">{t('aiProducts.openTenants')}</Link>
+                      </Button>
+                    </HStack>
+                  </>
+                ) : null}
                 {showConnections && (
                   <HStack gap="12">
                     <Button asChild>

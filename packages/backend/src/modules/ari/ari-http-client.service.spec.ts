@@ -25,7 +25,7 @@ describe('AriHttpClientService originateChannel', () => {
         channelId: 'ac-1',
         callerId: '74951112233',
         timeout: 30,
-      } },
+      }, timeout: 35000 },
     );
   });
 });

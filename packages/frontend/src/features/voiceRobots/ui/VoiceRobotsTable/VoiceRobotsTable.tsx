@@ -1,6 +1,7 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { type Table } from '@tanstack/react-table';
 import { Bot, Copy, Loader2, Pencil, Search, Trash2 } from 'lucide-react';
 import {
   Card,
@@ -11,14 +12,19 @@ import {
   Input,
   TableRowAction,
   TableRowActions,
+  TableSelectionBanner,
+  BulkDeleteDialog,
   Text,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import type { IVoiceRobot } from '@/entities/voiceRobot';
 import { useDeleteVoiceRobotMutation, useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { useVoiceRobotsTableColumns } from './useVoiceRobotsTableColumns';
 import cls from './VoiceRobotsTable.module.scss';
+
+const PAGE_SIZE = 50;
 
 export const VoiceRobotsTable = memo(() => {
   const { t } = useTranslation();
@@ -27,9 +33,8 @@ export const VoiceRobotsTable = memo(() => {
   const { data: robots = [], isLoading } = useGetVoiceRobotsQuery();
   const [deleteRobot] = useDeleteVoiceRobotMutation();
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isDeleting, setIsDeleting] = useState(false);
-  const selectedCount = Object.keys(rowSelection).length;
+  const selection = useCrossPageRowSelection({ globalFilter });
 
   const handleEdit = useCallback((robot: IVoiceRobot) => {
     navigate(`/voice-robots/${robot.uid}`);
@@ -58,6 +63,15 @@ export const VoiceRobotsTable = memo(() => {
     onCopy: handleCopy,
     onDelete: handleDelete,
   });
+
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = robots.find((robot) => String(robot.uid) === id);
+        return row?.name || id;
+      }),
+    [selection.selectedIds, robots],
+  );
 
   const filtered = useMemo(() => {
     const q = globalFilter.trim().toLowerCase();
@@ -92,18 +106,45 @@ export const VoiceRobotsTable = memo(() => {
     </TableRowActions>
   );
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(t('voiceRobots.confirmBulkDelete'))) return;
     setIsDeleting(true);
     try {
       await Promise.all(ids.map((id) => deleteRobot(id).unwrap()));
-      setRowSelection({});
+      selection.afterBulkDelete();
     } finally {
       setIsDeleting(false);
     }
-  }, [rowSelection, deleteRobot, t]);
+  }, [selection, deleteRobot]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<(typeof robots)[number]>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="voiceRobots"
+    />
+  );
 
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
@@ -115,14 +156,14 @@ export const VoiceRobotsTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('voiceRobots.deleteSelected', { count: selectedCount })}
+            {t('voiceRobots.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -184,6 +225,7 @@ export const VoiceRobotsTable = memo(() => {
             )}
           </VStack>
         </CardContent>
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -199,20 +241,24 @@ export const VoiceRobotsTable = memo(() => {
           data-testid="voice-robots-table-scroll"
         >
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             columns={columns}
             data={robots}
             getRowId={(row) => String(row.uid)}
             selectable
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('voiceRobots.empty')}
             exportFilename="voice_robots_export"
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
+      {bulkDeleteDialog}
     </Card>
   );
 });

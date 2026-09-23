@@ -19,7 +19,7 @@ export const TenantStatusBadge = ({ status }: TenantStatusBadgeProps) => {
   return (
     <span className={`${cls.badge} ${cls[status]}`}>
       <span className={cls.dot} />
-      {t(STATUS_LABELS[status], STATUS_LABELS[status])}
+      {t(STATUS_LABELS[status])}
     </span>
   );
 };

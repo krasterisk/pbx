@@ -149,6 +149,19 @@ describe('ProductAccessService', () => {
       .toEqual({ product: 'speech_analytics', enabled: false, revision: 0 });
   });
 
+  it('admits a platform SKU on BOX without a signed local license', async () => {
+    const f = fixture('BOX');
+    f.entitlements.findOne.mockResolvedValue({
+      product: 'speech_analytics', status: 'active',
+      trial_ends_at: null, policy_digest: 'aa'.repeat(32),
+    });
+    f.activations.findOne.mockResolvedValue({ enabled: true });
+    expect(await f.service.decide(0, 'speech_analytics', now)).toMatchObject({
+      allowed: true, source: 'cloud_entitlement',
+    });
+    expect(f.bindings.findOne).not.toHaveBeenCalled();
+  });
+
   it('denies processing when a SKU grant exists but activation is still off', async () => {
     const f = fixture('CLOUD');
     f.entitlements.findOne.mockResolvedValue({

@@ -27,6 +27,14 @@ export function useRoleStartRedirect() {
 
   useEffect(() => {
     if (applied.current || !user || !pending) return;
+    if (user.level === UserLevel.SUPERADMIN) {
+      sessionStorage.removeItem(ROLE_START_PENDING_KEY);
+      applied.current = true;
+      if (location.pathname !== '/platform' && !location.pathname.startsWith('/platform/')) {
+        navigate('/platform', { replace: true });
+      }
+      return;
+    }
     if (isFetching) return;
 
     const path = resolveRoleStart(user.level as UserLevel | undefined, {

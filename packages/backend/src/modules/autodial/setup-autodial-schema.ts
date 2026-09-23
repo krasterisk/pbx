@@ -123,6 +123,10 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
     \`success_min_sec\` INT NOT NULL DEFAULT 15,
     \`dial_timeout_sec\` INT NOT NULL DEFAULT 45,
     \`revision\` INT NOT NULL DEFAULT 0,
+    \`applied_revision\` INT NULL,
+    \`apply_error\` VARCHAR(255) NULL,
+    \`pacer_owner\` VARCHAR(64) NULL,
+    \`pacer_heartbeat_at\` DATETIME NULL,
     \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (\`uid\`),
@@ -237,6 +241,20 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
     UNIQUE KEY \`uq_ac_daily\` (\`campaign_uid\`, \`day\`),
     KEY \`idx_ac_daily_tenant\` (\`vpbx_user_uid\`, \`day\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS \`ac_channel_reservations\` (
+    \`uid\` INT NOT NULL AUTO_INCREMENT,
+    \`vpbx_user_uid\` INT NOT NULL,
+    \`campaign_uid\` INT NOT NULL,
+    \`task_uid\` INT NOT NULL,
+    \`trunk_id\` VARCHAR(128) NOT NULL,
+    \`owner\` VARCHAR(64) NOT NULL,
+    \`expires_at\` DATETIME NOT NULL,
+    \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`uid\`),
+    UNIQUE KEY \`uq_ac_res_task\` (\`task_uid\`),
+    KEY \`idx_ac_res_trunk\` (\`vpbx_user_uid\`, \`trunk_id\`, \`expires_at\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 export async function setupAutodialSchema(sequelize: {
@@ -244,12 +262,58 @@ export async function setupAutodialSchema(sequelize: {
   getQueryInterface?: () => { sequelize?: { query: (sql: string) => Promise<unknown> } };
 }): Promise<void> {
   const qi = sequelize.getQueryInterface?.();
-  const exec = qi?.sequelize?.query ?? sequelize.query;
+  const target = qi?.sequelize ?? sequelize;
+  const exec = (sql: string) => (qi?.sequelize?.query ?? sequelize.query).call(target, sql);
   for (const statement of AUTODIAL_SCHEMA_STATEMENTS) {
-    await exec.call(qi?.sequelize ?? sequelize, statement);
+    await exec(statement);
     console.log('[autodial-schema] OK:', statement.slice(0, 60).replace(/\s+/g, ' '), '…');
   }
+  await alterIdempotent(
+    exec,
+    'ac_campaigns.applied_revision',
+    'ALTER TABLE `ac_campaigns` ADD COLUMN `applied_revision` INT NULL',
+  );
+  await alterIdempotent(
+    exec,
+    'ac_campaigns.apply_error',
+    'ALTER TABLE `ac_campaigns` ADD COLUMN `apply_error` VARCHAR(255) NULL',
+  );
+  await alterIdempotent(
+    exec,
+    'ac_campaigns.pacer_owner',
+    'ALTER TABLE `ac_campaigns` ADD COLUMN `pacer_owner` VARCHAR(64) NULL',
+  );
+  await alterIdempotent(
+    exec,
+    'ac_campaigns.pacer_heartbeat_at',
+    'ALTER TABLE `ac_campaigns` ADD COLUMN `pacer_heartbeat_at` DATETIME NULL',
+  );
+  try {
+    await exec(
+      'UPDATE `ac_campaigns` SET `applied_revision` = `revision` WHERE `applied_revision` IS NULL',
+    );
+  } catch (err: unknown) {
+    console.log('[autodial-schema] applied_revision backfill skipped:', String(err));
+  }
   console.log('[autodial-schema] All tables ready');
+}
+
+async function alterIdempotent(
+  exec: (sql: string) => Promise<unknown>,
+  label: string,
+  sql: string,
+): Promise<void> {
+  try {
+    await exec(sql);
+    console.log(`[autodial-schema] ${label}: applied`);
+  } catch (err: unknown) {
+    const msg = String((err as { message?: string })?.message || err);
+    if (msg.includes('Duplicate column name') || msg.includes('Duplicate')) {
+      console.log(`[autodial-schema] ${label}: already applied — ok`);
+      return;
+    }
+    throw err;
+  }
 }
 
 async function main(): Promise<void> {

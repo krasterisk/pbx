@@ -10,6 +10,12 @@
   flex-shrink: 0;
 }
 
+.scrollBody {
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

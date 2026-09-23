@@ -78,6 +78,21 @@ export class AcCampaign extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare revision: number;
 
+  /** Last campaign revision whose dialplan apply succeeded. Null = never applied. */
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare applied_revision: number | null;
+
+  /** Last dialplan apply failure code/message. Null when apply succeeded. */
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  declare apply_error: string | null;
+
+  /** Worker currently allowed to pace this campaign; CAS heartbeat fencing. */
+  @Column({ type: DataType.STRING(64), allowNull: true })
+  declare pacer_owner: string | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare pacer_heartbeat_at: Date | null;
+
   @CreatedAt
   declare created_at: Date;
 

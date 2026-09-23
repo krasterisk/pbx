@@ -1,0 +1,19 @@
+{
+  "default": {
+    "status": "ok",
+    "profile": "robot-api",
+    "productRuntime": "not-installed",
+    "usable": false,
+    "pilot": false
+  },
+  "pilot": {
+    "status": "ok",
+    "profile": "robot-api",
+    "productRuntime": "installed",
+    "usable": true,
+    "pilot": true
+  },
+  "nestSequelizeBoot": false,
+  "liveDebit": false,
+  "note": "loopback health contract; Nest not pointed at production DB"
+}

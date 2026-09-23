@@ -37,8 +37,9 @@ export function zonedNow(now: Date, timezone: string): ZonedNow {
       hour12: false,
     }).formatToParts(now);
   } catch {
-    // Unknown zone: fall back to UTC rather than blocking the whole campaign.
-    return zonedNow(now, 'UTC');
+    // Unknown zone: fail closed. Substituting UTC would dial at the wrong
+    // local time (B03). scheduleAllows treats weekday < 0 as closed.
+    return { weekday: -1, minutes: Number.NaN, date: '' };
   }
 
   const get = (type: Intl.DateTimeFormatPartTypes): string =>
@@ -67,6 +68,7 @@ export function scheduleAllows(schedule: IAutodialSchedule, now: Date): boolean 
   if (from == null || to == null || from >= to) return false;
 
   const local = zonedNow(now, schedule.timezone);
+  if (local.weekday < 0 || !Number.isFinite(local.minutes) || !local.date) return false;
   if (schedule.kind === 'weekly' && schedule.weekday != null && schedule.weekday !== local.weekday) {
     return false;
   }
@@ -101,4 +103,56 @@ export function subscriberHoursAllow(
   const localMinutes =
     (((now.getUTCHours() * 60 + now.getUTCMinutes() + tzOffsetMin) % 1440) + 1440) % 1440;
   return localMinutes >= from && localMinutes < to;
+}
+
+export interface SubscriberLocalNow {
+  weekday: number;
+  minutes: number;
+  date: string;
+}
+
+/** Wall clock for a stored fixed offset (import-time, not IANA/DST). */
+export function subscriberLocalNow(tzOffsetMin: number, now: Date): SubscriberLocalNow {
+  const shifted = new Date(now.getTime() + tzOffsetMin * 60_000);
+  const y = shifted.getUTCFullYear();
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getUTCDate()).padStart(2, '0');
+  return {
+    weekday: shifted.getUTCDay(),
+    minutes: shifted.getUTCHours() * 60 + shifted.getUTCMinutes(),
+    date: `${y}-${m}-${d}`,
+  };
+}
+
+function subscriberRowAllows(
+  schedule: IAutodialSchedule,
+  tzOffsetMin: number,
+  now: Date,
+): boolean {
+  if (!schedule.enabled) return false;
+  const from = parseHhMm(schedule.time_from);
+  const to = parseHhMm(schedule.time_to);
+  if (from == null || to == null || from >= to) return false;
+  const local = subscriberLocalNow(tzOffsetMin, now);
+  if (schedule.kind === 'weekly' && schedule.weekday != null && schedule.weekday !== local.weekday) {
+    return false;
+  }
+  if (schedule.date_from && local.date < schedule.date_from) return false;
+  if (schedule.date_to && local.date > schedule.date_to) return false;
+  return local.minutes >= from && local.minutes < to;
+}
+
+/**
+ * Last-mile subscriber hours. The allowed clock interval is the campaign's
+ * own enabled schedule windows — not a hardcoded 09:00-20:00 (B04).
+ * No schedule rows means 24/7: there is no subscriber-hour limit to apply.
+ */
+export function subscriberHoursAllowForSchedules(
+  tzOffsetMin: number,
+  now: Date,
+  schedules: IAutodialSchedule[],
+): boolean {
+  const enabled = schedules.filter((row) => row.enabled);
+  if (enabled.length === 0) return true;
+  return enabled.some((row) => subscriberRowAllows(row, tzOffsetMin, now));
 }

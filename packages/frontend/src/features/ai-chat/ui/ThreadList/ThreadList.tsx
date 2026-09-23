@@ -35,6 +35,7 @@ export interface ThreadListSelection {
 
 export interface ThreadListProps {
     selectedUid: number | null;
+    skip?: boolean;
     onSelect: (selection: ThreadListSelection) => void;
     onDeleted?: (uid: number) => void;
 }
@@ -65,10 +66,10 @@ function sortThreads(rows: IAiChatThread[]): IAiChatThread[] {
     return [...rows].sort((a, b) => threadTime(b) - threadTime(a));
 }
 
-export const ThreadList = ({ selectedUid, onSelect, onDeleted }: ThreadListProps) => {
+export const ThreadList = ({ selectedUid, skip = false, onSelect, onDeleted }: ThreadListProps) => {
     const { t } = useTranslation();
-    const mineQuery = useGetAiChatThreadsQuery();
-    const sharedQuery = useGetSharedAiChatThreadsQuery();
+    const mineQuery = useGetAiChatThreadsQuery(undefined, { skip });
+    const sharedQuery = useGetSharedAiChatThreadsQuery(undefined, { skip });
     const [createThread] = useCreateAiChatThreadMutation();
     const [deleteThread] = useDeleteAiChatThreadMutation();
     const [pendingDeleteUid, setPendingDeleteUid] = useState<number | null>(null);

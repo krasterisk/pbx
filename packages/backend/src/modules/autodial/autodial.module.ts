@@ -8,6 +8,7 @@ import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 import { LoggerModule } from '../logger/logger.module';
 import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
 import { DirectoriesModule } from '../directories/directories.module';
+import { PromptsModule } from '../prompts/prompts.module';
 import { Cdr } from '../reports/cdr/cdr.model';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
 import { Queue } from '../queues/queue.model';
@@ -19,6 +20,7 @@ import { AcContactPhone } from './models/ac-contact-phone.model';
 import { AcContact } from './models/ac-contact.model';
 import { AcDailyCampaignStats } from './models/ac-daily-campaign-stats.model';
 import { AcDnc } from './models/ac-dnc.model';
+import { AcChannelReservation } from './models/ac-channel-reservation.model';
 import { AcImportProfile } from './models/ac-import-profile.model';
 import { AcImportRun } from './models/ac-import-run.model';
 import { AcSchedule } from './models/ac-schedule.model';
@@ -36,6 +38,7 @@ import { AutodialInternalController } from './autodial-internal.controller';
 import { AutodialOriginatorService } from './autodial-originator.service';
 import { AutodialPacerService } from './autodial-pacer.service';
 import { AutodialReconcilerService } from './autodial-reconciler.service';
+import { AutodialReservationService } from './autodial-reservation.service';
 import { AutodialReportsController } from './autodial-reports.controller';
 import { AutodialReportsService } from './autodial-reports.service';
 import { AutodialRollupService } from './autodial-rollup.service';
@@ -65,6 +68,7 @@ import { AutodialStateService } from './autodial-state.service';
       AcTask,
       AcAttempt,
       AcDailyCampaignStats,
+      AcChannelReservation,
       PsEndpoint,
       Queue,
       Cdr,
@@ -77,6 +81,7 @@ import { AutodialStateService } from './autodial-state.service';
     LoggerModule,
     ReportsCdrModule,
     DirectoriesModule,
+    PromptsModule,
   ],
   controllers: [
     AutodialBasesController,
@@ -93,6 +98,7 @@ import { AutodialStateService } from './autodial-state.service';
     AutodialDialplanService,
     AutodialSchedulerService,
     AutodialStateService,
+    AutodialReservationService,
     AutodialAttemptService,
     AutodialOriginatorService,
     AutodialPacerService,

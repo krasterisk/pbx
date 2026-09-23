@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 vi.mock('react-i18next', () => ({
@@ -13,8 +13,8 @@ vi.mock('@/features/cloud-admin', () => ({
   TenantFormModal: () => null,
 }));
 
-vi.mock('@/features/cloud-admin/ui/SellerSettingsForm/SellerSettingsForm', () => ({
-  SellerSettingsForm: () => <div data-testid="seller-settings-stub">settings</div>,
+vi.mock('@/features/cloud-admin/ui/SellersTable/SellersTable', () => ({
+  SellersTable: () => <div data-testid="sellers-table">sellers</div>,
 }));
 
 import { PlatformTenantsPage } from './PlatformTenantsPage';
@@ -27,5 +27,11 @@ describe('PlatformTenantsPage', () => {
     expect(screen.getByRole('heading', { name: 'platform.tenantsTitle' })).toBeInTheDocument();
     expect(screen.getByText('platform.tenantsSubtitle')).toBeInTheDocument();
     expect(screen.getByTestId('tenants-table-stub')).toBeInTheDocument();
+  });
+
+  it('switches to suppliers tab and renders sellers table', () => {
+    render(<PlatformTenantsPage />);
+    fireEvent.click(screen.getByTestId('platform-sellers-tab'));
+    expect(screen.getByTestId('sellers-table')).toBeInTheDocument();
   });
 });

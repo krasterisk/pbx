@@ -1,4 +1,4 @@
-import { selectAutodialTrunk } from './autodial-trunk.util';
+import { selectAutodialTrunk, selectAutodialTrunkLegs } from './autodial-trunk.util';
 
 describe('selectAutodialTrunk', () => {
   it('returns null for an empty pool so the caller can fail the task', () => {
@@ -127,5 +127,28 @@ describe('selectAutodialTrunk', () => {
   it('reports no caller id rather than an empty string when none is configured', () => {
     const target = selectAutodialTrunk([{ trunk_id: 'mtt' }], { mode: 'per_trunk' }, '7900', 0);
     expect(target?.callerId).toBeNull();
+  });
+});
+
+describe('selectAutodialTrunkLegs', () => {
+  it('returns the weighted primary first and unique remaining trunks after it', () => {
+    const legs = selectAutodialTrunkLegs(
+      [{ trunk_id: 'a' }, { trunk_id: 'b' }, { trunk_id: 'a' }, { trunk_id: 'c' }],
+      { mode: 'per_trunk' },
+      '7900',
+      0,
+    );
+    expect(legs.map((leg) => leg.trunkId)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('does not add a saturated trunk as a failover leg', () => {
+    const legs = selectAutodialTrunkLegs(
+      [{ trunk_id: 'a' }, { trunk_id: 'b' }],
+      { mode: 'per_trunk' },
+      '7900',
+      0,
+      new Set(['a']),
+    );
+    expect(legs.map((leg) => leg.trunkId)).toEqual(['a']);
   });
 });

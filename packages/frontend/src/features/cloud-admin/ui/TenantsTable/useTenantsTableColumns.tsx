@@ -13,6 +13,7 @@ import {
 import type { ITenant } from '@/entities/tenant';
 import { tenantsPageActions } from '../../model/slice/tenantsPageSlice';
 import { TenantStatusBadge } from '../TenantStatusBadge';
+import { rememberImpersonation, persistImpersonatedUser } from '@/features/auth/lib/impersonationSession';
 import cls from './TenantsTable.module.scss';
 
 export const useTenantsTableColumns = () => {
@@ -40,6 +41,15 @@ export const useTenantsTableColumns = () => {
       header: t('cloudAdmin.tenants.email'),
       cell: ({ getValue }) => (
         <Text as="span" className={cls.muted}>{String(getValue() ?? '-')}</Text>
+      ),
+    },
+    {
+      id: 'seller',
+      header: t('cloudAdmin.tenants.seller', 'Поставщик'),
+      cell: ({ row }) => (
+        <Text as="span" className={cls.muted}>
+          {row.original.seller?.name ?? '—'}
+        </Text>
       ),
     },
     {
@@ -96,9 +106,11 @@ export const useTenantsTableColumns = () => {
               aria-label={t('cloudAdmin.drawer.impersonate')}
               onClick={async () => {
                 try {
-                  const { accessToken } = await impersonate(tenant.id).unwrap();
+                  const { accessToken, user } = await impersonate(tenant.id).unwrap();
                   localStorage.setItem('accessToken', accessToken);
                   localStorage.setItem('impersonation_token', accessToken);
+                  rememberImpersonation(tenant);
+                  if (user?.uniqueid) persistImpersonatedUser(user);
                   window.location.href = '/';
                 } catch (e) {
                   console.error('Impersonate failed:', e);

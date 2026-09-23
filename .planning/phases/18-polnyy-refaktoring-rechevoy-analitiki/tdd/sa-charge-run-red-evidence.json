@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=sa-charge-run --no-coverage",
+  "exitCode": 1,
+  "targetTest": "writes amount 0 with charged=false when speech_analytics rates are missing",
+  "targetFile": "packages/backend/src/modules/speech-analytics/charging/sa-charge-run.spec.ts",
+  "expected": "amount 0, currency RUB, charged false, updateRun called",
+  "actual": "amount 999, currency XXX, updateRun not called",
+  "output": "FAIL sa-charge-run.spec.ts\n# tests 4\n# pass 1\n# fail 3\n# cancelled 0\nnot ok 1 - derives the future operation key from the run id only\nnot ok 2 - writes amount 0 with charged=false when speech_analytics rates are missing\nnot ok 3 - still invokes the persist path when calculated parts sum to 0\nok 4 - never imports settleShadow or BillingBalanceService from the seam module"
+}

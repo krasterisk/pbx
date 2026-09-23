@@ -124,7 +124,8 @@ krasterisk_v4/
   - Не дублировать `.actionBtn` в feature SCSS.
   - Эталоны: `features/contexts/ui/ContextsTable/useContextsTableColumns.tsx`, `features/trunks/ui/TrunksTable/useTrunksTableColumns.tsx`, `features/users/ui/UsersTable/useUsersTableColumns.tsx`, `features/routes/ui/RoutesTable/RoutesTable.tsx`.
   - Компонент: `shared/ui/TableRowActions`.
-  - Полный канон страницы + таблицы: см. «Паттерн страницы списка и таблицы» ниже.
+  - Полный канон страницы + таблицы: см. «Паттерн страницы списка и таблицы» ниже (в т.ч. **§4.2** массовое выделение, **§4.2.1** кросс-страничный select / баннер «Выбрать все N», **§4.2.2** Dialog preview, **§4.2.3** CSV).
+- **Cross-page table selection (MUST):** В CRUD-`DataTable` с client-side пагинацией header checkbox выбирает **только текущую страницу**; выбор отдельных строк **сохраняется** между страницами; при «вся страница» и `filteredCount > pageSize` — баннер `renderBanner` («Выбрать все N» / «Снять»). Массовые действия и CSV работают по полному `rowSelection`. Bulk confirm — Dialog с коротким preview (лимит 8), не `window.confirm` со всеми именами. Эталон: `features/endpoints/ui/EndpointsTable`. Детали — «Паттерн страницы списка и таблицы» §4.2–4.2.3.
 - **Focus ring inset (MUST):** обводка фокуса у полей ввода **обязана** рисоваться **внутри** рамки (`ring-inset`). Контейнеры модалок (`DialogContent size="large"` → `overflow: hidden`) и тело со скроллом (`.scrollBody` / `.formBody` → `overflow-y: auto`) **обрезают** внешний ring / `box-shadow` - слева/сверху «пропадает» половина выделения.
   - Tailwind: `focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-transparent` (для обёрток вроде `TagInput` - `focus-within:…`).
   - Запрещено: `focus:ring-1` / `focus-within:ring-1` без `ring-inset`, внешний `box-shadow: 0 0 0 2px` на контроле внутри скролла.
@@ -515,9 +516,11 @@ import { Pencil, Copy, Trash2 } from 'lucide-react';
 4. Ряды «инпут + узкое поле + чекбокс + actions» (`HStack`) - `wrap="wrap"` и на 640px `flex-direction: column; align-items: stretch`; фиксированные `width: 8rem` получают `width: 100%`.
 5. Footer-кнопки на 640px - на всю ширину (`flex-direction: column; align-items: stretch`). `DialogFooter` уже `flex-col-reverse` на `max-sm`.
 6. Таблица внутри модалки - обёртка `overflow-x: auto` + `min-width: 0` (горизонтальный скролл только у таблицы, не у страницы и не у оболочки).
+7. **Repeatable-row** внутри `size="large"` (строка транка, расписания, провайдера ёмкости): CSS grid, не `HStack` с фиксированными `width`. На `≤768px` - две колонки, на `≤640px` - одна. Составной контрол (поиск + select timezone, MultiSelect очередей, CID directory) **не** клеить в узкую колонку 5-6-col ряда: выносить на полную ширину следующей строки того же `.row`. Табы могут иметь горизонтальный скролл; поля формы - нет (`scrollWidth <= clientWidth` контейнера вкладки).
 
 Эталоны pin-высоты: `DialogContent size="large"` (`shared/ui/Dialog`), `features/endpoints/ui/EndpointFormModal`, `features/ivrs/ui/IvrFormModal`.  
-Эталон компактной hug-формы: `features/users/ui/UserFormModal`.
+Эталон компактной hug-формы: `features/users/ui/UserFormModal`.  
+Эталон repeatable-row в large-модалке: `features/autodial/ui/CampaignFormModal` (расписание / транки / темп).
 
 ##### 2. Поля формы
 
@@ -651,7 +654,8 @@ import { Pencil, Copy, Trash2 } from 'lucide-react';
 #### Паттерн страницы списка и таблицы (MUST)
 
 **Эталоны страницы:** `pages/ContextsPage/`, `features/trunks/ui/TrunksPage/`, `pages/DirectoriesPage/`, `pages/MohPage/`, `pages/IvrsPage/`.  
-**Эталоны таблицы:** `features/contexts/ui/ContextsTable/`, `features/trunks/ui/TrunksTable/`, `features/directories/ui/DirectoriesTable/`.
+**Эталоны таблицы:** `features/contexts/ui/ContextsTable/`, `features/trunks/ui/TrunksTable/`, `features/directories/ui/DirectoriesTable/`.  
+**Эталон кросс-страничного select / bulk Dialog / CSV+selection:** `features/endpoints/ui/EndpointsTable/` (+ `shared/ui/DataTable`, `features/endpoints/lib/bulkDeletePreview.ts`).
 
 Новые и рефакторимые CRUD-списки (заголовок + CTA + таблица + модалка) **обязаны** следовать этой композиции. Не копировать legacy `UsersPage` / `EndpointsPage` / `QueuesPage` (Tailwind + `h1` + `motion.div`).
 
@@ -871,14 +875,23 @@ import { Pencil, Copy, Trash2 } from 'lucide-react';
 | Что | Как |
 |-----|-----|
 | Чекбоксы | `selectable` + контролируемые `rowSelection` / `onRowSelectionChange` у `DataTable` |
-| API | bulk-mutation модуля (`useBulkDelete…Mutation`) + confirm через `t('[module].confirmBulkDelete')` |
+| `selectedIds` | `Object.keys(rowSelection).filter((id) => rowSelection[id])` — не полагаться на «только текущую страницу» |
+| API | bulk-mutation модуля (`useBulkDelete…Mutation`) |
+| Confirm | **Dialog** (`Dialog` + `DialogTitle` / `DialogDescription` / `DialogFooter`) — не `window.confirm` с перечислением всех ID/имён (см. §4.2.2) |
 | CTA | `Button variant="destructive"` + `Trash2` / `Loader2` + `t('[module].deleteSelected', { count })` |
 | Mobile | кнопку в тулбаре не показываем (`!isMobile`); удаление — row-action на карточке |
 | Отчёты | CDR / audit / wallboard — исключение: нет массового delete, если в домене нет деструктивного API |
 
 **Запрещено** монтировать кнопку только при `selectedCount > 0`. Появление кнопки меняет ширину тулбара, `flex-wrap` переносит поиск на вторую строку — карточка и таблица «скачут».
 
-Эталон: `features/ivrs/ui/IvrsTable` (`IvrsTable.tsx` + `.bulkBtnHidden`).
+Эталон reserved-слота: `features/ivrs/ui/IvrsTable` (`IvrsTable.tsx` + `.bulkBtnHidden`).  
+Эталон кросс-страничного выбора + Dialog + CSV: `features/endpoints/ui/EndpointsTable`.  
+**Shared building blocks (MUST reuse):**  
+- `useCrossPageRowSelection` — `@/shared/hooks/useCrossPageRowSelection`  
+- `TableSelectionBanner` — `@/shared/ui`  
+- `BulkDeleteDialog` — `@/shared/ui` (i18n: module keys → fallback `common.*`)  
+- `buildBulkDeletePreview` — `@/shared/lib/tableSelection`  
+Не копировать логику баннера/preview в feature SCSS/TSX с нуля.
 
 ```tsx
 // ✅ слот всегда в потоке; без выбора кнопка невидима, место занято
@@ -889,7 +902,7 @@ import { Pencil, Copy, Trash2 } from 'lucide-react';
     disabled={isDeleting || selectedCount === 0}
     aria-hidden={selectedCount === 0}
     tabIndex={selectedCount === 0 ? -1 : undefined}
-    onClick={handleBulkDelete}
+    onClick={handleOpenBulkDelete}
   >
     {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
     {t('ivrs.deleteSelected', { count: selectedCount })}
@@ -929,7 +942,79 @@ import { Pencil, Copy, Trash2 } from 'lucide-react';
 )}
 ```
 
-i18n (ru + en) в блоке модуля: `deleteSelected` (`Удалить ({{count}})`), `confirmBulkDelete`.
+i18n (ru + en) в блоке модуля: `deleteSelected` (`Удалить ({{count}})`), ключи confirm/banner/CSV из §4.2.1–4.2.3.
+
+##### 4.2.1. Кросс-страничный выбор (MUST) — паттерн «Gmail»
+
+При client-side пагинации `DataTable` checkbox в **шапке** выбирает **только текущую страницу** (`getToggleAllPageRowsSelectedHandler`). Это намеренно: случайный клик не должен выделить тысячи строк.
+
+Индивидуальные checkbox на строках **обязаны** накапливать ID в `rowSelection` при смене страницы (TanStack хранит `Record<id, true>` по `getRowId` — не сбрасывать selection при пагинации).
+
+Когда выбрана вся текущая страница и `filteredCount > pageSize`, таблица **обязана** показать баннер (слот `renderBanner` у `DataTable`):
+
+| Состояние | Баннер |
+|-----------|--------|
+| Вся страница, есть ещё строки по фильтру | «Выбрано N на этой странице» + link **«Выбрать все M»** → `tableRef.selectAllFiltered()` |
+| Уже выбраны все по фильтру | «Выбраны все M» + link **«Снять выделение»** → `tableRef.clearSelection()` |
+
+```mermaid
+flowchart TD
+  headerClick["Header checkbox"] --> pageOnly["Выбрана текущая страница"]
+  rowClick["Checkbox строки"] --> persist["ID копится в rowSelection на всех страницах"]
+  pageOnly --> banner{"filteredCount > pageSize?"}
+  banner -->|да| offerAll["Баннер: Выбрать все M"]
+  banner -->|нет| allDone["Выбраны все видимые"]
+  offerAll --> allFiltered["selectAllFiltered"]
+  persist --> actions["Удалить / CSV по полной выборке"]
+  allFiltered --> actions
+  actions --> confirm["Dialog: count + короткий preview"]
+```
+
+**Правила:**
+
+- **Запрещено** переводить header на `getToggleAllRowsSelectedHandler()` («сразу все») — небезопасно при больших списках.
+- Массовые действия (delete / CSV при выборе) используют **полный** `selectedIds`, не только строки текущей страницы.
+- Режим «все по фильтру» (`allMatchingSelected`): при смене `globalFilter` сбрасывать флаг и, если он был включён, саму выборку. Ручные ID по страницам при смене поиска не трогать, если режим «все» не был активен.
+- Баннер: только `Flex` / `HStack` / `Text` / `Button variant="link"` из `@/shared/ui` + SCSS модуля фичи (`.selectionBanner`). Без native `div` / `span` / `button` в `features/`.
+- `DataTable`: `selectAllAriaLabel`, `indeterminate` на header checkbox через `getIsSomePageRowsSelected()`.
+- Ref API: `selectAllFiltered()`, `clearSelection()`, `exportCsv(options?)`.
+
+Эталон: `features/endpoints/ui/EndpointsTable` + `shared/ui/DataTable`.
+
+##### 4.2.2. Confirm bulk-delete — короткий preview (MUST)
+
+`window.confirm` со склейкой всех имён/номеров (`extensions.join(', ')`) **запрещён** при bulk: при сотнях/тысячах записей UI неприемлем.
+
+Использовать **Dialog** (канон как `ConferencesTable` single-delete / `EndpointsTable` bulk):
+
+| Выборка | Заголовок | Тело |
+|---------|-----------|------|
+| 1 | Удалить «{{name}}» / абонента {{ext}}? | Короткое «нельзя отменить» |
+| 2–8 | Удалить N …? | Полный список меток |
+| 9+ | Удалить N …? | Первые **8** + «и ещё K». **Не** рендерить сотни узлов |
+| Все по фильтру / весь список | Удалить всех (N)? / всех по поиску (N)? | Без списка меток + «нельзя отменить» |
+
+Preview выносить в чистую функцию модуля (эталон: `features/endpoints/lib/bulkDeletePreview.ts` — `buildBulkDeletePreview`, лимит `BULK_DELETE_PREVIEW_LIMIT = 8`) и покрывать unit-тестом.
+
+Футер: `common.cancel` + destructive `deleteSelected` с `{ count }`. Type-to-confirm не требуется: защита — двухшаговый select (§4.2.1) + явный count.
+
+Одиночное удаление в row-actions может оставаться на `window.confirm` / отдельном Dialog — это другой поток.
+
+i18n (ru + en): `confirmBulkDelete`, `confirmBulkDeleteBody` / `…BodyMore`, `confirmBulkDeleteAll` / `…AllFiltered`, `confirmBulkDeleteIrreversible`, строки баннера (`selectionBannerPage`, `selectionBannerSelectAll`, `selectionBannerAll`, `selectionBannerClear`), `selectPageAria`.
+
+##### 4.2.3. CSV export и selection (MUST, если в тулбаре есть CSV)
+
+`DataTableRef.exportCsv(options?: { rows?: 'filtered' | 'selected' })`:
+
+| Условие | Поведение |
+|---------|-----------|
+| `selectedCount === 0` / вызов без args / `rows: 'filtered'` | **Все** строки текущего набора (`getFilteredRowModel()`, **все страницы**). Пустой поиск = весь список. Кнопка: `t('[module].exportCsv')` |
+| `selectedCount > 0` → `exportCsv({ rows: 'selected' })` | Только выбранные (`getFilteredSelectedRowModel()`). Подпись: `t('[module].exportSelectedCsv', { count })` |
+| `rows: 'selected'`, но выборка пуста | **Fallback** на filtered — никогда не скачивать CSV из 0 строк из-за «ничего не отмечено» |
+
+**Запрещено:** выгружать только текущую страницу; вызывать `rows: 'selected'` при пустой выборке из feature-кода.
+
+Эталон: `EndpointsTable` + `DataTable.exportCsv`.
 
 ##### 5. Lucide на страницах и в таблицах
 
@@ -955,9 +1040,12 @@ i18n (ru + en) в блоке модуля: `deleteSelected` (`Удалить ({{
 - [ ] Тулбар: `size={20}` + `.toolbarIcon`; поиск: `Search` + `.searchIcon` в SCSS
 - [ ] CRUD-список: `selectable` + bulk-delete в тулбаре
 - [ ] Bulk-кнопка всегда в потоке (`visibility: hidden` при `selectedCount === 0`), не `{selectedCount > 0 && …}`; тулбар `nowrap` на десктопе
+- [ ] Кросс-страничный select: header = только страница; selection persist; баннер «Выбрать все N» / «Снять»; не `getToggleAllRowsSelectedHandler`
+- [ ] Bulk confirm: Dialog + короткий preview (лимит 8), не `window.confirm` со всеми именами
+- [ ] CSV (если есть): без выбора = все filtered; с выбором = selected; не только текущая страница
 - [ ] Бейджи / статус / поиск — токены в SCSS
-- [ ] Тест: `title` + `aria-label` у кнопок действий
-- [ ] Ключи i18n в `ru.ts` и `en.ts` (`deleteSelected`, `confirmBulkDelete`)
+- [ ] Тест: `title` + `aria-label` у кнопок действий; preview helper при bulk
+- [ ] Ключи i18n в `ru.ts` и `en.ts` (`deleteSelected`, confirm/banner/CSV из §4.2)
 
 #### Паттерн табов в модалках (обязательный)
 
@@ -1426,7 +1514,10 @@ FRONTEND_PORT=3010
 ### 2. Client-Side Таблицы (`DataTable.tsx`)
 Используется обобщенный UI-компонент на базе `TanStack Table` (v8).
 - Пагинация, сортировка и "живой" фильтр работают на стороне клиента в браузере (Client-side), обеспечивая микросекундную задержку при поиске абонента по Extension/Name в масштабах до 10 000 строк.
-- Для выгрузки данных `DataTable` экспонирует `useImperativeHandle(ref)`, позволяя внешнему родительскому компоненту (`EndpointsTable`) вызывать `tableRef.current?.exportCsv()`, а не навязывать жесткую верстку своих кнопок внутри таблицы.
+- Для выгрузки данных `DataTable` экспонирует `useImperativeHandle(ref)`: `exportCsv({ rows?: 'filtered' | 'selected' })`, `selectAllFiltered()`, `clearSelection()` — родитель (`EndpointsTable`) не вшивает кнопки внутрь таблицы.
+- **Selection (канон §4.2.1):** header checkbox = только текущая страница + `indeterminate`; ID строк накапливаются между страницами; слот `renderBanner` — «Выбрать все N» / «Снять выделение». Не использовать `getToggleAllRowsSelectedHandler` в шапке.
+- **CSV (канон §4.2.3):** без выбора — все filtered (все страницы); с выбором — selected; пустой selected → fallback на filtered.
+- **Bulk delete confirm (канон §4.2.2):** Dialog + `buildBulkDeletePreview` (лимит 8), не `window.confirm` со всеми extension.
 - Колонка row-actions (edit/copy/delete): **только** `TableRowActions` + `TableRowAction` из `@/shared/ui` (см. MUST «Table row actions» выше).
 - Карточка и таблица **обязаны** растягиваться на 100% ширины контента (`align="stretch"` + `.card` / `.table { width: 100% }`). Канон: «Паттерн страницы списка и таблицы».
 - Стили ячеек и тулбара — SCSS-модуль фичи, не Tailwind в JSX.

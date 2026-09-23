@@ -1,6 +1,6 @@
 import { NavLink, Navigate, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Building2, LayoutGrid, MapPin, MessagesSquare } from 'lucide-react';
+import { Building2, LayoutGrid, MapPin, MessagesSquare, CircleDollarSign } from 'lucide-react';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { VStack } from '@/shared/ui/Stack';
 import cls from './PlatformLayout.module.scss';
@@ -8,6 +8,7 @@ import cls from './PlatformLayout.module.scss';
 const PLATFORM_NAV = [
   { to: '/platform/tenants', labelKey: 'platform.navTenants', icon: Building2 },
   { to: '/platform/modules', labelKey: 'platform.navModules', icon: LayoutGrid },
+  { to: '/platform/prices', labelKey: 'platform.navPrices', icon: CircleDollarSign },
   { to: '/platform/role-start', labelKey: 'platform.navRoleStart', icon: MapPin },
   { to: '/platform/ai-threads', labelKey: 'platform.navAiThreads', icon: MessagesSquare },
 ] as const;

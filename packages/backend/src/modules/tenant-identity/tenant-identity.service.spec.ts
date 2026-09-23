@@ -7,9 +7,13 @@ function fixture() {
   const tenant = { id: 9, vpbx_user_uid: 71 };
   const users = { findOne: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue(user) };
   const tenants = { create: jest.fn().mockResolvedValue(tenant) };
+  const sellers = {
+    findOne: jest.fn().mockResolvedValue({ id: 1, isDefault: true }),
+    create: jest.fn(),
+  };
   const sequelize = { transaction: jest.fn(fn => fn(transaction)) };
-  const service = new TenantIdentityService(sequelize as any, users as any, tenants as any);
-  return { service, transaction, user, tenant, users, tenants, sequelize };
+  const service = new TenantIdentityService(sequelize as any, users as any, tenants as any, sellers as any);
+  return { service, transaction, user, tenant, users, tenants, sellers, sequelize };
 }
 
 const input = { login: 'Analytics', name: 'Owner', companyName: 'Analytics company',
@@ -26,6 +30,7 @@ describe('TenantIdentityService', () => {
     expect(f.user.update).toHaveBeenCalledWith({ vpbx_user_uid: 71 }, { transaction: f.transaction });
     expect(f.tenants.create).toHaveBeenCalledWith(expect.objectContaining({
       owner_user_id: 71, vpbx_user_uid: 71, max_extensions: 0, max_trunks: 0, max_queues: 0,
+      seller_id: 1,
     }), { transaction: f.transaction });
   });
 

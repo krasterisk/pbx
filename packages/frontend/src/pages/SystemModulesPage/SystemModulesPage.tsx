@@ -15,8 +15,7 @@ export const SystemModulesPage = memo(function SystemModulesPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<SystemTab>('modules');
   const user = useAppSelector((s) => s.auth.user);
-  const canEditRoleStart =
-    user?.level === UserLevel.ADMIN || user?.level === UserLevel.SUPERADMIN;
+  const canEditRoleStart = user?.level === UserLevel.ADMIN;
 
   return (
     <VStack

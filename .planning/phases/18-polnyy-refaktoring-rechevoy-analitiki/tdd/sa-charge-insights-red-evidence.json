@@ -1,0 +1,9 @@
+{
+  "command": "npm run test -w @krasterisk/backend -- --testPathPattern=sa-charge-insights --no-coverage",
+  "exitCode": 1,
+  "targetTest": "persists provider_tokens amount with charged=false on the insights request id",
+  "targetFile": "packages/backend/src/modules/speech-analytics/charging/sa-charge-insights.spec.ts",
+  "expected": "amount 1.00 charged false",
+  "actual": "amount 999",
+  "output": "# tests 5\n# pass 1\n# fail 4\n# cancelled 0\nnot ok 1 - derives the future operation key from the insights request id only\nnot ok 2 - persists provider_tokens amount with charged=false on the insights request id\nnot ok 3 - writes amount 0 when rates are missing and still calls the persist path\nnot ok 4 - documents that a cache hit must not call invokeSaChargeInsights again\nok 5 - never imports wallet debit helpers and does not export SA-CHARGE-GATE"
+}

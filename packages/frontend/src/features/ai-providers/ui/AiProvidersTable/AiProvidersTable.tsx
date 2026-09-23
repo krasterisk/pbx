@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { Loader2, Pencil, Plug, Search, Trash2 } from 'lucide-react';
 import {
   Button,
@@ -10,6 +11,8 @@ import {
   Input,
   TableRowAction,
   TableRowActions,
+  TableSelectionBanner,
+  BulkDeleteDialog,
   Text,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
@@ -19,6 +22,7 @@ import {
   type IAiProvider,
 } from '@/shared/api/endpoints/aiAgentsApi';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { useAiProvidersTableColumns } from './useAiProvidersTableColumns';
 import cls from './AiProvidersTable.module.scss';
 
@@ -26,16 +30,26 @@ interface Props {
   onEdit: (provider: IAiProvider) => void;
 }
 
+const PAGE_SIZE = 50;
+
 export const AiProvidersTable = memo(({ onEdit }: Props) => {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
   const { data: providers = [], isLoading } = useGetAiProvidersQuery();
   const [deleteProvider] = useDeleteAiProviderMutation();
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [isDeleting, setIsDeleting] = useState(false);
+  const selection = useCrossPageRowSelection({ globalFilter });
   const columns = useAiProvidersTableColumns({ onEdit });
-  const selectedCount = Object.keys(rowSelection).length;
+
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = providers.find((provider) => String(provider.uid) === id);
+        return row?.name || id;
+      }),
+    [selection.selectedIds, providers],
+  );
 
   const filtered = useMemo(() => {
     const q = globalFilter.trim().toLowerCase();
@@ -71,18 +85,45 @@ export const AiProvidersTable = memo(({ onEdit }: Props) => {
     </TableRowActions>
   );
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(t('aiProviders.confirmBulkDelete'))) return;
     setIsDeleting(true);
     try {
       await Promise.all(ids.map((id) => deleteProvider(id).unwrap()));
-      setRowSelection({});
+      selection.afterBulkDelete();
     } finally {
       setIsDeleting(false);
     }
-  }, [rowSelection, deleteProvider, t]);
+  }, [selection, deleteProvider]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<(typeof providers)[number]>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="aiProviders"
+    />
+  );
 
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
@@ -94,14 +135,14 @@ export const AiProvidersTable = memo(({ onEdit }: Props) => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('aiProviders.deleteSelected', { count: selectedCount })}
+            {t('aiProviders.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -164,6 +205,7 @@ export const AiProvidersTable = memo(({ onEdit }: Props) => {
             )}
           </VStack>
         </CardContent>
+        {bulkDeleteDialog}
       </Card>
     );
   }
@@ -179,20 +221,24 @@ export const AiProvidersTable = memo(({ onEdit }: Props) => {
           data-testid="ai-providers-table-scroll"
         >
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             columns={columns}
             data={providers}
             getRowId={(row) => String(row.uid)}
             selectable
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('aiProviders.empty')}
             exportFilename="ai_providers"
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>
+      {bulkDeleteDialog}
     </Card>
   );
 });

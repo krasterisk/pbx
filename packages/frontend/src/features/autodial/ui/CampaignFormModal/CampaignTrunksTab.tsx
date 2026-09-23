@@ -69,9 +69,9 @@ function TrunkCallerIdEditor({
 
   return (
     <div className={cls.cidEditor}>
-      <VStack gap="4" className={cls.cidModeField}>
+      <VStack gap="8" max className={cls.cidModeField}>
         <HStack gap="4" align="center">
-          <Label htmlFor={`autodial-cid-mode-${index}`}>
+          <Label htmlFor={`autodial-cid-mode-${index}`} className={cls.fieldLabel}>
             {t("autodial.trunks.callerIdSource")}
           </Label>
           <InfoTooltip text={t("autodial.trunks.callerIdSourceHint")} />
@@ -105,8 +105,8 @@ function TrunkCallerIdEditor({
       </VStack>
 
       {source.mode === "static" && (
-        <VStack gap="4" className={cls.cidValueField}>
-          <Label htmlFor={`autodial-trunk-cid-${index}`}>
+        <VStack gap="8" max className={cls.cidValueField}>
+          <Label htmlFor={`autodial-trunk-cid-${index}`} className={cls.fieldLabel}>
             {t("autodial.trunks.callerId")}
           </Label>
           <Input
@@ -119,8 +119,8 @@ function TrunkCallerIdEditor({
       )}
 
       {source.mode === "pool" && (
-        <VStack gap="4" className={cls.cidValueField}>
-          <Label>{t("autodial.trunks.callerIdPoolNumbers")}</Label>
+        <VStack gap="8" max className={cls.cidValueField}>
+          <Label className={cls.fieldLabel}>{t("autodial.trunks.callerIdPoolNumbers")}</Label>
           <TagInput
             value={source.numbers}
             onChange={(numbers) =>
@@ -133,8 +133,8 @@ function TrunkCallerIdEditor({
             placeholder={t("autodial.trunks.callerIdPoolAdd")}
             aria-label={t("autodial.trunks.callerIdPoolNumbers")}
           />
-          <VStack gap="4">
-            <Label htmlFor={`autodial-cid-pick-${index}`}>
+          <VStack gap="8" max>
+            <Label htmlFor={`autodial-cid-pick-${index}`} className={cls.fieldLabel}>
               {t("autodial.trunks.callerIdPoolPick")}
             </Label>
             <Select
@@ -157,10 +157,13 @@ function TrunkCallerIdEditor({
 
       {source.mode === "directory" && (
         <div className={cls.cidDirectoryGrid}>
-          <VStack gap="4" className={cls.field}>
-            <Label htmlFor={`autodial-cid-directory-${index}`}>
-              {t("autodial.trunks.callerIdDirectoryLabel")}
-            </Label>
+          <VStack gap="8" max className={cls.field}>
+            <HStack gap="4" align="center">
+              <Label htmlFor={`autodial-cid-directory-${index}`} className={cls.fieldLabel}>
+                {t("autodial.trunks.callerIdDirectoryLabel")}
+              </Label>
+              <InfoTooltip text={t("autodial.trunks.callerIdDirectoryHint")} />
+            </HStack>
             <Select
               id={`autodial-cid-directory-${index}`}
               value={source.directory_uid ? String(source.directory_uid) : ""}
@@ -181,8 +184,8 @@ function TrunkCallerIdEditor({
               ))}
             </Select>
           </VStack>
-          <VStack gap="4" className={cls.field}>
-            <Label htmlFor={`autodial-cid-key-${index}`}>
+          <VStack gap="8" max className={cls.field}>
+            <Label htmlFor={`autodial-cid-key-${index}`} className={cls.fieldLabel}>
               {t("autodial.trunks.callerIdDirectoryKey")}
             </Label>
             <Select
@@ -197,8 +200,8 @@ function TrunkCallerIdEditor({
               ))}
             </Select>
           </VStack>
-          <VStack gap="4" className={cls.field}>
-            <Label htmlFor={`autodial-cid-directory-field-${index}`}>
+          <VStack gap="8" max className={cls.field}>
+            <Label htmlFor={`autodial-cid-directory-field-${index}`} className={cls.fieldLabel}>
               {t("autodial.trunks.callerIdDirectoryValue")}
             </Label>
             <Select
@@ -215,10 +218,13 @@ function TrunkCallerIdEditor({
                 ))}
             </Select>
           </VStack>
-          <VStack gap="4" className={cls.field}>
-            <Label htmlFor={`autodial-cid-fallback-${index}`}>
-              {t("autodial.trunks.callerIdFallback")}
-            </Label>
+          <VStack gap="8" max className={cls.field}>
+            <HStack gap="4" align="center">
+              <Label htmlFor={`autodial-cid-fallback-${index}`} className={cls.fieldLabel}>
+                {t("autodial.trunks.callerIdFallback")}
+              </Label>
+              <InfoTooltip text={t("autodial.trunks.callerIdFallbackHint")} />
+            </HStack>
             <Input
               id={`autodial-cid-fallback-${index}`}
               value={item.caller_id ?? ""}
@@ -226,7 +232,6 @@ function TrunkCallerIdEditor({
               onChange={(event) => updateFallback(event.target.value)}
             />
           </VStack>
-          <Text className={cls.cidDirectoryHint}>{t("autodial.trunks.callerIdDirectoryHint")}</Text>
         </div>
       )}
     </div>
@@ -268,8 +273,8 @@ export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
         {draft.trunk_pool.map((item, index) => (
           <div key={`${item.trunk_id}-${index}`} className={cls.row}>
             <div className={cls.rowGrid}>
-              <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-trunk-${index}`}>
+              <VStack gap="8" max className={cls.field}>
+                <Label htmlFor={`autodial-trunk-${index}`} className={cls.fieldLabel}>
                   {t("autodial.trunks.trunk")}
                 </Label>
                 <Select
@@ -288,8 +293,8 @@ export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
                 </Select>
               </VStack>
 
-              <VStack gap="4" className={cls.field}>
-                <Label htmlFor={`autodial-trunk-weight-${index}`}>
+              <VStack gap="8" max className={cls.field}>
+                <Label htmlFor={`autodial-trunk-weight-${index}`} className={cls.fieldLabel}>
                   {t("autodial.trunks.weight")}
                 </Label>
                 <Input
@@ -306,9 +311,9 @@ export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
                 />
               </VStack>
 
-              <VStack gap="4" className={cls.field}>
+              <VStack gap="8" max className={cls.field}>
                 <HStack gap="4" align="center">
-                  <Label htmlFor={`autodial-trunk-max-${index}`}>
+                  <Label htmlFor={`autodial-trunk-max-${index}`} className={cls.fieldLabel}>
                     {t("autodial.trunks.maxChannels")}
                   </Label>
                   <InfoTooltip text={t("autodial.trunks.maxChannelsHint")} />

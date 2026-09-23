@@ -1,7 +1,8 @@
 import {
   Table, Column, Model, DataType,
-  PrimaryKey, AutoIncrement, Default, AllowNull,
+  PrimaryKey, AutoIncrement, Default, AllowNull, BelongsTo, ForeignKey,
 } from 'sequelize-typescript';
+import { BillingSeller } from './billing-seller.model';
 
 export type TenantStatus = 'trial' | 'active' | 'suspended' | 'cancelled';
 
@@ -63,6 +64,15 @@ export class Tenant extends Model {
   /** ИНН организации */
   @Column({ type: DataType.STRING(32), allowNull: true })
   declare company_inn: string | null;
+
+  /** Поставщик (биллинг / акты) — обязателен */
+  @ForeignKey(() => BillingSeller)
+  @AllowNull(false)
+  @Column({ type: DataType.INTEGER })
+  declare seller_id: number;
+
+  @BelongsTo(() => BillingSeller, { foreignKey: 'seller_id', as: 'seller' })
+  declare seller?: BillingSeller;
 
   /** Лимит: максимум внутренних номеров */
   @Default(10)

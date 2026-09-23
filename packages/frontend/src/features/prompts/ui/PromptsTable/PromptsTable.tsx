@@ -1,9 +1,11 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type Table } from '@tanstack/react-table';
 import { toast } from 'react-toastify';
 import { Loader2, Pencil, Play, Search, Square, Trash2, Volume2 } from 'lucide-react';
 import {
   Button,
+  BulkDeleteDialog,
   Card,
   CardContent,
   CardHeader,
@@ -11,6 +13,7 @@ import {
   Input,
   TableRowAction,
   TableRowActions,
+  TableSelectionBanner,
   Text,
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
@@ -22,6 +25,7 @@ import {
 } from '@/shared/api/endpoints/promptsApi';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { PromptUploadModal } from '../PromptUploadModal/PromptUploadModal';
 import { PromptRecordModal } from '../PromptRecordModal/PromptRecordModal';
 import { PromptEditModal } from '../PromptEditModal/PromptEditModal';
@@ -30,6 +34,8 @@ import { promptsActions } from '../../model/slice/promptsSlice';
 import { getPromptsIsModalOpen, getPromptsModalMode } from '../../model/selectors/promptsSelectors';
 import { usePromptsTableColumns } from './usePromptsTableColumns';
 import cls from './PromptsTable.module.scss';
+
+const PAGE_SIZE = 50;
 
 export const PromptsTable = memo(() => {
   const { t } = useTranslation();
@@ -44,7 +50,7 @@ export const PromptsTable = memo(() => {
 
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const selection = useCrossPageRowSelection({ globalFilter });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const handlePlay = useCallback((prompt: IPrompt) => {
@@ -86,7 +92,6 @@ export const PromptsTable = memo(() => {
   }, [deletePrompt, t]);
 
   const columns = usePromptsTableColumns({ playingId, onPlay: handlePlay, onDelete: handleDelete });
-  const selectedCount = Object.keys(rowSelection).length;
 
   const filtered = useMemo(() => {
     const q = globalFilter.trim().toLowerCase();
@@ -98,13 +103,49 @@ export const PromptsTable = memo(() => {
     });
   }, [prompts, globalFilter]);
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const selectedLabels = useMemo(
+    () =>
+      selection.selectedIds.map((id) => {
+        const row = prompts.find((prompt) => String(prompt.uid) === id);
+        return row?.comment || row?.filename || id;
+      }),
+    [selection.selectedIds, prompts],
+  );
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(t('promptsPage.confirmBulkDelete'))) return;
     await bulkDelete(ids).unwrap();
-    setRowSelection({});
-  }, [rowSelection, bulkDelete, t]);
+    selection.afterBulkDelete();
+  }, [selection, bulkDelete]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<IPrompt>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
+
+  const bulkDeleteDialog = (
+    <BulkDeleteDialog
+      open={selection.bulkDeleteOpen}
+      onOpenChange={selection.setBulkDeleteOpen}
+      labels={selectedLabels}
+      allMatching={selection.allMatchingSelected}
+      hasFilter={globalFilter.trim().length > 0}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      i18nNs="promptsPage"
+    />
+  );
 
   const renderRowActions = (prompt: IPrompt) => {
     const isPlaying = playingId === prompt.uid;
@@ -146,14 +187,14 @@ export const PromptsTable = memo(() => {
         {!isMobile && (
           <Button
             variant="destructive"
-            className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selectedCount === 0}
-            aria-hidden={selectedCount === 0}
-            tabIndex={selectedCount === 0 ? -1 : undefined}
-            onClick={handleBulkDelete}
+            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+            disabled={isDeleting || selection.selectedCount === 0}
+            aria-hidden={selection.selectedCount === 0}
+            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+            onClick={selection.openBulkDelete}
           >
             {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('promptsPage.deleteSelected', { count: selectedCount })}
+            {t('promptsPage.deleteSelected', { count: selection.selectedCount })}
           </Button>
         )}
         <Flex align="center" className={cls.searchWrap}>
@@ -184,6 +225,7 @@ export const PromptsTable = memo(() => {
       {isModalOpen && modalMode === 'synthesize' && (
         <PromptSynthesizeModal isOpen onClose={() => dispatch(promptsActions.closeModal())} />
       )}
+      {bulkDeleteDialog}
     </>
   );
 
@@ -256,17 +298,20 @@ export const PromptsTable = memo(() => {
           data-testid="prompts-table-scroll"
         >
           <DataTable
+            ref={selection.tableRef}
             className={cls.table}
             columns={columns}
             data={prompts}
             getRowId={(row) => String(row.uid)}
             selectable
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
+            rowSelection={selection.rowSelection}
+            onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
-            pageSize={50}
+            pageSize={PAGE_SIZE}
             emptyText={t('promptsPage.empty')}
             exportFilename="prompts_export"
+            selectAllAriaLabel={t('common.selectPageAria')}
+            renderBanner={renderSelectionBanner}
           />
         </Flex>
       </CardContent>

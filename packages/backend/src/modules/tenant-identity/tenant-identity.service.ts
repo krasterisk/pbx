@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { col, fn, UniqueConstraintError, where, type Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Tenant } from '../cloud-admin/tenant.model';
+import { BillingSeller } from '../cloud-admin/billing-seller.model';
 import { User, UserLevel } from '../users/user.model';
 
 export interface CreateTenantIdentityInput {
@@ -32,6 +33,7 @@ export class TenantIdentityService {
     private readonly sequelize: Sequelize,
     @InjectModel(User) private readonly users: typeof User,
     @InjectModel(Tenant) private readonly tenants: typeof Tenant,
+    @InjectModel(BillingSeller) private readonly sellers: typeof BillingSeller,
   ) {}
 
   async create(
@@ -71,11 +73,23 @@ export class TenantIdentityService {
       }
       await user.update({ vpbx_user_uid: user.uniqueid }, { transaction });
       const pbx = profile === 'pbx';
+      let defaultSeller = await this.sellers.findOne({
+        where: { isDefault: true },
+        order: [['id', 'ASC']],
+        transaction,
+      });
+      if (!defaultSeller) {
+        defaultSeller = await this.sellers.create({
+          name: 'Поставщик по умолчанию',
+          isDefault: true,
+        } as any, { transaction });
+      }
       const tenant = await this.tenants.create({
         uid: randomUUID(), name: input.companyName?.trim() || input.name,
         owner_user_id: user.uniqueid, vpbx_user_uid: user.uniqueid,
         email: input.email || null, slug: input.slug || null,
         phone: input.phone || null, company_inn: input.companyInn || null,
+        seller_id: defaultSeller.id,
         status: 'trial', trial_ends_at: new Date(Date.now() + (input.trialDays ?? 14) * 86400000),
         max_extensions: pbx ? input.limits?.extensions ?? 10 : 0,
         max_trunks: pbx ? input.limits?.trunks ?? 2 : 0,

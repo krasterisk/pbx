@@ -60,9 +60,9 @@ describe('generateAutodialCampaignDialplan', () => {
     expect(lines).toContain('same => n,Set(__KRSK_AC_ATTEMPT=${KRSK_AC_ATTEMPT})');
   });
 
-  it('pushes the finalize hangup handler', () => {
+  it('pushes a per-tenant finalize hangup handler', () => {
     const { lines } = generateAutodialCampaignDialplan(campaign(), 42);
-    expect(lines).toContain('same => n,Set(CHANNEL(hangup_handler_push)=krsk-ac-finalize,s,1)');
+    expect(lines).toContain('same => n,Set(CHANNEL(hangup_handler_push)=krsk-ac-finalize-42,s,1)');
   });
 
   it('emits a Queue step for toqueue and records the queue name', () => {
@@ -74,7 +74,7 @@ describe('generateAutodialCampaignDialplan', () => {
     expect(lines).toContain('same => n,Queue(sales,t)');
   });
 
-  it('uses the modern fixed queue target before the legacy campaign fallback', () => {
+  it('uses the fixed queue target from the scenario step', () => {
     const { lines } = generateAutodialCampaignDialplan(
       campaign({
         scenario_actions: [
@@ -84,6 +84,7 @@ describe('generateAutodialCampaignDialplan', () => {
       42,
     );
     expect(lines).toContain('same => n,Queue(priority,t)');
+    expect(lines.some((l) => l.includes('Queue(sales'))).toBe(false);
   });
 
   it('scopes playback media to the campaign tenant using the shared renderer', () => {
@@ -95,12 +96,46 @@ describe('generateAutodialCampaignDialplan', () => {
     expect(lines).not.toContain('same => n,Playback(welcome)');
   });
 
-  it('falls back to the campaign queue when the step names none', () => {
+  it('prepares TTS through the shared CURL+Playback renderer', () => {
     const { lines } = generateAutodialCampaignDialplan(
-      campaign({ scenario_actions: [action('toqueue')] }),
+      campaign({
+        scenario_actions: [action('text2speech', { text: 'hello', engine: 3 })],
+      }),
       42,
     );
-    expect(lines).toContain('same => n,Queue(sales,t)');
+    const body = lines.join('\n');
+    expect(body).toMatch(/CURL\(/);
+    expect(body).toMatch(/Playback\(/);
+    expect(body).not.toContain('KRSK_TTS_');
+  });
+
+  it('interpolates autodial field tokens in TTS instead of stripping them', () => {
+    const { lines } = generateAutodialCampaignDialplan(
+      campaign({
+        scenario_actions: [
+          action('text2speech', {
+            text: 'Здравствуйте {AC_NAME} ваш долг {AC_DEBT} рублей',
+            engine: 3,
+          }),
+        ],
+      }),
+      42,
+    );
+    const body = lines.join('\n');
+    expect(body).toMatch(/Set\(KRSK_TTS_TEXT_\d+=Здравствуйте \$\{AC_NAME\} ваш долг \$\{AC_DEBT\} рублей\)/);
+    expect(body).toContain('text=${URIENCODE(${KRSK_TTS_TEXT_');
+    expect(body).toContain('ExecIf($["${KRSK_HTTP_RESULT}" != ""]?Playback(/usr/records/42/sounds/${KRSK_HTTP_RESULT}))');
+    expect(body).toContain('SayNumber(${AC_DEBT})');
+    expect(body).toContain('Playback(beep)');
+  });
+
+  it('rejects a toqueue step without a fixed queue instead of using campaign.queue_names', () => {
+    expect(() =>
+      generateAutodialCampaignDialplan(
+        campaign({ scenario_actions: [action('toqueue')] }),
+        42,
+      ),
+    ).toThrow(/AC_SCENARIO_TARGET_UNSUPPORTED/);
   });
 
   it('skips disabled steps', () => {
@@ -153,6 +188,25 @@ describe('withMachineTail', () => {
     expect(category.lines.join('\n')).toContain('attempt=${URIENCODE(${KRSK_AC_ATTEMPT})}');
   });
 
+  it('plays the configured prompt in the machine tail for voicemail mode', () => {
+    const amd = {
+      enabled: true,
+      on_machine: 'voicemail' as const,
+      message_prompt: 'amd-leave.wav',
+    };
+    const category = withMachineTail(
+      generateAutodialCampaignDialplan(campaign({ amd }), 42),
+      amd,
+      42,
+    );
+    const body = category.lines.join('\n');
+    expect(body).toContain('TryExec(WaitForSilence(300,2,5))');
+    expect(body).toContain('ExecIf($["${TRYSTATUS}"!="SUCCESS"]?Wait(2))');
+    expect(body).toContain('Playback(/usr/records/42/sounds/amd-leave)');
+    expect(body).toContain('outcome=voicemail');
+    expect(body).toContain('internal/autodial/attempt-machine');
+  });
+
   it('adds nothing when AMD continues on machine', () => {
     const amd = { enabled: true, on_machine: 'continue' as const };
     const base = generateAutodialCampaignDialplan(campaign({ amd }), 42);
@@ -167,10 +221,14 @@ describe('withMachineTail', () => {
 });
 
 describe('generateAutodialFinalizeContext', () => {
-  it('is a single tenant-parameterised subroutine', () => {
-    const category = generateAutodialFinalizeContext(42);
-    expect(category.name).toBe('krsk-ac-finalize');
-    expect(category.lines[category.lines.length - 1]).toBe('same => n(ac_done),Return()');
+  it('is a per-tenant subroutine so two tenant files can load together', () => {
+    const a = generateAutodialFinalizeContext(42);
+    const b = generateAutodialFinalizeContext(2);
+    expect(a.name).toBe('krsk-ac-finalize-42');
+    expect(b.name).toBe('krsk-ac-finalize-2');
+    expect(a.name).not.toBe(b.name);
+    expect(a.lines[0]).toBe('[krsk-ac-finalize-42]');
+    expect(a.lines[a.lines.length - 1]).toBe('same => n(ac_done),Return()');
   });
 
   it('short-circuits for channels that never belonged to a campaign', () => {

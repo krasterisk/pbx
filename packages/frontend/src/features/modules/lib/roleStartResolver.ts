@@ -33,8 +33,9 @@ function roleDefaultPath(level: UserLevel | undefined): string {
       return CC_AGENT_PATH;
     case UserLevel.SUPERVISOR:
       return CC_SUPERVISOR_PATH;
-    case UserLevel.ADMIN:
     case UserLevel.SUPERADMIN:
+      return '/platform';
+    case UserLevel.ADMIN:
     case UserLevel.READONLY:
     default:
       return OVERVIEW_PATH;
@@ -61,6 +62,7 @@ export function resolveRoleStart(
   level: UserLevel | undefined,
   opts: RoleStartOptions = {},
 ): string {
+  if (level === UserLevel.SUPERADMIN) return '/platform';
   const callCenterEnabled = opts.callCenterEnabled !== false;
   let path =
     firstNonEmpty(opts.apiPath, opts.tenantOverride, opts.platformDefault) ||

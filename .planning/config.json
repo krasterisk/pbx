@@ -12,5 +12,8 @@
   "models": {
     "execution": "sonnet"
   },
-  "response_language": "ru"
+  "response_language": "ru",
+  "git": {
+    "allow_default_branch_commits": true
+  }
 }

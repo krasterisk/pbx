@@ -20,6 +20,8 @@ const listState = {
   refetch: vi.fn(),
 };
 
+let lastListSkip: boolean | undefined;
+
 const sharedState = {
   threads: [] as Array<ThreadRow & { ownerName?: string; readOnly?: boolean }>,
   isLoading: false,
@@ -48,13 +50,16 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@/shared/api/endpoints/aiChatApi', () => ({
-  useGetAiChatThreadsQuery: () => ({
-    data: listState.threads,
-    isLoading: listState.isLoading,
-    isError: listState.isError,
-    refetch: listState.refetch,
-  }),
-  useGetSharedAiChatThreadsQuery: () => ({
+  useGetAiChatThreadsQuery: (_arg?: void, options?: { skip?: boolean }) => {
+    lastListSkip = options?.skip;
+    return {
+      data: listState.threads,
+      isLoading: listState.isLoading,
+      isError: listState.isError,
+      refetch: listState.refetch,
+    };
+  },
+  useGetSharedAiChatThreadsQuery: (_arg?: void, options?: { skip?: boolean }) => ({
     data: sharedState.threads,
     isLoading: sharedState.isLoading,
     isError: sharedState.isError,
@@ -92,6 +97,7 @@ import { ThreadList } from './ThreadList';
 
 describe('ThreadList', () => {
   beforeEach(() => {
+    lastListSkip = undefined;
     listState.threads = [];
     listState.isLoading = false;
     listState.isError = false;
@@ -265,6 +271,11 @@ describe('ThreadList', () => {
     fireEvent.click(screen.getByRole('option', { name: /Boss chat/ }));
 
     expect(onSelect).toHaveBeenCalledWith({ uid: 8, readOnly: true });
+  });
+
+  it('skips list queries when skip is set', () => {
+    render(<ThreadList selectedUid={null} skip onSelect={vi.fn()} />);
+    expect(lastListSkip).toBe(true);
   });
 
   it('defines list, detail, create and delete queries with tag invalidation', () => {

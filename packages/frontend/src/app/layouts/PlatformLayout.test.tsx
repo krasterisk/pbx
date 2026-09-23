@@ -78,4 +78,12 @@ describe('PlatformLayout (NAV-06 / 006-B)', () => {
       '/platform/ai-threads',
     );
   });
+
+  it('links to the platform prices page', () => {
+    renderPlatform(UserLevel.SUPERADMIN);
+    expect(screen.getByRole('link', { name: 'platform.navPrices' })).toHaveAttribute(
+      'href',
+      '/platform/prices',
+    );
+  });
 });

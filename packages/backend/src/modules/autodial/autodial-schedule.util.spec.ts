@@ -3,6 +3,7 @@ import {
   campaignWindowOpen,
   scheduleAllows,
   subscriberHoursAllow,
+  subscriberHoursAllowForSchedules,
   zonedNow,
 } from './autodial-schedule.util';
 
@@ -41,9 +42,19 @@ describe('zonedNow', () => {
     expect(local.minutes).toBe(15);
   });
 
-  it('falls back to UTC for an unknown zone instead of throwing', () => {
+  it('does not invent UTC for an unknown zone', () => {
     const local = zonedNow(new Date('2026-09-17T10:30:00Z'), 'Mars/Olympus');
-    expect(local.minutes).toBe(10 * 60 + 30);
+    expect(local.weekday).toBe(-1);
+    expect(Number.isFinite(local.minutes)).toBe(false);
+  });
+
+  it('rejects a schedule row whose zone is unknown', () => {
+    expect(
+      scheduleAllows(
+        schedule({ timezone: 'Mars/Olympus' }),
+        new Date('2026-09-17T12:00:00Z'),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -133,5 +144,41 @@ describe('subscriberHoursAllow', () => {
     expect(subscriberHoursAllow(0, new Date('2026-09-17T04:00:00Z'), 'nonsense', '20:00')).toBe(
       true,
     );
+  });
+});
+
+describe('subscriberHoursAllowForSchedules', () => {
+  it('does not invent a 09:00-20:00 window when the campaign is 24/7', () => {
+    expect(
+      subscriberHoursAllowForSchedules(0, new Date('2026-09-17T04:00:00Z'), []),
+    ).toBe(true);
+  });
+
+  it('reuses enabled campaign windows in the subscriber offset', () => {
+    const rows = [schedule({ time_from: '09:00', time_to: '18:00', weekday: null })];
+    // 04:00 UTC is 11:00 for UTC+7 — inside 09-18.
+    expect(
+      subscriberHoursAllowForSchedules(420, new Date('2026-09-17T04:00:00Z'), rows),
+    ).toBe(true);
+    // Same instant is 04:00 for UTC — outside.
+    expect(
+      subscriberHoursAllowForSchedules(0, new Date('2026-09-17T04:00:00Z'), rows),
+    ).toBe(false);
+  });
+
+  it('honours the subscriber-local weekday for weekly rows', () => {
+    const thursday = schedule({
+      weekday: 4,
+      time_from: '00:00',
+      time_to: '23:00',
+      timezone: 'UTC',
+    });
+    expect(
+      subscriberHoursAllowForSchedules(0, new Date('2026-09-17T12:00:00Z'), [thursday]),
+    ).toBe(true);
+    // 12:00 UTC +14h is already Friday locally.
+    expect(
+      subscriberHoursAllowForSchedules(840, new Date('2026-09-17T12:00:00Z'), [thursday]),
+    ).toBe(false);
   });
 });

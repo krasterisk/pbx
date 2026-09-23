@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, Table } from '@tanstack/react-table';
 import { toast } from 'react-toastify';
 import {
   Badge,
@@ -9,10 +9,13 @@ import {
   DataTable,
   TableRowAction,
   TableRowActions,
+  TableSelectionBanner,
+  BulkDeleteDialog,
   Text,
 } from '@/shared/ui';
 import { HStack } from '@/shared/ui/Stack';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import {
   useDeleteKomandorClaimMutation,
   useGetKomandorClaimsQuery,
@@ -35,6 +38,8 @@ const STATUS_BADGE: Record<string, 'default' | 'outline' | 'secondary' | 'destru
   impossible: 'destructive',
 };
 
+const PAGE_SIZE = 50;
+
 export function KomandorClaimsTable({ filters }: Props) {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
@@ -45,15 +50,16 @@ export function KomandorClaimsTable({ filters }: Props) {
     store: filters.store,
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
-    limit: 50,
+    limit: PAGE_SIZE,
   };
   const { data, isLoading } = useGetKomandorClaimsQuery(query);
   const [remove] = useDeleteKomandorClaimMutation();
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState<IKomandorClaim | undefined>();
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const selectionFilterKey = useMemo(() => JSON.stringify(filters), [filters]);
+  const selection = useCrossPageRowSelection({ globalFilter: selectionFilterKey });
   const [isDeleting, setIsDeleting] = useState(false);
-  const selectedCount = Object.keys(rowSelection).length;
+  const labelCacheRef = useRef(new Map<string, string>());
 
   const handleDelete = useCallback(async (uid: number) => {
     if (!window.confirm(t('common.confirmDelete'))) return;
@@ -65,21 +71,56 @@ export function KomandorClaimsTable({ filters }: Props) {
     }
   }, [remove, t]);
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Object.keys(rowSelection).map(Number);
+  const rows = useMemo(() => data?.rows || [], [data?.rows]);
+
+  const hasFilter = Boolean(
+    filters.search?.trim()
+    || filters.status
+    || filters.topic
+    || filters.store
+    || filters.dateFrom
+    || filters.dateTo,
+  );
+
+  const selectedLabels = useMemo(() => {
+    for (const row of rows) {
+      labelCacheRef.current.set(
+        String(row.uid),
+        row.request_number || row.store_name || String(row.uid),
+      );
+    }
+    return selection.selectedIds.map((id) => labelCacheRef.current.get(id) || id);
+  }, [selection.selectedIds, rows]);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = selection.selectedIds.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(t('common.confirmDelete'))) return;
     setIsDeleting(true);
     try {
       await Promise.all(ids.map((id) => remove(id).unwrap()));
-      setRowSelection({});
+      selection.afterBulkDelete();
       toast.success(t('common.deleted', 'Удалено'));
     } catch {
       toast.error(t('common.error'));
     } finally {
       setIsDeleting(false);
     }
-  }, [rowSelection, remove, t]);
+  }, [selection, remove, t]);
+
+  const renderSelectionBanner = useCallback(
+    (table: Table<IKomandorClaim>) => (
+      <TableSelectionBanner
+        table={table}
+        pageSize={PAGE_SIZE}
+        allMatchingSelected={selection.allMatchingSelected}
+        selectedIds={selection.selectedIds}
+        selectedCount={selection.selectedCount}
+        onSelectAllMatching={selection.selectAllMatching}
+        onClear={selection.clearSelection}
+      />
+    ),
+    [selection],
+  );
 
   const columns = useMemo<ColumnDef<IKomandorClaim>[]>(() => [
     {
@@ -143,14 +184,14 @@ export function KomandorClaimsTable({ filters }: Props) {
           {!isMobile && (
             <Button
               variant="destructive"
-              className={selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-              disabled={isDeleting || selectedCount === 0}
-              aria-hidden={selectedCount === 0}
-              tabIndex={selectedCount === 0 ? -1 : undefined}
-              onClick={() => void handleBulkDelete()}
+              className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
+              disabled={isDeleting || selection.selectedCount === 0}
+              aria-hidden={selection.selectedCount === 0}
+              tabIndex={selection.selectedCount === 0 ? -1 : undefined}
+              onClick={selection.openBulkDelete}
             >
               {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-              {t('common.deleteSelected', { count: selectedCount })}
+              {t('common.deleteSelected', { count: selection.selectedCount })}
             </Button>
           )}
           <Button
@@ -166,13 +207,26 @@ export function KomandorClaimsTable({ filters }: Props) {
         </HStack>
       </HStack>
       <DataTable
+        ref={selection.tableRef}
         columns={columns}
-        data={data?.rows || []}
+        data={rows}
         getRowId={(row) => String(row.uid)}
         selectable
-        rowSelection={rowSelection}
-        onRowSelectionChange={setRowSelection}
+        rowSelection={selection.rowSelection}
+        onRowSelectionChange={selection.onRowSelectionChange}
+        pageSize={PAGE_SIZE}
         emptyText={isLoading ? t('common.loading', 'Загрузка...') : t('common.noData')}
+        selectAllAriaLabel={t('common.selectPageAria')}
+        renderBanner={renderSelectionBanner}
+      />
+      <BulkDeleteDialog
+        open={selection.bulkDeleteOpen}
+        onOpenChange={selection.setBulkDeleteOpen}
+        labels={selectedLabels}
+        allMatching={selection.allMatchingSelected}
+        hasFilter={hasFilter}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmBulkDelete}
       />
       <KomandorClaimModal isOpen={open} onClose={() => setOpen(false)} record={current} />
     </div>

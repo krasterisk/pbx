@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsIn,
@@ -178,4 +180,12 @@ export class UpdateAutodialContactDto {
   @IsString()
   @MaxLength(512)
   comment?: string;
+}
+
+export class BulkDeleteAutodialBasesDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(50)
+  @IsInt({ each: true })
+  uids!: number[];
 }
