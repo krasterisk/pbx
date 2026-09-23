@@ -255,6 +255,53 @@ describe('SpeechAnalyticsAiAdapter', () => {
     expect(appliedConfig.systemPrompt).toBe('CR-01 keep this system prompt');
   });
 
+  it('revalidate rejects stale draft revision and keeps applyPayload as partial config (D-27)', async () => {
+    const tool = getTool(adapter, 'edit_speech_analytics_project');
+    const proposal = await tool.handler(
+      {
+        project_id: PROJECT_ID,
+        config: { customMetrics: [{ id: 'm2', name: 'Bye', type: 'boolean' }] },
+      },
+      TENANT_A,
+      { userUid: 7, role: UserLevel.ADMIN, threadUid: 1 },
+    );
+    const applyArgs = (proposal as any).applyPayload?.args;
+    expect(applyArgs).toEqual(expect.objectContaining({
+      project_id: PROJECT_ID,
+      expected_revision: 2,
+      publish: true,
+      config: { customMetrics: [{ id: 'm2', name: 'Bye', type: 'boolean' }] },
+    }));
+    // Partial only — full merge happens at apply against live draft (CR-01).
+    expect(Object.keys(applyArgs.config)).toEqual(['customMetrics']);
+
+    const stale = await tool.mutation!.revalidate(
+      {
+        project_id: PROJECT_ID,
+        expected_revision: 1,
+        config: applyArgs.config,
+        publish: true,
+      },
+      mutationCtx,
+    );
+    expect(stale).toEqual({ ok: false, reason: 'stale_draft' });
+    expect(projects.getEditorState).toHaveBeenCalledWith(TENANT_A, PROJECT_ID);
+
+    const fresh = await tool.mutation!.revalidate(
+      {
+        project_id: PROJECT_ID,
+        expected_revision: 2,
+        config: applyArgs.config,
+        publish: true,
+      },
+      mutationCtx,
+    );
+    expect(fresh).toEqual({
+      ok: true,
+      args: expect.objectContaining({ expected_revision: 2, project_id: PROJECT_ID }),
+    });
+  });
+
   it('pauses new auto-analysis via module settings (D-19)', async () => {
     const tool = getTool(adapter, 'pause_speech_analytics');
     const proposal = await tool.handler({ pause_new: true }, TENANT_A);
