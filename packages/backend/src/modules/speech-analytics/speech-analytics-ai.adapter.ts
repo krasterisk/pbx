@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
@@ -25,6 +25,10 @@ import {
 } from './projects/project-editor.service';
 
 const SCHEMA_VERSION = 'speech-analytics-1';
+
+/** Nest tokens for AI adapter ports (bound in SpeechAnalyticsModule). */
+export const SA_AI_PROJECTS_PORT = 'SaAiProjectsPort';
+export const SA_AI_TOKENS_PORT = 'SaAiTokensPort';
 
 /** Port used by the adapter so Nest wiring can bind SpeechAnalyticsService later. */
 export interface SaAiProjectsPort {
@@ -96,8 +100,8 @@ export class SpeechAnalyticsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   constructor(
     private readonly moduleSettings: ModuleSettingsService,
-    private readonly projects: SaAiProjectsPort,
-    private readonly tokens: SaAiTokensPort,
+    @Inject(SA_AI_PROJECTS_PORT) private readonly projects: SaAiProjectsPort,
+    @Inject(SA_AI_TOKENS_PORT) private readonly tokens: SaAiTokensPort,
     private readonly registry: AiAdapterRegistryService,
   ) {}
 
@@ -318,4 +322,99 @@ export class SpeechAnalyticsAiAdapter implements DomainAiAdapter, OnModuleInit {
   private mergeConfig(partial: Record<string, unknown>): SaProjectConfigV1 {
     return { ...defaultSaProjectConfig(), ...(partial as Partial<SaProjectConfigV1>) };
   }
+}
+
+/** Factory: SaAiProjectsPort over SaProject / SaProjectVersion (Nest DI). */
+export function createSaAiProjectsPort(
+  projects: { findOne: Function },
+  versions: { findAll: Function; count: Function; create: Function; findOne: Function },
+): SaAiProjectsPort {
+  const parse = (raw: string): SaProjectConfigV1 => {
+    try {
+      return { ...defaultSaProjectConfig(), ...(JSON.parse(raw) as SaProjectConfigV1) };
+    } catch {
+      return defaultSaProjectConfig();
+    }
+  };
+
+  return {
+    async getEditorState(tenantUid, projectId) {
+      const project = await projects.findOne({ where: { tenant_uid: tenantUid, id: projectId } });
+      if (!project) throw new Error('resource_not_found');
+      const draft = parse(project.draft_config);
+      const versionRows = await versions.findAll({
+        where: { tenant_uid: tenantUid, project_id: projectId },
+        order: [['version_no', 'ASC']],
+      });
+      const publishedRow = project.active_version_id
+        ? versionRows.find((row: { id: string }) => row.id === project.active_version_id)
+        : null;
+      return {
+        name: project.name,
+        draft,
+        draftRevision: project.draft_revision,
+        published: publishedRow ? parse(publishedRow.config) : null,
+        versionNo: publishedRow?.version_no ?? 0,
+        versions: versionRows.map((row: { version_no: number; config: string }) => ({
+          versionNo: row.version_no,
+          config: parse(row.config),
+        })),
+      };
+    },
+
+    async applyEditorUpdate(tenantUid, input) {
+      const project = await projects.findOne({
+        where: { tenant_uid: tenantUid, id: input.projectId },
+      });
+      if (!project) throw new Error('resource_not_found');
+      if (project.draft_revision !== input.expectedRevision) {
+        throw new Error('stale_draft');
+      }
+      project.draft_config = JSON.stringify(input.config);
+      project.draft_revision += 1;
+      project.updated_at = new Date();
+      await project.save();
+
+      if (!input.publish) {
+        const active = project.active_version_id
+          ? await versions.findOne({ where: { id: project.active_version_id } })
+          : null;
+        return {
+          published: false,
+          versionNo: active?.version_no ?? 0,
+        };
+      }
+
+      const count = await versions.count({ where: { project_id: input.projectId } });
+      const version = await versions.create({
+        id: randomUUID(),
+        tenant_uid: tenantUid,
+        project_id: input.projectId,
+        version_no: count + 1,
+        config_digest: 'ai-adapter',
+        config: JSON.stringify(input.config),
+        stt_revision_id: input.config.sttRevisionId || randomUUID(),
+        llm_revision_id: input.config.llmRevisionId || randomUUID(),
+        created_by: 0,
+        created_at: new Date(),
+      });
+      project.active_version_id = version.id;
+      project.status = 'active';
+      project.updated_at = new Date();
+      await project.save();
+      return { published: true, versionNo: version.version_no };
+    },
+  };
+}
+
+/** Factory: SaAiTokensPort over IntegrationCredentialsService.issueSpeechAnalyticsToken. */
+export function createSaAiTokensPort(
+  credentials: {
+    issueSpeechAnalyticsToken: SaAiTokensPort['issueSpeechAnalyticsToken'];
+  },
+): SaAiTokensPort {
+  return {
+    issueSpeechAnalyticsToken: (context, input) =>
+      credentials.issueSpeechAnalyticsToken(context, input),
+  };
 }

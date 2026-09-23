@@ -184,4 +184,14 @@ describe('SpeechAnalyticsAiAdapter', () => {
     await tool.mutation!.apply({ pause_new: true }, mutationCtx);
     expect(moduleSettings.setPauseNew).toHaveBeenCalledWith(TENANT_A, true, expect.anything());
   });
+
+  it('SpeechAnalyticsModule providers list includes SpeechAnalyticsAiAdapter and ModuleSettingsService (G-18-04)', () => {
+    const modPath = path.join(__dirname, 'speech-analytics.module.ts');
+    const source = fs.readFileSync(modPath, 'utf8');
+    expect(source).toMatch(/SpeechAnalyticsAiAdapter/);
+    expect(source).toMatch(/ModuleSettingsService/);
+    expect(source).toMatch(/SA_AI_PROJECTS_PORT/);
+    expect(source).toMatch(/SA_AI_TOKENS_PORT/);
+    expect(source).not.toMatch(/analyst.?role|ROLE_ANALYST|createAnalyst/i);
+  });
 });

@@ -1,11 +1,13 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { SequelizeModule } from '@nestjs/sequelize';
+import { getModelToken, SequelizeModule } from '@nestjs/sequelize';
 import { AiJobsModule } from '../ai-jobs/ai-jobs.module';
 import { MediaAssetsModule } from '../media-assets/media-assets.module';
 import { ProductAccessCoreModule } from '../product-access/product-access-core.module';
 import { IntegrationCredentialsModule } from '../integration-credentials/integration-credentials.module';
+import { IntegrationCredentialsService } from '../integration-credentials/integration-credentials.service';
 import { RoutesModule } from '../routes/routes.module';
 import { HANGUP_ANALYTICS_PORT } from '../routes/dialplan-webhooks.service';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { AiMediaAsset, AiUpload } from '../media-assets/media-asset.models';
 import {
   IntegrationCredential, IntegrationGrant, IntegrationPrincipal,
@@ -38,9 +40,15 @@ import { Route } from '../routes/route.model';
 import { NotificationIntegration } from '../notifications/notification-integration.model';
 import { SaInsightsRequest } from './speech-analytics.models';
 import { ModuleSettingsService } from './module-settings.service';
-import { HangupAnalyticsPortService } from './hangup-analytics.port';
+import { HangupAnalyticsPortService, SA_ANALYSIS_WORKER } from './hangup-analytics.port';
 import { saAnalysisWorkerProvider } from './jobs/sa-analysis.worker.nest';
-import { SA_ANALYSIS_WORKER } from './hangup-analytics.port';
+import {
+  SA_AI_PROJECTS_PORT,
+  SA_AI_TOKENS_PORT,
+  SpeechAnalyticsAiAdapter,
+  createSaAiProjectsPort,
+  createSaAiTokensPort,
+} from './speech-analytics-ai.adapter';
 
 @Module({
   imports: [
@@ -48,6 +56,7 @@ import { SA_ANALYSIS_WORKER } from './hangup-analytics.port';
     ProductAccessCoreModule,
     AiJobsModule,
     MediaAssetsModule,
+    AiPlatformModule,
     forwardRef(() => RoutesModule),
     SequelizeModule.forFeature([
       SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,
@@ -74,6 +83,19 @@ import { SA_ANALYSIS_WORKER } from './hangup-analytics.port';
     HangupAnalyticsPortService,
     { provide: HANGUP_ANALYTICS_PORT, useExisting: HangupAnalyticsPortService },
     saAnalysisWorkerProvider,
+    {
+      provide: SA_AI_PROJECTS_PORT,
+      useFactory: (projects: typeof SaProject, versions: typeof SaProjectVersion) =>
+        createSaAiProjectsPort(projects, versions),
+      inject: [getModelToken(SaProject), getModelToken(SaProjectVersion)],
+    },
+    {
+      provide: SA_AI_TOKENS_PORT,
+      useFactory: (credentials: IntegrationCredentialsService) =>
+        createSaAiTokensPort(credentials),
+      inject: [IntegrationCredentialsService],
+    },
+    SpeechAnalyticsAiAdapter,
   ],
   controllers: [SpeechAnalyticsJwtController, SpeechAnalyticsPublicController],
   exports: [
@@ -88,6 +110,8 @@ import { SA_ANALYSIS_WORKER } from './hangup-analytics.port';
     HANGUP_ANALYTICS_PORT,
     HangupAnalyticsPortService,
     SA_ANALYSIS_WORKER,
+    ModuleSettingsService,
+    SpeechAnalyticsAiAdapter,
   ],
 })
 export class SpeechAnalyticsModule {}
