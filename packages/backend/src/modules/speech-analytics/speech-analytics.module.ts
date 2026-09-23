@@ -37,8 +37,10 @@ import { NumberList } from '../numbers/number-list.model';
 import { Route } from '../routes/route.model';
 import { NotificationIntegration } from '../notifications/notification-integration.model';
 import { SaInsightsRequest } from './speech-analytics.models';
-import { HangupAnalyticsPortService } from './hangup-analytics.port';
 import { ModuleSettingsService } from './module-settings.service';
+import { HangupAnalyticsPortService } from './hangup-analytics.port';
+import { saAnalysisWorkerProvider } from './jobs/sa-analysis.worker.nest';
+import { SA_ANALYSIS_WORKER } from './hangup-analytics.port';
 
 @Module({
   imports: [
@@ -71,6 +73,7 @@ import { ModuleSettingsService } from './module-settings.service';
     ModuleSettingsService,
     HangupAnalyticsPortService,
     { provide: HANGUP_ANALYTICS_PORT, useExisting: HangupAnalyticsPortService },
+    saAnalysisWorkerProvider,
   ],
   controllers: [SpeechAnalyticsJwtController, SpeechAnalyticsPublicController],
   exports: [
@@ -84,6 +87,7 @@ import { ModuleSettingsService } from './module-settings.service';
     SequelizeModule,
     HANGUP_ANALYTICS_PORT,
     HangupAnalyticsPortService,
+    SA_ANALYSIS_WORKER,
   ],
 })
 export class SpeechAnalyticsModule {}

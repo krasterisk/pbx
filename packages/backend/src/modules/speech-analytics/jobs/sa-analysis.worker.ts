@@ -99,8 +99,9 @@ export type SaAnalysisWorkerDeps = {
  * runs `runAnalysis` (or legacy handoff). Does not call SA-CHARGE-RUN on wait failure.
  * Does not treat fakeStt as scored success (D-03).
  *
- * Note: `HANGUP_ANALYTICS_PORT` remains an optional Nest token and is NOT registered
- * in RoutesModule — production provider wiring is out of scope for 18-04.
+ * Nest production DI (sa-analysis.worker.nest.ts) always injects `runAnalysis` and
+ * registers this worker as `SA_ANALYSIS_WORKER` for HangupAnalyticsPort fire-and-forget.
+ * Legacy unit tests may still inject `handoffPipeline` without `runAnalysis`.
  */
 export class SaAnalysisWorker {
   constructor(private readonly deps: SaAnalysisWorkerDeps) {}

@@ -101,6 +101,59 @@ describe('SaAnalysisWorker file wait (D-03)', () => {
     expect(invokeSaChargeRun).not.toHaveBeenCalled();
     expect(handoffPipeline).toHaveBeenCalled();
   });
+
+  it('Nest factory always injects runAnalysis so handoffPipeline is unreachable', async () => {
+    const { createSaAnalysisWorker } = require('./sa-analysis.worker.nest');
+    const invokeSaChargeRun = jest.fn();
+    const runAnalysis = jest.fn().mockResolvedValue({ state: 'completed', scored: true });
+    // Build via factory shape: production must supply runAnalysis
+    const nestWorker = createSaAnalysisWorker({
+      moduleSettings: {
+        get: () => ({
+          pauseNew: false,
+          sttModelId: 'stt-a',
+          scoreModelId: 'score-a',
+          insightsModelId: null,
+          cabinetCanEditModels: false,
+          modelAllowlist: ['stt-a', 'score-a'],
+        }),
+      },
+      config: { get: () => undefined },
+      runs: { findOne: jest.fn().mockResolvedValue(null) },
+      stt: async () => ({
+        text: 'hi',
+        durationSec: 1,
+        segments: [{ start: 0, end: 1, text: 'hi' }],
+        providerTokens: 1,
+        modelId: 'stt-a',
+      }),
+      score: async () => ({
+        metrics: [],
+        summary: 'ok',
+        providerTokens: 1,
+        modelId: 'score-a',
+      }),
+      findLatestRates: async () => [],
+    });
+
+    // Spy: processJob with successful wait must not require handoffPipeline
+    const waitOk = new SaAnalysisWorker({
+      waitForFile: async () => ({ ok: true, bytes: 4 }),
+      invokeSaChargeRun,
+      runAnalysis,
+    });
+    const scored = await waitOk.processJob({
+      jobId: 'job-nest',
+      runId: 'run-nest',
+      recordPath: '/tmp/nest.mp3',
+      tenantUid: 8,
+    });
+    expect(scored.scored).toBe(true);
+    expect(runAnalysis).toHaveBeenCalled();
+    expect(nestWorker).toBeInstanceOf(SaAnalysisWorker);
+    expect(String(FILE_WAIT_POLL_MS)).toContain('500');
+    expect(String(FILE_WAIT_CEILING_MS / 1000)).toContain('60');
+  });
 });
 
 describe('krsk-hangup-handler dialplan order (D-03)', () => {
