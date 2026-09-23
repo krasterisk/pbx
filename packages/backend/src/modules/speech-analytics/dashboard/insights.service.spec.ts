@@ -335,5 +335,53 @@ describe('InsightsService.requestForTenant HTTP SA-CHARGE-INSIGHTS (G-18-05, D-4
     const src = fs.readFileSync(path.join(__dirname, 'insights.service.ts'), 'utf8');
     expect(src).not.toMatch(/\bsettleShadow\b/);
     expect(src).not.toMatch(/\bBillingBalanceService\b/);
+    expect(src).not.toMatch(/shadow-settlement/);
+    expect(src).not.toMatch(/billing-balance\.service/);
+  });
+
+  it('creates sa_insights_requests row when update matches zero rows (tenant-scoped)', async () => {
+    const { service, creates, insightsRequests } = buildHttpService();
+    insightsRequests.update.mockResolvedValueOnce([0]);
+
+    const result = await service.requestForTenant(
+      { tenantUid: 42 },
+      {
+        projectId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        conversationCount: 11,
+        filterDigest: 'http-create-row',
+      },
+    );
+
+    expect(result.status).toBe('ok');
+    expect(result.charged).toBe(false);
+    expect(creates).toHaveLength(1);
+    expect(creates[0]).toEqual(expect.objectContaining({
+      tenant_uid: 42,
+      project_id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      charged: false,
+      amount: expect.any(String),
+    }));
+  });
+
+  it('queries latest speech_analytics provider_tokens rates on HTTP charge', async () => {
+    const { service, priceRevisions } = buildHttpService();
+    expect(priceRevisions).not.toBeNull();
+
+    await service.requestForTenant(
+      { tenantUid: 5 },
+      {
+        projectId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+        conversationCount: 10,
+        filterDigest: 'http-rates-query',
+      },
+    );
+
+    expect(priceRevisions!.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          product: 'speech_analytics',
+        }),
+      }),
+    );
   });
 });
