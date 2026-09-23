@@ -73,6 +73,10 @@ export type SaAnalysisJob = {
   runId: string;
   recordPath: string;
   tenantUid: number;
+  /** Hangup CDR duration in seconds (D-46 / CR-02). Prefer over waitForFile bytes. */
+  durationSec?: number;
+  /** Precomputed audio duration in ms (durationSec*1000). Never file byte size. */
+  audioMs?: number;
 };
 
 export type SaAnalysisWorkerDeps = {

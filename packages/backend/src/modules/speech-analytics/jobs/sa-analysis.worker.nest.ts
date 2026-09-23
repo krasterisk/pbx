@@ -73,7 +73,16 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
     await run.save();
   };
 
-  const runAnalysis = async (job: SaAnalysisJob, bytes: number) => {
+  const runAnalysis = async (job: SaAnalysisJob, _bytes: number) => {
+    // CR-02 / D-46: audioMs is duration, never waitForFile byte size (_bytes is diagnostics only).
+    const fromAudioMs = typeof job.audioMs === 'number' && Number.isFinite(job.audioMs)
+      ? Math.max(0, job.audioMs)
+      : null;
+    const fromDurationSec = typeof job.durationSec === 'number' && Number.isFinite(job.durationSec)
+      ? Math.max(0, job.durationSec) * 1000
+      : null;
+    const audioMs = fromAudioMs ?? fromDurationSec ?? 0;
+
     const settings = deps.moduleSettings.get(job.tenantUid);
     const sttModelId = settings.sttModelId || 'default-stt';
     const scoreModelId = settings.scoreModelId || 'default-score';
@@ -132,7 +141,7 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
         runId: job.runId,
         tenantUid: job.tenantUid,
         audioPath: absolute,
-        audioMs: Math.max(0, bytes),
+        audioMs,
         currency: 'RUB',
         channelSource: 'route',
         swapChannels: false,

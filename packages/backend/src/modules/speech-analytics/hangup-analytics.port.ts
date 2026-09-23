@@ -283,12 +283,16 @@ export class HangupAnalyticsPortService implements HangupAnalyticsPort {
     });
 
     // Fire-and-forget worker — never await STT on the hangup HTTP path (D-03).
+    // CR-02 / D-46: pass duration (not file bytes) so Nest charge uses audio_ms correctly.
     if (!result.replay && this.worker) {
+      const durationSec = Math.max(0, input.durationSec);
       void this.worker.processJob({
         jobId: result.jobId,
         runId: result.runId,
         recordPath: input.recordPath,
         tenantUid: input.tenantUid,
+        durationSec,
+        audioMs: durationSec * 1000,
       }).catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.warn(`Hangup analysis worker failed job=${result.jobId}: ${message}`);
