@@ -106,6 +106,37 @@ describe('public-ingest.wiring (G-18-03, D-17, D-32)', () => {
     expect(isUuidRecordingId(call.externalCallId)).toBe(true);
   });
 
+  it('uploadBatch success journalId is createRun recordingId UUID; runId is UUID (G-18-06, D-50)', async () => {
+    const analytics = mockAnalytics();
+    const deps = buildPublicUploadDeps({
+      analytics,
+      context: ctx,
+      projectId: PROJECT_A,
+      runScoredAnalysis: async () => ({ summary: 'ok' }),
+    });
+    const service = new UploadService(deps);
+    const result = await service.submit({
+      channel: 'api',
+      projectId: PROJECT_A,
+      tokenProjectId: PROJECT_A,
+      sync: true,
+      moduleActive: true,
+      files: [{ filename: 'mono.wav', bytes: tinyWav('mono') }],
+    });
+
+    expect(result.results[0].ok).toBe(true);
+    expect(result.results[0].journalId).toBe(RECORDING_A);
+    expect(isUuidRecordingId(result.results[0].journalId!)).toBe(true);
+    expect(result.results[0].journalId).not.toMatch(/^journal:/);
+
+    const created = await analytics.createRun.mock.results[0].value;
+    expect(isUuidRecordingId(created.recordingId)).toBe(true);
+    expect(isUuidRecordingId(created.runId)).toBe(true);
+    expect(created.recordingId).toBe(result.results[0].journalId);
+    expect(created.recordingId).not.toMatch(/^journal:/);
+    expect(created.runId).not.toMatch(/^journal:/);
+  });
+
   it('putUploadContent uses allocateUpload / putUploadContent / completeUpload', async () => {
     const analytics = mockAnalytics();
     const deps = buildPublicUploadDeps({

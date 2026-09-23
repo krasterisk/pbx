@@ -65,6 +65,13 @@ describe('speech-analytics-public uploadBatch wiring (G-18-03)', () => {
   });
 
   it('uploadBatch success path returns UUID journal ids via createRun (not journal: stubs)', async () => {
+    const createRun = jest.fn(async () => ({
+      status: 202,
+      runId: RUN_ID,
+      recordingId: RECORDING_ID,
+      projectVersionId: PROJECT_A,
+      replay: false,
+    }));
     const analytics: PublicIngestAnalytics = {
       allocateUpload: jest.fn(async () => ({
         id: 'upload-1',
@@ -76,13 +83,7 @@ describe('speech-analytics-public uploadBatch wiring (G-18-03)', () => {
         assetId: ASSET_ID,
         state: 'ready',
       })),
-      createRun: jest.fn(async () => ({
-        status: 202,
-        runId: RUN_ID,
-        recordingId: RECORDING_ID,
-        projectVersionId: PROJECT_A,
-        replay: false,
-      })),
+      createRun,
     };
 
     const deps = buildPublicUploadDeps({
@@ -103,10 +104,58 @@ describe('speech-analytics-public uploadBatch wiring (G-18-03)', () => {
 
     expect(result.kind).toBe('sync_result');
     expect(result.results[0].ok).toBe(true);
+    // G-18-06 / D-50: journalId is the sa_* recording UUID from createRun
+    expect(result.results[0].journalId).toBe(RECORDING_ID);
     expect(isUuidRecordingId(result.results[0].journalId!)).toBe(true);
     expect(result.results[0].journalId).not.toMatch(/^journal:/);
     expect(result.results[0].scored?.summary).not.toMatch(/^analyzed:/);
-    expect(analytics.createRun).toHaveBeenCalled();
+    expect(createRun).toHaveBeenCalledTimes(1);
+    const created = await createRun.mock.results[0].value;
+    expect(isUuidRecordingId(created.recordingId)).toBe(true);
+    expect(isUuidRecordingId(created.runId)).toBe(true);
+    expect(created.recordingId).not.toMatch(/^journal:/);
+    expect(created.runId).not.toMatch(/^journal:/);
+  });
+
+  it('uploadBatch success must never treat journal: prefix as a valid recording id (G-18-06)', async () => {
+    const analytics: PublicIngestAnalytics = {
+      allocateUpload: jest.fn(async () => ({
+        id: 'upload-1',
+        expiresAt: new Date().toISOString(),
+      })),
+      putUploadContent: jest.fn(async () => ({ receivedBytes: 12 })),
+      completeUpload: jest.fn(async () => ({
+        status: 200,
+        assetId: ASSET_ID,
+        state: 'ready',
+      })),
+      createRun: jest.fn(async () => ({
+        status: 202,
+        runId: RUN_ID,
+        recordingId: RECORDING_ID,
+        projectVersionId: PROJECT_A,
+        replay: false,
+      })),
+    };
+    const deps = buildPublicUploadDeps({
+      analytics,
+      context: ctx,
+      projectId: PROJECT_A,
+      runScoredAnalysis: async () => ({ summary: 'ok' }),
+    });
+    const service = new UploadService(deps);
+    const result = await service.submit({
+      channel: 'api',
+      projectId: PROJECT_A,
+      tokenProjectId: PROJECT_A,
+      sync: true,
+      moduleActive: true,
+      files: [{ filename: 'stereo.wav', bytes: Buffer.from('RIFF....WAVEfmt ') }],
+    });
+    const journalId = result.results[0].journalId!;
+    expect(result.results[0].ok).toBe(true);
+    expect(journalId.startsWith('journal:')).toBe(false);
+    expect(isUuidRecordingId(journalId)).toBe(true);
   });
 
   it('oversized file errors without createRun', async () => {
