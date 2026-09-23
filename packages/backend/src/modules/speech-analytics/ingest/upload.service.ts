@@ -153,25 +153,38 @@ export class UploadService {
         if (journal.createsCdr !== false) {
           throw Object.assign(new Error('cdr_forbidden'), { code: 'cdr_forbidden' });
         }
-        try {
-          const scored = await this.deps.runAnalysis({
-            journalId: journal.id,
-            bytes: file.bytes,
-            swapChannels: input.swapChannels === true,
+        const analysisArgs = {
+          journalId: journal.id,
+          bytes: file.bytes,
+          swapChannels: input.swapChannels === true,
+        };
+        if (!wait) {
+          // D-17 / CR-03: accepted path schedules analysis without awaiting score.
+          void this.deps.runAnalysis(analysisArgs).catch(() => {
+            /* Background failure surfaces via run state, not HTTP abort. */
           });
           results.push({
             filename: file.filename,
             ok: true,
             journalId: journal.id,
-            scored: { summary: scored.summary },
           });
-        } catch (error) {
-          results.push({
-            filename: file.filename,
-            ok: false,
-            journalId: journal.id,
-            error: error instanceof Error ? error.message : 'analyze_failed',
-          });
+        } else {
+          try {
+            const scored = await this.deps.runAnalysis(analysisArgs);
+            results.push({
+              filename: file.filename,
+              ok: true,
+              journalId: journal.id,
+              scored: { summary: scored.summary },
+            });
+          } catch (error) {
+            results.push({
+              filename: file.filename,
+              ok: false,
+              journalId: journal.id,
+              error: error instanceof Error ? error.message : 'analyze_failed',
+            });
+          }
         }
       } catch (error) {
         results.push({
