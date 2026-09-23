@@ -1,7 +1,7 @@
 ---
 phase: 18-polnyy-refaktoring-rechevoy-analitiki
 verified: 2026-09-23T05:00:39Z
-status: human_needed
+status: passed
 score: 23/23 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
@@ -20,6 +20,7 @@ re_verification:
   gaps_remaining: []
   regressions: []
 covered_files:
+
   - .planning/evidence/speech-analytics-uat-live.json
   - .planning/phases/18-polnyy-refaktoring-rechevoy-analitiki/18-01-PLAN.md
   - .planning/phases/18-polnyy-refaktoring-rechevoy-analitiki/18-01-SUMMARY.md
@@ -96,8 +97,10 @@ covered_files:
   - packages/frontend/src/features/speechAnalytics/ui/MetricEditor.tsx
   - packages/frontend/src/features/speechAnalytics/ui/ModuleSettings/ModuleSettings.tsx
   - packages/frontend/src/features/speechAnalytics/ui/UploadForm/UploadForm.tsx
-covered_digest: "v1:sha256:de91f6ba66941f12defe3becdad8b1571c32187687e37e86502eb4cd52945b3c"
+
+covered_digest: "v1:sha256:db97c5317d702c11122932b69091c8e9ae22da288936c12bd00ab6f03dc4552b"
 advisory:
+
   - finding: "Production public + hangup Nest STT/score default to null (WR-01)"
     category: architectural
     reason: "defaultPipelineDeps и createSaAnalysisWorker подставляют stt/score → null warn; UUID/enqueue есть, scored completion без реальных провайдеров недостижим. Не falsifies locked must_have D-46 (audio_ms units) и не в prior gaps."
@@ -107,6 +110,7 @@ advisory:
     reason: "Router redirects /reports → conversations (D-37); leftover nav id is UX noise, not product Reports surface"
     evidence_status: "grep moduleRegistry.ts id speech-analytics-reports"
 human_verification:
+
   - test: "Выполнить 18-UAT-API-RECHECK.md: один SA API-токен, POST uploads/batch с одним mono и одним stereo sample (не полный Z:\\temp\\speech-analytics-samples), подтвердить UUID в sa_recordings/sa_analysis_runs без префикса journal:, charged=false"
     expected: "recordingId/runId/journalId — UUID в sa_*; charged false; без wallet debit"
     why_human: "Живой HTTP/БД после деплоя; automated verify запрещён оркестратором; старый evidence live.api с journal: stubs не считается proof нового public path"

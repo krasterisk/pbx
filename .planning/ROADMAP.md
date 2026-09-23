@@ -1379,11 +1379,11 @@ Plans:
 
 ## Phase 18: Полный рефакторинг речевой аналитики
 
-**Status:** Planned
+**Status:** Complete
 **Goal:** Заново собрать модуль речевой аналитики до паритета с aiPBX и удобнее текущего кабинета: проекты и редактор метрик, загрузка записей через интерфейс и API, дашборды и отчёты, диаризация stereo/mono, включение анализа на маршруте, внешний API для чужих АТС, модели из каталога platform/тенанта, биллинг Krasterisk, эталонные оценки, настройка через AI-чат и живой UAT.
 **Depends on:** — (модуль уже в коде; Phase 17 не блокирует)
 **Requirements**: паритет с aiPBX, архитектура `packages/frontend/.idea/ARCHITECTURE.md`, живой прогон `Z:\temp\speech-analytics-samples` (REQ-SA-PARITY, REQ-SA-ARCH, REQ-SA-UAT)
-**Plans:** 15 executed + 4 gap-closure plans
+**Plans:** 22/22 plans complete
 
 Plans:
 **Wave 1**
@@ -1440,9 +1440,9 @@ Plans:
 
 **Wave 12 — gap closure** *(verification 20/23)*
 
-- [ ] 18-20-PLAN.md — AI apply keeps the full merged draft (CR-01, D-27)
-- [ ] 18-21-PLAN.md — Hangup audioMs from duration, not file bytes (CR-02, D-46)
-- [ ] 18-22-PLAN.md — Public accepted batch returns without awaiting score (CR-03, D-17)
+- [x] 18-20-PLAN.md — AI apply keeps the full merged draft (CR-01, D-27)
+- [x] 18-21-PLAN.md — Hangup audioMs from duration, not file bytes (CR-02, D-46)
+- [x] 18-22-PLAN.md — Public accepted batch returns without awaiting score (CR-03, D-17)
 
 **Cross-cutting constraints:**
 

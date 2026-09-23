@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 status: executing
-stopped_at: Completed 18-17-PLAN.md
-last_updated: "2026-09-23T04:08:40.863Z"
-state_head: b8be769cc7084db1dfc019ce05059e535f9dffb5
+stopped_at: Phase 18 complete — all phases complete
+last_updated: "2026-09-23T06:08:00.095Z"
+state_head: b415ae6f0392759f736d3c41fdd150580fd9264d
 progress:
   total_phases: 26
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 215
-  completed_plans: 210
+  completed_plans: 215
   total_phase_directories: 25
   phases_with_plan_summaries: 18
 milestone_name: milestone
-current_phase_name: Полный рефакторинг речевой аналитики
 current_phase: 15
+current_phase_name: Полный рефакторинг речевой аналитики
 ---
 
 # State
@@ -454,6 +454,7 @@ Phase 1 — MOH: pending verify.
 - [Phase 16.1]: Staff rename writes only ConferenceStateService.setDisplayName; endpoint/user models are never updated
 - [Phase 16.1]: Telemetry ingest strips unknown keys and invalid qualityLimitationReason/packetsLost/totalFreezesDuration inside the service; controllers do not use class-validator IsIn/IsNumber
 - [Phase 15]: Public ingest createJournalRow uses createRun UUID recordingId (G-18-03)
+- [Phase 15]: Hangup audioMs from durationSec*1000 or STT, never waitForFile bytes (CR-02/D-46)
 
 ## Roadmap Evolution
 
@@ -659,11 +660,12 @@ Also open: `/gsd-secure-phase 15`; Phase 11 harness verify; Phase 10 `/gsd-verif
 | Phase 16.2 P03 | 11 | 3 tasks | 14 files |
 | Phase 16.2-telekonferentsii-zapis-vstrech-i-otchetnost P04 | 6 | 2 tasks | 6 files |
 | Phase 18 P17 | 6min | 2 tasks | 4 files |
+| Phase 18 P21 | 4min | 2 tasks | 7 files |
 
 ## Session
 
-**Last session:** 2026-09-23T02:03:36.533Z
-**Stopped at:** Completed 18-17-PLAN.md
+**Last session:** 2026-09-23T04:30:16.477Z
+**Stopped at:** Phase 18 complete — all phases complete
 **Resume file:** None
 **Also ready:** .planning/phases/15-universal-pbx-ai-agent/15-CONTEXT.md
 

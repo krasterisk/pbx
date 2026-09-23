@@ -40,6 +40,7 @@ Brownfield: код и модули уже существуют; GSD-планы �
 | Гость конференции — ephemeral PJSIP в `krsk-conf-{uid}` | Скомпрометированный токен не даёт выход в тенантный `from-internal` | ✓ Phase 16.1 |
 | Ёмкость комнаты = `min(тариф, бюджет потоков)` одним числом | Отказ 409, без «пустить без видео» | ✓ Phase 16.1 |
 | Revoke гостя = stamp + ConfbridgeKick + destroy triple | Не только `revoked_at` | ✓ Phase 16.1 |
+| Речевая аналитика пишет charge с `charged=false`, публичный success id — UUID | Кошелёк не списывается; клиенту не отдаются заглушки `journal:` | ✓ Phase 18 |
 
 ---
-*Last updated: 2026-09-16 after Phase 16.1*
+*Last updated: 2026-09-23 after Phase 18*
