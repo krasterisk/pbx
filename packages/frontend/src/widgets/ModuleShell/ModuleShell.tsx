@@ -50,6 +50,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const isMobile = useIsMobile(768);
   const user = useAppSelector((s) => s.auth.user);
   const panelMode = useAppSelector((s) => s.aiChat.panelMode) ?? 'dock';
+  const chatSeed = useAppSelector((s) => s.aiChat.seedMessage);
   const ccAgent = useAppSelector(selectMyAgent);
   const level = user?.level as UserLevel | undefined;
   const { active } = useHubModules();
@@ -163,6 +164,10 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (chatSeed) setAgentOpen(true);
+  }, [chatSeed]);
 
   const closeAgent = useCallback(() => {
     setAgentOpen(false);

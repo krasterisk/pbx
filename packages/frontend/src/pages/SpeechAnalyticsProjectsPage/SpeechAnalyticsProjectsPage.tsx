@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createColumnHelper, type ColumnDef, type Table } from '@tanstack/react-table';
-import { defaultSaProjectConfig, type SaProjectConfigV1 } from '@krasterisk/shared';
+import { applyIndustryTemplate, defaultSaProjectConfig, type SaProjectConfigV1 } from '@krasterisk/shared';
 import { ProjectWizard } from '@/features/speechAnalytics/ui/ProjectWizard/ProjectWizard';
 import { ProjectSettingsForm } from '@/features/speechAnalytics/ui/ProjectSettingsForm/ProjectSettingsForm';
 import { Copy, FolderKanban, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
@@ -27,6 +27,8 @@ import {
 } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
 import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import {
   useBulkDeleteSaProjectsMutation,
@@ -43,6 +45,7 @@ const PAGE_SIZE = 25;
 
 export const SpeechAnalyticsProjectsPage = memo(() => {
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
   const projectsQuery = useGetSaProjectsQuery();
   const [createProject, createState] = useCreateSaProjectMutation();
@@ -164,6 +167,38 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
       setCreateOpen(false);
       setNewName('');
       setEditId(saved.id);
+    } catch {
+      toast.error(t('speechAnalytics.saveFailed', 'Не удалось сохранить'));
+    }
+  };
+
+  const onPromptChat = async (name: string, prompt: string, description: string) => {
+    try {
+      const created = await createProject({
+        name: name.trim() || t('speechAnalytics.newProjectDefault', 'Новый проект'),
+      }).unwrap();
+      const config: SaProjectConfigV1 = {
+        ...applyIndustryTemplate('custom'),
+        description,
+        systemPrompt: prompt,
+      };
+      await updateDraft({
+        id: created.id,
+        expectedRevision: created.draft_revision,
+        config,
+      }).unwrap();
+      dispatch(aiChatActions.openWithSeed(
+        [
+          'Настрой проект речевой аналитики по описанию пользователя.',
+          `Название: ${created.name}`,
+          `project_id: ${created.id}`,
+          'Запиши описание в systemPrompt, собери metrics и callTaxonomy и вызови edit_speech_analytics_project.',
+          'Покажи карточку подтверждения. Не публикуй проект сам.',
+          '',
+          prompt,
+        ].join('\n'),
+      ));
+      setCreateOpen(false);
     } catch {
       toast.error(t('speechAnalytics.saveFailed', 'Не удалось сохранить'));
     }
@@ -376,6 +411,7 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
           <ProjectWizard
             submitting={createState.isLoading}
             onCancel={() => setCreateOpen(false)}
+            onContinueInChat={(name, prompt, description) => { void onPromptChat(name, prompt, description); }}
             onSubmit={(name, config) => { void onCreate(name, config); }}
           />
         </DialogContent>

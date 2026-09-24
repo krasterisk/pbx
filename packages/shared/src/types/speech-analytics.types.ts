@@ -71,7 +71,7 @@ export type SaMetricPolarity = 'positive' | 'negative' | 'neutral';
 export type SaProjectMetric = {
   id: string;
   name: string;
-  type: 'scale' | 'boolean' | 'number' | 'enum' | 'string';
+  type: 'boolean' | 'number' | 'enum' | 'string';
   description: string;
   enumValues?: string[];
   min?: number;
@@ -99,6 +99,12 @@ export type SaCustomMetricDef = {
   max?: number;
   unit?: string;
   polarity?: SaMetricPolarity;
+};
+
+export type SaEventWebhookItem = {
+  event: SaWebhookEvent;
+  url: string;
+  headers: Record<string, string>;
 };
 
 export type SaEventWebhookConfig = {
@@ -162,6 +168,8 @@ export type SaProjectConfigV1 = {
   systemPrompt: string;
   topics: string[];
   eventWebhook: SaEventWebhookConfig;
+  /** One row per destination. eventWebhook stays for older readers. */
+  eventWebhooks: SaEventWebhookItem[];
   digest: SaDigestConfig;
   alerts: SaAlertConfig;
   budget: SaBudgetConfig;
@@ -214,7 +222,7 @@ export function builtinScaleMetric(id: SaDefaultScaleId): SaProjectMetric {
   return {
     id,
     name: copy.name,
-    type: 'scale',
+    type: 'number',
     description: copy.rubric,
     min: 0,
     max: 100,
@@ -225,6 +233,19 @@ export function builtinScaleMetric(id: SaDefaultScaleId): SaProjectMetric {
 
 export function allBuiltinScaleMetrics(): SaProjectMetric[] {
   return SA_DEFAULT_SCALES.map((id) => builtinScaleMetric(id));
+}
+
+export function normalizeProjectMetric(metric: SaProjectMetric): SaProjectMetric {
+  if ((metric.type as string) === 'scale') {
+    return {
+      ...metric,
+      type: 'number',
+      min: metric.min ?? 0,
+      max: metric.max ?? 100,
+      polarity: metric.polarity ?? 'positive',
+    };
+  }
+  return metric;
 }
 
 /** Every saved metric is scored from its own description. Origin (template or custom) is not a separate rubric. */
@@ -252,6 +273,7 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
     systemPrompt: '',
     topics: [...SA_TOPICS],
     eventWebhook: { url: null, headers: {}, events: [] },
+    eventWebhooks: [],
     digest: {
       enabled: false,
       integrationUids: [],
@@ -277,6 +299,20 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
     sttModelId: null,
     scoreModelId: null,
   };
+}
+
+export function saEventWebhookTargets(
+  config: Pick<SaProjectConfigV1, 'eventWebhook' | 'eventWebhooks'>,
+  event: SaWebhookEvent,
+): Array<{ url: string; headers: Record<string, string> }> {
+  const listed = (config.eventWebhooks ?? []).filter((row) => row.event === event && row.url.trim());
+  if (listed.length) {
+    return listed.map((row) => ({ url: row.url.trim(), headers: row.headers ?? {} }));
+  }
+  if (config.eventWebhook?.url && (config.eventWebhook.events ?? []).includes(event)) {
+    return [{ url: config.eventWebhook.url, headers: config.eventWebhook.headers ?? {} }];
+  }
+  return [];
 }
 
 export function isSaIndustryTemplateId(value: unknown): value is SaIndustryTemplateId {

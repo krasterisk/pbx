@@ -1,13 +1,14 @@
-import { memo, useEffect, useState, type ReactNode } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Bell, ChevronDown, ChevronUp, MessageSquareText, Save, SlidersHorizontal, Tags, Webhook,
+  Save,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import {
   SA_WEBHOOK_EVENTS,
   defaultSaProjectConfig,
+  normalizeProjectMetric,
   type SaAlertConfig,
   type SaCallTagDef,
   type SaDigestConfig,
@@ -17,17 +18,17 @@ import {
 } from '@krasterisk/shared';
 import {
   Button, Card, Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle, Input, Label, Select, Text, Textarea,
-  WebhookAuthConfig, type AuthMode, type WebhookHeader,
+  DialogHeader, DialogTitle, Input, Label, Select, Tabs, TabsContent, TabsList, TabsTrigger,
+  Text, Textarea, type AuthMode, type WebhookHeader,
 } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useGetNotificationsQuery } from '@/shared/api/endpoints/notificationApi';
+import { WebhookList, type WebhookListItem } from '@/shared/ui/WebhookList/WebhookList';
 import {
   useGetSaProjectsQuery,
   usePublishSaProjectMutation,
   useSendSaProjectDigestMutation,
   useTestSaProjectAlertMutation,
-  useTestSaProjectWebhookMutation,
   useUpdateSaProjectDraftMutation,
 } from '../../api/speechAnalyticsApi';
 import cls from './ProjectSettingsForm.module.scss';
@@ -74,35 +75,43 @@ function headersFromAuth(mode: AuthMode, token: string, custom: WebhookHeader[])
   }
   return {};
 }
-const EVENT_LABELS: Record<SaWebhookEvent, string> = {
-  'analysis.completed': 'Событие: анализ завершён',
-  'analysis.error': 'Событие: ошибка анализа',
-  'budget.exceeded': 'Событие: превышен бюджет',
-  'anomaly.detected': 'Событие: аномалия метрик',
-};
 
-type SectionProps = {
-  title: string;
-  icon: ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-};
-
-function Section({ title, icon, open, onToggle, children }: SectionProps) {
-  return (
-    <Card className={`${cls.section} ${open ? cls.sectionOpen : ''}`}>
-      <button type="button" className={cls.sectionHead} onClick={onToggle} aria-expanded={open}>
-        <span className={cls.sectionTitle}>
-          <span className={cls.sectionIcon}>{icon}</span>
-          <Text>{title}</Text>
-        </span>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-      {open ? <div className={cls.sectionBody}>{children}</div> : null}
-    </Card>
-  );
+function webhookItemsFromConfig(config: SaProjectConfigV1): WebhookListItem[] {
+  const stored = config.eventWebhooks ?? [];
+  if (stored.length) {
+    return stored.map((row) => {
+      const auth = authFromHeaders(row.headers);
+      return {
+        id: Math.random().toString(36).slice(2),
+        event: row.event,
+        url: row.url,
+        authMode: auth.mode,
+        token: auth.token,
+        customHeaders: auth.custom,
+      };
+    });
+  }
+  if (!config.eventWebhook?.url) return [];
+  const auth = authFromHeaders(config.eventWebhook.headers);
+  const events = config.eventWebhook.events?.length
+    ? config.eventWebhook.events
+    : ['analysis.completed' as const];
+  return events.map((event) => ({
+    id: Math.random().toString(36).slice(2),
+    event,
+    url: config.eventWebhook.url ?? '',
+    authMode: auth.mode,
+    token: auth.token,
+    customHeaders: auth.custom,
+  }));
 }
+
+const EVENT_LABELS: Record<SaWebhookEvent, string> = {
+  'analysis.completed': 'Анализ завершён',
+  'analysis.error': 'Ошибка анализа',
+  'budget.exceeded': 'Превышен бюджет',
+  'anomaly.detected': 'Аномалия метрик',
+};
 
 export type ProjectSettingsFormProps = {
   projectId: string;
@@ -115,10 +124,10 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   const project = (projectsQuery.data ?? []).find((row) => row.id === projectId);
   const [saveDraft, saveState] = useUpdateSaProjectDraftMutation();
   const [publishProject, publishState] = usePublishSaProjectMutation();
-  const [testWebhook] = useTestSaProjectWebhookMutation();
   const [sendDigest] = useSendSaProjectDigestMutation();
   const [testAlert] = useTestSaProjectAlertMutation();
   const { data: integrations = [] } = useGetNotificationsQuery();
+  const [notice, setNotice] = useState<{ text: string; tone: 'success' | 'error' } | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const [name, setName] = useState('');
@@ -126,17 +135,13 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   const [systemPrompt, setSystemPrompt] = useState('');
   const [metrics, setMetrics] = useState<SaProjectMetric[]>([]);
   const [topics, setTopics] = useState<SaCallTagDef[]>([]);
-  const [webhookUrl, setWebhookUrl] = useState('');
-  const [authMode, setAuthMode] = useState<AuthMode>('none');
-  const [authToken, setAuthToken] = useState('');
-  const [customHeaders, setCustomHeaders] = useState<WebhookHeader[]>([]);
-  const [events, setEvents] = useState<SaWebhookEvent[]>([]);
+  const [webhookItems, setWebhookItems] = useState<WebhookListItem[]>([]);
   const [digest, setDigest] = useState<SaDigestConfig>(defaultSaProjectConfig().digest);
   const [alerts, setAlerts] = useState<SaAlertConfig>(defaultSaProjectConfig().alerts);
   const [budget, setBudget] = useState('');
   const [revision, setRevision] = useState(1);
   const [hydrated, setHydrated] = useState<string | null>(null);
-  const [open, setOpen] = useState({ prompt: false, topics: false, metrics: false, webhook: false, notes: false });
+  const [tab, setTab] = useState('general');
   const [pendingTopic, setPendingTopic] = useState<number | null>(null);
   const [pendingMetric, setPendingMetric] = useState<number | null>(null);
 
@@ -146,14 +151,12 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
     setName(project.name);
     setDescription(cfg.description ?? '');
     setSystemPrompt(cfg.systemPrompt ?? '');
-    setMetrics((cfg.metrics ?? []).map((metric) => ({ ...metric, sourceScaleId: null })));
+    setMetrics((cfg.metrics ?? []).map((metric) => ({
+      ...normalizeProjectMetric(metric),
+      sourceScaleId: null,
+    })));
     setTopics(cfg.callTaxonomy ?? []);
-    setWebhookUrl(cfg.eventWebhook?.url ?? '');
-    const auth = authFromHeaders(cfg.eventWebhook?.headers);
-    setAuthMode(auth.mode);
-    setAuthToken(auth.token);
-    setCustomHeaders(auth.custom);
-    setEvents(cfg.eventWebhook?.events ?? []);
+    setWebhookItems(webhookItemsFromConfig(cfg));
     setDigest({ ...defaultSaProjectConfig().digest, ...cfg.digest });
     setAlerts({ ...defaultSaProjectConfig().alerts, ...cfg.alerts });
     setBudget(cfg.budget?.softLimit ? String(cfg.budget.softLimit) : '');
@@ -162,52 +165,70 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   }, [hydrated, project]);
 
   const buildConfig = (): SaProjectConfigV1 => {
-    const headerMap = headersFromAuth(authMode, authToken, customHeaders);
+    const eventWebhooks = webhookItems
+      .filter((row) => row.url.trim())
+      .map((row) => ({
+        event: row.event as SaWebhookEvent,
+        url: row.url.trim(),
+        headers: headersFromAuth(row.authMode, row.token, row.customHeaders),
+      }));
+    const headerMap = eventWebhooks[0]?.headers ?? {};
     const parsedBudget = budget.trim() === '' ? 0 : Number(budget.replace(',', '.'));
     return {
       ...defaultSaProjectConfig(),
       ...(project?.draft_config ?? {}),
       description,
       systemPrompt,
-      metrics: metrics.map((metric) => ({ ...metric, sourceScaleId: null })),
+      metrics: metrics.map((metric) => ({ ...normalizeProjectMetric(metric), sourceScaleId: null })),
       callTaxonomy: topics,
       customMetrics: [],
       hiddenDefaultScales: [],
-      eventWebhook: { url: webhookUrl.trim() || null, headers: headerMap, events },
+      eventWebhook: {
+        url: eventWebhooks[0]?.url ?? null,
+        headers: headerMap,
+        events: [...new Set(eventWebhooks.map((row) => row.event))],
+      },
+      eventWebhooks,
       digest,
       alerts,
       budget: { softLimit: Number.isFinite(parsedBudget) && parsedBudget > 0 ? parsedBudget : 0 },
     };
   };
 
+  const showNotice = (text: string, tone: 'success' | 'error') => {
+    setNotice({ text, tone });
+    if (tone === 'success') toast.success(text);
+    else toast.error(text);
+  };
+
   const notifyToast = (error: unknown, fallback: string) => {
     const code = notifyErrorCode(error);
     if (code === 'digest_recipient_required') {
-      toast.error(t('speechAnalytics.settingsIntegrationRequired', 'Выберите интеграцию'));
+      showNotice(t('speechAnalytics.settingsIntegrationRequired', 'Выберите интеграцию'), 'error');
       return;
     }
     if (code === 'missing_credentials') {
-      toast.error(t('speechAnalytics.notifyMissingCredentials', 'В интеграции не указан токен бота или chat id'));
+      showNotice(t('speechAnalytics.notifyMissingCredentials', 'В интеграции не указан токен бота или chat id'), 'error');
       return;
     }
     if (code === 'invalid_bot_token') {
-      toast.error(t('speechAnalytics.notifyInvalidToken', 'Токен бота неверный. Вставьте полный токен из BotFather'));
+      showNotice(t('speechAnalytics.notifyInvalidToken', 'Токен бота неверный. Вставьте полный токен из BotFather'), 'error');
       return;
     }
     if (code === 'chat_not_found') {
-      toast.error(t('speechAnalytics.notifyChatNotFound', 'Chat id не найден. Напишите боту в Telegram и укажите id этого чата'));
+      showNotice(t('speechAnalytics.notifyChatNotFound', 'Chat id не найден. Напишите боту в Telegram и укажите id этого чата'), 'error');
       return;
     }
     if (code === 'bot_blocked') {
-      toast.error(t('speechAnalytics.notifyBotBlocked', 'Бот заблокирован в этом чате'));
+      showNotice(t('speechAnalytics.notifyBotBlocked', 'Бот заблокирован в этом чате'), 'error');
       return;
     }
-    toast.error(fallback);
+    showNotice(fallback, 'error');
   };
 
   const onSendDigest = async () => {
     if (!digest.integrationUids.length) {
-      toast.error(t('speechAnalytics.settingsIntegrationRequired', 'Выберите интеграцию'));
+      showNotice(t('speechAnalytics.settingsIntegrationRequired', 'Выберите интеграцию'), 'error');
       return;
     }
     try {
@@ -222,7 +243,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
         setRevision(sent.draftRevision);
         setHydrated(`${projectId}:${sent.draftRevision}`);
       });
-      toast.success(t('speechAnalytics.settingsDigestSent', 'Тестовая сводка отправлена'));
+      showNotice(t('speechAnalytics.settingsDigestSent', 'Сообщение отправлено'), 'success');
     } catch (error) {
       notifyToast(error, t('speechAnalytics.settingsDigestFailed', 'Не удалось отправить сводку'));
     }
@@ -230,7 +251,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
 
   const onTestAlert = async () => {
     if (!digest.integrationUids.length) {
-      toast.error(t('speechAnalytics.settingsIntegrationRequired', 'Выберите интеграцию'));
+      showNotice(t('speechAnalytics.settingsIntegrationRequired', 'Выберите интеграцию'), 'error');
       return;
     }
     try {
@@ -244,7 +265,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
       const sent = await testAlert({ id: projectId }).unwrap();
       setRevision(sent.draftRevision);
       setHydrated(`${projectId}:${sent.draftRevision}`);
-      toast.success(t('speechAnalytics.settingsAlertSent', 'Тестовое уведомление отправлено'));
+      showNotice(t('speechAnalytics.settingsAlertSent', 'Сообщение отправлено'), 'success');
     } catch (error) {
       notifyToast(error, t('speechAnalytics.settingsAlertFailed', 'Не удалось отправить уведомление'));
     }
@@ -273,8 +294,16 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
         <DialogTitle>{name.trim() || t('speechAnalytics.settingsTitle', 'Настройки проекта')}</DialogTitle>
         <Text variant="muted">{t('speechAnalytics.settingsSubtitle', 'Промпт, метрики, темы и уведомления этого проекта')}</Text>
       </DialogHeader>
-      <div className={cls.scroll}>
-        <div className={cls.identity}>
+      <Tabs value={tab} onValueChange={setTab} className={cls.tabs}>
+        <TabsList aria-label={t('speechAnalytics.settingsTitle', 'Настройки проекта')}>
+          <TabsTrigger value="general">{t('speechAnalytics.settingsTabGeneral', 'Общие')}</TabsTrigger>
+          <TabsTrigger value="metrics">{t('speechAnalytics.settingsMetrics', 'Метрики')}</TabsTrigger>
+          <TabsTrigger value="topics">{t('speechAnalytics.settingsCallTopics', 'Темы звонков')}</TabsTrigger>
+          <TabsTrigger value="webhook">{t('speechAnalytics.settingsWebhooks', 'Webhooks')}</TabsTrigger>
+          <TabsTrigger value="notifications">{t('speechAnalytics.settingsNotifications', 'Уведомления')}</TabsTrigger>
+        </TabsList>
+        <div className={cls.formBody}>
+        <TabsContent value="general">
         <VStack gap="12" max>
           <VStack gap="4" max>
             <Label htmlFor="sa-settings-name">{t('speechAnalytics.projectName', 'Название проекта')}</Label>
@@ -284,14 +313,15 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
             <Label htmlFor="sa-settings-description">{t('speechAnalytics.wizardProjectDescription', 'Описание проекта')}</Label>
             <Input id="sa-settings-description" value={description} onChange={(e) => setDescription(e.target.value)} />
           </VStack>
+          <VStack gap="4" max>
+            <Label htmlFor="sa-settings-prompt">{t('speechAnalytics.settingsSystemPrompt', 'Системный промпт')}</Label>
+            <Textarea id="sa-settings-prompt" rows={4} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} />
+          </VStack>
         </VStack>
-        </div>
+        </TabsContent>
 
-        <Section icon={<MessageSquareText size={18} />} title={t('speechAnalytics.settingsSystemPrompt', 'Системный промпт')} open={open.prompt} onToggle={() => setOpen((s) => ({ ...s, prompt: !s.prompt }))}>
-          <Textarea rows={4} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} />
-        </Section>
-
-        <Section icon={<Tags size={18} />} title={t('speechAnalytics.settingsCallTopics', 'Темы звонков')} open={open.topics} onToggle={() => setOpen((s) => ({ ...s, topics: !s.topics }))}>
+        <TabsContent value="topics">
+          <VStack gap="12" max>
           <Text variant="muted">{t('speechAnalytics.wizardTopicsHint', 'Темы - метки для звонков. При анализе ИИ выбирает подходящие темы из справочника по смыслу разговора.')}</Text>
           {topics.map((tag, index) => (
             <Card key={tag.id} className={cls.nested}>
@@ -312,9 +342,11 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
           <Button type="button" variant="outline" onClick={() => setTopics((prev) => [...prev, { id: `tag_${Date.now()}`, name: '', aliases: [], description: '' }])}>
             {t('speechAnalytics.wizardAddTopic', 'Добавить тему')}
           </Button>
-        </Section>
+          </VStack>
+        </TabsContent>
 
-        <Section icon={<SlidersHorizontal size={18} />} title={t('speechAnalytics.settingsMetrics', 'Метрики')} open={open.metrics} onToggle={() => setOpen((s) => ({ ...s, metrics: !s.metrics }))}>
+        <TabsContent value="metrics">
+          <VStack gap="12" max>
           <Text variant="muted">{t('speechAnalytics.settingsMetricsHint', 'Один набор метрик проекта. Разбор смотрит на название, тип ответа и описание, без деления на стандартные и свои.')}</Text>
           {metrics.map((metric, index) => (
             <Card key={`${metric.id}-${index}`} className={cls.nested}>
@@ -336,21 +368,21 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                           ...row,
                           type,
                           sourceScaleId: null,
-                          min: type === 'scale' ? (row.min ?? 0) : row.min,
-                          max: type === 'scale' ? (row.max ?? 100) : row.max,
+                          min: type === 'number' ? (row.min ?? 0) : row.min,
+                          max: type === 'number' ? (row.max ?? 100) : row.max,
+                          polarity: type === 'number' ? (row.polarity ?? 'positive') : row.polarity,
                         }
                         : row
                     )));
                   }}
                 >
-                  <option value="scale">{t('speechAnalytics.settingsScale', 'Шкала')}</option>
                   <option value="boolean">Boolean (Да/Нет)</option>
                   <option value="number">Number (Число)</option>
                   <option value="enum">Enum (Список)</option>
                   <option value="string">String (Текст)</option>
                 </Select>
-                {metric.type === 'scale' ? (
-                  <HStack gap="8">
+                {metric.type === 'number' ? (
+                  <HStack gap="8" align="end">
                     <VStack gap="4" className={cls.row}>
                       <Label htmlFor={`sa-scale-from-${index}`}>{t('speechAnalytics.settingsScaleFrom', 'От')}</Label>
                       <Input
@@ -369,6 +401,27 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                         onChange={(e) => setMetrics((prev) => prev.map((row, i) => (i === index ? { ...row, max: Number(e.target.value), sourceScaleId: null } : row)))}
                       />
                     </VStack>
+                    <VStack gap="4" className={cls.row}>
+                      <Label htmlFor={`sa-metric-unit-${index}`}>{t('speechAnalytics.wizardUnit', 'Единица')}</Label>
+                      <Input
+                        id={`sa-metric-unit-${index}`}
+                        value={metric.unit ?? ''}
+                        placeholder="%"
+                        onChange={(e) => setMetrics((prev) => prev.map((row, i) => (i === index ? { ...row, unit: e.target.value, sourceScaleId: null } : row)))}
+                      />
+                    </VStack>
+                    <VStack gap="4" className={cls.row}>
+                      <Label htmlFor={`sa-metric-polarity-${index}`}>{t('speechAnalytics.wizardScore', 'Оценка')}</Label>
+                      <Select
+                        id={`sa-metric-polarity-${index}`}
+                        value={metric.polarity ?? 'positive'}
+                        onChange={(e) => setMetrics((prev) => prev.map((row, i) => (i === index ? { ...row, polarity: e.target.value as SaProjectMetric['polarity'], sourceScaleId: null } : row)))}
+                      >
+                        <option value="positive">{t('speechAnalytics.wizardPolarityHigh', 'Больше - лучше')}</option>
+                        <option value="negative">{t('speechAnalytics.wizardPolarityLow', 'Меньше - лучше')}</option>
+                        <option value="neutral">{t('speechAnalytics.wizardPolarityNeutral', 'Нейтрально (без оценки)')}</option>
+                      </Select>
+                    </VStack>
                   </HStack>
                 ) : null}
                 <Label>{t('speechAnalytics.wizardLlmDescription', 'Описание для LLM')}</Label>
@@ -379,37 +432,26 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
           <Button type="button" variant="outline" onClick={() => setMetrics((prev) => [...prev, { id: `metric_${Date.now()}`, name: '', type: 'boolean', description: '', polarity: 'neutral', sourceScaleId: null }])}>
             {t('speechAnalytics.wizardAddMetric', 'Добавить метрику')}
           </Button>
-        </Section>
+          </VStack>
+        </TabsContent>
 
-        <Section icon={<Webhook size={18} />} title={t('speechAnalytics.settingsWebhooks', 'Webhooks (опционально)')} open={open.webhook} onToggle={() => setOpen((s) => ({ ...s, webhook: !s.webhook }))}>
-          <Text variant="muted">{t('speechAnalytics.settingsWebhookHint', 'Настройте уведомления о событиях проекта')}</Text>
-          <Label>{t('speechAnalytics.settingsWebhookUrl', 'URL вебхука')}</Label>
-          <Input value={webhookUrl} placeholder="https://your-api.com/webhook" onChange={(e) => setWebhookUrl(e.target.value)} />
-          <WebhookAuthConfig
-            authMode={authMode}
-            token={authToken}
-            customHeaders={customHeaders}
-            onAuthModeChange={setAuthMode}
-            onTokenChange={setAuthToken}
-            onHeadersChange={setCustomHeaders}
+        <TabsContent value="webhook">
+          <WebhookList
+            items={webhookItems}
+            onChange={setWebhookItems}
+            events={SA_WEBHOOK_EVENTS.map((event) => ({
+              value: event,
+              label: t(`speechAnalytics.settingsEvent.${event}`, EVENT_LABELS[event]),
+            }))}
+            title={t('speechAnalytics.settingsWebhookTitle', 'Настройка Webhooks')}
+            tooltip={t('speechAnalytics.settingsWebhookTooltip', 'HTTP-запросы при событиях проекта. Для каждого адреса выбирается своё событие и авторизация.')}
+            addLabel={t('speechAnalytics.settingsAddWebhook', 'Добавить вебхук')}
+            emptyLabel={t('speechAnalytics.settingsNoWebhooks', 'Нет настроенных вебхуков')}
           />
-          <Text>{t('speechAnalytics.settingsEvents', 'События')}</Text>
-          {SA_WEBHOOK_EVENTS.map((event) => (
-            <HStack key={event} gap="8">
-              <Checkbox
-                checked={events.includes(event)}
-                aria-label={EVENT_LABELS[event]}
-                onChange={() => setEvents((prev) => (prev.includes(event) ? prev.filter((item) => item !== event) : [...prev, event]))}
-              />
-              <Text>{t(`speechAnalytics.settingsEvent.${event}`, EVENT_LABELS[event])}</Text>
-            </HStack>
-          ))}
-          {webhookUrl ? (
-            <Button type="button" variant="outline" onClick={() => void testWebhook({ id: projectId })}>{t('speechAnalytics.settingsTestWebhook', 'Тест вебхука')}</Button>
-          ) : null}
-        </Section>
+        </TabsContent>
 
-        <Section icon={<Bell size={18} />} title={t('speechAnalytics.settingsNotifications', 'Уведомления')} open={open.notes} onToggle={() => setOpen((s) => ({ ...s, notes: !s.notes }))}>
+        <TabsContent value="notifications">
+          <VStack gap="12" max>
           <div className={cls.group}>
             <Text>{t('speechAnalytics.settingsWhere', 'Куда уведомлять')}</Text>
             <Link to="/integrations" target="_blank" rel="noopener noreferrer" className={cls.integrationsLink}>
@@ -472,9 +514,16 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
             <Input id="sa-settings-budget" type="number" value={budget} onChange={(e) => setBudget(e.target.value)} />
             <HStack gap="8"><Checkbox checked={alerts.budgetExceeded.enabled} onChange={() => setAlerts((a) => ({ ...a, budgetExceeded: { enabled: !a.budgetExceeded.enabled } }))} /><Text>{t('speechAnalytics.settingsAlertBudget', 'Превышение бюджета')}</Text></HStack>
             <Button type="button" variant="outline" onClick={() => void onTestAlert()}>{t('speechAnalytics.settingsAlertTest', 'Отправить тест')}</Button>
+            {notice ? (
+              <Text className={notice.tone === 'success' ? cls.noticeSuccess : cls.noticeError}>
+                {notice.text}
+              </Text>
+            ) : null}
           </div>
-        </Section>
-      </div>
+          </VStack>
+        </TabsContent>
+        </div>
+      </Tabs>
       <div className={cls.footer}>
         <Button type="button" disabled={busy || !name.trim()} onClick={() => void onSave()}>
           <Save size={16} />

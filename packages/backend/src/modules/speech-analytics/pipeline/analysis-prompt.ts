@@ -1,5 +1,6 @@
 import {
   rubricForMetric,
+  normalizeProjectMetric,
   type SaCallTagDef,
   type SaProjectConfigV1,
   type SaProjectMetric,
@@ -26,14 +27,16 @@ export type AnalysisScore = {
 };
 
 export function scoringMetrics(config: SaProjectConfigV1): SaProjectMetric[] {
-  return (config.metrics ?? []).filter((m) => m.id && m.name);
+  return (config.metrics ?? [])
+    .map((metric) => normalizeProjectMetric(metric))
+    .filter((metric) => metric.id && metric.name);
 }
 
 export function buildAnalysisPrompt(config: SaProjectConfigV1, transcript: string): string {
   const metrics = scoringMetrics(config);
   const lines = metrics.map((m) => {
     const rubric = rubricForMetric(m);
-    const range = m.type === 'number' || m.type === 'scale'
+    const range = m.type === 'number'
       ? ` range ${m.min ?? 0}-${m.max ?? 100}`
       : '';
     const enums = m.type === 'enum' && m.enumValues?.length

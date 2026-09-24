@@ -33,6 +33,8 @@ export type AgentTurnOutcome =
 
 export type AgentChatState = AiChatSchema & {
     turnOutcome: AgentTurnOutcome;
+    /** Message the panel should send once, then clear. Opens a new chat turn. */
+    seedMessage: string | null;
 };
 
 const initialState: AgentChatState = {
@@ -42,6 +44,7 @@ const initialState: AgentChatState = {
     availableModels: [],
     turnOutcome: 'idle',
     panelMode: readStoredPanelMode(),
+    seedMessage: null,
 };
 
 export const aiChatSlice = createSlice({
@@ -50,6 +53,13 @@ export const aiChatSlice = createSlice({
     reducers: {
         openChat(state) {
             state.isOpen = true;
+        },
+        openWithSeed(state, action: PayloadAction<string>) {
+            state.isOpen = true;
+            state.seedMessage = action.payload;
+        },
+        clearSeed(state) {
+            state.seedMessage = null;
         },
         closeChat(state) {
             state.isOpen = false;

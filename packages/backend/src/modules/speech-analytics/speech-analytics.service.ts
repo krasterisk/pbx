@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { Sequelize } from 'sequelize-typescript';
 import { UniqueConstraintError } from 'sequelize';
 import {
-  defaultSaProjectConfig, type SaProjectConfigV1,
+  defaultSaProjectConfig, saEventWebhookTargets, type SaProjectConfigV1,
 } from '@krasterisk/shared';
 import { AiJobAdmissionService } from '../ai-jobs/ai-job-admission.service';
 import { AiMediaAsset, AiUpload } from '../media-assets/media-asset.models';
@@ -345,14 +345,25 @@ export class SpeechAnalyticsService {
     const project = await this.assertScope(context, projectId, 'analytics:read');
     if (context.principalKind === 'integration') throw new ForbiddenException({ code: 'resource_permission_denied' });
     const config = this.parseConfig(project.draft_config);
-    if (!config.eventWebhook.url) {
+    const targets = [
+      ...saEventWebhookTargets(config, 'analysis.completed'),
+      ...saEventWebhookTargets(config, 'analysis.error'),
+      ...saEventWebhookTargets(config, 'budget.exceeded'),
+      ...saEventWebhookTargets(config, 'anomaly.detected'),
+    ];
+    const unique = targets.filter((row, index) => targets.findIndex((item) => item.url === row.url) === index);
+    if (!unique.length) {
       throw new UnprocessableEntityException({ code: 'webhook_url_required' });
     }
-    return testSaEventWebhook(axiosSaHttpPoster, {
-      url: config.eventWebhook.url,
-      headers: config.eventWebhook.headers ?? {},
-      projectId,
-    });
+    const results = [];
+    for (const target of unique) {
+      results.push(await testSaEventWebhook(axiosSaHttpPoster, {
+        url: target.url,
+        headers: target.headers,
+        projectId,
+      }));
+    }
+    return { results };
   }
 
   private async deliverToIntegrations(tenantUid: number, uids: number[], message: string): Promise<number> {
@@ -459,15 +470,17 @@ export class SpeechAnalyticsService {
       softLimit: config.budget?.softLimit ?? 0,
       spent,
     });
-    if (result.shouldWebhook && config.eventWebhook.url
-      && config.eventWebhook.events.includes('budget.exceeded')) {
-      await enqueueSaEventWebhook(this.webhooks, {
-        url: config.eventWebhook.url,
-        headers: config.eventWebhook.headers ?? {},
-        event: 'budget.exceeded',
-        projectId,
-        data: { spent, softLimit: result.softLimit, currency },
-      });
+    if (result.shouldWebhook) {
+      const targets = saEventWebhookTargets(config, 'budget.exceeded');
+      for (const target of targets) {
+        await enqueueSaEventWebhook(this.webhooks, {
+          url: target.url,
+          headers: target.headers,
+          event: 'budget.exceeded',
+          projectId,
+          data: { spent, softLimit: result.softLimit, currency },
+        });
+      }
     }
     return { ...result, currency, period: { from: from.toISOString(), to: to.toISOString() } };
   }

@@ -1,20 +1,16 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeft, ArrowRight, Car, Check, ChevronDown, ChevronUp, Home, Landmark,
-  Lock, Plus, Shield, ShoppingBag, Sparkles, Stethoscope, Trash2, Truck,
-  UtensilsCrossed, Wrench,
+  ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Lock, PenLine, Plus, SlidersHorizontal, Trash2,
 } from 'lucide-react';
 import {
   SA_DEFAULT_SCALES,
-  SA_INDUSTRY_TEMPLATE_CATALOG,
   allBuiltinScaleMetrics,
   applyIndustryTemplate,
   builtinScaleMetric,
   defaultSaProjectConfig,
   type SaCallTagDef,
   type SaDefaultScaleId,
-  type SaIndustryTemplateId,
   type SaMetricPolarity,
   type SaProjectConfigV1,
   type SaProjectMetric,
@@ -26,18 +22,7 @@ import {
 import { HStack, VStack } from '@/shared/ui/Stack';
 import cls from './ProjectWizard.module.scss';
 
-const ICONS: Record<string, typeof Home> = {
-  real_estate: Home,
-  delivery: Truck,
-  tech_support: Wrench,
-  banking: Landmark,
-  medicine: Stethoscope,
-  food: UtensilsCrossed,
-  auto_service: Car,
-  insurance: Shield,
-  ecommerce: ShoppingBag,
-  custom: Sparkles,
-};
+type SetupMode = 'prompt' | 'manual';
 
 const SCALE_COPY: Record<SaDefaultScaleId, { label: string; description: string }> = {
   greeting_quality: {
@@ -89,6 +74,8 @@ type Step = 1 | 2 | 3;
 export type ProjectWizardProps = {
   onSubmit: (name: string, config: SaProjectConfigV1) => void;
   onCancel: () => void;
+  /** Prompt mode creates a draft and continues metric setup in the assistant chat. */
+  onContinueInChat?: (name: string, prompt: string, description: string) => void;
   submitting?: boolean;
 };
 
@@ -97,12 +84,12 @@ function slugId(name: string): string {
   return id || `metric_${Date.now()}`;
 }
 
-export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: ProjectWizardProps) => {
+export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submitting = false }: ProjectWizardProps) => {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [templateId, setTemplateId] = useState<SaIndustryTemplateId | null>(null);
+  const [mode, setMode] = useState<SetupMode | null>(null);
   const [systemPrompt, setSystemPrompt] = useState('');
   const [visible, setVisible] = useState<SaDefaultScaleId[]>([...SA_DEFAULT_SCALES]);
   const [custom, setCustom] = useState<SaProjectMetric[]>([]);
@@ -113,12 +100,20 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: P
   const [pendingMetricDelete, setPendingMetricDelete] = useState<number | null>(null);
   const [aliasDraft, setAliasDraft] = useState<Record<string, string>>({});
 
-  const selectTemplate = (id: SaIndustryTemplateId) => {
-    const next = applyIndustryTemplate(id);
-    setTemplateId(id);
+  const chooseManual = () => {
+    const next = applyIndustryTemplate('custom');
+    setMode('manual');
     setSystemPrompt(next.systemPrompt);
     setVisible(next.metrics.flatMap((m) => (m.sourceScaleId ? [m.sourceScaleId] : [])));
-    setCustom(next.metrics.filter((m) => m.type !== 'scale'));
+    setCustom(next.metrics.filter((m) => !m.sourceScaleId));
+    setTopics(next.callTaxonomy ?? []);
+  };
+
+  const choosePrompt = () => {
+    setMode('prompt');
+    setVisible([]);
+    setCustom([]);
+    setTopics([]);
   };
 
   const toggleScale = (id: SaDefaultScaleId) => {
@@ -141,7 +136,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: P
     const hidden = allBuiltinScaleMetrics().map((m) => m.id).filter((id) => !visible.includes(id as SaDefaultScaleId));
     const config: SaProjectConfigV1 = {
       ...defaultSaProjectConfig(),
-      templateId: templateId ?? 'custom',
+      templateId: 'custom',
       description,
       systemPrompt,
       metrics: [...scales, ...custom],
@@ -163,10 +158,22 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: P
   };
 
   const canNext = step === 1
-    ? Boolean(name.trim())
+    ? Boolean(name.trim() && mode && (mode === 'manual' || systemPrompt.trim()))
     : step === 2
       ? visible.length > 0 || custom.length > 0
       : true;
+
+  const goNext = async () => {
+    if (step !== 1) {
+      setStep(3);
+      return;
+    }
+    if (mode === 'prompt') {
+      onContinueInChat?.(name.trim(), systemPrompt.trim(), description.trim());
+      return;
+    }
+    setStep(2);
+  };
   const pendingTopic = pendingDelete != null ? topics[pendingDelete] : undefined;
 
   const confirmDeleteTopic = () => {
@@ -201,6 +208,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: P
         </Text>
       </DialogHeader>
       <div className={cls.body}>
+        {mode === 'prompt' ? null : (
         <div className={cls.phases} role="tablist">
           {([1, 2, 3] as Step[]).map((id, index) => {
             const done = step > id;
@@ -229,6 +237,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: P
             );
           })}
         </div>
+        ) : null}
 
         {step === 1 ? (
           <VStack gap="16" max className={cls.step}>
@@ -240,28 +249,44 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: P
               <Label htmlFor="sa-wizard-description">{t('speechAnalytics.wizardProjectDescription', 'Описание проекта')}</Label>
               <Input id="sa-wizard-description" value={description} onChange={(e) => setDescription(e.target.value)} />
             </VStack>
-            <Text variant="muted">{t('speechAnalytics.wizardHint', 'Выберите шаблон отрасли - подставим готовые метрики. Можно пропустить.')}</Text>
-            <Text>{t('speechAnalytics.wizardPickTemplate', 'Выберите шаблон')}</Text>
-            <Text variant="muted">{t('speechAnalytics.wizardTemplateFills', 'Шаблон предзаполнит настройки проекта')}</Text>
+            <Text variant="muted">{t('speechAnalytics.wizardHint', 'Опишите, что оценивать в звонках, или настройте метрики и темы вручную.')}</Text>
+            <Text>{t('speechAnalytics.wizardPickSetup', 'Как настроить проект')}</Text>
             <div className={cls.templateGrid}>
-              {SA_INDUSTRY_TEMPLATE_CATALOG.map((tpl) => {
-                const Icon = ICONS[tpl.id] ?? Sparkles;
-                const selected = templateId === tpl.id;
-                return (
-                  <Card
-                    key={tpl.id}
-                    className={`${cls.templateCard} ${selected ? cls.templateSelected : ''}`}
-                    onClick={() => selectTemplate(tpl.id)}
-                  >
-                    <VStack gap="8" align="center" className={cls.templateBody}>
-                      <span className={cls.templateIcon}><Icon size={22} /></span>
-                      <Text>{t(`speechAnalytics.template.${tpl.id}`, tpl.name)}</Text>
-                      <Text variant="muted">{tpl.description}</Text>
-                    </VStack>
-                  </Card>
-                );
-              })}
+              <Card
+                className={`${cls.templateCard} ${mode === 'prompt' ? cls.templateSelected : ''}`}
+                onClick={choosePrompt}
+              >
+                <VStack gap="8" align="center" className={cls.templateBody}>
+                  <span className={cls.templateIcon}><PenLine size={22} /></span>
+                  <Text>{t('speechAnalytics.wizardModePrompt', 'Произвольный промпт')}</Text>
+                  <Text variant="muted">{t('speechAnalytics.wizardModePromptHint', 'Опишите задачу своими словами. Дальше метрики и темы настраиваются в чате с помощником.')}</Text>
+                </VStack>
+              </Card>
+              <Card
+                className={`${cls.templateCard} ${mode === 'manual' ? cls.templateSelected : ''}`}
+                onClick={chooseManual}
+              >
+                <VStack gap="8" align="center" className={cls.templateBody}>
+                  <span className={cls.templateIcon}><SlidersHorizontal size={22} /></span>
+                  <Text>{t('speechAnalytics.wizardModeManual', 'Ручная настройка')}</Text>
+                  <Text variant="muted">{t('speechAnalytics.wizardModeManualHint', 'Как шаблон «Свой»: готовые метрики качества, свои метрики и темы добавляете сами.')}</Text>
+                </VStack>
+              </Card>
             </div>
+            {mode === 'prompt' ? (
+              <VStack gap="4" max>
+                <Label htmlFor="sa-wizard-prompt">{t('speechAnalytics.wizardPromptLabel', 'Промпт')}</Label>
+                <Textarea
+                  id="sa-wizard-prompt"
+                  rows={6}
+                  value={systemPrompt}
+                  placeholder={t('speechAnalytics.wizardPromptPlaceholder', 'Например: оценивать приветствие, решение вопроса и обещание перезвонить. Темы: доставка, оплата, возврат.')}
+                  onChange={(e) => {
+                    setSystemPrompt(e.target.value);
+                  }}
+                />
+              </VStack>
+            ) : null}
           </VStack>
         ) : null}
 
@@ -347,31 +372,44 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: P
                         </>
                       ) : null}
                       {metric.type === 'number' ? (
-                        <HStack gap="8">
-                          <Input
-                            aria-label={t('speechAnalytics.wizardMin', 'Мин.')}
-                            value={metric.min ?? ''}
-                            onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, min: e.target.value === '' ? undefined : Number(e.target.value) } : row)))}
-                          />
-                          <Input
-                            aria-label={t('speechAnalytics.wizardMax', 'Макс.')}
-                            value={metric.max ?? ''}
-                            onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, max: e.target.value === '' ? undefined : Number(e.target.value) } : row)))}
-                          />
-                          <Input
-                            aria-label={t('speechAnalytics.wizardUnit', 'Единица')}
-                            value={metric.unit ?? ''}
-                            onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, unit: e.target.value } : row)))}
-                          />
-                          <Select
-                            aria-label={t('speechAnalytics.wizardScore', 'Оценка')}
-                            value={metric.polarity ?? 'positive'}
-                            onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, polarity: e.target.value as SaMetricPolarity } : row)))}
-                          >
-                            <option value="positive">Больше - лучше</option>
-                            <option value="negative">Меньше - лучше</option>
-                            <option value="neutral">Нейтрально (без оценки)</option>
-                          </Select>
+                        <HStack gap="8" align="end">
+                          <VStack gap="4" className={cls.grow}>
+                            <Label>{t('speechAnalytics.settingsScaleFrom', 'От')}</Label>
+                            <Input
+                              aria-label={t('speechAnalytics.settingsScaleFrom', 'От')}
+                              value={metric.min ?? ''}
+                              onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, min: e.target.value === '' ? undefined : Number(e.target.value) } : row)))}
+                            />
+                          </VStack>
+                          <VStack gap="4" className={cls.grow}>
+                            <Label>{t('speechAnalytics.settingsScaleTo', 'До')}</Label>
+                            <Input
+                              aria-label={t('speechAnalytics.settingsScaleTo', 'До')}
+                              value={metric.max ?? ''}
+                              onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, max: e.target.value === '' ? undefined : Number(e.target.value) } : row)))}
+                            />
+                          </VStack>
+                          <VStack gap="4" className={cls.grow}>
+                            <Label>{t('speechAnalytics.wizardUnit', 'Единица')}</Label>
+                            <Input
+                              aria-label={t('speechAnalytics.wizardUnit', 'Единица')}
+                              value={metric.unit ?? ''}
+                              placeholder="%"
+                              onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, unit: e.target.value } : row)))}
+                            />
+                          </VStack>
+                          <VStack gap="4" className={cls.grow}>
+                            <Label>{t('speechAnalytics.wizardScore', 'Оценка')}</Label>
+                            <Select
+                              aria-label={t('speechAnalytics.wizardScore', 'Оценка')}
+                              value={metric.polarity ?? 'positive'}
+                              onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, polarity: e.target.value as SaMetricPolarity } : row)))}
+                            >
+                              <option value="positive">{t('speechAnalytics.wizardPolarityHigh', 'Больше - лучше')}</option>
+                              <option value="negative">{t('speechAnalytics.wizardPolarityLow', 'Меньше - лучше')}</option>
+                              <option value="neutral">{t('speechAnalytics.wizardPolarityNeutral', 'Нейтрально (без оценки)')}</option>
+                            </Select>
+                          </VStack>
                         </HStack>
                       ) : null}
                       {metric.type === 'boolean' ? (
@@ -481,8 +519,12 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, submitting = false }: P
             {step === 1 ? t('speechAnalytics.wizardClose', 'Закрыть') : t('speechAnalytics.wizardBack', 'Назад')}
           </Button>
           {step < 3 ? (
-            <Button type="button" disabled={!canNext} onClick={() => setStep((prev) => (prev === 1 ? 2 : 3))}>
-              {t('speechAnalytics.wizardNext', 'Далее')}
+            <Button type="button" disabled={!canNext || submitting} onClick={() => { void goNext(); }}>
+              {mode === 'prompt'
+                ? (submitting
+                  ? t('speechAnalytics.wizardSaving', 'Сохранение...')
+                  : t('speechAnalytics.wizardOpenChat', 'Открыть чат'))
+                : t('speechAnalytics.wizardNext', 'Далее')}
               <ArrowRight size={16} />
             </Button>
           ) : (

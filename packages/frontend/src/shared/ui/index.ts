@@ -28,7 +28,7 @@ export type { TableSelectionBannerProps } from './TableSelectionBanner';
 export { BulkDeleteDialog } from './BulkDeleteDialog';
 export type { BulkDeleteDialogProps } from './BulkDeleteDialog';
 export * from './Tooltip/Tooltip';
-export * from './WebhookAuthConfig/WebhookAuthConfig';
+export * from './WebhookList/WebhookList';
 export { MultiSelect } from './MultiSelect/MultiSelect';
 export type { MultiSelectOption, MultiSelectProps } from './MultiSelect/MultiSelect';
 export { TagInput } from './TagInput';

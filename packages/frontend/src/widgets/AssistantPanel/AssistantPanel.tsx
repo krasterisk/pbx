@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Bot, X, Send, Trash2, RotateCcw, ArrowDown, ArrowLeft, Maximize2, Minimize2, ClipboardList } from 'lucide-react';
 import { Button, Text, Textarea } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
 import { looksLikeUserConfirm } from '@krasterisk/shared';
@@ -80,6 +80,8 @@ export interface AssistantPanelProps {
 export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantPanelProps) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const seedMessage = useAppSelector((s) => s.aiChat.seedMessage);
+    const pendingSeedRef = useRef<string | null>(null);
     const isNarrow = useNarrowViewport();
     const effectiveMode: AssistantPanelMode = isNarrow ? 'dock' : mode;
     const isDock = effectiveMode === 'dock';
@@ -273,6 +275,20 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
         if (isStreaming) return;
         retry();
     }, [retry, isStreaming]);
+
+    useEffect(() => {
+        if (!open || !seedMessage) return;
+        pendingSeedRef.current = seedMessage;
+        dispatch(aiChatActions.clearSeed());
+        selectThread(null);
+    }, [dispatch, open, seedMessage, selectThread]);
+
+    useEffect(() => {
+        const text = pendingSeedRef.current;
+        if (!open || !text || selectedThreadUid != null || isStreaming) return;
+        pendingSeedRef.current = null;
+        handleSend(text);
+    }, [handleSend, isStreaming, open, selectedThreadUid]);
 
     const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {

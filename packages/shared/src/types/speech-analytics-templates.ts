@@ -155,7 +155,7 @@ export function applyIndustryTemplate(
     systemPrompt: template.systemPrompt,
     metrics,
     customMetrics: template.customMetrics
-      .filter((m) => m.type !== 'scale' && m.type !== 'string')
+      .filter((m) => !m.sourceScaleId && m.type !== 'string')
       .map((m) => ({
         id: m.id,
         name: m.name,
