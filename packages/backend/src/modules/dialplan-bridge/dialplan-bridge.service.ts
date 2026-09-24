@@ -5,7 +5,7 @@ import * as path from 'path';
 import { MailerService } from '../mailer/mailer.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { NumbersService } from '../numbers/numbers.service';
-import { TtsEnginesService } from '../tts-engines/tts-engines.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { IvrTtsService } from '../ivrs/ivr-tts.service';
 import { IvrTtsCacheService } from '../ivrs/ivr-tts-cache.service';
 import { Route } from '../routes/route.model';
@@ -67,7 +67,7 @@ export class DialplanBridgeService {
     private readonly http: HttpService,
     private readonly mailer: MailerService,
     private readonly telegramBot: TelegramService,
-    private readonly ttsEngines: TtsEnginesService,
+    private readonly providers: AiProvidersService,
     private readonly ivrTts: IvrTtsService,
     private readonly ttsCache: IvrTtsCacheService,
     @InjectModel(Route) private readonly routeModel: typeof Route,
@@ -201,11 +201,13 @@ export class DialplanBridgeService {
     const tenant = Number(body.vpbx_user_uid);
     const engineUid = Number(body.engine);
     const text = String(body.text ?? '').trim();
-    const engines = Number.isFinite(tenant)
-      ? await this.ttsEngines.findAll(tenant)
-      : [];
-    const engine = engines.find((item) => item.uid === engineUid);
-    if (!engine) {
+    let engine;
+    try {
+      if (!Number.isFinite(tenant) || !Number.isFinite(engineUid)) {
+        throw new Error('missing');
+      }
+      engine = await this.providers.loadSpeechEngine(tenant, engineUid, 'tts');
+    } catch {
       throw new BadRequestException('Unknown TTS engine');
     }
     const settings: IIvrPhraseTtsSettings = {};

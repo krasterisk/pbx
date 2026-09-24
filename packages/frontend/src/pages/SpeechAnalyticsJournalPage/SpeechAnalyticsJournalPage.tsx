@@ -1,13 +1,18 @@
 import { memo, useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import { MessageSquareText, Upload } from 'lucide-react';
 import { Button, Skeleton, Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+import { useAppSelector } from '@/shared/hooks/useAppStore';
+import { readImpersonation } from '@/features/auth/lib/impersonationSession';
 import {
+  useDeleteSaConversationMutation,
   useGetSaConversationQuery,
   useGetSaJournalQuery,
   useGetSaProjectsQuery,
+  useRegenerateSaConversationMutation,
   useUploadSaCabinetBatchMutation,
 } from '@/features/speechAnalytics/api/speechAnalyticsApi';
 import {
@@ -46,9 +51,13 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const sheetOpen = Boolean(conversationId);
 
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
+  const canManage = readImpersonation(accessToken) != null;
   const journalQuery = useGetSaJournalQuery();
   const projectsQuery = useGetSaProjectsQuery();
   const [uploadBatch, uploadState] = useUploadSaCabinetBatchMutation();
+  const [regenerate, regenerateState] = useRegenerateSaConversationMutation();
+  const [removeConversation, deleteState] = useDeleteSaConversationMutation();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFormError, setUploadFormError] = useState<string | null>(null);
 
@@ -100,6 +109,31 @@ export const SpeechAnalyticsJournalPage = memo(() => {
       throw new Error('upload_failed');
     }
   }, [t, uploadBatch]);
+
+  const handleRegenerate = useCallback(async () => {
+    if (!conversationId) return;
+    try {
+      await regenerate(conversationId).unwrap();
+      toast.success(t('speechAnalytics.regenerateStarted', 'Аналитика поставлена на переформирование'));
+    } catch {
+      toast.error(t('speechAnalytics.regenerateFailed', 'Не удалось переформировать аналитику'));
+    }
+  }, [conversationId, regenerate, t]);
+
+  const handleDelete = useCallback(async () => {
+    if (!conversationId) return;
+    const confirmed = window.confirm(
+      t('speechAnalytics.confirmDeleteRecording', 'Вы уверены, что хотите удалить запись?'),
+    );
+    if (!confirmed) return;
+    try {
+      await removeConversation(conversationId).unwrap();
+      toast.success(t('speechAnalytics.recordingDeleted', 'Запись удалена'));
+      navigate('/speech-analytics/conversations');
+    } catch {
+      toast.error(t('speechAnalytics.deleteRecordingFailed', 'Не удалось удалить запись'));
+    }
+  }, [conversationId, navigate, removeConversation, t]);
 
   return (
     <VStack gap="24" max className={cls.page} data-testid="speech-analytics-journal">
@@ -188,11 +222,17 @@ export const SpeechAnalyticsJournalPage = memo(() => {
         audioUrl={conversationQuery.data?.audioUrl}
         rebuildInProgress={conversationQuery.data?.rebuildInProgress === true}
         summary={conversationQuery.data?.summary}
+        metricResults={conversationQuery.data?.metricResults}
         transcriptText={conversationQuery.data?.transcriptText}
         runs={conversationQuery.data?.runs}
         isLoading={conversationQuery.isLoading}
         isError={conversationQuery.isError}
         onRetry={() => void conversationQuery.refetch()}
+        canManage={canManage}
+        onRegenerate={() => void handleRegenerate()}
+        onDelete={() => void handleDelete()}
+        isRegenerating={regenerateState.isLoading}
+        isDeleting={deleteState.isLoading}
       />
 
       <UploadForm

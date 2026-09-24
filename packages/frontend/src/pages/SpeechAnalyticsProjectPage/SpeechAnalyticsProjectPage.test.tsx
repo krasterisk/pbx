@@ -32,6 +32,8 @@ vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
   useUpdateSaProjectDraftMutation: () => [vi.fn(), { isLoading: false }],
   usePublishSaProjectMutation: () => [vi.fn(), { isLoading: false }],
   useTestSaProjectWebhookMutation: () => [vi.fn(), { isLoading: false }],
+  useSendSaProjectDigestMutation: () => [vi.fn(), { isLoading: false }],
+  useTestSaProjectAlertMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 vi.mock('@/shared/api/endpoints/notificationApi', () => ({
@@ -48,7 +50,8 @@ describe('SpeechAnalyticsProjectPage', () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId('speech-analytics-project')).toBeInTheDocument();
-    expect(screen.getByTestId('sa-metric-editor')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Опубликовать проект' })).toBeInTheDocument();
+    expect(screen.getByTestId('sa-project-settings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeInTheDocument();
+    expect(screen.queryByTestId('sa-metric-editor')).not.toBeInTheDocument();
   });
 });

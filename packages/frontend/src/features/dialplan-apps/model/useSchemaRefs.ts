@@ -6,6 +6,7 @@ import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import { useGetDirectoriesQuery } from '@/shared/api/endpoints/directoryApi';
 import { useGetIvrsQuery } from '@/shared/api/endpoints/ivrsApi';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
+import { useGetSttEnginesQuery } from '@/shared/api/endpoints/sttEnginesApi';
 import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
@@ -33,6 +34,7 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
   const directories = useGetDirectoriesQuery(undefined, { skip: !needs('dialplanDirectories') });
   const ivrs = useGetIvrsQuery(undefined, { skip: !needs('ivrs') });
   const ttsEngines = useGetTtsEnginesQuery(undefined, { skip: !needs('tts-engines') });
+  const sttEngines = useGetSttEnginesQuery(undefined, { skip: !needs('stt-engines') });
   const voiceRobots = useGetVoiceRobotsQuery(undefined, { skip: !needs('voiceRobots') });
   const contexts = useGetContextsQuery(undefined, { skip: !needs('contexts') });
   const endpoints = useGetEndpointsQuery(undefined, { skip: !needs('endpoints') });
@@ -122,6 +124,16 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
         sectionKey: 'routes.chain.catalog.ttsSection',
         sectionFallback: 'Движки синтеза',
       },
+      'stt-engines': {
+        items: (sttEngines.data ?? []).map((engine) => ({
+          value: String(engine.uid),
+          label: engine.name,
+        })),
+        isLoading: sttEngines.isLoading,
+        sectionHref: '/settings/stt-engines',
+        sectionKey: 'routes.chain.catalog.sttSection',
+        sectionFallback: 'Движки распознавания',
+      },
       voiceRobots: {
         items: (voiceRobots.data ?? []).map((robot) => ({
           value: String(robot.uid),
@@ -198,6 +210,8 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       ivrs.isLoading,
       ttsEngines.data,
       ttsEngines.isLoading,
+      sttEngines.data,
+      sttEngines.isLoading,
       voiceRobots.data,
       voiceRobots.isLoading,
       contexts.data,

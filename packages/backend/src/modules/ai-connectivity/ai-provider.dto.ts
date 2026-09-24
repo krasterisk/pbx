@@ -1,8 +1,18 @@
 import {
   IsString, IsOptional, IsEnum, IsBoolean, IsObject, IsArray,
-  MaxLength,
+  MaxLength, ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
+export class AuthHeaderDto {
+  @IsString()
+  @MaxLength(128)
+  key: string;
+
+  @IsString()
+  @MaxLength(4096)
+  value: string;
+}
 export class CreateAiProviderDto {
   @IsString()
   @MaxLength(128)
@@ -28,6 +38,13 @@ export class CreateAiProviderDto {
   @IsString()
   apiKey?: string;
 
+  /** Custom mode: header name plus secret. A blank value keeps the stored secret. */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AuthHeaderDto)
+  authHeaders?: AuthHeaderDto[];
+
   @IsArray()
   @IsString({ each: true })
   capabilities: string[];
@@ -35,9 +52,6 @@ export class CreateAiProviderDto {
   @IsOptional()
   @IsObject()
   defaults?: Record<string, any>;
-
-  @IsObject()
-  pricing: Record<string, any>;
 
   @IsOptional()
   @IsBoolean()
@@ -75,16 +89,18 @@ export class UpdateAiProviderDto {
 
   @IsOptional()
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AuthHeaderDto)
+  authHeaders?: AuthHeaderDto[];
+
+  @IsOptional()
+  @IsArray()
   @IsString({ each: true })
   capabilities?: string[];
 
   @IsOptional()
   @IsObject()
   defaults?: Record<string, any>;
-
-  @IsOptional()
-  @IsObject()
-  pricing?: Record<string, any>;
 
   @IsOptional()
   @IsBoolean()

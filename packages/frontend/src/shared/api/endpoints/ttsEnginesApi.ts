@@ -1,11 +1,17 @@
 import { rtkApi } from '../rtkApi';
 import { ITtsEngine } from '@/entities/engines';
+import type { IAiProvider } from './aiAgentsApi';
+import { providerAsEngine } from '../lib/providerAsEngine';
 
 const ttsEnginesApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getTtsEngines: builder.query<ITtsEngine[], void>({
-      query: () => '/tts-engines',
+      query: () => '/ai-agents/providers/list?capability=tts',
+      transformResponse: (rows: IAiProvider[]) =>
+        (Array.isArray(rows) ? rows : [])
+          .filter((row) => row.is_global !== true && row.capabilities?.includes('tts'))
+          .map(providerAsEngine),
       providesTags: (result) =>
         result
           ? [

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { IIvrPhraseTtsSettings } from '@krasterisk/shared';
-import { TtsEngine } from '../tts-engines/tts-engine.model';
-import { TtsEnginesService } from '../tts-engines/tts-engines.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
+import type { SpeechEngineConfig } from '../ai-connectivity/speech-engine';
 import { YandexStreamingTtsProvider } from '../voice-robots/providers/yandex-streaming-tts.provider';
 import { IvrTtsGoogleProvider } from './ivr-tts-google.provider';
 import { IvrTtsCustomProvider } from './ivr-tts-custom.provider';
@@ -13,18 +13,18 @@ export class IvrTtsService {
   private readonly logger = new Logger(IvrTtsService.name);
 
   constructor(
-    private readonly ttsEnginesService: TtsEnginesService,
+    private readonly providers: AiProvidersService,
     private readonly yandexTts: YandexStreamingTtsProvider,
     private readonly googleTts: IvrTtsGoogleProvider,
     private readonly customTts: IvrTtsCustomProvider,
   ) {}
 
-  async loadEngine(engineUid: number, vpbxUserUid: number): Promise<TtsEngine> {
-    return this.ttsEnginesService.findOne(engineUid, vpbxUserUid);
+  async loadEngine(engineUid: number, vpbxUserUid: number): Promise<SpeechEngineConfig> {
+    return this.providers.loadSpeechEngine(vpbxUserUid, engineUid, 'tts');
   }
 
   async synthesizeToBuffer(
-    engine: TtsEngine,
+    engine: SpeechEngineConfig,
     text: string,
     phraseSettings?: IIvrPhraseTtsSettings,
   ): Promise<Buffer> {

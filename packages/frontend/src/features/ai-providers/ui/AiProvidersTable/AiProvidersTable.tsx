@@ -21,6 +21,7 @@ import {
   useDeleteGlobalAiProviderMutation,
   useGetAiProvidersQuery,
   useGetGlobalAiProvidersQuery,
+  type AiCapability,
   type IAiProvider,
 } from '@/shared/api/endpoints/aiAgentsApi';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
@@ -31,17 +32,23 @@ import cls from './AiProvidersTable.module.scss';
 interface Props {
   onEdit: (provider: IAiProvider) => void;
   scope?: 'tenant' | 'global';
+  capability?: AiCapability;
 }
 
 const PAGE_SIZE = 50;
 
-export const AiProvidersTable = memo(({ onEdit, scope = 'tenant' }: Props) => {
+export const AiProvidersTable = memo(({ onEdit, scope = 'tenant', capability }: Props) => {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
-  const tenantQuery = useGetAiProvidersQuery(undefined, { skip: scope === 'global' });
+  const tenantQuery = useGetAiProvidersQuery(
+    capability ? { capability } : undefined,
+    { skip: scope === 'global' },
+  );
   const globalQuery = useGetGlobalAiProvidersQuery(undefined, { skip: scope !== 'global' });
   const query = scope === 'global' ? globalQuery : tenantQuery;
-  const providers = query.data ?? [];
+  const providers = (query.data ?? []).filter((provider) => (
+    !capability || provider.capabilities?.includes(capability)
+  ));
   const isLoading = query.isLoading;
   const [deleteTenant] = useDeleteAiProviderMutation();
   const [deleteGlobal] = useDeleteGlobalAiProviderMutation();

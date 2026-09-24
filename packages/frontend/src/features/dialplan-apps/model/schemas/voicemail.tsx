@@ -178,10 +178,11 @@ export function buildVoicemailSchema(t: TFn): FieldSchema[] {
     },
     {
       key: 'stt_engine_uid',
-      kind: 'text',
+      kind: 'select',
       group: 'params',
       labelKey: 'routes.apps.voicemail.sttEngine',
       label: t('routes.apps.voicemail.sttEngine', 'STT движок (опц.)'),
+      optionsSource: 'stt-engines',
     },
     {
       key: 'llm_provider_uid',

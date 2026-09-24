@@ -17,6 +17,8 @@ export const RecordingsCard = memo(() => {
 
   const [basePath, setBasePath] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
+  const [pathEditable, setPathEditable] = useState(false);
+  const [urlEditable, setUrlEditable] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // Sync form from loaded data
@@ -48,11 +50,19 @@ export const RecordingsCard = memo(() => {
           </HStack>
           <Text variant="muted" className={cls.desc}>{t('systemSettings.recordingsBasePathDesc')}</Text>
           <Input
+            name="krsk-records-base-path"
             value={basePath}
             onChange={(e) => setBasePath(e.target.value)}
             placeholder="/usr/records"
             disabled={isLoading}
             className={cls.input}
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            readOnly={!pathEditable}
+            onFocus={() => setPathEditable(true)}
+            data-1p-ignore="true"
+            data-lpignore="true"
           />
         </VStack>
 
@@ -64,11 +74,19 @@ export const RecordingsCard = memo(() => {
           </HStack>
           <Text variant="muted" className={cls.desc}>{t('systemSettings.recordingsBaseUrlDesc')}</Text>
           <Input
+            name="krsk-records-base-url"
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             placeholder="https://pbx.example.com/records"
             disabled={isLoading}
             className={cls.input}
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            readOnly={!urlEditable}
+            onFocus={() => setUrlEditable(true)}
+            data-1p-ignore="true"
+            data-lpignore="true"
           />
         </VStack>
 

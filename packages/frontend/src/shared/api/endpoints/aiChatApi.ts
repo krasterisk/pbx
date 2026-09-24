@@ -14,8 +14,6 @@ export interface IAgentUsageRow {
     tokensIn: number;
     tokensOut: number;
     turns: number;
-    spendUsd: number | null;
-    spendAvailable: boolean;
 }
 
 export interface IAgentUsageFunnelRow {

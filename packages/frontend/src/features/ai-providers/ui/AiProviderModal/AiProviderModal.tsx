@@ -1,6 +1,6 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import {
   Button,
   Dialog,
@@ -26,15 +26,71 @@ import {
   type AiProviderKind,
   type IAiProvider,
 } from '@/shared/api/endpoints/aiAgentsApi';
+import { usePreviewPromptTtsMutation } from '@/shared/api/endpoints/promptsApi';
+import type { IIvrPhraseTtsSettings } from '@krasterisk/shared';
 import styles from './AiProviderModal.module.scss';
+import {
+  clearedSpeechDefaults,
+  hostedSpeechEndpoint,
+  isHostedSpeechEndpoint,
+  isSpeechVendor,
+  SpeechCatalogFields,
+  speechDefaultsFromFields,
+  speechFieldsFromDefaults,
+  yandexRole,
+  type SpeechFieldValues,
+  type SpeechVendor,
+} from './SpeechCatalogFields';
 
 interface Props {
   provider: IAiProvider | null;
   onClose: () => void;
   scope?: 'tenant' | 'global';
+  /** Settings pages pin one capability so a new row shows up in that module. */
+  requiredCapability?: AiCapability;
 }
 
 const ALL_CAPS: AiCapability[] = ['llm', 'stt', 'tts', 'realtime'];
+
+type SpeechPreset = '' | SpeechVendor | 'other';
+
+function initialCapability(provider: IAiProvider | null, required?: AiCapability): AiCapability {
+  if (required && ALL_CAPS.includes(required)) return required;
+  const caps = provider?.capabilities ?? [];
+  const endpoint = (provider?.endpoint ?? '').trim().replace(/\/+$/, '');
+  if (
+    (endpoint === 'https://stt.api.cloud.yandex.net' || endpoint === 'https://speech.googleapis.com')
+    && caps.includes('stt')
+  ) return 'stt';
+  if (
+    (endpoint === 'https://tts.api.cloud.yandex.net' || endpoint === 'https://texttospeech.googleapis.com')
+    && caps.includes('tts')
+  ) return 'tts';
+  return ALL_CAPS.find((cap) => caps.includes(cap)) ?? 'llm';
+}
+
+function initialSpeechPreset(provider: IAiProvider | null, cap: AiCapability): SpeechPreset {
+  if (cap !== 'tts' && cap !== 'stt') return '';
+  if (provider?.vendor === 'yandex' || provider?.vendor === 'google') return provider.vendor;
+  if (!provider) return '';
+  return 'other';
+}
+const PREVIEW_PHRASE = 'Проверка синтеза';
+
+type CatalogAuth = 'bearer' | 'none' | 'custom';
+
+function initialAuth(provider: IAiProvider | null): CatalogAuth {
+  if (provider?.auth_type === 'none' || provider?.auth_type === 'custom') return provider.auth_type;
+  if (provider?.auth_type === 'api_key_header') return 'custom';
+  if (provider?.has_key && (!provider.auth_type || provider.auth_type === 'none')) return 'bearer';
+  return 'bearer';
+}
+
+function initialAuthHeaders(provider: IAiProvider | null): Array<{ key: string; value: string }> {
+  if (provider?.auth_type === 'api_key_header') return [{ key: 'X-API-Key', value: '' }];
+  const keys = provider?.authHeaderKeys ?? [];
+  return keys.length ? keys.map((key) => ({ key, value: '' })) : [{ key: '', value: '' }];
+}
 
 const CAP_KEYS: Record<AiCapability, string> = {
   llm: 'aiProviders.field.capLlm',
@@ -45,25 +101,35 @@ const CAP_KEYS: Record<AiCapability, string> = {
   function_calling: 'aiProviders.field.capLlm',
 };
 
-export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) {
+export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredCapability }: Props) {
   const { t } = useTranslation();
   const isEdit = !!provider;
 
   const [name, setName] = useState(provider?.name ?? '');
   const [vendor, setVendor] = useState(provider?.vendor ?? '');
   const [kind, setKind] = useState<AiProviderKind>(provider?.kind ?? 'online');
-  const [endpoint, setEndpoint] = useState(provider?.endpoint ?? '');
-  const [authType, setAuthType] = useState(provider?.auth_type || 'bearer');
+  const [endpoint, setEndpoint] = useState(
+    provider?.endpoint?.trim()
+      || hostedSpeechEndpoint(provider?.vendor ?? '', provider?.capabilities ?? []),
+  );
+  const [authType, setAuthType] = useState<CatalogAuth>(() => initialAuth(provider));
   const [apiKey, setApiKey] = useState('');
-  const [caps, setCaps] = useState<AiCapability[]>(provider?.capabilities ?? ['llm']);
+  const [authHeaders, setAuthHeaders] = useState(() => initialAuthHeaders(provider));
+  const [cap, setCap] = useState<AiCapability>(() => initialCapability(provider, requiredCapability));
   const [enabled, setEnabled] = useState(provider?.enabled !== false);
   const [model, setModel] = useState(
     typeof provider?.defaults?.model === 'string' ? provider.defaults.model : '',
   );
-  const [inputUsd, setInputUsd] = useState(String(provider?.pricing?.inputTokenUsd ?? 0));
-  const [outputUsd, setOutputUsd] = useState(String(provider?.pricing?.outputTokenUsd ?? 0));
-  const [extraOpen, setExtraOpen] = useState(false);
+  const [speechPreset, setSpeechPreset] = useState<SpeechPreset>(() => (
+    initialSpeechPreset(provider, initialCapability(provider, requiredCapability))
+  ));
+  const [speech, setSpeech] = useState<SpeechFieldValues>(() => speechFieldsFromDefaults(
+    provider?.defaults,
+    initialSpeechPreset(provider, initialCapability(provider, requiredCapability)) === 'other' ? 'plain' : 'preset',
+  ));
   const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
   const [createTenant, tenantCreateState] = useCreateAiProviderMutation();
   const [updateTenant, tenantUpdateState] = useUpdateAiProviderMutation();
@@ -74,9 +140,101 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
   const submitting = scope === 'global'
     ? globalCreateState.isLoading || globalUpdateState.isLoading
     : tenantCreateState.isLoading || tenantUpdateState.isLoading;
+  const [previewTts, previewState] = usePreviewPromptTtsMutation();
 
-  const toggleCap = (cap: AiCapability) => {
-    setCaps((prev) => (prev.includes(cap) ? prev.filter((item) => item !== cap) : [...prev, cap]));
+  const speechMode = cap === 'tts' || cap === 'stt';
+  const customSpeech = speechMode && speechPreset === 'other';
+  const pinnedSpeechPage = requiredCapability === 'tts' || requiredCapability === 'stt';
+  const canPreviewVoice = Boolean(
+    provider?.uid
+    && cap === 'tts'
+    && (
+      (isSpeechVendor(vendor) && provider.has_key)
+      || (customSpeech && endpoint.trim())
+    ),
+  );
+
+  useEffect(() => () => {
+    audioRef.current?.pause();
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+  }, []);
+
+  const chooseCapability = (next: AiCapability) => {
+    setCap(next);
+    if (next === 'tts' || next === 'stt') {
+      if (isSpeechVendor(vendor)) {
+        const url = hostedSpeechEndpoint(vendor, [next]);
+        if (url) setEndpoint(url);
+      }
+      return;
+    }
+    setEndpoint((current) => (isHostedSpeechEndpoint(current) ? '' : current));
+  };
+
+  const chooseSpeechVendor = (next: SpeechVendor) => {
+    setSpeechPreset(next);
+    setVendor(next);
+    setKind('online');
+    setAuthType('bearer');
+    setSpeech(speechFieldsFromDefaults(undefined));
+    setEndpoint(hostedSpeechEndpoint(next, [cap]));
+  };
+
+  const chooseOtherSpeech = () => {
+    const leavingPreset = speechPreset !== 'other';
+    setSpeechPreset('other');
+    setKind('custom');
+    setVendor((current) => (isSpeechVendor(current) || current === 'custom' ? '' : current));
+    setEndpoint((current) => (isHostedSpeechEndpoint(current) ? '' : current));
+    if (leavingPreset) setSpeech(speechFieldsFromDefaults(undefined, 'plain'));
+  };
+
+  const previewSettings = (): IIvrPhraseTtsSettings => (
+    vendor === 'google'
+      ? {
+          voice: speech.voiceName,
+          language_code: speech.languageCode,
+          speaking_rate: speech.speakingRate,
+        }
+      : customSpeech
+        ? {
+            voice: speech.voice,
+            language_code: speech.languageCode,
+            speed: speech.speed,
+          }
+        : {
+            voice: speech.voice,
+            role: yandexRole(speech.voice, speech.role),
+            speed: speech.speed,
+            pitch_shift: speech.pitchShift,
+          }
+  );
+
+  const handlePreview = async () => {
+    if (!provider?.uid || !canPreviewVoice) return;
+    setError(null);
+    try {
+      const blob = await previewTts({
+        text: PREVIEW_PHRASE,
+        engine_uid: provider.uid,
+        settings: previewSettings(),
+      }).unwrap();
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      audioUrlRef.current = url;
+      const audio = audioRef.current ?? new Audio();
+      audioRef.current = audio;
+      audio.src = url;
+      audio.onended = () => {
+        if (audioUrlRef.current === url) {
+          URL.revokeObjectURL(url);
+          audioUrlRef.current = null;
+        }
+      };
+      await audio.play();
+    } catch {
+      setError(t('aiProviders.error.previewFailed'));
+    }
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -84,26 +242,34 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
     setError(null);
     if (!name.trim()) return setError(t('aiProviders.error.nameRequired'));
     if (!endpoint.trim()) return setError(t('aiProviders.error.endpointRequired'));
-    if (caps.length === 0) return setError(t('aiProviders.error.capsRequired'));
+    const chosen = pinnedSpeechPage && requiredCapability ? requiredCapability : cap;
+    const extras = chosen === 'llm'
+      ? (provider?.capabilities ?? []).filter((item) => item === 'tools' || item === 'function_calling')
+      : [];
+    const capabilities = [chosen, ...extras];
 
+    const speechOn = chosen === 'tts' || chosen === 'stt';
+    const speechPatch = speechDefaultsFromFields(vendor.trim() || 'custom', capabilities, speech);
     const payload = {
       name: name.trim(),
       vendor: vendor.trim() || 'custom',
       kind,
       endpoint: endpoint.trim(),
-      auth_type: authType,
-      capabilities: caps,
+      auth_type: speechOn && !customSpeech ? 'bearer' : authType,
+      capabilities,
       defaults: {
         ...(provider?.defaults ?? {}),
-        ...(model.trim() ? { model: model.trim() } : {}),
-      },
-      pricing: {
-        ...(provider?.pricing ?? {}),
-        inputTokenUsd: Number(inputUsd) || 0,
-        outputTokenUsd: Number(outputUsd) || 0,
+        ...(speechOn ? clearedSpeechDefaults() : {}),
+        ...speechPatch,
+        ...(chosen === 'llm' && model.trim() ? { model: model.trim() } : {}),
+        ...(chosen === 'stt' && speechPatch.model ? { model: speechPatch.model } : {}),
       },
       enabled,
-      ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+      ...((!speechOn || customSpeech) && authType === 'none' ? { apiKey: '' } : {}),
+      ...((!speechOn || customSpeech) && authType === 'custom'
+        ? { authHeaders: authHeaders.filter((row) => row.key.trim()) }
+        : {}),
+      ...(apiKey.trim() && (speechOn && !customSpeech || authType === 'bearer') ? { apiKey: apiKey.trim() } : {}),
     };
 
     try {
@@ -122,7 +288,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         aria-describedby={undefined}
-        className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}
+        className={`flex h-[min(44rem,90dvh)] max-h-[min(44rem,90dvh)] flex-col gap-0 overflow-hidden ${styles.dialogContent}`}
       >
         <DialogHeader className={styles.header}>
           <DialogTitle>
@@ -144,7 +310,27 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
                 />
               </VStack>
 
-              <HStack gap="16" className={styles.row} max>
+              {!pinnedSpeechPage && (
+                <VStack gap="8" max className={styles.field}>
+                  <HStack gap="4" align="center">
+                    <Label htmlFor="ai-provider-capability" className={styles.fieldLabel}>
+                      {t('aiProviders.field.capabilities')}
+                    </Label>
+                    <InfoTooltip text={t('aiProviders.field.capabilitiesHint')} />
+                  </HStack>
+                  <Select
+                    id="ai-provider-capability"
+                    value={cap}
+                    onChange={(event) => chooseCapability(event.target.value as AiCapability)}
+                  >
+                    {ALL_CAPS.map((item) => (
+                      <option key={item} value={item}>{t(CAP_KEYS[item])}</option>
+                    ))}
+                  </Select>
+                </VStack>
+              )}
+
+              <HStack gap="16" className={speechMode ? undefined : styles.row} max>
                 <VStack gap="8" max className={styles.field}>
                   <HStack gap="4" align="center">
                     <Label htmlFor="ai-provider-vendor" className={styles.fieldLabel}>
@@ -152,29 +338,59 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
                     </Label>
                     <InfoTooltip text={t('aiProviders.field.vendorHint')} />
                   </HStack>
-                  <Input
-                    id="ai-provider-vendor"
-                    value={vendor}
-                    onChange={(event) => setVendor(event.target.value)}
-                  />
+                  {speechMode ? (
+                    <>
+                      <Select
+                        id="ai-provider-vendor"
+                        value={speechPreset}
+                        onChange={(event) => {
+                          const next = event.target.value;
+                          if (isSpeechVendor(next)) chooseSpeechVendor(next);
+                          else if (next === 'other') chooseOtherSpeech();
+                        }}
+                      >
+                        <option value="">{t('aiProviders.field.speechVendorPlaceholder')}</option>
+                        <option value="yandex">{t('ttsEngines.typeYandex', 'Yandex SpeechKit')}</option>
+                        <option value="google">{t('ttsEngines.typeGoogle', 'Google')}</option>
+                        <option value="other">{t('aiProviders.field.speechVendorOther')}</option>
+                      </Select>
+                      {customSpeech && (
+                        <Input
+                          id="ai-provider-vendor-name"
+                          aria-label={t('aiProviders.field.speechVendorName')}
+                          value={vendor === 'custom' ? '' : vendor}
+                          placeholder={t('aiProviders.field.speechVendorName')}
+                          onChange={(event) => setVendor(event.target.value)}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <Input
+                      id="ai-provider-vendor"
+                      value={vendor}
+                      onChange={(event) => setVendor(event.target.value)}
+                    />
+                  )}
                 </VStack>
-                <VStack gap="8" max className={styles.field}>
-                  <HStack gap="4" align="center">
-                    <Label htmlFor="ai-provider-kind" className={styles.fieldLabel}>
-                      {t('aiProviders.field.kind')}
-                    </Label>
-                    <InfoTooltip text={t('aiProviders.field.kindHint')} />
-                  </HStack>
-                  <Select
-                    id="ai-provider-kind"
-                    value={kind}
-                    onChange={(event) => setKind(event.target.value as AiProviderKind)}
-                  >
-                    <option value="online">{t('aiProviders.field.kindOnline')}</option>
-                    <option value="local">{t('aiProviders.field.kindLocal')}</option>
-                    <option value="custom">{t('aiProviders.field.kindCustom')}</option>
-                  </Select>
-                </VStack>
+                {!speechMode && (
+                  <VStack gap="8" max className={styles.field}>
+                    <HStack gap="4" align="center">
+                      <Label htmlFor="ai-provider-kind" className={styles.fieldLabel}>
+                        {t('aiProviders.field.kind')}
+                      </Label>
+                      <InfoTooltip text={t('aiProviders.field.kindHint')} />
+                    </HStack>
+                    <Select
+                      id="ai-provider-kind"
+                      value={kind}
+                      onChange={(event) => setKind(event.target.value as AiProviderKind)}
+                    >
+                      <option value="online">{t('aiProviders.field.kindOnline')}</option>
+                      <option value="local">{t('aiProviders.field.kindLocal')}</option>
+                      <option value="custom">{t('aiProviders.field.kindCustom')}</option>
+                    </Select>
+                  </VStack>
+                )}
               </HStack>
 
               <VStack gap="8" max className={styles.field}>
@@ -192,7 +408,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
                 />
               </VStack>
 
-              <HStack gap="16" className={styles.row} max>
+              {(!speechMode || customSpeech) && (
                 <VStack gap="8" max className={styles.field}>
                   <HStack gap="4" align="center">
                     <Label htmlFor="ai-provider-auth" className={styles.fieldLabel}>
@@ -203,14 +419,16 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
                   <Select
                     id="ai-provider-auth"
                     value={authType}
-                    onChange={(event) => setAuthType(event.target.value)}
+                    onChange={(event) => setAuthType(event.target.value as CatalogAuth)}
                   >
                     <option value="bearer">{t('aiProviders.field.authBearer')}</option>
-                    <option value="api_key_header">{t('aiProviders.field.authHeader')}</option>
                     <option value="none">{t('aiProviders.field.authNone')}</option>
                     <option value="custom">{t('aiProviders.field.authCustom')}</option>
                   </Select>
                 </VStack>
+              )}
+
+              {(speechMode && !customSpeech || authType === 'bearer') && (
                 <VStack gap="8" max className={styles.field}>
                   <HStack gap="4" align="center">
                     <Label htmlFor="ai-provider-key" className={styles.fieldLabel}>
@@ -223,43 +441,87 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
                     autoComplete="new-password"
+                    placeholder={provider?.has_key ? t('aiProviders.field.apiKeyStored') : ''}
                   />
                 </VStack>
-              </HStack>
+              )}
 
-              <VStack gap="8" max className={styles.field}>
-                <HStack gap="4" align="center">
-                  <Label className={styles.fieldLabel}>{t('aiProviders.field.capabilities')}</Label>
-                  <InfoTooltip text={t('aiProviders.field.capabilitiesHint')} />
-                </HStack>
-                <HStack gap="8" className={styles.caps} max>
-                  {ALL_CAPS.map((cap) => (
-                    <Button
-                      key={cap}
-                      type="button"
-                      variant={caps.includes(cap) ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => toggleCap(cap)}
-                    >
-                      {t(CAP_KEYS[cap])}
-                    </Button>
+              {(!speechMode || customSpeech) && authType === 'custom' && (
+                <VStack gap="8" max className={styles.field}>
+                  <Label className={styles.fieldLabel}>{t('webhookAuth.customHeaders')}</Label>
+                  {authHeaders.map((header, index) => (
+                    <HStack key={index} gap="8" align="center" max>
+                      <Input
+                        aria-label={t('webhookAuth.headerKey')}
+                        autoComplete="off"
+                        placeholder={t('webhookAuth.headerKey')}
+                        value={header.key}
+                        onChange={(event) => setAuthHeaders((rows) => rows.map((row, i) => (
+                          i === index ? { ...row, key: event.target.value } : row
+                        )))}
+                      />
+                      <PasswordInput
+                        aria-label={t('webhookAuth.headerValue')}
+                        autoComplete="new-password"
+                        placeholder={provider?.has_key ? t('aiProviders.field.apiKeyStored') : t('webhookAuth.headerValue')}
+                        value={header.value}
+                        onChange={(event) => setAuthHeaders((rows) => rows.map((row, i) => (
+                          i === index ? { ...row, value: event.target.value } : row
+                        )))}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        aria-label={t('common.delete', 'Удалить')}
+                        onClick={() => setAuthHeaders((rows) => rows.filter((_, i) => i !== index))}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </HStack>
                   ))}
-                </HStack>
-              </VStack>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAuthHeaders((rows) => [...rows, { key: '', value: '' }])}
+                  >
+                    <Plus size={14} />
+                    {t('webhookAuth.addHeader')}
+                  </Button>
+                </VStack>
+              )}
 
-              <VStack gap="8" max className={styles.field}>
-                <HStack gap="4" align="center">
-                  <Label htmlFor="ai-provider-model" className={styles.fieldLabel}>
-                    {t('aiProviders.field.model')}
-                  </Label>
-                  <InfoTooltip text={t('aiProviders.field.modelHint')} />
-                </HStack>
-                <Input
-                  id="ai-provider-model"
-                  value={model}
-                  onChange={(event) => setModel(event.target.value)}
-                />
-              </VStack>
+              <SpeechCatalogFields
+                vendor={vendor.trim()}
+                caps={[cap]}
+                custom={customSpeech}
+                fields={speech}
+                onChange={(key, value) => setSpeech((prev) => ({ ...prev, [key]: value }))}
+                preview={cap === 'tts' && (isSpeechVendor(vendor) || customSpeech) ? {
+                  disabled: !canPreviewVoice,
+                  busy: previewState.isLoading,
+                  hint: t(customSpeech
+                    ? 'aiProviders.field.listenNeedsSave'
+                    : 'aiProviders.field.listenNeedsKey'),
+                  label: t('aiProviders.field.listen'),
+                  onPreview: () => void handlePreview(),
+                } : undefined}
+              />
+
+              {cap === 'llm' && (
+                <VStack gap="8" max className={styles.field}>
+                  <HStack gap="4" align="center">
+                    <Label htmlFor="ai-provider-model" className={styles.fieldLabel}>
+                      {t('aiProviders.field.model')}
+                    </Label>
+                    <InfoTooltip text={t('aiProviders.field.modelHint')} />
+                  </HStack>
+                  <Input
+                    id="ai-provider-model"
+                    value={model}
+                    onChange={(event) => setModel(event.target.value)}
+                  />
+                </VStack>
+              )}
 
               <HStack gap="8" align="center">
                 <Switch
@@ -269,53 +531,6 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant' }: Props) 
                 />
                 <Label htmlFor="ai-provider-enabled">{t('aiProviders.field.enabled')}</Label>
               </HStack>
-
-              <VStack gap="12" max className={styles.extra}>
-                <HStack justify="between" align="center" max>
-                  <HStack gap="4" align="center">
-                    <Text className={styles.extraTitle}>{t('aiProviders.extra')}</Text>
-                    <InfoTooltip text={t('aiProviders.extraTooltip')} />
-                  </HStack>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-expanded={extraOpen}
-                    aria-controls="ai-provider-extra"
-                    title={t('aiProviders.extra')}
-                    aria-label={t('aiProviders.extra')}
-                    onClick={() => setExtraOpen((open) => !open)}
-                  >
-                    <ChevronDown className={extraOpen ? styles.chevronOpen : styles.chevron} />
-                  </Button>
-                </HStack>
-                {extraOpen && (
-                  <HStack gap="16" className={styles.row} max id="ai-provider-extra">
-                    <VStack gap="8" max className={styles.field}>
-                      <Label htmlFor="ai-provider-in" className={styles.fieldLabel}>
-                        {t('aiProviders.field.inputTokenUsd')}
-                      </Label>
-                      <Input
-                        id="ai-provider-in"
-                        inputMode="decimal"
-                        value={inputUsd}
-                        onChange={(event) => setInputUsd(event.target.value)}
-                      />
-                    </VStack>
-                    <VStack gap="8" max className={styles.field}>
-                      <Label htmlFor="ai-provider-out" className={styles.fieldLabel}>
-                        {t('aiProviders.field.outputTokenUsd')}
-                      </Label>
-                      <Input
-                        id="ai-provider-out"
-                        inputMode="decimal"
-                        value={outputUsd}
-                        onChange={(event) => setOutputUsd(event.target.value)}
-                      />
-                    </VStack>
-                  </HStack>
-                )}
-              </VStack>
 
               {error && (
                 <Text className={styles.fieldError} role="alert">{error}</Text>

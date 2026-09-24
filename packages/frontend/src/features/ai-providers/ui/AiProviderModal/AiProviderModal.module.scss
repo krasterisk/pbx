@@ -5,6 +5,8 @@
 
 .dialogContent {
   max-width: min(640px, calc(100vw - 1rem));
+  height: min(44rem, 90dvh);
+  max-height: min(44rem, 90dvh);
   gap: 0;
 }
 
@@ -99,6 +101,46 @@
   flex-shrink: 0;
   padding-top: 0.75rem;
   border-top: 1px solid var(--color-border);
+}
+
+.voiceControl {
+  position: relative;
+  width: 100%;
+}
+
+.voiceSelect {
+  padding-right: 3.25rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2.15rem center;
+  background-size: 1rem;
+}
+
+.voiceListen,
+.voiceListenInline {
+  position: absolute;
+  top: 0;
+  right: 0.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--color-foreground);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
 }
 
 .spin {

@@ -5,7 +5,6 @@ import * as fs from 'fs';
 import { Op } from 'sequelize';
 import type { CcAiProvider } from '../ai-connectivity/ai-provider.model';
 import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
-import { SttEnginesService } from '../stt-engines/stt-engines.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { SttProviderFactory } from '../voice-robots/providers/provider-factory';
 import {
@@ -36,7 +35,6 @@ export class VoicemailScannerService {
     @InjectModel(VoicemailMessage) private readonly messages: typeof VoicemailMessage,
     @Inject(forwardRef(() => VoicemailService))
     private readonly voicemail: VoicemailService,
-    @Optional() private readonly sttEngines?: SttEnginesService,
     @Optional() private readonly sttFactory?: SttProviderFactory,
     @Optional() private readonly llm?: LlmSummaryService,
     @Optional() private readonly aiProviders?: AiProvidersService,
@@ -70,7 +68,7 @@ export class VoicemailScannerService {
       limit: NOTIFY_BATCH,
     });
 
-    const transcriptDue = this.sttEngines && this.sttFactory
+    const transcriptDue = this.aiProviders && this.sttFactory
       ? await this.messages.findAll({
           where: { transcript_status: 'pending' },
           limit: TRANSCRIPT_BATCH,
@@ -169,16 +167,23 @@ export class VoicemailScannerService {
   }
 
   private async resolveEngine(row: VoicemailMessage) {
+    if (!this.aiProviders) return null;
     const stepUid = this.readStepEngineUids(row).stt;
     if (stepUid != null) {
       try {
-        return await this.sttEngines!.findOne(stepUid, row.user_uid);
+        return await this.aiProviders.loadSpeechEngine(row.user_uid, stepUid, 'stt');
       } catch {
-        // fall through to tenant default
+        // fall through to the cabinet's own STT provider
       }
     }
-    const all = await this.sttEngines!.findAll(row.user_uid);
-    return all[0] ?? null;
+    const all = await this.aiProviders.findAll(row.user_uid, 'stt');
+    const first = all[0];
+    if (!first) return null;
+    try {
+      return await this.aiProviders.loadSpeechEngine(row.user_uid, first.uid, 'stt');
+    } catch {
+      return null;
+    }
   }
 
   private async pickLlm(row: VoicemailMessage): Promise<CcAiProvider | null> {

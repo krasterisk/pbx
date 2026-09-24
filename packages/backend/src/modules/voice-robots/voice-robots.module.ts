@@ -25,6 +25,7 @@ import { AriModule } from '../ari/ari.module';
 import { CloudAdminModule } from '../cloud-admin/cloud-admin.module';
 import { RouteReferencesModule } from '../route-references/route-references.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { TtsEnginesModule } from '../tts-engines/tts-engines.module';
 import { SttEnginesModule } from '../stt-engines/stt-engines.module';
 import { VoiceRobotsAiAdapter } from './voice-robots-ai.adapter';
@@ -33,9 +34,6 @@ import { YandexStreamingSttProvider } from './providers/yandex-streaming-stt.pro
 import { YandexStreamingTtsProvider } from './providers/yandex-streaming-tts.provider';
 import { CustomHttpSttProvider } from './providers/custom-http-stt.provider';
 import { SttProviderFactory, TtsProviderFactory } from './providers/provider-factory';
-// STT/TTS Engine models (for provider factory to resolve engine config)
-import { SttEngine } from '../stt-engines/stt-engine.model';
-import { TtsEngine } from '../tts-engines/tts-engine.model';
 
 @Module({
   imports: [
@@ -47,13 +45,12 @@ import { TtsEngine } from '../tts-engines/tts-engine.model';
       VoiceRobotLog,
       VoiceRobotCdr,
       VoiceRobotDataList,
-      SttEngine,
-      TtsEngine,
     ]),
     AriModule,
     CloudAdminModule,
     RouteReferencesModule,
     AiPlatformModule,
+    AiConnectivityModule,
     TtsEnginesModule,
     SttEnginesModule,
   ],

@@ -5,6 +5,7 @@ import { IsBoolean, IsOptional, IsString, MaxLength, validateSync } from 'class-
 import type { CcAiProvider } from '../ai-connectivity/ai-provider.model';
 import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { resolveChatCompletionsUrl } from '../ai-connectivity/chat-endpoint.util';
+import { applyProviderAuth } from '../ai-connectivity/provider-auth';
 
 const LLM_TIMEOUT_MS = 30_000;
 const MAX_TRANSCRIPT_CHARS = 4_000;
@@ -149,9 +150,11 @@ export class LlmSummaryService {
     const key = await this.providers.resolveCredential({
       tenantUid: provider.user_uid, providerUid: provider.uid, capability: 'llm',
     });
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (provider.auth_type === 'bearer' && key) headers.Authorization = `Bearer ${key}`;
-    else if (provider.auth_type === 'api_key_header' && key) headers['X-API-Key'] = key;
+    const headers = applyProviderAuth(
+      { 'Content-Type': 'application/json' },
+      provider.auth_type,
+      key,
+    );
 
     const model = String(provider.defaults?.model ?? 'gpt-4o-mini');
     const temperature = Number(provider.defaults?.temperature ?? 0.2);

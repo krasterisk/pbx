@@ -23,6 +23,7 @@ export type OptionsSource =
   | 'prompts'
   | 'dialplanDirectories'
   | 'tts-engines'
+  | 'stt-engines'
   | 'callGroups'
   | 'voiceRobots'
   | 'contexts'

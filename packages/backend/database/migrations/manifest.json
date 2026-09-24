@@ -99,6 +99,18 @@
         {
           "id": "0024-global-ai-providers.sql",
           "artifact": "0024-global-ai-providers.sql"
+        },
+        {
+          "id": "0025-promote-ai-providers-global.sql",
+          "artifact": "0025-promote-ai-providers-global.sql"
+        },
+        {
+          "id": "0026-speech-engines-to-providers.sql",
+          "artifact": "0026-speech-engines-to-providers.sql"
+        },
+        {
+          "id": "0027-drop-ai-provider-pricing.sql",
+          "artifact": "0027-drop-ai-provider-pricing.sql"
         }
       ],
       "profiles": {
@@ -182,6 +194,18 @@
           {
             "id": "0024-global-ai-providers.sql",
             "artifact": "0024-global-ai-providers.sql"
+          },
+          {
+            "id": "0025-promote-ai-providers-global.sql",
+            "artifact": "0025-promote-ai-providers-global.sql"
+          },
+          {
+            "id": "0026-speech-engines-to-providers.sql",
+            "artifact": "0026-speech-engines-to-providers.sql"
+          },
+          {
+            "id": "0027-drop-ai-provider-pricing.sql",
+            "artifact": "0027-drop-ai-provider-pricing.sql"
           }
         ],
         "robot-api": [
@@ -264,6 +288,18 @@
           {
             "id": "0024-global-ai-providers.sql",
             "artifact": "0024-global-ai-providers.sql"
+          },
+          {
+            "id": "0025-promote-ai-providers-global.sql",
+            "artifact": "0025-promote-ai-providers-global.sql"
+          },
+          {
+            "id": "0026-speech-engines-to-providers.sql",
+            "artifact": "0026-speech-engines-to-providers.sql"
+          },
+          {
+            "id": "0027-drop-ai-provider-pricing.sql",
+            "artifact": "0027-drop-ai-provider-pricing.sql"
           }
         ]
       }
@@ -366,6 +402,18 @@
         {
           "id": "0024-global-ai-providers.sql",
           "artifact": "postgres/0024-global-ai-providers.sql"
+        },
+        {
+          "id": "0025-promote-ai-providers-global.sql",
+          "artifact": "postgres/0025-promote-ai-providers-global.sql"
+        },
+        {
+          "id": "0026-speech-engines-to-providers.sql",
+          "artifact": "postgres/0026-speech-engines-to-providers.sql"
+        },
+        {
+          "id": "0027-drop-ai-provider-pricing.sql",
+          "artifact": "postgres/0027-drop-ai-provider-pricing.sql"
         }
       ],
       "profiles": {
@@ -449,6 +497,18 @@
           {
             "id": "0024-global-ai-providers.sql",
             "artifact": "postgres/0024-global-ai-providers.sql"
+          },
+          {
+            "id": "0025-promote-ai-providers-global.sql",
+            "artifact": "postgres/0025-promote-ai-providers-global.sql"
+          },
+          {
+            "id": "0026-speech-engines-to-providers.sql",
+            "artifact": "postgres/0026-speech-engines-to-providers.sql"
+          },
+          {
+            "id": "0027-drop-ai-provider-pricing.sql",
+            "artifact": "postgres/0027-drop-ai-provider-pricing.sql"
           }
         ],
         "robot-api": [
@@ -531,6 +591,18 @@
           {
             "id": "0024-global-ai-providers.sql",
             "artifact": "postgres/0024-global-ai-providers.sql"
+          },
+          {
+            "id": "0025-promote-ai-providers-global.sql",
+            "artifact": "postgres/0025-promote-ai-providers-global.sql"
+          },
+          {
+            "id": "0026-speech-engines-to-providers.sql",
+            "artifact": "postgres/0026-speech-engines-to-providers.sql"
+          },
+          {
+            "id": "0027-drop-ai-provider-pricing.sql",
+            "artifact": "postgres/0027-drop-ai-provider-pricing.sql"
           }
         ]
       }

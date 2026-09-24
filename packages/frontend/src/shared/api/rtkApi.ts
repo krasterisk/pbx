@@ -3,6 +3,7 @@ import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolk
 import type { ILoginResponse } from '@krasterisk/shared';
 
 import { setSession } from '@/features/auth/model/authSlice';
+import { accessTokenIsImpersonation } from '@/features/auth/lib/impersonationSession';
 import { getEffectiveApiBase, isStandaloneApp } from './apiBase';
 
 type AuthSliceState = { auth?: { accessToken?: string | null } };
@@ -39,6 +40,8 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 
   if (result.error && result.error.status === 401) {
     if (isStandaloneApp()) return result;
+    // Refresh token still belongs to the superadmin. Exchanging it drops the cabinet session.
+    if (accessTokenIsImpersonation(resolveAccessToken(api.getState))) return result;
 
     const refreshToken = localStorage.getItem('refreshToken');
     if (refreshToken) {

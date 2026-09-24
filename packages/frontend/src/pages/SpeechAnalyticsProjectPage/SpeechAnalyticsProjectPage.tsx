@@ -1,29 +1,29 @@
 import { memo } from 'react';
-import { useParams } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { Text } from '@/shared/ui';
-import { VStack } from '@/shared/ui/Stack';
-import { MetricEditor } from '@/features/speechAnalytics/ui/MetricEditor';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Dialog, DialogContent } from '@/shared/ui';
+import { ProjectSettingsForm } from '@/features/speechAnalytics/ui/ProjectSettingsForm/ProjectSettingsForm';
 import cls from './SpeechAnalyticsProjectPage.module.scss';
 
 export type SpeechAnalyticsProjectPageProps = {
-  /** D-38 partial; full tenant-right gating ships in 18-15. */
+  /** Kept so existing callers compile. Model overrides stay on the published config. */
   canEditModels?: boolean;
 };
 
 export const SpeechAnalyticsProjectPage = memo(({
-  canEditModels = false,
+  canEditModels: _canEditModels = false,
 }: SpeechAnalyticsProjectPageProps) => {
-  const { t } = useTranslation();
   const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const close = () => navigate('/speech-analytics/projects');
 
   return (
-    <VStack gap="16" max className={cls.page} data-testid="speech-analytics-project">
-      <Text variant="h1" as="h1" className={cls.title}>
-        {t('speechAnalytics.projectEditorTitle', 'Редактор проекта')}
-      </Text>
-      {id ? <MetricEditor projectId={id} canEditModels={canEditModels} /> : null}
-    </VStack>
+    <div data-testid="speech-analytics-project">
+      <Dialog open={Boolean(id)} onOpenChange={(open) => { if (!open) close(); }}>
+        <DialogContent size="large" className={cls.dialog}>
+          {id ? <ProjectSettingsForm projectId={id} onSaved={close} /> : null}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 });
 

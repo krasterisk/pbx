@@ -12,8 +12,8 @@ import { VoiceRobotLog } from './voice-robot-log.model';
 import { VoiceRobotCdr } from './voice-robot-cdr.model';
 import { VoiceRobotDataList } from './data-list.model';
 import { DataListSearchService } from './services/data-list-search.service';
-import { SttEngine } from '../stt-engines/stt-engine.model';
-import { TtsEngine } from '../tts-engines/tts-engine.model';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
+import type { SpeechEngineConfig } from '../ai-connectivity/speech-engine';
 import { AriHttpClientService } from '../ari/ari-http-client.service';
 import { RtpUdpServerService } from './services/rtp-udp-server.service';
 import { SileroVadProvider } from './services/silero-vad.provider';
@@ -40,8 +40,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
     @InjectModel(VoiceRobotLog) private logModel: typeof VoiceRobotLog,
     @InjectModel(VoiceRobotCdr) private cdrModel: typeof VoiceRobotCdr,
     @InjectModel(VoiceRobotDataList) private dataListModel: typeof VoiceRobotDataList,
-    @InjectModel(SttEngine) private sttEngineModel: typeof SttEngine,
-    @InjectModel(TtsEngine) private ttsEngineModel: typeof TtsEngine,
+    private readonly providers: AiProvidersService,
     private readonly ariClient: AriHttpClientService,
     private readonly udpServer: RtpUdpServerService,
     private readonly vadProvider: SileroVadProvider,
@@ -567,10 +566,11 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       const externalHost = robot.external_host || this.defaultExternalHost;
 
       // Resolve TTS engine (if configured)
-      let ttsEngine: TtsEngine | null = null;
+      let ttsEngine: SpeechEngineConfig | null = null;
       if (robot.tts_engine_id) {
-        ttsEngine = await this.ttsEngineModel.findByPk(robot.tts_engine_id);
-        if (!ttsEngine) {
+        try {
+          ttsEngine = await this.providers.loadSpeechEngine(robot.user_uid, robot.tts_engine_id, 'tts');
+        } catch {
           this.logger.warn(`TTS engine ${robot.tts_engine_id} not found for robot ${robot.name}`);
         }
       }
@@ -581,10 +581,11 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       }
 
       // Resolve STT engine (if configured)
-      let sttEngine: SttEngine | null = null;
+      let sttEngine: SpeechEngineConfig | null = null;
       if (robot.stt_engine_id) {
-        sttEngine = await this.sttEngineModel.findByPk(robot.stt_engine_id);
-        if (!sttEngine) {
+        try {
+          sttEngine = await this.providers.loadSpeechEngine(robot.user_uid, robot.stt_engine_id, 'stt');
+        } catch {
           this.logger.warn(`STT engine ${robot.stt_engine_id} not found for robot ${robot.name}`);
         }
       }

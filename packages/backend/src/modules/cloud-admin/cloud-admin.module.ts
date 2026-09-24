@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { requireJwtSecret } from '../auth/jwt-secret';
 import { Tenant } from './tenant.model';
 import { BillingSeller } from './billing-seller.model';
 import { ModuleRegistry } from './module-registry.model';
@@ -58,8 +59,12 @@ import { GlobalProvidersController } from './global-providers.controller';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'krasterisk-v4-secret'),
-        signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '2h') as any },
+        secret: requireJwtSecret(config),
+        signOptions: {
+          expiresIn: config.get('JWT_EXPIRES_IN', '2h') as any,
+          issuer: 'krasterisk-v4',
+          audience: 'krasterisk-v4-client',
+        },
       }),
       inject: [ConfigService],
     }),

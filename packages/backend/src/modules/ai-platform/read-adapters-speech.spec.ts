@@ -160,8 +160,11 @@ describe('read-adapters-speech — voice robots (D-12, D-15)', () => {
     registry = { register: jest.fn() };
     adapter = new VoiceRobotsAiAdapter(
       voiceRobots as any,
-      ttsEngines as any,
-      sttEngines as any,
+      {
+        loadSpeechEngine: jest.fn(async (uid: number, engineUid: number, kind: string) => (
+          kind === 'tts' ? ttsEngines.findOne(engineUid, uid) : sttEngines.findOne(engineUid, uid)
+        )),
+      } as any,
       registry as any,
       routeReferences as any,
     );
@@ -402,7 +405,7 @@ describe('read-adapters-speech — tts engines (D-15, secret boundary)', () => {
     expect(blob).toContain('yandex-alena');
     expect(blob).not.toContain('other-tts');
     expect(blob).not.toContain('google-secret');
-    expect(ttsEngines.findAll).toHaveBeenCalledWith(TENANT_A);
+    expect(ttsEngines.findAll).toHaveBeenCalledWith(TENANT_A, 'tts');
     expect(ttsEngines.findAll).not.toHaveBeenCalledWith(TENANT_B);
   });
 });
@@ -491,7 +494,7 @@ describe('read-adapters-speech — stt engines (D-15, secret boundary)', () => {
     expect(blob).toContain('yandex-stt');
     expect(blob).not.toContain('other-stt');
     expect(blob).not.toContain('stt-secret-tenant-b');
-    expect(sttEngines.findAll).toHaveBeenCalledWith(TENANT_A);
+    expect(sttEngines.findAll).toHaveBeenCalledWith(TENANT_A, 'stt');
     expect(sttEngines.findAll).not.toHaveBeenCalledWith(TENANT_B);
   });
 });
@@ -567,8 +570,11 @@ describe('read-adapters-speech — per-tool and registry-enumerated isolation (D
     };
     robots = new VoiceRobotsAiAdapter(
       voiceRobots as any,
-      ttsEngines as any,
-      sttEngines as any,
+      {
+        loadSpeechEngine: jest.fn(async (uid: number, engineUid: number, kind: string) => (
+          kind === 'tts' ? ttsEngines.findOne(engineUid, uid) : sttEngines.findOne(engineUid, uid)
+        )),
+      } as any,
       registry as any,
       routeReferences as any,
     );

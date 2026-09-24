@@ -36,6 +36,10 @@ vi.mock('@/features/system-settings/ui/RedisStatusCard', () => ({
   RedisStatusCard: () => <div data-testid="redis-card-stub">redis</div>,
 }));
 
+vi.mock('@/features/tenant-settings/ui/TablePageSizeSetting/TablePageSizeSetting', () => ({
+  TablePageSizeSetting: () => <div data-testid="table-page-size-stub">tables</div>,
+}));
+
 vi.mock('@/features/tenant-settings/ui/TenantSettingsSection', () => ({
   TenantSettingsSection: () => <div data-testid="tenant-settings-section-stub">tenant</div>,
 }));
@@ -56,7 +60,7 @@ describe('SettingsPage stacked forms (D-29 / D-27 wave D)', () => {
     expect(screen.getByTestId('dialplan-card-stub')).toBeInTheDocument();
   });
 
-  it('renders seven sections including the tenant settings stub and chat provider card', () => {
+  it('renders the cabinet sections including table page size', () => {
     render(<SettingsPage />);
     expect(screen.getByTestId('dialplan-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('recordings-card-stub')).toBeInTheDocument();
@@ -64,6 +68,7 @@ describe('SettingsPage stacked forms (D-29 / D-27 wave D)', () => {
     expect(screen.getByTestId('ffmpeg-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('redis-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('ai-chat-card-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('table-page-size-stub')).toBeInTheDocument();
     expect(screen.getByTestId('tenant-settings-section-stub')).toBeInTheDocument();
   });
 

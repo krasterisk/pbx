@@ -71,11 +71,38 @@ describe('ConversationSheet', () => {
     expect(screen.getByText('Идёт пересборка')).toBeInTheDocument();
   });
 
+  it('hides delete and rebuild until a superadmin opens the sheet', () => {
+    render(<ConversationSheet {...baseProps} sourceKind="pbx" />);
+    expect(screen.queryByTestId('conversation-admin-actions')).not.toBeInTheDocument();
+  });
+
+  it('shows rebuild and delete for a superadmin in the tenant cabinet', async () => {
+    const user = userEvent.setup();
+    const onRegenerate = vi.fn();
+    const onDelete = vi.fn();
+    render(
+      <ConversationSheet
+        {...baseProps}
+        sourceKind="pbx"
+        canManage
+        onRegenerate={onRegenerate}
+        onDelete={onDelete}
+      />,
+    );
+
+    await user.click(screen.getByTestId('conversation-regenerate'));
+    await user.click(screen.getByTestId('conversation-delete'));
+    expect(onRegenerate).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
   it('exposes icon-only close with title and aria-label', () => {
     render(<ConversationSheet {...baseProps} sourceKind="pbx" />);
 
-    const close = screen.getByRole('button', { name: 'Закрыть' });
-    expect(close).toHaveAttribute('title', 'Закрыть');
-    expect(close).toHaveAttribute('aria-label', 'Закрыть');
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+    const closeButtons = screen.getAllByRole('button', { name: 'Закрыть' });
+    expect(closeButtons).toHaveLength(1);
+    expect(closeButtons[0]).toHaveAttribute('title', 'Закрыть');
+    expect(closeButtons[0]).toHaveAttribute('aria-label', 'Закрыть');
   });
 });

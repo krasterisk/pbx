@@ -13,7 +13,9 @@ import { runAnalysis as pipelineRunAnalysis } from '../pipeline/run-analysis';
 import type { RunAnalysisDeps } from '../pipeline/run-analysis';
 import { PlatformSpeechModelsService } from '../../ai-connectivity/platform-speech-models.service';
 import { ModuleSettingsService } from '../module-settings.service';
-import { SaAnalysisRun } from '../speech-analytics.models';
+import { SaAnalysisRun, SaProjectVersion, SaResult, SaTranscript, SaTranscriptSegment } from '../speech-analytics.models';
+import { defaultSaProjectConfig, type SaProjectConfigV1 } from '@krasterisk/shared';
+import { randomUUID } from 'node:crypto';
 import {
   createDefaultWaitForFile,
   SaAnalysisWorker,
@@ -36,6 +38,10 @@ export type SaAnalysisWorkerNestDeps = {
   findLatestRates?: RunAnalysisDeps['findLatestRates'];
   /** Platform STT/LLM ids used when the cabinet cannot edit its own models. */
   resolvePlatformModels?: () => Promise<{ sttModelId: string | null; scoreModelId: string | null }>;
+  loadProjectConfig?: (job: SaAnalysisJob) => Promise<SaProjectConfigV1 | null>;
+  results?: typeof SaResult;
+  transcripts?: typeof SaTranscript;
+  segments?: typeof SaTranscriptSegment;
 };
 
 /**
@@ -125,11 +131,54 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
         channelSource: args.channelSource,
         swapChannels: args.swapChannels,
       }),
-      persistSuccess: async () => {
+      persistSuccess: async (patch) => {
         const run = await deps.runs.findOne({
           where: { id: job.runId, tenant_uid: job.tenantUid },
         });
         if (!run) return;
+        if (deps.transcripts && deps.segments && patch.segments.length) {
+          const transcriptId = randomUUID();
+          await deps.transcripts.create({
+            id: transcriptId,
+            tenant_uid: job.tenantUid,
+            asset_id: run.recording_id,
+            stt_revision_id: patch.models.sttModelId || 'stt',
+            content_digest: transcriptId,
+            coverage: 'full',
+            created_at: new Date(),
+          });
+          await Promise.all(patch.segments.map((segment) => deps.segments!.create({
+            id: randomUUID(),
+            tenant_uid: job.tenantUid,
+            transcript_id: transcriptId,
+            ordinal: segment.ordinal,
+            start_ms: String(segment.startMs),
+            end_ms: String(segment.endMs),
+            channel: segment.channel,
+            speaker_role: segment.speakerRole,
+            role_source: segment.roleSource,
+            text: segment.text,
+            confidence: null,
+          })));
+          run.transcript_id = transcriptId;
+        }
+        if (deps.results) {
+          const resultId = randomUUID();
+          await deps.results.create({
+            id: resultId,
+            tenant_uid: job.tenantUid,
+            run_id: run.id,
+            version: 1,
+            schema_version: 1,
+            summary: patch.summary || '',
+            metric_results: JSON.stringify(patch.metrics ?? []),
+            evidence_refs: '[]',
+            quality: 'ok',
+            status: 'scored',
+            created_at: new Date(),
+          });
+          run.result_id = resultId;
+        }
         run.state = 'completed';
         run.updated_at = new Date();
         await run.save();
@@ -163,6 +212,9 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
         moduleDefaults: { sttModelId, scoreModelId },
         publishedVersionModels: { sttModelId, scoreModelId },
         platformAllowlist: allowlist,
+        projectConfig: deps.loadProjectConfig
+          ? await deps.loadProjectConfig(job)
+          : defaultSaProjectConfig(),
       },
       pipelineDeps,
     );
@@ -194,10 +246,30 @@ export const saAnalysisWorkerProvider = {
     config: ConfigService,
     runs: typeof SaAnalysisRun,
     platformModels: PlatformSpeechModelsService,
+    versions: typeof SaProjectVersion,
+    results: typeof SaResult,
+    transcripts: typeof SaTranscript,
+    segments: typeof SaTranscriptSegment,
   ) => createSaAnalysisWorker({
     moduleSettings,
     config,
     runs,
+    results,
+    transcripts,
+    segments,
+    loadProjectConfig: async (job) => {
+      const run = await runs.findOne({ where: { id: job.runId, tenant_uid: job.tenantUid } });
+      if (!run?.project_version_id) return defaultSaProjectConfig();
+      const version = await versions.findOne({
+        where: { id: run.project_version_id, tenant_uid: job.tenantUid },
+      });
+      if (!version?.config) return defaultSaProjectConfig();
+      try {
+        return { ...defaultSaProjectConfig(), ...JSON.parse(version.config) as SaProjectConfigV1 };
+      } catch {
+        return defaultSaProjectConfig();
+      }
+    },
     resolvePlatformModels: () => platformModels.modelIds().catch(() => ({
       sttModelId: null,
       scoreModelId: null,
@@ -208,5 +280,9 @@ export const saAnalysisWorkerProvider = {
     ConfigService,
     getModelToken(SaAnalysisRun),
     PlatformSpeechModelsService,
+    getModelToken(SaProjectVersion),
+    getModelToken(SaResult),
+    getModelToken(SaTranscript),
+    getModelToken(SaTranscriptSegment),
   ],
 };

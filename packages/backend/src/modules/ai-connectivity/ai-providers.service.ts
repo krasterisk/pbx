@@ -4,6 +4,8 @@ import { CcAiProvider } from './ai-provider.model';
 import { CreateAiProviderDto, UpdateAiProviderDto } from './ai-provider.dto';
 import { decryptSecret, encryptSecret } from './secret-cipher.util';
 import { resolveChatCompletionsUrl } from './chat-endpoint.util';
+import { mergeCatalogDefaults, toSpeechEngine, type SpeechCapability, type SpeechEngineConfig } from './speech-engine';
+import { sealCustomAuth } from './provider-auth';
 
 const PROVIDER_CAPABILITIES = new Set(['llm', 'stt', 'tts', 'realtime', 'tools', 'function_calling']);
 
@@ -83,7 +85,10 @@ export class AiProvidersService {
     const row = await this.usableProvider(reference.tenantUid,
       reference.providerUid, reference.capability);
     if (row.auth_type === 'none') return '';
-    if (!row.encrypted_api_key) throw new ForbiddenException({ code: 'provider_secret_missing' });
+    if (!row.encrypted_api_key) {
+      if (row.auth_type === 'custom') return '';
+      throw new ForbiddenException({ code: 'provider_secret_missing' });
+    }
     return decryptSecret(row.encrypted_api_key);
   }
 
@@ -95,28 +100,65 @@ export class AiProvidersService {
       || !PROVIDER_CAPABILITIES.has(capability)) {
       throw new NotFoundException({ code: 'provider_not_found' });
     }
-    const row = await this.model.findOne({
+    let row = await this.model.findOne({
       where: { uid: providerUid, user_uid: tenantUid, enabled: true, is_global: false },
     });
-    if (!row || row.uid !== providerUid || row.user_uid !== tenantUid || row.enabled !== true
+    if (!row && (capability === 'tts' || capability === 'stt')) {
+      row = await this.model.findOne({
+        where: { uid: providerUid, enabled: true, is_global: true },
+      });
+    }
+    if (!row || row.uid !== providerUid || row.enabled !== true
+      || (!row.is_global && row.user_uid !== tenantUid)
       || !Array.isArray(row.capabilities) || !row.capabilities.includes(capability)) {
       throw new NotFoundException({ code: 'provider_not_found' });
     }
     return row;
   }
 
-  async findAll(userUid: number) {
-    return this.model.findAll({
+  async findAll(userUid: number, capability?: string) {
+    this.assertCapability(capability);
+    const rows = await this.model.findAll({
       where: { user_uid: userUid, is_global: false },
       order: [['name', 'ASC']],
     });
+    return this.withCapability(rows, capability);
   }
 
-  async findGlobal() {
-    return this.model.findAll({
+  async findGlobal(capability?: string) {
+    this.assertCapability(capability);
+    const rows = await this.model.findAll({
       where: { is_global: true },
       order: [['name', 'ASC']],
     });
+    return this.withCapability(rows, capability);
+  }
+
+  /**
+   * Tenant provider, or a global speech provider when the cabinet already
+   * references a catalog uid. Global rows stay out of findAll.
+   */
+  async loadSpeechEngine(
+    tenantUid: number,
+    providerUid: number,
+    capability: SpeechCapability,
+  ): Promise<SpeechEngineConfig> {
+    await this.revisionForOperation(tenantUid, providerUid, capability);
+    const row = await this.usableProvider(tenantUid, providerUid, capability);
+    // Yandex/Google keep the API key in `token` even when auth_mode is none.
+    const token = row.encrypted_api_key ? decryptSecret(row.encrypted_api_key) : '';
+    return toSpeechEngine(row, token);
+  }
+
+  private assertCapability(capability?: string): void {
+    if (capability && !PROVIDER_CAPABILITIES.has(capability)) {
+      throw new BadRequestException({ code: 'capability_invalid' });
+    }
+  }
+
+  private withCapability<T extends { capabilities?: string[] }>(rows: T[], capability?: string): T[] {
+    if (!capability) return rows;
+    return rows.filter((row) => Array.isArray(row.capabilities) && row.capabilities.includes(capability));
   }
 
   async findOne(id: number, userUid: number) {
@@ -139,20 +181,16 @@ export class AiProvidersService {
     if (!dto.capabilities || dto.capabilities.length === 0) {
       throw new BadRequestException('At least one capability is required');
     }
-    if (!dto.pricing) {
-      throw new BadRequestException('Pricing config is required');
-    }
-    const encrypted_api_key = dto.apiKey ? encryptSecret(dto.apiKey) : '';
+    const auth = this.sealAuth(null, dto);
     return this.model.create({
       name: dto.name,
       kind: dto.kind,
       vendor: dto.vendor,
       endpoint: dto.endpoint,
       auth_type: dto.auth_type || 'bearer',
-      encrypted_api_key,
+      encrypted_api_key: auth.encrypted_api_key ?? '',
       capabilities: dto.capabilities,
-      defaults: dto.defaults || {},
-      pricing: dto.pricing,
+      defaults: auth.defaults,
       enabled: dto.enabled !== false,
       is_global: isGlobal,
       user_uid: userUid,
@@ -163,32 +201,58 @@ export class AiProvidersService {
     const row = await this.model.findOne({ where: { uid: id, user_uid: userUid, is_global: false } });
     if (!row) throw new NotFoundException('Provider not found');
 
-    const patch: any = { ...dto };
-    delete patch.apiKey;
-    delete patch.is_global;
-    if (typeof dto.apiKey === 'string' && dto.apiKey.length > 0) {
-      patch.encrypted_api_key = encryptSecret(dto.apiKey);
-    } else if (dto.apiKey === '') {
-      patch.encrypted_api_key = '';
-    }
-
-    await row.update(patch);
+    await row.update(this.patchFromDto(row, dto));
     return row;
   }
 
   async updateGlobal(id: number, dto: UpdateAiProviderDto) {
     const row = await this.model.findOne({ where: { uid: id, is_global: true } });
     if (!row) throw new NotFoundException('Provider not found');
+    await row.update(this.patchFromDto(row, dto));
+    return row;
+  }
+
+  private patchFromDto(row: CcAiProvider, dto: UpdateAiProviderDto) {
     const patch: any = { ...dto };
     delete patch.apiKey;
+    delete patch.authHeaders;
     delete patch.is_global;
-    if (typeof dto.apiKey === 'string' && dto.apiKey.length > 0) {
-      patch.encrypted_api_key = encryptSecret(dto.apiKey);
-    } else if (dto.apiKey === '') {
-      patch.encrypted_api_key = '';
+    const auth = this.sealAuth(row, dto);
+    patch.encrypted_api_key = auth.encrypted_api_key;
+    patch.defaults = auth.defaults;
+    if (patch.encrypted_api_key === undefined) delete patch.encrypted_api_key;
+    return patch;
+  }
+
+  private sealAuth(
+    row: CcAiProvider | null,
+    dto: { auth_type?: string; apiKey?: string; authHeaders?: Array<{ key: string; value: string }>; defaults?: Record<string, any> },
+  ): { encrypted_api_key: string | undefined; defaults: Record<string, unknown> } {
+    const auth = dto.auth_type || row?.auth_type || 'bearer';
+    const defaults = mergeCatalogDefaults(row?.defaults, dto.defaults ?? row?.defaults ?? {});
+    if (auth === 'none') {
+      delete defaults.authHeaderKeys;
+      return { encrypted_api_key: '', defaults };
     }
-    await row.update(patch);
-    return row;
+    if (auth === 'custom') {
+      if (!dto.authHeaders) return { encrypted_api_key: undefined, defaults };
+      const previous = row?.encrypted_api_key ? decryptSecret(row.encrypted_api_key) : '';
+      const sealed = sealCustomAuth(row?.auth_type, previous, dto.authHeaders);
+      defaults.authHeaderKeys = sealed.keys;
+      return {
+        encrypted_api_key: sealed.keys.length ? encryptSecret(sealed.plain) : '',
+        defaults,
+      };
+    }
+    delete defaults.authHeaderKeys;
+    if (row?.auth_type === 'custom' && !(typeof dto.apiKey === 'string' && dto.apiKey.length > 0)) {
+      return { encrypted_api_key: '', defaults };
+    }
+    if (typeof dto.apiKey === 'string' && dto.apiKey.length > 0) {
+      return { encrypted_api_key: encryptSecret(dto.apiKey), defaults };
+    }
+    if (dto.apiKey === '') return { encrypted_api_key: '', defaults };
+    return { encrypted_api_key: undefined, defaults };
   }
 
   async remove(id: number, userUid: number) {

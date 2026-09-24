@@ -1,5 +1,6 @@
 /** runAnalysis — STT → diarize → score → SA-CHARGE-RUN (D-23, D-38, D-46). */
 
+import type { SaProjectConfigV1 } from '@krasterisk/shared';
 import type { SaChargeRunDeps, SaChargeRunInput, SaChargeRunResult } from '../charging/sa-charge-run';
 
 export type AnalysisModels = {
@@ -23,6 +24,8 @@ export type RunAnalysisInput = {
   projectOverrides?: Partial<AnalysisModels>;
   publishedVersionModels: AnalysisModels;
   platformAllowlist: string[];
+  /** Published project. Scoring uses its metrics, prompt, and topics. */
+  projectConfig?: SaProjectConfigV1 | null;
 };
 
 export type SttSegment = { start: number; end: number; text: string };
@@ -64,6 +67,8 @@ export type RunAnalysisDeps = {
   score: (args: {
     segments: DiarizedSegment[];
     modelId: string;
+    projectConfig?: SaProjectConfigV1 | null;
+    transcript?: string;
   }) => Promise<ScoreResult | null>;
   diarize: (args: {
     segments: SttSegment[];
@@ -169,8 +174,15 @@ async function scoreWithFallback(
   segments: DiarizedSegment[],
   primary: AnalysisModels,
   fallback: AnalysisModels | null,
+  projectConfig: SaProjectConfigV1 | null,
 ): Promise<{ score: ScoreResult; used: AnalysisModels } | { error: string }> {
-  const first = await deps.score({ segments, modelId: primary.scoreModelId });
+  const transcript = segments.map((s) => `${s.speakerRole}: ${s.text}`).join('\n');
+  const first = await deps.score({
+    segments,
+    modelId: primary.scoreModelId,
+    projectConfig,
+    transcript,
+  });
   if (first) {
     return {
       score: first,
@@ -178,7 +190,12 @@ async function scoreWithFallback(
     };
   }
   if (fallback && fallback.scoreModelId !== primary.scoreModelId) {
-    const second = await deps.score({ segments, modelId: fallback.scoreModelId });
+    const second = await deps.score({
+      segments,
+      modelId: fallback.scoreModelId,
+      projectConfig,
+      transcript,
+    });
     if (second) {
       return {
         score: second,
@@ -248,6 +265,7 @@ export async function runAnalysis(
     resolved.fallback
       ? { ...resolved.fallback, sttModelId: sttOutcome.used.sttModelId }
       : null,
+    input.projectConfig ?? null,
   );
   if ('error' in scoreOutcome) {
     await deps.persistError(scoreOutcome.error);

@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-r
 import { Button } from '@/shared/ui/Button';
 import { HStack } from '@/shared/ui/Stack';
 import { Table as UITable, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/ui';
+import { useTenantTablePageSize } from './TablePageSizeContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -239,15 +240,16 @@ function DataTableInner<TData>(
   ref: React.Ref<DataTableRef>
 ) {
   const isServerMode = paginationMode === 'server';
+  const tenantPageSize = useTenantTablePageSize();
+  const effectivePageSize = !isServerMode && tenantPageSize != null ? tenantPageSize : pageSize;
 
   const [internalSorting, setSorting] = useState<SortingState>([]);
   const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: effectivePageSize });
 
-  // Update internal pagination if pageSize prop changes
   React.useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageSize }));
-  }, [pageSize]);
+    setPagination((prev) => ({ ...prev, pageSize: effectivePageSize }));
+  }, [effectivePageSize]);
 
   // Support both controlled and uncontrolled row selection
   const rowSelection = controlledRowSelection ?? internalRowSelection;

@@ -50,7 +50,7 @@
   }
 }
 
-.createIcon {
+.createBtnIcon {
   margin-right: 0.5rem;
 }
 
@@ -77,30 +77,134 @@
   }
 }
 
-.skeletonRow {
-  height: 3.5rem;
-  width: 100%;
-  border-radius: var(--radius-md);
-}
-
+.card,
+.table,
 .tableWrap {
   width: 100%;
   min-width: 0;
+}
+
+.tableWrap {
+  align-self: stretch;
   overflow-x: auto;
+
+  > * {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.cardContent {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+}
+
+.toolbar {
+  flex-wrap: nowrap;
+  gap: 1rem;
+  min-height: 2.25rem;
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.toolbarIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.count {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.toolbarActions {
+  min-width: 0;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.bulkBtnHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.searchWrap {
+  position: relative;
+  min-width: 0;
+  width: 16rem;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+}
+
+.searchInput {
+  height: 2.25rem;
+  padding-left: 2.5rem;
 }
 
 .mobileCard {
-  display: block;
   width: 100%;
-  text-align: left;
   padding: 0.75rem 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-background);
-  color: inherit;
-  text-decoration: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
 
-  &:hover {
-    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
-  }
+.dialogContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  max-height: min(90vh, 90dvh);
+  max-width: min(880px, calc(100vw - 1rem));
+}
+
+.dialogHeader {
+  flex-shrink: 0;
+  padding-right: 1.5rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  gap: 0;
+}
+
+.formBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0.75rem 0.5rem;
+  padding-right: 0.25rem;
+}
+
+.footer {
+  flex-shrink: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
 }

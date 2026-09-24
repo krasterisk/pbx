@@ -6,7 +6,7 @@ export type AgentThreadStatus = 'active' | 'archived';
 /**
  * Persistent chat-agent conversation (D-26).
  * Scoped by tenant (`vpbx_user_uid`) and author (`user_uid`) on every query.
- * Token counters on this row are the D-08 spend accumulator.
+ * Token counters on this row. Pricing is a billing-module concern (see markUsageDebit).
  * `brief_json` is the source-evidenced pinned brief used for bounded replay.
  */
 @Table({ tableName: 'ai_agent_threads', timestamps: false, freezeTableName: true })

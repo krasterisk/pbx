@@ -7,7 +7,7 @@ import { DialplanBridgeService } from './dialplan-bridge.service';
 import { NumbersModule } from '../numbers/numbers.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { TelegramModule } from '../telegram/telegram.module';
-import { TtsEnginesModule } from '../tts-engines/tts-engines.module';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { IvrsModule } from '../ivrs/ivrs.module';
 import { Route } from '../routes/route.model';
 
@@ -19,7 +19,7 @@ import { Route } from '../routes/route.model';
     NumbersModule,
     MailerModule,
     TelegramModule,
-    TtsEnginesModule,
+    AiConnectivityModule,
     IvrsModule,
   ],
   controllers: [DialplanBridgeController],

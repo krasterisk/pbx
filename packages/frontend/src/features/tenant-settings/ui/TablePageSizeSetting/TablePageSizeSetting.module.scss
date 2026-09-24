@@ -1,0 +1,16 @@
+.root {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.select {
+  width: 8rem;
+}
+
+.hint {
+  color: var(--color-muted-foreground);
+}
+
+.error {
+  color: var(--color-destructive);
+}

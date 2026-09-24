@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ConfigModule } from '@nestjs/config';
 import { Ivr } from './ivr.model';
-import { TtsEngine } from '../tts-engines/tts-engine.model';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { TtsEnginesModule } from '../tts-engines/tts-engines.module';
 import { AmiModule } from '../ami/ami.module';
 import { RouteReferencesModule } from '../route-references/route-references.module';
@@ -24,7 +24,8 @@ import { YandexStreamingTtsProvider } from '../voice-robots/providers/yandex-str
 @Module({
   imports: [
     ConfigModule,
-    SequelizeModule.forFeature([Ivr, TtsEngine]),
+    SequelizeModule.forFeature([Ivr]),
+    AiConnectivityModule,
     TtsEnginesModule,
     AmiModule,
     RouteReferencesModule,

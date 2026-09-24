@@ -1,11 +1,17 @@
 import { rtkApi } from '../rtkApi';
 import { ISttEngine } from '@/entities/engines';
+import type { IAiProvider } from './aiAgentsApi';
+import { providerAsEngine } from '../lib/providerAsEngine';
 
 const sttEnginesApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
     getSttEngines: builder.query<ISttEngine[], void>({
-      query: () => '/stt-engines',
+      query: () => '/ai-agents/providers/list?capability=stt',
+      transformResponse: (rows: IAiProvider[]) =>
+        (Array.isArray(rows) ? rows : [])
+          .filter((row) => row.is_global !== true && row.capabilities?.includes('stt'))
+          .map(providerAsEngine),
       providesTags: (result) =>
         result
           ? [

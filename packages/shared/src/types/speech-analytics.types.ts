@@ -65,12 +65,40 @@ export const SA_WEBHOOK_EVENTS = [
 ] as const;
 export type SaWebhookEvent = typeof SA_WEBHOOK_EVENTS[number];
 
+export type SaMetricPolarity = 'positive' | 'negative' | 'neutral';
+
+/** One metric the published project asks the model to score. */
+export type SaProjectMetric = {
+  id: string;
+  name: string;
+  type: 'scale' | 'boolean' | 'number' | 'enum' | 'string';
+  description: string;
+  enumValues?: string[];
+  min?: number;
+  max?: number;
+  unit?: string;
+  polarity?: SaMetricPolarity;
+  /** Builtin scale id. Scoring uses the aiPBX rubric while this stays set. */
+  sourceScaleId?: SaDefaultScaleId | null;
+};
+
+export type SaCallTagDef = {
+  id: string;
+  name: string;
+  aliases: string[];
+  description?: string;
+};
+
 export type SaCustomMetricDef = {
   id: string;
   name: string;
-  type: 'boolean' | 'number' | 'enum';
+  type: 'boolean' | 'number' | 'enum' | 'string';
   description?: string;
   enumValues?: string[];
+  min?: number;
+  max?: number;
+  unit?: string;
+  polarity?: SaMetricPolarity;
 };
 
 export type SaEventWebhookConfig = {
@@ -83,20 +111,28 @@ export type SaDigestConfig = {
   enabled: boolean;
   /** NotificationIntegrationsPage uids for this tenant (D-29). */
   integrationUids: number[];
+  emails: string[];
+  telegramChatIds: string[];
   schedule: 'daily' | 'weekly' | 'monthly';
   reportWindow: 'last_7_days' | 'last_30_days' | 'previous_calendar_month';
   weeklyDay?: number;
   monthlyDay?: number;
   sendHour?: number;
+  lastSentAt?: string | null;
+  lastManualSentAt?: string | null;
 };
 
 export type SaAlertConfig = {
   enabled: boolean;
   /** NotificationIntegrationsPage uids for this tenant (D-29). */
   integrationUids: number[];
+  inheritRecipientsFromDigest: boolean;
+  emails: string[];
+  telegramChatIds: string[];
   csatDrop: { enabled: boolean; dropPct: number; windowDays: number; minCalls: number };
   negativeSpike: { enabled: boolean; spikePp: number; windowDays: number; minCalls: number };
   budgetExceeded: { enabled: boolean };
+  lastTestSentAt?: string | null;
 };
 
 export type SaBudgetConfig = {
@@ -116,6 +152,10 @@ export type SaProjectConfigV1 = {
   retentionRef: string;
   /** Editor sections (D-25). */
   templateId: SaIndustryTemplateId;
+  description: string;
+  /** Metrics the wizard produced. This is what scoring uses. */
+  metrics: SaProjectMetric[];
+  callTaxonomy: SaCallTagDef[];
   customMetrics: SaCustomMetricDef[];
   /** Standard scales hidden from scoring / UI. */
   hiddenDefaultScales: string[];
@@ -130,6 +170,68 @@ export type SaProjectConfigV1 = {
   scoreModelId?: string | null;
 };
 
+const SCALE_COPY: Record<SaDefaultScaleId, { name: string; rubric: string }> = {
+  greeting_quality: {
+    name: 'Качество приветствия',
+    rubric: 'Greeting/ID: 1)polite opener (Здравствуйте/Добрый день/Hello); 2)org/company name; 3)operator name or role; 4)offer to help',
+  },
+  script_compliance: {
+    name: 'Следование скрипту',
+    rubric: 'Script: {do not require booking or selling a service the company does not offer} 1)standard opening; 2)clarify customer need before acting; 3)required verification/disclosures when applicable; 4)workflow to a correct close',
+  },
+  politeness_empathy: {
+    name: 'Вежливость и эмпатия',
+    rubric: 'Politeness: {item 3 satisfied if no bad language} 1)please/thank-you forms used; 2)acknowledge concern when customer upset; 3)no rude/dismissive/interrupting language; 4)respectful professional tone',
+  },
+  active_listening: {
+    name: 'Активное слушание',
+    rubric: 'Listening: 1)clarifying Q or restate request; 2)confirm understanding before acting; 3)responses match customer input; 4)answers direct questions, no ignoring',
+  },
+  objection_handling: {
+    name: 'Работа с возражениями',
+    rubric: 'Objections: {no objection → score 100; an out-of-scope question is not an objection; offering alt after unavailable counts} 1)acknowledge objection; 2)explain/alternative/next step; 3)stay calm/professional; 4)move toward resolution',
+  },
+  product_knowledge: {
+    name: 'Знание продукта',
+    rubric: 'Knowledge: {accurate "we do not offer X; we offer Y or refer" = items 1 and 3, not evasion; naming options/slots also = item 3} 1)specific answers, not vague evasion; 2)consistent/plausible info; 3)explain options/steps/pricing when needed; 4)if unsure: admit + lookup/escalate',
+  },
+  problem_resolution: {
+    name: 'Решение проблемы',
+    rubric: 'Resolution: {clear scope refusal plus alternative, referral, or accepted close = items 2 and 4; unmet wish ≠ auto-fail} 1)identify problem/request; 2)concrete action taken; 3)confirm outcome/next step; 4)resolved in-call OR clear next step agreed',
+  },
+  speech_clarity_pace: {
+    name: 'Темп речи',
+    rubric: 'Speech: {judge transcript only, not accent/STT noise} 1)coherent understandable turns; 2)no excessive filler blocking meaning; 3)appropriately sized responses; 4)key numbers/dates/names clear in transcript',
+  },
+  closing_quality: {
+    name: 'Качество завершения',
+    rubric: 'Closing: 1)summarize done/next steps; 2)ask if anything else needed; 3)thank customer; 4)polite farewell',
+  },
+};
+
+export function builtinScaleMetric(id: SaDefaultScaleId): SaProjectMetric {
+  const copy = SCALE_COPY[id];
+  return {
+    id,
+    name: copy.name,
+    type: 'scale',
+    description: copy.rubric,
+    min: 0,
+    max: 100,
+    polarity: 'positive',
+    sourceScaleId: id,
+  };
+}
+
+export function allBuiltinScaleMetrics(): SaProjectMetric[] {
+  return SA_DEFAULT_SCALES.map((id) => builtinScaleMetric(id));
+}
+
+/** Every saved metric is scored from its own description. Origin (template or custom) is not a separate rubric. */
+export function rubricForMetric(metric: SaProjectMetric): string {
+  return metric.description;
+}
+
 export function defaultSaProjectConfig(): SaProjectConfigV1 {
   return {
     schemaVersion: 1,
@@ -142,6 +244,9 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
     fallbackProviders: [],
     retentionRef: 'default',
     templateId: 'custom',
+    description: '',
+    metrics: allBuiltinScaleMetrics(),
+    callTaxonomy: [],
     customMetrics: [],
     hiddenDefaultScales: [],
     systemPrompt: '',
@@ -150,6 +255,8 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
     digest: {
       enabled: false,
       integrationUids: [],
+      emails: [],
+      telegramChatIds: [],
       schedule: 'weekly',
       reportWindow: 'last_7_days',
       weeklyDay: 1,
@@ -159,6 +266,9 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
     alerts: {
       enabled: false,
       integrationUids: [],
+      inheritRecipientsFromDigest: true,
+      emails: [],
+      telegramChatIds: [],
       csatDrop: { enabled: true, dropPct: 20, windowDays: 7, minCalls: 5 },
       negativeSpike: { enabled: true, spikePp: 15, windowDays: 7, minCalls: 5 },
       budgetExceeded: { enabled: true },

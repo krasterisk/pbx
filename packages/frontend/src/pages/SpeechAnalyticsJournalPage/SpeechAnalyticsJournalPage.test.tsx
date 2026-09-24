@@ -15,6 +15,11 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+vi.mock('@/shared/hooks/useAppStore', () => ({
+  useAppSelector: (selector: (state: { auth: { accessToken: string | null } }) => unknown) =>
+    selector({ auth: { accessToken: null } }),
+}));
+
 vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
   useGetSaJournalQuery: () => ({
     data: {
@@ -45,6 +50,8 @@ vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
     vi.fn(() => ({ unwrap: () => Promise.resolve({ kind: 'accepted', results: [] }) })),
     { isLoading: false },
   ],
+  useRegenerateSaConversationMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteSaConversationMutation: () => [vi.fn(), { isLoading: false }],
   useGetSaConversationQuery: () => ({
     data: {
       id: 'conv-1',

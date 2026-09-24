@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { RefreshCw, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -36,11 +36,18 @@ export interface ConversationSheetProps {
   audioUrl?: string | null;
   rebuildInProgress?: boolean;
   summary?: string | null;
+  metricResults?: Array<{ id: string; value: unknown; rationale?: string; quote?: string }>;
   transcriptText?: string | null;
   runs?: ConversationRunCost[];
   isLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
+  /** Superadmin impersonating a tenant cabinet. */
+  canManage?: boolean;
+  onRegenerate?: () => void;
+  onDelete?: () => void;
+  isRegenerating?: boolean;
+  isDeleting?: boolean;
 }
 
 function showTranscriptPlayer(sourceKind: ConversationSourceKind): boolean {
@@ -55,11 +62,17 @@ export function ConversationSheet({
   audioUrl,
   rebuildInProgress = false,
   summary,
+  metricResults = [],
   transcriptText,
   runs = [],
   isLoading = false,
   isError = false,
   onRetry,
+  canManage = false,
+  onRegenerate,
+  onDelete,
+  isRegenerating = false,
+  isDeleting = false,
 }: ConversationSheetProps) {
   const { t } = useTranslation();
   const closeLabel = t('speechAnalytics.sheetClose', 'Закрыть');
@@ -74,7 +87,8 @@ export function ConversationSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className={cls.sheetContent}
+        hideClose
+        className={`${cls.sheetContent} w-[40%] max-sm:w-full`}
         data-testid="conversation-sheet"
         data-conversation-id={conversationId ?? undefined}
       >
@@ -108,6 +122,31 @@ export function ConversationSheet({
             </Button>
           </HStack>
         </SheetHeader>
+
+        {canManage ? (
+          <HStack justify="end" gap="8" className={cls.actionsBar} data-testid="conversation-admin-actions">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isRegenerating || rebuildInProgress}
+              data-testid="conversation-regenerate"
+              onClick={onRegenerate}
+            >
+              <RefreshCw size={16} />
+              {t('speechAnalytics.regenerateAnalytics', 'Переформировать аналитику')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isDeleting}
+              data-testid="conversation-delete"
+              onClick={onDelete}
+            >
+              <Trash2 size={16} />
+              {t('speechAnalytics.deleteRecording', 'Удалить запись')}
+            </Button>
+          </HStack>
+        ) : null}
 
         <div className={cls.body}>
           {isLoading ? (
@@ -145,6 +184,13 @@ export function ConversationSheet({
                 <ScrollArea className={cls.scroll}>
                   <VStack gap="12" max>
                     <Text>{summary || t('speechAnalytics.emptySummary', 'Нет саммари')}</Text>
+                    {metricResults.map((metric) => (
+                      <VStack key={metric.id} gap="4">
+                        <Text>{metric.id}: {String(metric.value ?? '')}</Text>
+                        {metric.rationale ? <Text variant="muted">{metric.rationale}</Text> : null}
+                        {metric.quote ? <Text variant="muted">{metric.quote}</Text> : null}
+                      </VStack>
+                    ))}
                   </VStack>
                 </ScrollArea>
               </TabsContent>

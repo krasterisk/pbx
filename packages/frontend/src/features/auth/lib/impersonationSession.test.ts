@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { clearImpersonation, persistImpersonatedUser, readImpersonatedIdentity, readImpersonation, rememberImpersonation } from './impersonationSession';
+import { accessTokenIsImpersonation, clearImpersonation, persistImpersonatedUser, readImpersonatedIdentity, readImpersonation, rememberImpersonation } from './impersonationSession';
 
 function token(payload: Record<string, unknown>): string {
   const body = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
@@ -16,6 +16,8 @@ describe('impersonationSession', () => {
     const impersonated = token({ sub: 4, impersonated_by: 1 });
     expect(readImpersonation(impersonated)).toEqual({ tenantId: 12, tenantName: 'Горизонт' });
     expect(readImpersonation(token({ sub: 1 }))).toBeNull();
+    expect(accessTokenIsImpersonation(impersonated)).toBe(true);
+    expect(accessTokenIsImpersonation(token({ sub: 1 }))).toBe(false);
     expect(readImpersonation(null)).toBeNull();
   });
 

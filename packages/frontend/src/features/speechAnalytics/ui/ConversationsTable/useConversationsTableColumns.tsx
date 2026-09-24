@@ -52,7 +52,7 @@ export function useConversationsTableColumns(): ColumnDef<SaJournalRow, unknown>
     {
       id: 'callerPhone',
       accessorFn: (row) => row.callerPhone ?? '',
-      header: t('speechAnalytics.colCaller', 'Звонивший'),
+      header: t('speechAnalytics.colCaller', 'Номер'),
       cell: ({ row }) => <Text>{dash(row.original.callerPhone)}</Text>,
     },
     {

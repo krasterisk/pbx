@@ -21,7 +21,7 @@ export function mergePhraseSettings(
     return {
       ...base,
       voice: over.voice ?? base.voice ?? 'alena',
-      role: over.role ?? base.role ?? base.emotion ?? 'neutral',
+      role: over.role != null ? over.role : (base.role ?? base.emotion ?? 'neutral'),
       speed: over.speed ?? base.speed ?? '1.0',
       pitch_shift: over.pitch_shift ?? base.pitch_shift,
       folder_id: base.folder_id,

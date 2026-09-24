@@ -163,10 +163,9 @@ describe('VoicemailScannerService transcript axis (D-60 / D-63 / D-70 / D-71)', 
   const fileRel = `42/voicemail/${uniqueid}.wav`;
   let base: string;
   let messages: { findAll: jest.Mock; findOne: jest.Mock };
-  let sttEngines: { findAll: jest.Mock; findOne: jest.Mock };
   let sttFactory: { transcribe: jest.Mock; createStream: jest.Mock };
   let llm: { summarize: jest.Mock };
-  let aiProviders: { findAll: jest.Mock };
+  let aiProviders: { findAll: jest.Mock; loadSpeechEngine: jest.Mock };
   let systemSettings: { getServerConfigRaw: jest.Mock };
   let scanner: VoicemailScannerService;
   let row: ReturnType<typeof makeRow>;
@@ -195,17 +194,18 @@ describe('VoicemailScannerService transcript axis (D-60 / D-63 / D-70 / D-71)', 
       }),
       findOne: jest.fn().mockResolvedValue(row),
     };
-    sttEngines = { findAll: jest.fn().mockResolvedValue([]), findOne: jest.fn() };
     sttFactory = { transcribe: jest.fn(), createStream: jest.fn() };
     llm = { summarize: jest.fn() };
-    aiProviders = { findAll: jest.fn().mockResolvedValue([]) };
+    aiProviders = {
+      findAll: jest.fn().mockResolvedValue([]),
+      loadSpeechEngine: jest.fn(async (_tenant: number, uid: number) => ({ uid, type: 'custom' })),
+    };
     systemSettings = {
       getServerConfigRaw: jest.fn().mockResolvedValue({ records_base_path: base }),
     };
     scanner = new VoicemailScannerService(
       messages as any,
       { retryNotify: jest.fn() } as any,
-      sttEngines as any,
       sttFactory as any,
       llm as any,
       aiProviders as any,
@@ -228,7 +228,7 @@ describe('VoicemailScannerService transcript axis (D-60 / D-63 / D-70 / D-71)', 
   });
 
   it('three STT throws set transcript_status=failed and leave notify_status unchanged', async () => {
-    sttEngines.findAll.mockResolvedValue([{ uid: 9, type: 'custom', user_uid: 42 }]);
+    aiProviders.findAll.mockResolvedValue([{ uid: 9, capabilities: ['stt'] }]);
     sttFactory.transcribe.mockRejectedValue(new Error('stt down'));
     writeWav(buildWav({}));
 
@@ -254,7 +254,7 @@ describe('VoicemailScannerService transcript axis (D-60 / D-63 / D-70 / D-71)', 
       pcm,
       extraChunksBeforeData: [{ id: 'LIST', body: Buffer.alloc(24, 0x7f) }],
     }));
-    sttEngines.findAll.mockResolvedValue([{ uid: 9, type: 'custom', user_uid: 42 }]);
+    aiProviders.findAll.mockResolvedValue([{ uid: 9, capabilities: ['stt'] }]);
     sttFactory.transcribe.mockResolvedValue({ text: ' перезвоните ' });
 
     await scanner.scanOnce();
@@ -282,14 +282,12 @@ describe('VoicemailScannerService transcript axis (D-60 / D-63 / D-70 / D-71)', 
 
   it('uses stt_engine_uid from notify_dispatch before tenant default (D-63)', async () => {
     row.notify_dispatch = JSON.stringify({ stt_engine_uid: 3 });
-    sttEngines.findOne.mockResolvedValue({ uid: 3, type: 'custom', user_uid: 42 });
-    sttEngines.findAll.mockResolvedValue([{ uid: 9, type: 'custom', user_uid: 42 }]);
     writeWav(buildWav({}));
     sttFactory.transcribe.mockResolvedValue({ text: 'ok' });
 
     await scanner.scanOnce();
 
-    expect(sttEngines.findOne).toHaveBeenCalledWith(3, 42);
+    expect(aiProviders.loadSpeechEngine).toHaveBeenCalledWith(42, 3, 'stt');
     expect(sttFactory.transcribe).toHaveBeenCalledWith(
       expect.objectContaining({ uid: 3 }),
       expect.any(Buffer),

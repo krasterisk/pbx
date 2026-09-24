@@ -21,8 +21,6 @@ export interface TenantUsageRow {
   tokensIn: number;
   tokensOut: number;
   turns: number;
-  spendUsd: number | null;
-  spendAvailable: boolean;
 }
 
 export interface ProposalFunnelRow {
@@ -59,21 +57,9 @@ export interface DefaultModelView {
 
 type ThreadUsageRow = {
   vpbx_user_uid: number;
-  provider_uid: number | null;
   tokens_in: number;
   tokens_out: number;
 };
-
-type ProviderPricing = {
-  uid: number;
-  pricing: Record<string, unknown> | null;
-};
-
-function hasTokenPricing(pricing: unknown): pricing is { inputTokenUsd: number; outputTokenUsd: number } {
-  if (!pricing || typeof pricing !== 'object') return false;
-  const row = pricing as Record<string, unknown>;
-  return typeof row.inputTokenUsd === 'number' && typeof row.outputTokenUsd === 'number';
-}
 
 function inRange(field: string, from: Date, to: Date) {
   return { [field]: { [Op.between]: [from, to] } };
@@ -84,7 +70,8 @@ function isMutatingTool(name: string): boolean {
 }
 
 /**
- * Aggregates conversation-row token counters into per-tenant spend (D-08).
+ * Aggregates conversation-row token counters per tenant.
+ * Money is not calculated here. Chat turns call markUsageDebit for the billing module.
  * Reads `ai_agent_threads` only. The voice CDR table is left untouched.
  */
 @Injectable()
@@ -105,35 +92,19 @@ export class AgentUsageService {
   async queryTenantUsage(from: Date, to: Date): Promise<TenantUsageRow[]> {
     const conversations = (await this.threads.findAll({
       where: { last_message_at: { [Op.between]: [from, to] } },
-      attributes: ['vpbx_user_uid', 'provider_uid', 'tokens_in', 'tokens_out'],
+      attributes: ['vpbx_user_uid', 'tokens_in', 'tokens_out'],
     })) as unknown as ThreadUsageRow[];
 
-    const providerRows = (await this.providers.findAll({
-      attributes: ['uid', 'pricing'],
-    })) as unknown as ProviderPricing[];
-    const pricingByUid = new Map(providerRows.map((row) => [row.uid, row.pricing]));
-
-    const grouped = new Map<number, { tokensIn: number; tokensOut: number; turns: number; priced: number; unpriced: boolean }>();
+    const grouped = new Map<number, { tokensIn: number; tokensOut: number; turns: number }>();
     for (const row of conversations) {
       const current = grouped.get(row.vpbx_user_uid) ?? {
         tokensIn: 0,
         tokensOut: 0,
         turns: 0,
-        priced: 0,
-        unpriced: false,
       };
       current.tokensIn += Number(row.tokens_in) || 0;
       current.tokensOut += Number(row.tokens_out) || 0;
       current.turns += 1;
-
-      const pricing = row.provider_uid != null ? pricingByUid.get(row.provider_uid) : undefined;
-      if (hasTokenPricing(pricing)) {
-        current.priced +=
-          (Number(row.tokens_in) || 0) * pricing.inputTokenUsd +
-          (Number(row.tokens_out) || 0) * pricing.outputTokenUsd;
-      } else {
-        current.unpriced = true;
-      }
       grouped.set(row.vpbx_user_uid, current);
     }
 
@@ -147,8 +118,6 @@ export class AgentUsageService {
         tokensIn: value.tokensIn,
         tokensOut: value.tokensOut,
         turns: value.turns,
-        spendUsd: value.unpriced ? null : value.priced,
-        spendAvailable: !value.unpriced,
       }));
   }
 

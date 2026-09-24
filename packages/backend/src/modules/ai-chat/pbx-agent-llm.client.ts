@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { resolveChatCompletionsUrl } from '../ai-connectivity/chat-endpoint.util';
+import { applyProviderAuth } from '../ai-connectivity/provider-auth';
 import { chatReasoningParams, chatSamplingParams, chatTokenLimitParams, usesMaxCompletionTokens } from '../voicemail/llm-summary.service';
 import { normalizeOpenAiToolCalls, repairOpenAiChatMessages } from './openai-tool-messages.util';
 import type {
@@ -200,17 +201,16 @@ export class PbxAgentLlmClient {
     }
 
     private async buildHeaders(provider: AgentChatParams['provider']): Promise<Record<string, string>> {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        const auth = provider.auth_type ?? 'bearer';
         if (!Number.isSafeInteger(provider.uid) || !Number.isSafeInteger(provider.tenantUid)) {
             throw new Error('Missing provider identity');
         }
         const key = await this.providers.resolveCredential({ tenantUid: provider.tenantUid!,
             providerUid: provider.uid!, capability: 'llm' });
-        if (auth === 'none') return headers;
-        if (auth === 'bearer' && key) headers.Authorization = `Bearer ${key}`;
-        else if (auth === 'api_key_header' && key) headers['X-API-Key'] = key;
-        return headers;
+        return applyProviderAuth(
+            { 'Content-Type': 'application/json' },
+            provider.auth_type ?? 'bearer',
+            key,
+        );
     }
 
     private async chatOnce(

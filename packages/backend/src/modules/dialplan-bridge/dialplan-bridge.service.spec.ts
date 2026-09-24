@@ -5,7 +5,12 @@ describe('DialplanBridgeService', () => {
   const http = { axiosRef: { post: jest.fn() } };
   const mailer = { sendNotification: jest.fn().mockResolvedValue({ success: true }) };
   const telegram = { sendMessage: jest.fn().mockResolvedValue(undefined) };
-  const ttsEngines = { findAll: jest.fn(), findOne: jest.fn() };
+  const providers = {
+    loadSpeechEngine: jest.fn(async (_tenant: number, uid: number) => {
+      if (uid === 3) return { uid: 3, name: 'Yandex', type: 'yandex' };
+      throw new Error('missing');
+    }),
+  };
   const ivrTts = { synthesizeToBuffer: jest.fn() };
   const ttsCache = { writeWav: jest.fn() };
   const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
@@ -19,7 +24,7 @@ describe('DialplanBridgeService', () => {
       http as any,
       mailer as any,
       telegram as any,
-      ttsEngines as any,
+      providers as any,
       ivrTts as any,
       ttsCache as any,
     );
@@ -74,7 +79,6 @@ describe('DialplanBridgeService', () => {
   });
 
   it('tts writes a sanitized basename and logs when the engine fails', async () => {
-    ttsEngines.findAll.mockResolvedValue([{ uid: 3, name: 'Yandex', type: 'yandex' }]);
     ivrTts.synthesizeToBuffer.mockResolvedValue(Buffer.from('RIFF'));
     ttsCache.writeWav.mockReturnValue('/tmp/krasterisk-ivr-tts/42/abc.wav');
 
@@ -90,12 +94,10 @@ describe('DialplanBridgeService', () => {
   });
 
   it('tts rejects an unknown engine and sanitizes path traversal from the engine response', async () => {
-    ttsEngines.findAll.mockResolvedValue([{ uid: 3, name: 'Yandex', type: 'yandex' }]);
     await expect(
       service.tts({ text: 'hello', engine: '99', vpbx_user_uid: '42' }),
     ).rejects.toThrow('Unknown TTS engine');
 
-    ttsEngines.findAll.mockResolvedValue([{ uid: 3, name: 'Yandex', type: 'yandex' }]);
     ivrTts.synthesizeToBuffer.mockResolvedValue(Buffer.from('RIFF'));
     ttsCache.writeWav.mockReturnValue('/tmp/krasterisk-ivr-tts/42/../../etc/passwd');
     const result = await service.tts({ text: 'hello', engine: '3', vpbx_user_uid: '42' });

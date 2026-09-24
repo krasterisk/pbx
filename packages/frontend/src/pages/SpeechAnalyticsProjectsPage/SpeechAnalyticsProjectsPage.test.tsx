@@ -49,7 +49,8 @@ vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
     isError: projectsState.isError,
     refetch: projectsState.refetch,
   }),
-  useCreateSaProjectMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ id: 'new' }) })), { isLoading: false }],
+  useCreateSaProjectMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ id: 'new', draft_revision: 1 }) })), { isLoading: false }],
+  useBulkDeleteSaProjectsMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ deleted: true }) })), { isLoading: false }],
   usePublishSaProjectMutation: () => [vi.fn(), { isLoading: projectsState.saveLoading === true }],
   useSetSaProjectIntakeMutation: () => [vi.fn(), {}],
   useUpdateSaProjectDraftMutation: () => [vi.fn(), { isLoading: projectsState.saveLoading === true }],
@@ -114,6 +115,9 @@ describe('SpeechAnalyticsProjectsPage', () => {
     ];
     renderPage();
     expect(screen.getByText('Pilot')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.edit' })).toHaveAttribute('title', 'common.edit');
+    expect(screen.getByRole('button', { name: 'common.copy' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.delete' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Создать проект' }).length).toBeGreaterThanOrEqual(1);
   });
 

@@ -147,6 +147,20 @@ export class SpeechAnalyticsJwtController {
     return this.analytics.deleteProject(request.tenantContext, id);
   }
 
+  @Post('projects/:id/digest/send')
+  @HttpCode(200)
+  sendDigest(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.sendProjectDigest(request.tenantContext, id);
+  }
+
+  @Post('projects/:id/alerts/test')
+  @HttpCode(200)
+  testAlert(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.testProjectAlert(request.tenantContext, id);
+  }
+
   @Post('projects/:id/webhook/test')
   @HttpCode(200)
   testWebhook(@Req() request: Authed, @Param('id') id: string) {

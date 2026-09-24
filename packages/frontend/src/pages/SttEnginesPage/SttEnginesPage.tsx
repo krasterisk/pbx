@@ -1,16 +1,15 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mic, Plus } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { sttEnginesActions } from '@/features/stt-engines/model/slice/sttEnginesSlice';
-import { SttEnginesTable } from '@/features/stt-engines/ui/SttEnginesTable';
+import { AiProviderModal, AiProvidersTable } from '@/features/ai-providers';
+import type { IAiProvider } from '@/shared/api/endpoints/aiAgentsApi';
 import cls from './SttEnginesPage.module.scss';
 
 export const SttEnginesPage = memo(() => {
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
+  const [editing, setEditing] = useState<IAiProvider | null | undefined>(undefined);
 
   return (
     <VStack gap="24" max className={cls.page} data-testid="stt-engines-page-responsive">
@@ -30,7 +29,7 @@ export const SttEnginesPage = memo(() => {
         </HStack>
         <Button
           className={cls.createBtn}
-          onClick={() => dispatch(sttEnginesActions.openCreateModal())}
+          onClick={() => setEditing(null)}
         >
           <Plus size={16} className={cls.createBtnIcon} />
           <Text as="span">{t('sttEngines.add')}</Text>
@@ -38,8 +37,15 @@ export const SttEnginesPage = memo(() => {
       </Flex>
 
       <Flex direction="column" align="stretch" max className={cls.tableWrap}>
-        <SttEnginesTable />
+        <AiProvidersTable capability="stt" onEdit={setEditing} />
       </Flex>
+      {editing !== undefined && (
+        <AiProviderModal
+          provider={editing}
+          requiredCapability="stt"
+          onClose={() => setEditing(undefined)}
+        />
+      )}
     </VStack>
   );
 });

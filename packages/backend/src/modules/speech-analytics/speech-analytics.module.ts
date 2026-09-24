@@ -39,6 +39,7 @@ import { User } from '../users/user.model';
 import { NumberList } from '../numbers/number-list.model';
 import { Route } from '../routes/route.model';
 import { NotificationIntegration } from '../notifications/notification-integration.model';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { SaInsightsRequest } from './speech-analytics.models';
 import { ModuleSettingsService } from './module-settings.service';
 import { HangupAnalyticsPortService, SA_ANALYSIS_WORKER } from './hangup-analytics.port';
@@ -60,6 +61,7 @@ import {
     AiPlatformModule,
     AiConnectivityModule,
     forwardRef(() => RoutesModule),
+    NotificationsModule,
     SequelizeModule.forFeature([
       SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,
       SaTranscript, SaTranscriptSegment, SaResult, AiMediaAsset, AiUpload,

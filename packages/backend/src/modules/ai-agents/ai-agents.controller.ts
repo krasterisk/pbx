@@ -114,9 +114,12 @@ export class AiAgentsController {
   // ─── Providers (sub-route) ──────────────────────────────
 
   @Get('providers/list')
-  async listProviders(@Req() req: Request & { user: any }) {
+  async listProviders(
+    @Req() req: Request & { user: any },
+    @Query('capability') capability?: string,
+  ) {
     assertAdmin(req.user);
-    return (await this.providers.findAll(req.user.vpbx_user_uid)).map(publicProvider);
+    return (await this.providers.findAll(req.user.vpbx_user_uid, capability)).map(publicProvider);
   }
 
   @Post('providers')

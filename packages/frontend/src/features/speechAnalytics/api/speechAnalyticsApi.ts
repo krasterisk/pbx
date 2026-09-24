@@ -99,6 +99,8 @@ export interface SaConversationDetail {
   sourceKind: string;
   audioUrl: string | null;
   summary: string | null;
+  quality?: string | null;
+  metricResults?: Array<{ id: string; value: unknown; rationale?: string; quote?: string }>;
   transcriptText: string | null;
   rebuildInProgress: boolean;
   runs: Array<{
@@ -143,6 +145,23 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
         (rows ?? []).map(normalizeProject),
       providesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
     }),
+    deleteSaProject: builder.mutation<{ deleted: true }, string>({
+      query: (id) => ({ url: `/speech-analytics/projects/${id}`, method: 'DELETE' }),
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
+    }),
+    bulkDeleteSaProjects: builder.mutation<{ deleted: true }, string[]>({
+      async queryFn(ids, _api, _extra, baseQuery) {
+        for (const id of ids) {
+          const result = await baseQuery({
+            url: `/speech-analytics/projects/${id}`,
+            method: 'DELETE',
+          });
+          if (result.error) return { error: result.error };
+        }
+        return { data: { deleted: true as const } };
+      },
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
+    }),
     createSaProject: builder.mutation<SaProject, { name: string }>({
       query: (body) => ({ url: '/speech-analytics/projects', method: 'POST', body }),
       transformResponse: (row: SaProject & { draft_config?: unknown }) => normalizeProject(row),
@@ -166,6 +185,18 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
         url: `/speech-analytics/projects/${id}/publish`, method: 'POST', body: { operationKey },
       }),
       invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
+    }),
+    sendSaProjectDigest: builder.mutation<{ sent: boolean; draftRevision: number }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/speech-analytics/projects/${id}/digest/send`,
+        method: 'POST',
+      }),
+    }),
+    testSaProjectAlert: builder.mutation<{ sent: boolean; draftRevision: number }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/speech-analytics/projects/${id}/alerts/test`,
+        method: 'POST',
+      }),
     }),
     testSaProjectWebhook: builder.mutation<{ ok: boolean } | unknown, { id: string }>({
       query: ({ id }) => ({
@@ -437,9 +468,13 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
 export const {
   useGetSaProjectsQuery,
   useCreateSaProjectMutation,
+  useDeleteSaProjectMutation,
+  useBulkDeleteSaProjectsMutation,
   useUpdateSaProjectDraftMutation,
   usePublishSaProjectMutation,
   useTestSaProjectWebhookMutation,
+  useSendSaProjectDigestMutation,
+  useTestSaProjectAlertMutation,
   useSetSaProjectIntakeMutation,
   useGetSaRecordingsQuery,
   useGetSaRunQuery,

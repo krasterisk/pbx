@@ -17,9 +17,14 @@
 }
 
 .closeBtn {
-  flex-shrink: 0;
-  position: relative;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
   z-index: 1;
+}
+
+.actionsBar {
+  flex-shrink: 0;
 }
 
 .rebuildBadge {

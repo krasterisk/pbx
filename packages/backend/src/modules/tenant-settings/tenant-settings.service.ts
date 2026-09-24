@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { TenantSetting } from './tenant-setting.model';
-import { TENANT_SETTING_KEYS, TenantSettingDescriptor } from './tenant-settings.keys';
+import { TABLE_PAGE_SIZE_OPTIONS, TENANT_SETTING_KEYS, TenantSettingDescriptor } from './tenant-settings.keys';
 
 @Injectable()
 export class TenantSettingsService {
@@ -58,6 +58,9 @@ export class TenantSettingsService {
       : false;
     if (!ok) {
       throw new BadRequestException(`Invalid type for ${key}: expected ${desc.type}`);
+    }
+    if (key === 'tables.page_size' && !TABLE_PAGE_SIZE_OPTIONS.includes(value as 10 | 25 | 50 | 100)) {
+      throw new BadRequestException(`Invalid tables.page_size: expected one of ${TABLE_PAGE_SIZE_OPTIONS.join(', ')}`);
     }
   }
 

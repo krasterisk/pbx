@@ -76,6 +76,10 @@ describe('TenantSettingsService (D-19, D-17)', () => {
       await expect(service.setMany(42, { 'routes.unknown_key': true })).rejects.toThrow(/routes\.unknown_key/);
     });
 
+    it('rejects a table page size outside 10, 25, 50, 100', async () => {
+      await expect(service.setMany(42, { 'tables.page_size': 15 })).rejects.toThrow(BadRequestException);
+    });
+
     it('rejects a value whose type does not match the descriptor', async () => {
       await expect(service.setMany(42, { 'routes.show_raw_dialplan': 'yes' })).rejects.toThrow(
         BadRequestException,

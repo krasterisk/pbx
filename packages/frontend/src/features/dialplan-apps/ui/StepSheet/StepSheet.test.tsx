@@ -62,6 +62,10 @@ vi.mock('@/shared/api/endpoints/ttsEnginesApi', () => ({
   useGetTtsEnginesQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
+vi.mock('@/shared/api/endpoints/sttEnginesApi', () => ({
+  useGetSttEnginesQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+
 vi.mock('@/shared/api/endpoints/voiceRobotsApi', () => ({
   useGetVoiceRobotsQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));

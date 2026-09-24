@@ -7,6 +7,7 @@ import {
   SA_DEFAULT_SCALES,
   SA_INDUSTRY_TEMPLATES,
   SA_WEBHOOK_EVENTS,
+  applyIndustryTemplate,
   defaultSaProjectConfig,
   type SaIndustryTemplateId,
   type SaProjectConfigV1,
@@ -287,7 +288,7 @@ export const MetricEditor = memo(({ projectId, canEditModels = false }: MetricEd
                     type="button"
                     variant={config.templateId === templateId ? 'default' : 'outline'}
                     data-testid={`sa-template-${templateId}`}
-                    onClick={() => patchConfig({ templateId: templateId as SaIndustryTemplateId })}
+                    onClick={() => setConfig((prev) => applyIndustryTemplate(templateId as SaIndustryTemplateId, prev))}
                   >
                     {t(`speechAnalytics.template.${templateId}`, templateId)}
                   </Button>

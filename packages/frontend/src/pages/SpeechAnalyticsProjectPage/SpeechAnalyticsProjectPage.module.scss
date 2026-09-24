@@ -1,3 +1,10 @@
+.dialog {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-width: min(880px, calc(100vw - 1rem));
+}
+
 .page {
   flex: 1;
   min-height: 0;

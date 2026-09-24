@@ -1,17 +1,11 @@
 import { Module } from '@nestjs/common';
-import { SequelizeModule } from '@nestjs/sequelize';
-import { ConfigModule } from '@nestjs/config';
-import { TtsEngine } from './tts-engine.model';
-import { TtsEnginesService } from './tts-engines.service';
-import { TtsEnginesController } from './tts-engines.controller';
-import { TtsEnginesPublicController } from './tts-engines-public.controller';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { TtsEnginesAiAdapter } from './tts-engines-ai.adapter';
 
+/** Chat catalog for capability `tts`. Rows live in cc_ai_providers. */
 @Module({
-  imports: [SequelizeModule.forFeature([TtsEngine]), ConfigModule, AiPlatformModule],
-  controllers: [TtsEnginesController, TtsEnginesPublicController],
-  providers: [TtsEnginesService, TtsEnginesAiAdapter],
-  exports: [TtsEnginesService],
+  imports: [AiConnectivityModule, AiPlatformModule],
+  providers: [TtsEnginesAiAdapter],
 })
 export class TtsEnginesModule {}

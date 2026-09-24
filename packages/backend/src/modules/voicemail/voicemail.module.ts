@@ -4,7 +4,6 @@ import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module'
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
-import { SttEnginesModule } from '../stt-engines/stt-engines.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
 import { LlmSummaryService } from './llm-summary.service';
@@ -24,7 +23,6 @@ import { VoicemailService } from './voicemail.service';
     SystemSettingsModule,
     NotificationsModule,
     ReportsCdrModule,
-    SttEnginesModule,
     VoiceRobotsModule,
     AiConnectivityModule,
     AiPlatformModule,

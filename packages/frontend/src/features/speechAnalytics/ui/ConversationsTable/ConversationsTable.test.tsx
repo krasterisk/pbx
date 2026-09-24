@@ -41,7 +41,7 @@ describe('ConversationsTable', () => {
     expect(screen.getByText('Дата')).toBeInTheDocument();
     expect(screen.getByText('Имя')).toBeInTheDocument();
     expect(screen.queryByText('Ассистент')).not.toBeInTheDocument();
-    expect(screen.getByText('Звонивший')).toBeInTheDocument();
+    expect(screen.getByText('Номер')).toBeInTheDocument();
     expect(screen.getAllByText('Источник').length).toBeGreaterThan(0);
     expect(screen.getByText('Длительность')).toBeInTheDocument();
     expect(screen.getByText('Стоимость')).toBeInTheDocument();

@@ -7,6 +7,7 @@ import { TENANT_SETTINGS_DEFAULTS, type TenantSettings } from '../model/types/te
 const INITIAL: TenantSettings = {
   'routes.show_raw_dialplan': true,
   'routes.show_flowchart': true,
+  'tables.page_size': 50,
 };
 
 function createStore() {
@@ -91,6 +92,7 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
     expect(selectCached(store)).toEqual({
       'routes.show_raw_dialplan': false,
       'routes.show_flowchart': true,
+      'tables.page_size': 50,
     });
 
     putGate.resolve(jsonResponse({
@@ -126,6 +128,7 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
     const server: TenantSettings = {
       'routes.show_raw_dialplan': true,
       'routes.show_flowchart': false,
+      'tables.page_size': 50,
     };
 
     const pending = store.dispatch(

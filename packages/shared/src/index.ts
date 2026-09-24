@@ -36,6 +36,7 @@ export * from './types/ai-jobs.types';
 export * from './types/ai-media.types';
 export * from './types/ai-capture.types';
 export * from './types/speech-analytics.types';
+export * from './types/speech-analytics-templates';
 export {
   normalizeIvrPrompts,
   assertIvrPromptsForSave,

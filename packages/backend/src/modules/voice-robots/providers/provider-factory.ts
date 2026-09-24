@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SttEngine } from '../../stt-engines/stt-engine.model';
-import { TtsEngine } from '../../tts-engines/tts-engine.model';
+import type { SpeechEngineConfig } from '../../ai-connectivity/speech-engine';
+
+type SttEngine = SpeechEngineConfig;
+type TtsEngine = SpeechEngineConfig;
 import { YandexStreamingSttProvider } from './yandex-streaming-stt.provider';
 import { YandexStreamingTtsProvider } from './yandex-streaming-tts.provider';
 import { CustomHttpSttProvider } from './custom-http-stt.provider';

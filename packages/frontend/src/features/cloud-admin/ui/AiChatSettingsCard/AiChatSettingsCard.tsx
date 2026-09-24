@@ -196,7 +196,7 @@ export const AiChatSettingsCard = memo(() => {
 
 AiChatSettingsCard.displayName = 'AiChatSettingsCard';
 
-/** Per-tenant agent token and spend totals for the platform console. */
+/** Per-tenant agent token totals for the platform console. */
 export const AgentUsageCard = memo(() => {
   const { t } = useTranslation();
   const isSuperAdmin = useAppSelector(selectIsSuperAdmin);
@@ -305,16 +305,6 @@ export const AgentUsageCard = memo(() => {
                     <div className={cls.metric}>
                       <span className={cls.metricLabel}>{t('aiChat.admin.turns')}</span>
                       <span className={cls.metricValue}>{row.turns}</span>
-                    </div>
-                    <div className={cls.metric}>
-                      <span className={cls.metricLabel}>{t('aiChat.admin.spend')}</span>
-                      {row.spendAvailable ? (
-                        <span className={cls.metricValue}>{row.spendUsd}</span>
-                      ) : (
-                        <span className={cls.metricMuted} data-testid="ai-chat-spend-unavailable">
-                          {t('aiChat.admin.spendUnavailable')}
-                        </span>
-                      )}
                     </div>
                   </div>
 

@@ -307,13 +307,35 @@ export class SaJournalService {
       })
       : [];
     const rebuildInProgress = orderedRuns.some((r) => r.state === 'queued' || r.state === 'running');
+    let metricResults: unknown[] = [];
+    const rawMetrics = result[0]?.metric_results;
+    if (rawMetrics) {
+      try {
+        const parsed = JSON.parse(rawMetrics) as unknown;
+        metricResults = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        metricResults = [];
+      }
+    }
+    const transcriptId = latest?.transcript_id;
+    const segmentRows = transcriptId
+      ? await this.segments.findAll({
+        where: { tenant_uid: context.tenantUid, transcript_id: transcriptId },
+        order: [['ordinal', 'ASC']],
+      })
+      : [];
+    const transcriptText = segmentRows.length
+      ? segmentRows.map((row) => `${row.speaker_role}: ${row.text}`).join('\n')
+      : null;
 
     return {
       id: recording.id,
       sourceKind,
       audioUrl: null as string | null,
       summary: result[0]?.summary ?? null,
-      transcriptText: null as string | null,
+      quality: result[0]?.quality ?? null,
+      metricResults,
+      transcriptText,
       rebuildInProgress,
       runs: orderedRuns.map((run) => ({
         id: run.id,

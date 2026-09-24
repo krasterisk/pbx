@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { ISttProvider, SttResult } from '../interfaces/stt-provider.interface';
+import { applyProviderAuth } from '../../ai-connectivity/provider-auth';
 
 /**
  * Custom HTTP STT Provider (REST API fallback).
@@ -43,28 +44,13 @@ export class CustomHttpSttProvider implements ISttProvider {
       return { text: '', duration: audioBuffer.length / (8000 * 2) };
     }
 
-    const headers: Record<string, string> = {
+    const headers = applyProviderAuth({
       'Content-Type': 'audio/pcm',
       'X-Sample-Rate': '8000',
       'X-Audio-Channels': '1',
       'X-Language': language || 'ru-RU',
       ...customHeaders,
-    };
-
-    // Authentication
-    if (token) {
-      switch (authMode) {
-        case 'bearer':
-          headers['Authorization'] = `Bearer ${token}`;
-          break;
-        case 'custom':
-          // Custom headers already merged above
-          break;
-        default:
-          // 'none' — no auth
-          break;
-      }
-    }
+    }, authMode, token);
 
     try {
       const startTime = Date.now();

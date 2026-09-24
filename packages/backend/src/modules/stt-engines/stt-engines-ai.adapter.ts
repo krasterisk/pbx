@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { SttEnginesService } from './stt-engines.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
   AiStateProvider,
@@ -7,6 +7,7 @@ import {
   DomainAiAdapter,
 } from '../ai-platform/ai-adapter.types';
 import {
+  catalogRowToSpeechRaw,
   isSpeechEngineConfigured,
   toSpeechEngineView,
   type SpeechEngineRaw,
@@ -36,7 +37,7 @@ export class SttEnginesAiAdapter implements DomainAiAdapter, OnModuleInit {
   readonly domain = 'stt-engines';
 
   constructor(
-    private readonly sttEngines: SttEnginesService,
+    private readonly providers: AiProvidersService,
     private readonly registry: AiAdapterRegistryService,
   ) {}
 
@@ -60,7 +61,7 @@ export class SttEnginesAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   private async buildSummary(vpbxUserUid: number): Promise<string> {
-    const engines = await this.sttEngines.findAll(vpbxUserUid);
+    const engines = (await this.providers.findAll(vpbxUserUid, 'stt')).map((row) => catalogRowToSpeechRaw(row));
     if (engines.length === 0) return '';
     const ready = engines.filter((engine) => isSpeechEngineConfigured(engine)).length;
     return `STT-движки: ${ready}/${engines.length} настроены`;
@@ -74,8 +75,8 @@ export class SttEnginesAiAdapter implements DomainAiAdapter, OnModuleInit {
       inputSchema: {},
       entityType: 'stt_engine',
       handler: async (_args, uid) => {
-        const rows = await this.sttEngines.findAll(uid);
-        return { engines: rows.map((row) => toSttEngineView(row)) };
+        const rows = await this.providers.findAll(uid, 'stt');
+        return { engines: rows.map((row) => toSttEngineView(catalogRowToSpeechRaw(row))) };
       },
     };
   }

@@ -18,7 +18,7 @@ export interface TableSelectionBannerProps<TData> {
 
 function TableSelectionBannerInner<TData>({
   table,
-  pageSize = 50,
+  pageSize: pageSizeProp = 50,
   allMatchingSelected,
   selectedIds,
   selectedCount,
@@ -26,6 +26,7 @@ function TableSelectionBannerInner<TData>({
   onClear,
 }: TableSelectionBannerProps<TData>) {
   const { t } = useTranslation();
+  const pageSize = table.getState().pagination?.pageSize ?? pageSizeProp;
   const filteredCount = table.getFilteredRowModel().rows.length;
   const pageRowIds = new Set(table.getRowModel().rows.map((r) => r.id));
   const selectedOnPage = selectedIds.filter((id) => pageRowIds.has(id)).length;

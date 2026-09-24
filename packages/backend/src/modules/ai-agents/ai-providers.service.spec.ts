@@ -30,6 +30,18 @@ describe('AiProvidersService', () => {
       });
     });
 
+    it('keeps only the requested capability', async () => {
+      model.findAll.mockResolvedValueOnce([
+        { capabilities: ['llm'] },
+        { capabilities: ['tts', 'llm'] },
+        { capabilities: ['stt'] },
+      ]);
+
+      await expect(service.findAll(7, 'tts')).resolves.toEqual([
+        { capabilities: ['tts', 'llm'] },
+      ]);
+    });
+
     it('hides the superadmin catalog from the box cabinet as well', async () => {
       model.findAll.mockResolvedValueOnce([]);
       model.findOne.mockResolvedValueOnce(null);
@@ -61,7 +73,6 @@ describe('AiProvidersService', () => {
         vendor: 'openai',
         endpoint: 'https://api.openai.com/v1/audio/transcriptions',
         capabilities: ['stt'],
-        pricing: { audioMinuteUsd: 0.006 },
       } as any);
 
       expect(persisted.is_global).toBe(true);
@@ -83,7 +94,6 @@ describe('AiProvidersService', () => {
         vendor: 'openai',
         endpoint: 'https://api.openai.com/v1/chat/completions',
         capabilities: ['llm', 'realtime'],
-        pricing: { audioMinuteUsd: 0.06 },
         apiKey: 'sk-secret',
       } as any, 7);
 
@@ -105,7 +115,7 @@ describe('AiProvidersService', () => {
       await service.create({
         name: 'Ollama', kind: 'local', vendor: 'ollama',
         endpoint: 'http://127.0.0.1:11434/v1/chat/completions',
-        capabilities: ['llm'], pricing: { inputTokenUsd: 0 },
+        capabilities: ['llm'],
       } as any, 7);
 
       expect(persisted.encrypted_api_key).toBe('');
@@ -115,19 +125,11 @@ describe('AiProvidersService', () => {
       await expect(
         service.create({
           name: 'X', kind: 'online', vendor: 'x', endpoint: 'https://x',
-          capabilities: [], pricing: {},
+          capabilities: [],
         } as any, 7),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('rejects when pricing is missing', async () => {
-      await expect(
-        service.create({
-          name: 'X', kind: 'online', vendor: 'x', endpoint: 'https://x',
-          capabilities: ['llm'],
-        } as any, 7),
-      ).rejects.toBeInstanceOf(BadRequestException);
-    });
   });
 
   describe('update', () => {
@@ -255,5 +257,32 @@ describe('AiProvidersService', () => {
     model.findOne.mockResolvedValueOnce(null);
     await expect(service.resolveCredential(revision.credentialRef)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.revisionForOperation(7, 11, 'llm')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('resolves a global speech provider when the cabinet already references its uid', async () => {
+    const global = {
+      uid: 20,
+      user_uid: 0,
+      enabled: true,
+      is_global: true,
+      kind: 'online',
+      vendor: 'yandex',
+      endpoint: '',
+      auth_type: 'bearer',
+      capabilities: ['tts'],
+      defaults: { voice: 'alena' },
+      encrypted_api_key: encryptSecret('ya-key'),
+    };
+    model.findOne.mockResolvedValueOnce(null).mockResolvedValue(global);
+    const engine = await service.loadSpeechEngine(7, 20, 'tts');
+    expect(engine).toMatchObject({ uid: 20, type: 'yandex', token: 'ya-key', settings: { voice: 'alena' } });
+
+    const storedAsNone = { ...global, auth_type: 'none' };
+    model.findOne.mockReset();
+    model.findOne.mockResolvedValueOnce(null).mockResolvedValue(storedAsNone);
+    await expect(service.loadSpeechEngine(7, 20, 'tts')).resolves.toMatchObject({ token: 'ya-key', auth_mode: 'none' });
+
+    model.findOne.mockResolvedValue(null);
+    await expect(service.revisionForOperation(7, 20, 'llm')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

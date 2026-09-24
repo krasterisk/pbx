@@ -47,10 +47,12 @@ export function canDeleteProject(level: number): boolean {
 /** Fields that bump the metric-set stamp (D-26). */
 export function metricSetStampPayload(config: SaProjectConfigV1): unknown {
   return {
+    metrics: config.metrics ?? [],
+    callTaxonomy: config.callTaxonomy ?? [],
     customMetrics: config.customMetrics,
     topics: config.topics,
     systemPrompt: config.systemPrompt,
-    hiddenDefaultScales: [...config.hiddenDefaultScales].sort(),
+    hiddenDefaultScales: [...(config.hiddenDefaultScales ?? [])].sort(),
   };
 }
 

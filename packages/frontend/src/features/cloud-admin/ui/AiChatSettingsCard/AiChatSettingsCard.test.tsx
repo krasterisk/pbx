@@ -14,8 +14,6 @@ let usageRows = [
     tokensIn: 120,
     tokensOut: 50,
     turns: 2,
-    spendUsd: 0.75,
-    spendAvailable: true,
   },
   {
     tenantUid: 20,
@@ -23,8 +21,6 @@ let usageRows = [
     tokensIn: 5,
     tokensOut: 1,
     turns: 1,
-    spendUsd: null,
-    spendAvailable: false,
   },
 ];
 
@@ -106,22 +102,15 @@ describe('AiChatSettingsCard (15-24 / D-07 / D-08)', () => {
     expect(updateDefaultModel).toHaveBeenCalledWith({ providerUid: 1 });
   });
 
-  it('shows per-tenant tokens, spend and the proposal funnel', () => {
+  it('shows per-tenant tokens and the proposal funnel', () => {
     renderCard(UserLevel.SUPERADMIN, 'usage');
     const usage = screen.getByTestId('ai-chat-usage');
     expect(usage.textContent).toContain('Acme PBX');
     expect(usage.textContent).toContain('120');
     expect(usage.textContent).toContain('50');
-    expect(usage.textContent).toContain('0.75');
+    expect(usage.textContent).not.toContain('0.75');
     expect(usage.textContent).toContain('2');
     expect(usage.textContent).toMatch(/pending|applied|rejected/i);
     expect(screen.getByTestId('ai-chat-usage-row-10').textContent).toContain('10');
-  });
-
-  it('renders unavailable spend instead of a zero amount', () => {
-    renderCard(UserLevel.SUPERADMIN, 'usage');
-    expect(screen.getByTestId('ai-chat-spend-unavailable')).toBeTruthy();
-    const usage = screen.getByTestId('ai-chat-usage');
-    expect(usage.textContent).not.toMatch(/\$0(?:\.0+)?\b/);
   });
 });

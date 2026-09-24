@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { pcm16ToWav } from './ivr-pcm-wav.util';
+import { applyProviderAuth } from '../ai-connectivity/provider-auth';
 
 @Injectable()
 export class IvrTtsCustomProvider {
@@ -18,17 +19,11 @@ export class IvrTtsCustomProvider {
       throw new Error('Custom TTS URL is not configured');
     }
 
-    const headers: Record<string, string> = {
+    const headers = applyProviderAuth({
       'Content-Type': 'application/json',
       Accept: 'audio/*,application/octet-stream',
       ...(customHeaders || {}),
-    };
-
-    if (token) {
-      if (authMode === 'bearer') {
-        headers.Authorization = `Bearer ${token}`;
-      }
-    }
+    }, authMode, token);
 
     const response = await axios.post(
       url,

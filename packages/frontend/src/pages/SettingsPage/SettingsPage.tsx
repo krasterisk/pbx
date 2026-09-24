@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route, Bot } from 'lucide-react';
+import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route, Bot, Table2 } from 'lucide-react';
 import { Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { DialplanSubroutinesCard } from '@/features/system-settings/ui/DialplanSubroutinesCard';
@@ -9,6 +9,7 @@ import { WebhookSecurityCard } from '@/features/system-settings/ui/WebhookSecuri
 import { FfmpegStatusCard } from '@/features/system-settings/ui/FfmpegStatusCard';
 import { RedisStatusCard } from '@/features/system-settings/ui/RedisStatusCard';
 import { TenantSettingsSection } from '@/features/tenant-settings/ui/TenantSettingsSection';
+import { TablePageSizeSetting } from '@/features/tenant-settings/ui/TablePageSizeSetting/TablePageSizeSetting';
 import { AiChatProviderCard } from '@/features/system-settings/ui/AiChatProviderCard';
 import cls from './SettingsPage.module.scss';
 
@@ -54,6 +55,13 @@ const SECTIONS = [
     titleKey: 'systemSettings.sectionAiAgent',
     descKey: 'systemSettings.sectionAiAgentDesc',
     content: <AiChatProviderCard />,
+  },
+  {
+    key: 'tables',
+    icon: Table2,
+    titleKey: 'systemSettings.sectionTables',
+    descKey: 'systemSettings.sectionTablesDesc',
+    content: <TablePageSizeSetting />,
   },
   {
     key: 'tenant',

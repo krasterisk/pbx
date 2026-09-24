@@ -6,8 +6,8 @@ import { ContextsService } from '../contexts/contexts.service';
 import { EndpointsService } from '../endpoints/endpoints.service';
 import { QueuesService } from '../queues/queues.service';
 import { CallGroupsService } from '../call-groups/call-groups.service';
-import { TtsEnginesService } from '../tts-engines/tts-engines.service';
-import { isSpeechEngineConfigured, toSpeechEngineView } from '../tts-engines/tts-engines-ai.adapter';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
+import { catalogRowToSpeechRaw, isSpeechEngineConfigured, toSpeechEngineView } from '../tts-engines/tts-engines-ai.adapter';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
   AiToolDefinition,
@@ -138,7 +138,7 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
     private readonly endpointsService: EndpointsService,
     private readonly queuesService: QueuesService,
     private readonly callGroupsService: CallGroupsService,
-    @Optional() private readonly ttsEngines?: TtsEnginesService,
+    @Optional() private readonly providers?: AiProvidersService,
   ) {}
 
   onModuleInit(): void {
@@ -439,8 +439,8 @@ export class IvrsAiAdapter implements DomainAiAdapter, OnModuleInit {
     uid: number,
     args: Record<string, unknown>,
   ): Promise<{ uid: number; name: string } | null> {
-    if (!this.ttsEngines) return null;
-    const rows = await this.ttsEngines.findAll(uid);
+    if (!this.providers) return null;
+    const rows = (await this.providers.findAll(uid, 'tts')).map((row) => catalogRowToSpeechRaw(row));
     const views = rows
       .map((row) => ({ row, view: toSpeechEngineView(row) }))
       .filter((item) => item.view.enabled && isSpeechEngineConfigured(item.row));

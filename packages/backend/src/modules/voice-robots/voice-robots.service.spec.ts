@@ -25,7 +25,6 @@ function buildVoiceRobotsService(
     {} as any,
     {} as any,
     {} as any,
-    {} as any,
     ariClient as any,
     {} as any,
     {} as any,

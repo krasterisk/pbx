@@ -85,6 +85,11 @@ export function persistImpersonatedUser(user: {
   }));
 }
 
+/** True when this access token is a superadmin session inside a tenant cabinet. */
+export function accessTokenIsImpersonation(accessToken: string | null | undefined): boolean {
+  return tokenIsImpersonation(accessToken);
+}
+
 function tokenIsImpersonation(accessToken: string | null | undefined): boolean {
   if (!accessToken) return false;
   const payload = decodeJwtPayload(accessToken);

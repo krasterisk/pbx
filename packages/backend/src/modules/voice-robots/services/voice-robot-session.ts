@@ -10,8 +10,7 @@ import { AudioService } from './audio.service';
 import { TtsCacheService } from './tts-cache.service';
 import { TtsProviderFactory } from '../providers/provider-factory';
 import { SttProviderFactory } from '../providers/provider-factory';
-import { TtsEngine } from '../../tts-engines/tts-engine.model';
-import { SttEngine } from '../../stt-engines/stt-engine.model';
+import type { SpeechEngineConfig } from '../../ai-connectivity/speech-engine';
 import { SttStream } from '../interfaces/stt-provider.interface';
 import { VoiceRobot } from '../voice-robot.model';
 import { VoiceRobotKeyword } from '../keyword.model';
@@ -186,9 +185,9 @@ export class VoiceRobotSession {
     private readonly audioService: AudioService,
     private readonly ttsFactory: TtsProviderFactory,
     private readonly ttsCache: TtsCacheService,
-    private readonly ttsEngine: TtsEngine | null,
+    private readonly ttsEngine: SpeechEngineConfig | null,
     private readonly sttProviderFactory: SttProviderFactory,
-    private readonly sttEngine: SttEngine | null,
+    private readonly sttEngine: SpeechEngineConfig | null,
     private readonly channelId: string,
     private readonly robotConfig: VoiceRobot,
     private readonly keywordsDb: VoiceRobotKeyword[],

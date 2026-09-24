@@ -326,7 +326,9 @@ export class TenantsService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '30m', // Short-lived impersonation session
+      expiresIn: '30m',
+      issuer: 'krasterisk-v4',
+      audience: 'krasterisk-v4-client',
     });
 
     await this.loggerService.logAction(

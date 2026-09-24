@@ -1,9 +1,7 @@
 /**
  * Historical vendor presets. Not seeded — each tenant creates their own
- * providers. Kept as a reference for default endpoints and pricing.
- *
- * Pricing is taken from public vendor docs at the time of writing
- * (May 2026) and is intended to be edited by admins per agreement.
+ * providers. Kept as a reference for default endpoints.
+ * Cost belongs to the billing module, not to these templates.
  */
 
 export interface ProviderTemplate {
@@ -14,7 +12,6 @@ export interface ProviderTemplate {
   auth_type: 'bearer' | 'api_key_header' | 'none' | 'custom';
   capabilities: string[];
   defaults: Record<string, any>;
-  pricing: Record<string, any>;
 }
 
 export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
@@ -26,12 +23,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'bearer',
     capabilities: ['llm', 'realtime', 'stt', 'tts'],
     defaults: { model: 'gpt-4o-realtime-preview', voice: 'alloy', language: 'ru' },
-    pricing: {
-      inputTokenUsd: 5e-6,
-      outputTokenUsd: 20e-6,
-      audioMinuteUsd: 0.06,
-      currency: 'USD',
-    },
   },
   {
     name: 'OpenAI Cascade (gpt-4o-mini)',
@@ -41,7 +32,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'bearer',
     capabilities: ['llm', 'tools'],
     defaults: { model: 'gpt-4o-mini', temperature: 0.3 },
-    pricing: { inputTokenUsd: 0.15e-6, outputTokenUsd: 0.6e-6, currency: 'USD' },
   },
   {
     name: 'aiPBX',
@@ -51,7 +41,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'bearer',
     capabilities: ['llm', 'tools'],
     defaults: { model: 'gemma4:e4b', temperature: 0.2 },
-    pricing: { inputTokenUsd: 0, outputTokenUsd: 0, currency: 'USD' },
   },
   {
     name: 'Qwen Realtime',
@@ -61,7 +50,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'bearer',
     capabilities: ['llm', 'realtime'],
     defaults: { model: 'qwen-omni-turbo', language: 'ru' },
-    pricing: { audioMinuteUsd: 0.04, currency: 'USD' },
   },
   {
     name: 'Yandex SpeechKit STT',
@@ -71,7 +59,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'api_key_header',
     capabilities: ['stt'],
     defaults: { language: 'ru-RU' },
-    pricing: { audioMinuteUsd: 0.0036, currency: 'USD' },
   },
   {
     name: 'Yandex SpeechKit TTS',
@@ -81,7 +68,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'api_key_header',
     capabilities: ['tts'],
     defaults: { voice: 'alena', emotion: 'good' },
-    pricing: { charUsd: 0.000005, currency: 'USD' },
   },
   {
     name: 'Ollama (local LLM)',
@@ -91,7 +77,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'none',
     capabilities: ['llm'],
     defaults: { model: 'qwen2.5:7b-instruct' },
-    pricing: { inputTokenUsd: 0, outputTokenUsd: 0, currency: 'USD' },
   },
   {
     name: 'Piper TTS (local)',
@@ -101,7 +86,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'none',
     capabilities: ['tts'],
     defaults: { voice: 'ru_RU-ruslan-medium' },
-    pricing: { audioMinuteUsd: 0, currency: 'USD' },
   },
   {
     name: 'Whisper STT (local)',
@@ -111,7 +95,6 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'none',
     capabilities: ['stt'],
     defaults: { model: 'large-v3', language: 'ru' },
-    pricing: { audioMinuteUsd: 0, currency: 'USD' },
   },
   {
     name: 'Custom WebSocket',
@@ -121,6 +104,5 @@ export const BUILTIN_PROVIDER_TEMPLATES: ProviderTemplate[] = [
     auth_type: 'bearer',
     capabilities: ['llm', 'realtime'],
     defaults: {},
-    pricing: { currency: 'USD' },
   },
 ];

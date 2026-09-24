@@ -1,16 +1,15 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AudioLines, Plus } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { ttsEnginesActions } from '@/features/tts-engines/model/slice/ttsEnginesSlice';
-import { TtsEnginesTable } from '@/features/tts-engines/ui/TtsEnginesTable';
+import { AiProviderModal, AiProvidersTable } from '@/features/ai-providers';
+import type { IAiProvider } from '@/shared/api/endpoints/aiAgentsApi';
 import cls from './TtsEnginesPage.module.scss';
 
 export const TtsEnginesPage = memo(() => {
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
+  const [editing, setEditing] = useState<IAiProvider | null | undefined>(undefined);
 
   return (
     <VStack gap="24" max className={cls.page} data-testid="tts-engines-page-responsive">
@@ -30,7 +29,7 @@ export const TtsEnginesPage = memo(() => {
         </HStack>
         <Button
           className={cls.createBtn}
-          onClick={() => dispatch(ttsEnginesActions.openCreateModal())}
+          onClick={() => setEditing(null)}
         >
           <Plus size={16} className={cls.createBtnIcon} />
           <Text as="span">{t('ttsEngines.add')}</Text>
@@ -38,8 +37,15 @@ export const TtsEnginesPage = memo(() => {
       </Flex>
 
       <Flex direction="column" align="stretch" max className={cls.tableWrap}>
-        <TtsEnginesTable />
+        <AiProvidersTable capability="tts" onEdit={setEditing} />
       </Flex>
+      {editing !== undefined && (
+        <AiProviderModal
+          provider={editing}
+          requiredCapability="tts"
+          onClose={() => setEditing(undefined)}
+        />
+      )}
     </VStack>
   );
 });

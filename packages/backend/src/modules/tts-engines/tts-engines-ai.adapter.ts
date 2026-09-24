@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { TtsEnginesService } from './tts-engines.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
   AiStateProvider,
@@ -51,7 +51,7 @@ export class TtsEnginesAiAdapter implements DomainAiAdapter, OnModuleInit {
   readonly domain = 'tts-engines';
 
   constructor(
-    private readonly ttsEngines: TtsEnginesService,
+    private readonly providers: AiProvidersService,
     private readonly registry: AiAdapterRegistryService,
   ) {}
 
@@ -75,7 +75,7 @@ export class TtsEnginesAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   private async buildSummary(vpbxUserUid: number): Promise<string> {
-    const engines = await this.ttsEngines.findAll(vpbxUserUid);
+    const engines = (await this.providers.findAll(vpbxUserUid, 'tts')).map((row) => catalogRowToSpeechRaw(row));
     if (engines.length === 0) return '';
     const ready = engines.filter((engine) => isSpeechEngineConfigured(engine)).length;
     return `TTS-движки: ${ready}/${engines.length} настроены`;
@@ -89,11 +89,32 @@ export class TtsEnginesAiAdapter implements DomainAiAdapter, OnModuleInit {
       inputSchema: {},
       entityType: 'tts_engine',
       handler: async (_args, uid) => {
-        const rows = await this.ttsEngines.findAll(uid);
-        return { engines: rows.map((row) => toTtsEngineView(row)) };
+        const rows = await this.providers.findAll(uid, 'tts');
+        return { engines: rows.map((row) => toTtsEngineView(catalogRowToSpeechRaw(row))) };
       },
     };
   }
+}
+
+/** Provider rows and the older engine fixtures both become the allow-listed view input. */
+export function catalogRowToSpeechRaw(row: any): SpeechEngineRaw {
+  if (row && typeof row.type === 'string' && !Array.isArray(row.capabilities)) {
+    return row;
+  }
+  const defaults = { ...(row?.defaults ?? {}) };
+  delete defaults.customHeaders;
+  delete defaults.legacyEngine;
+  const vendor = row?.vendor || 'custom';
+  const hasSecret = Boolean(row?.encrypted_api_key);
+  return {
+    uid: row?.uid,
+    name: row?.name,
+    type: vendor,
+    token: vendor === 'custom' ? '' : (hasSecret ? 'configured' : ''),
+    custom_url: row?.endpoint || '',
+    settings: defaults,
+    enabled: row?.enabled,
+  };
 }
 
 export function toTtsEngineView(row: SpeechEngineRaw): SpeechEngineView {

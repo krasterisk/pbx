@@ -27,6 +27,7 @@ export const WebhookSecurityCard = memo(() => {
   // If data.webhook_secret === MASK → secret is set on server (don't modify until user types)
   const isSetOnServer = data?.webhook_secret === MASK;
   const [secret, setSecret] = useState('');
+  const [secretEditable, setSecretEditable] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const showFeedback = (ok: boolean, msg: string) => {
@@ -82,12 +83,20 @@ export const WebhookSecurityCard = memo(() => {
         {/* Input + actions */}
         <VStack gap="8" max>
           <Input
+            name="krsk-webhook-secret"
             type="password"
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
             placeholder={isSetOnServer ? MASK : t('systemSettings.webhookSecretPlaceholder')}
             disabled={isLoading || isSaving}
             className={cls.input}
+            autoComplete="new-password"
+            autoCapitalize="off"
+            spellCheck={false}
+            readOnly={!secretEditable}
+            onFocus={() => setSecretEditable(true)}
+            data-1p-ignore="true"
+            data-lpignore="true"
           />
           <HStack gap="8" align="center" max>
             <Button

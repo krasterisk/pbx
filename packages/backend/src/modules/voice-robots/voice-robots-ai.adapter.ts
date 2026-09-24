@@ -1,7 +1,6 @@
 import { Injectable, Logger, NotFoundException, Optional, OnModuleInit } from '@nestjs/common';
 import { VoiceRobotsService } from './voice-robots.service';
-import { TtsEnginesService } from '../tts-engines/tts-engines.service';
-import { SttEnginesService } from '../stt-engines/stt-engines.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { RouteReferencesService } from '../route-references/route-references.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
@@ -60,8 +59,7 @@ export class VoiceRobotsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   constructor(
     private readonly voiceRobots: VoiceRobotsService,
-    private readonly ttsEngines: TtsEnginesService,
-    private readonly sttEngines: SttEnginesService,
+    private readonly providers: AiProvidersService,
     private readonly registry: AiAdapterRegistryService,
     @Optional() private readonly routeReferences?: RouteReferencesService,
   ) {}
@@ -193,9 +191,7 @@ export class VoiceRobotsAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   private loadEngine(kind: SpeechKind, engineUid: number, uid: number): Promise<EngineLike> {
-    return kind === 'tts'
-      ? this.ttsEngines.findOne(engineUid, uid)
-      : this.sttEngines.findOne(engineUid, uid);
+    return this.providers.loadSpeechEngine(uid, engineUid, kind);
   }
 }
 

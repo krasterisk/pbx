@@ -6,6 +6,7 @@ import { AgentThread } from './models/agent-thread.model';
 import { AgentThreadMessage, AgentThreadMessageRole } from './models/agent-thread-message.model';
 import type { ConversationBrief } from './conversation-brief.types';
 import type { ThreadVisibilityScope } from './thread-visibility.service';
+import { markUsageDebit } from './usage-debit.marker';
 
 const TITLE_FROM_MESSAGE_MAX = 80;
 
@@ -348,7 +349,14 @@ export class PbxAgentThreadService {
     userUid: number,
     usage: ThreadUsageDelta,
   ): Promise<void> {
-    await this.getThread(threadUid, vpbxUserUid, userUid);
+    const thread = await this.getThread(threadUid, vpbxUserUid, userUid);
+    markUsageDebit({
+      source: 'ai-chat',
+      tenantUid: vpbxUserUid,
+      providerUid: thread.provider_uid ?? null,
+      tokensIn: usage.in,
+      tokensOut: usage.out,
+    });
     await this.threadModel.increment(
       { tokens_in: usage.in, tokens_out: usage.out },
       { where: { uid: threadUid, vpbx_user_uid: vpbxUserUid, user_uid: userUid } },

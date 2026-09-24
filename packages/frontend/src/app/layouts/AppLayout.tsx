@@ -5,6 +5,7 @@ import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { ModuleShell } from '@/widgets/ModuleShell';
 import { MobileBottomBar } from '@/widgets/MobileBottomBar';
 import { useRoleStartRedirect } from '@/features/modules/hooks/useRoleStartRedirect';
+import { TablePageSizeProvider } from '@/features/tenant-settings/ui/TablePageSizeProvider/TablePageSizeProvider';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import cls from './AppLayout.module.scss';
 
@@ -31,7 +32,9 @@ export const AppLayout = () => {
       data-phone-nav={isMobile ? 'true' : undefined}
     >
       <ModuleShell>
-        <Outlet />
+        <TablePageSizeProvider>
+          <Outlet />
+        </TablePageSizeProvider>
       </ModuleShell>
       <MobileBottomBar />
     </Flex>

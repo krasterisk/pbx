@@ -189,13 +189,13 @@ describe('SpeechAnalyticsAiAdapter', () => {
     seeded.digest = {
       ...seeded.digest,
       enabled: true,
-      integrationUids: ['digest-uid-cr01'],
+      integrationUids: [11],
       schedule: 'daily',
     };
     seeded.alerts = {
       ...seeded.alerts,
       enabled: true,
-      integrationUids: ['alert-uid-cr01'],
+      integrationUids: [22],
     };
     seeded.budget = { softLimit: 4242 };
     seeded.systemPrompt = 'CR-01 keep this system prompt';

@@ -15,9 +15,10 @@ export interface IAiProvider {
   auth_type: string;
   /** API key is never returned by the API; only presence is signaled with `has_key`. */
   has_key?: boolean;
+  /** Header names for custom auth. Values stay on the server. */
+  authHeaderKeys?: string[];
   capabilities: AiCapability[];
   defaults: Record<string, unknown>;
-  pricing: Record<string, number>;
   enabled: boolean;
   /** Platform catalog row. Cabinet lists drop these. */
   is_global?: boolean;
@@ -97,9 +98,9 @@ export interface ICreateAiProvider {
   endpoint: string;
   auth_type?: string;
   apiKey?: string;
+  authHeaders?: Array<{ key: string; value: string }>;
   capabilities: AiCapability[];
   defaults?: Record<string, unknown>;
-  pricing: Record<string, number>;
   enabled?: boolean;
 }
 
@@ -133,8 +134,13 @@ const aiAgentsApi = rtkApi.injectEndpoints({
     }),
 
     // Providers
-    getAiProviders: build.query<IAiProvider[], void>({
-      query: () => '/ai-agents/providers/list',
+    getAiProviders: build.query<IAiProvider[], { capability?: string } | void>({
+      query: (arg) => {
+        const capability = arg && typeof arg === 'object' ? arg.capability : undefined;
+        return capability
+          ? `/ai-agents/providers/list?capability=${encodeURIComponent(capability)}`
+          : '/ai-agents/providers/list';
+      },
       transformResponse: (rows: IAiProvider[]) =>
         (Array.isArray(rows) ? rows : []).filter((row) => row.is_global !== true),
       providesTags: ['AiProviders'],

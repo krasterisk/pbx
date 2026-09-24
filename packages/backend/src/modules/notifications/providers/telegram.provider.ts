@@ -11,6 +11,16 @@ import {
 
 const AXIOS_TIMEOUT_MS = 10_000;
 
+function telegramFailureCode(status: number | undefined, description: string | undefined): string {
+  const text = (description ?? '').toLowerCase();
+  if (text.includes('chat not found') || text.includes('chat_id')) return 'chat_not_found';
+  if (text.includes('blocked')) return 'bot_blocked';
+  if (status === 404 || status === 401 || text.includes('not found') || text.includes('unauthorized')) {
+    return 'invalid_bot_token';
+  }
+  return 'notify_failed';
+}
+
 function telegramStatus(err: unknown): number | undefined {
   const status = (err as { response?: { status?: number } })?.response?.status;
   return typeof status === 'number' ? status : undefined;
@@ -63,14 +73,18 @@ export class TelegramProvider implements INotificationProvider {
         { timeout: AXIOS_TIMEOUT_MS },
       );
       return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
       const status = telegramStatus(e);
+      const description = (e as { response?: { data?: { description?: string } } })?.response?.data?.description;
       if (options?.attach && status !== undefined && status >= 400 && status < 500) {
-        this.logger.error(`Telegram attach rejected: ${e?.message ?? e}`);
+        this.logger.error(`Telegram attach rejected: ${description ?? (e as Error)?.message ?? e}`);
         return { success: false, error: ATTACHMENT_REJECTED };
       }
-      this.logger.error(`Telegram send failed: ${e?.message ?? e}`);
-      return { success: false, error: e?.message };
+      const code = telegramFailureCode(status, description);
+      this.logger.error(
+        `Telegram send failed: status=${status ?? 'none'} code=${code} ${description ?? (e as Error)?.message ?? e}`,
+      );
+      return { success: false, error: code };
     }
   }
 }

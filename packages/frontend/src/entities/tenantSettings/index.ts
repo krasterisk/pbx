@@ -4,7 +4,8 @@
  */
 
 export type { TenantSettings } from './model/types/tenantSettings';
-export { TENANT_SETTINGS_DEFAULTS } from './model/types/tenantSettings';
+export { TENANT_SETTINGS_DEFAULTS, TABLE_PAGE_SIZE_OPTIONS, normalizeTablePageSize } from './model/types/tenantSettings';
+export type { TablePageSize } from './model/types/tenantSettings';
 
 export {
   tenantSettingsApi,

@@ -1,5 +1,5 @@
 import {
-  ConflictException, ForbiddenException, HttpException, Injectable,
+  ConflictException, ForbiddenException, HttpException, Injectable, Logger,
   NotFoundException, PayloadTooLargeException, UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
@@ -21,6 +21,7 @@ import type { TenantContext } from '../integration-credentials/tenant-context';
 import { User, UserLevel } from '../users/user.model';
 import { Route } from '../routes/route.model';
 import { NotificationIntegration } from '../notifications/notification-integration.model';
+import { NotificationDispatcherService } from '../notifications/notification-dispatcher.service';
 import { WebhookQueueService } from '../routes/webhook-queue.service';
 import { configDigest, DomainError } from './project-engine';
 import { claimRecording, emptyIngestStores, metadataAllowlist, uploadChecksum } from './ingest-engine';
@@ -53,6 +54,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 
 @Injectable()
 export class SpeechAnalyticsService {
+  private readonly logger = new Logger(SpeechAnalyticsService.name);
   constructor(
     private readonly sequelize: Sequelize,
     private readonly admission: AiJobAdmissionService,
@@ -75,6 +77,7 @@ export class SpeechAnalyticsService {
     @InjectModel(User) private readonly users: typeof User,
     @InjectModel(Route) private readonly routes: typeof Route,
     @InjectModel(NotificationIntegration) private readonly integrations: typeof NotificationIntegration,
+    private readonly notifications: NotificationDispatcherService,
   ) {}
 
   /** In-process byte store for putUploadContent (closes skeleton gap; D-14). */
@@ -350,6 +353,70 @@ export class SpeechAnalyticsService {
       headers: config.eventWebhook.headers ?? {},
       projectId,
     });
+  }
+
+  private async deliverToIntegrations(tenantUid: number, uids: number[], message: string): Promise<number> {
+    if (!uids.length) {
+      throw new UnprocessableEntityException({ code: 'digest_recipient_required' });
+    }
+    const owned = await this.integrations.findAll({
+      where: { uid: { [Op.in]: uids }, user_uid: tenantUid },
+    });
+    if (!owned.length) {
+      throw new UnprocessableEntityException({ code: 'digest_recipient_required' });
+    }
+    for (const row of owned) {
+      this.logger.log(`speech analytics notify integration=${row.uid} channel=${row.channel}`);
+      const result = await this.notifications.dispatch({
+        integration_uid: row.uid,
+        subject: 'Речевая аналитика',
+        message,
+      });
+      if (!result?.success) {
+        this.logger.warn(
+          `speech analytics notify failed integration=${row.uid} error=${result?.error ?? 'no_result'}`,
+        );
+        throw new UnprocessableEntityException({
+          code: result?.error && result.error !== 'no_result' ? result.error : 'notify_failed',
+        });
+      }
+    }
+    return owned.length;
+  }
+
+  async sendProjectDigest(context: TenantContext, projectId: string) {
+    const project = await this.assertScope(context, projectId, 'analytics:write');
+    const config = this.parseConfig(project.draft_config);
+    const recipients = await this.deliverToIntegrations(
+      context.tenantUid,
+      config.digest.integrationUids ?? [],
+      'Тестовая сводка речевой аналитики',
+    );
+    const next = {
+      ...config,
+      digest: { ...config.digest, lastManualSentAt: new Date().toISOString() },
+    };
+    const saved = await this.updateDraft(context, projectId, project.draft_revision, next);
+    return { sent: true, recipients, draftRevision: saved.draft_revision };
+  }
+
+  async testProjectAlert(context: TenantContext, projectId: string) {
+    const project = await this.assertScope(context, projectId, 'analytics:write');
+    const config = this.parseConfig(project.draft_config);
+    const uids = config.alerts.integrationUids?.length
+      ? config.alerts.integrationUids
+      : (config.digest.integrationUids ?? []);
+    const recipients = await this.deliverToIntegrations(
+      context.tenantUid,
+      uids,
+      'Тестовое уведомление речевой аналитики',
+    );
+    const next = {
+      ...config,
+      alerts: { ...config.alerts, lastTestSentAt: new Date().toISOString() },
+    };
+    const saved = await this.updateDraft(context, projectId, project.draft_revision, next);
+    return { sent: true, recipients, draftRevision: saved.draft_revision };
   }
 
   async evaluateProjectBudget(context: TenantContext, projectId: string, period?: { from?: string; to?: string }) {

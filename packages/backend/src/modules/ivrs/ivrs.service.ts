@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, Logger, BadRequestException } from '@nes
 import { InjectModel } from '@nestjs/sequelize';
 import type { IIvrPhrase, IvrPromptsValidationEngine } from '@krasterisk/shared';
 import { Ivr } from './ivr.model';
-import { TtsEnginesService } from '../tts-engines/tts-engines.service';
+import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { RouteReferencesService } from '../route-references/route-references.service';
 import { AsteriskDialplanUtils, prefixSamePriority, renderActionChain } from '../../shared/utils/dialplan.util';
@@ -21,7 +21,7 @@ export class IvrsService {
 
   constructor(
     @InjectModel(Ivr) private ivrModel: typeof Ivr,
-    private readonly ttsEnginesService: TtsEnginesService,
+    private readonly providers: AiProvidersService,
     private readonly dialplanApplyService: DialplanApplyService,
     private readonly routeReferencesService: RouteReferencesService,
   ) {}
@@ -43,7 +43,7 @@ export class IvrsService {
     for (const p of prompts) {
       if (p.kind !== 'tts' || !p.engine_uid || p.engine_uid <= 0) continue;
       if (engines.some((e) => e.uid === p.engine_uid)) continue;
-      const engine = await this.ttsEnginesService.findOne(p.engine_uid, vpbxUserUid);
+      const engine = await this.providers.loadSpeechEngine(vpbxUserUid, p.engine_uid, 'tts');
       engines.push({
         uid: engine.uid,
         type: engine.type,

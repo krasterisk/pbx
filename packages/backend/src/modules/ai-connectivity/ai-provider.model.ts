@@ -42,10 +42,6 @@ export class CcAiProvider extends Model {
   @Column({ type: DataType.JSON, allowNull: true })
   declare defaults: Record<string, any>;
 
-  /** {inputTokenUsd, outputTokenUsd, audioMinuteUsd, …} */
-  @Column({ type: DataType.JSON, allowNull: false })
-  declare pricing: Record<string, any>;
-
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
   declare enabled: boolean;
 
