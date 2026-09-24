@@ -237,7 +237,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
             );
           })}
         </div>
-        ) : null}
+        )}
 
         {step === 1 ? (
           <VStack gap="16" max className={cls.step}>
@@ -258,7 +258,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
               >
                 <VStack gap="8" align="center" className={cls.templateBody}>
                   <span className={cls.templateIcon}><PenLine size={22} /></span>
-                  <Text>{t('speechAnalytics.wizardModePrompt', 'Произвольный промпт')}</Text>
+                  <Text>{t('speechAnalytics.wizardModePrompt', 'Настроить с помощью AI')}</Text>
                   <Text variant="muted">{t('speechAnalytics.wizardModePromptHint', 'Опишите задачу своими словами. Дальше метрики и темы настраиваются в чате с помощником.')}</Text>
                 </VStack>
               </Card>

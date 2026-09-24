@@ -5385,7 +5385,7 @@ export const en = {
     newProjectDefault: "New project",
     wizardHint: "Describe what to score in calls, or set metrics and topics by hand.",
     wizardPickSetup: "How to set up the project",
-    wizardModePrompt: "Free-form prompt",
+    wizardModePrompt: "Set up with AI",
     wizardModePromptHint: "Describe the task in your own words. Metrics and topics are then set up in the assistant chat.",
     wizardOpenChat: "Open chat",
     wizardModeManual: "Manual setup",

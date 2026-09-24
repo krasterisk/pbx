@@ -5474,7 +5474,7 @@ export const ru = {
     newProjectDefault: "Новый проект",
     wizardHint: "Опишите, что оценивать в звонках, или настройте метрики и темы вручную.",
     wizardPickSetup: "Как настроить проект",
-    wizardModePrompt: "Произвольный промпт",
+    wizardModePrompt: "Настроить с помощью AI",
     wizardModePromptHint: "Опишите задачу своими словами. Дальше метрики и темы настраиваются в чате с помощником.",
     wizardOpenChat: "Открыть чат",
     wizardModeManual: "Ручная настройка",

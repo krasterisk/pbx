@@ -1,6 +1,6 @@
 {
   "name": "krasterisk-v4",
-  "version": "4.5.9",
+  "version": "4.6.1",
   "description": "IP PBX Krasterisk — Modern Web Interface",
   "private": true,
   "workspaces": [
