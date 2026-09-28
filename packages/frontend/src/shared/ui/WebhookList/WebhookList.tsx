@@ -1,6 +1,6 @@
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/ui/Button/Button';
 import { Input } from '@/shared/ui/Input/Input';
 import { Select } from '@/shared/ui/Select/Select';
@@ -59,7 +59,6 @@ export const WebhookList = memo(({
   const handleAdd = useCallback(() => {
     const item = createItem(events[0]?.value ?? '');
     onChange([...items, item]);
-    setExpandedId(item.id);
   }, [events, items, onChange]);
 
   const update = useCallback((id: string, patch: Partial<WebhookListItem>) => {
@@ -78,10 +77,6 @@ export const WebhookList = memo(({
           <Text variant="small">{title}</Text>
           <InfoTooltip text={tooltip} />
         </HStack>
-        <Button size="sm" variant="outline" type="button" onClick={handleAdd}>
-          <Plus className="w-4 h-4 mr-2" />
-          {addLabel}
-        </Button>
       </HStack>
 
       {items.length === 0 ? (
@@ -138,6 +133,7 @@ export const WebhookList = memo(({
                 {expanded ? (
                   <VStack gap="12" className="px-3 pb-3 pt-1 border-t border-border/50 bg-muted/20">
                     <WebhookAuthConfig
+                      defaultOpen
                       authMode={row.authMode}
                       token={row.token}
                       customHeaders={row.customHeaders}
@@ -152,6 +148,9 @@ export const WebhookList = memo(({
           })}
         </VStack>
       )}
+      <Button type="button" variant="outline" onClick={handleAdd}>
+        {addLabel}
+      </Button>
     </VStack>
   );
 });

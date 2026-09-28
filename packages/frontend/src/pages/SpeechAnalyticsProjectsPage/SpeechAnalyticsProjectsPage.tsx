@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import {
   BulkDeleteDialog,
   Button,
+  Checkbox,
   Card,
   CardContent,
   CardHeader,
@@ -33,21 +34,36 @@ import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelectio
 import {
   useBulkDeleteSaProjectsMutation,
   useCreateSaProjectMutation,
+  cabinetSaProjects,
+  useGetSaJournalQuery,
   useGetSaProjectsQuery,
+  usePurgeSaProjectMutation,
   usePublishSaProjectMutation,
   useUpdateSaProjectDraftMutation,
   type SaProject,
 } from '@/features/speechAnalytics/api/speechAnalyticsApi';
+import { AnalysisJobsPanel } from '@/features/speechAnalytics/ui/AnalysisJobsPanel/AnalysisJobsPanel';
 import cls from './SpeechAnalyticsProjectsPage.module.scss';
 
 const columnHelper = createColumnHelper<SaProject>();
 const PAGE_SIZE = 25;
+
+function projectStatusLabel(
+  t: (key: string, defaultValue?: string) => string,
+  status: string,
+): string {
+  if (status === 'draft') return t('speechAnalytics.projectStatusDraft', 'Черновик');
+  if (status === 'active') return t('speechAnalytics.projectStatusActive', 'Активный');
+  if (status === 'archived') return t('speechAnalytics.projectStatusArchived', 'Архивный');
+  return status;
+}
 
 export const SpeechAnalyticsProjectsPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
   const projectsQuery = useGetSaProjectsQuery();
+  const journalQuery = useGetSaJournalQuery(undefined, { pollingInterval: 4000 });
   const [createProject, createState] = useCreateSaProjectMutation();
   const [updateDraft] = useUpdateSaProjectDraftMutation();
   const [publishProject] = usePublishSaProjectMutation();
@@ -56,15 +72,18 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
   const [editId, setEditId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [search, setSearch] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [purgeTarget, setPurgeTarget] = useState<SaProject | null>(null);
+  const [purgeProject, purgeState] = usePurgeSaProjectMutation();
   const [copySource, setCopySource] = useState<SaProject | null>(null);
   const [copyName, setCopyName] = useState('');
   const [rowDeleteIds, setRowDeleteIds] = useState<string[] | null>(null);
   const selection = useCrossPageRowSelection({ globalFilter: search });
 
-  const projects = useMemo(
-    () => (projectsQuery.data ?? []).filter((project) => project.status !== 'archived'),
-    [projectsQuery.data],
-  );
+  const projects = useMemo(() => {
+    const rows = projectsQuery.data ?? [];
+    return showArchived ? rows : cabinetSaProjects(rows);
+  }, [projectsQuery.data, showArchived]);
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return projects;
@@ -86,11 +105,35 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
         }),
         columnHelper.accessor('status', {
           header: () => t('speechAnalytics.projectStatus', 'Статус'),
-          cell: (info) => <Text>{info.getValue()}</Text>,
+          cell: (info) => <Text>{projectStatusLabel(t, info.getValue())}</Text>,
         }),
-        columnHelper.accessor('draft_revision', {
-          header: () => t('speechAnalytics.draftRevision', 'Черновик'),
-          cell: (info) => <Text>{String(info.getValue())}</Text>,
+        columnHelper.display({
+          id: 'publication',
+          header: () => t('speechAnalytics.publicationColumn', 'Разбор'),
+          cell: ({ row }) => {
+            const project = row.original;
+            if (!project.analysisVersionNo) {
+              return <Text className={cls.draftBadge}>{t('speechAnalytics.draftNoAnalysis', 'Черновик, разбор не идёт')}</Text>;
+            }
+            if (project.unpublished) {
+              return (
+                <Text className={cls.pendingBadge}>
+                  {t('speechAnalytics.unpublishedAnalysis', {
+                    version: project.analysisVersionNo,
+                    defaultValue: 'Не опубликовано, разбор по версии {{version}}',
+                  })}
+                </Text>
+              );
+            }
+            return (
+              <Text>
+                {t('speechAnalytics.analysisVersion', {
+                  version: project.analysisVersionNo,
+                  defaultValue: 'Версия {{version}}',
+                })}
+              </Text>
+            );
+          },
         }),
         columnHelper.display({
           id: 'actions',
@@ -111,14 +154,25 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
               >
                 <Copy />
               </TableRowAction>
-              <TableRowAction
-                danger
-                title={t('common.delete')}
-                aria-label={t('common.delete')}
-                onClick={() => setRowDeleteIds([row.original.id])}
-              >
-                <Trash2 />
-              </TableRowAction>
+              {row.original.status === 'archived' && (row.original.recordingCount ?? 0) === 0 ? (
+                <TableRowAction
+                  danger
+                  title={t('speechAnalytics.purgeProject', 'Удалить окончательно')}
+                  aria-label={t('speechAnalytics.purgeProject', 'Удалить окончательно')}
+                  onClick={() => setPurgeTarget(row.original)}
+                >
+                  <Trash2 />
+                </TableRowAction>
+              ) : row.original.status !== 'archived' ? (
+                <TableRowAction
+                  danger
+                  title={t('common.delete')}
+                  aria-label={t('common.delete')}
+                  onClick={() => setRowDeleteIds([row.original.id])}
+                >
+                  <Trash2 />
+                </TableRowAction>
+              ) : null}
             </TableRowActions>
           ),
         }),
@@ -142,14 +196,25 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
       >
         <Copy />
       </TableRowAction>
-      <TableRowAction
-        danger
-        title={t('common.delete')}
-        aria-label={t('common.delete')}
-        onClick={() => setRowDeleteIds([project.id])}
-      >
-        <Trash2 />
-      </TableRowAction>
+      {project.status === 'archived' && (project.recordingCount ?? 0) === 0 ? (
+        <TableRowAction
+          danger
+          title={t('speechAnalytics.purgeProject', 'Удалить окончательно')}
+          aria-label={t('speechAnalytics.purgeProject', 'Удалить окончательно')}
+          onClick={() => setPurgeTarget(project)}
+        >
+          <Trash2 />
+        </TableRowAction>
+      ) : project.status !== 'archived' ? (
+        <TableRowAction
+          danger
+          title={t('common.delete')}
+          aria-label={t('common.delete')}
+          onClick={() => setRowDeleteIds([project.id])}
+        >
+          <Trash2 />
+        </TableRowAction>
+      ) : null}
     </TableRowActions>
   );
 
@@ -275,6 +340,14 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
             {t('speechAnalytics.deleteSelected', { count: selection.selectedCount, defaultValue: 'Удалить ({{count}})' })}
           </Button>
         )}
+        <HStack gap="8" align="center">
+          <Checkbox
+            id="sa-projects-archived"
+            checked={showArchived}
+            onChange={() => setShowArchived((value) => !value)}
+          />
+          <Label htmlFor="sa-projects-archived">{t('speechAnalytics.showArchivedProjects', 'Показать архивные')}</Label>
+        </HStack>
         <Flex align="center" className={cls.searchWrap}>
           <Search size={16} className={cls.searchIcon} />
           <Input
@@ -323,6 +396,11 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
         </HStack>
         {createCta}
       </Flex>
+
+      <AnalysisJobsPanel
+        jobs={journalQuery.data?.analysisJobs ?? []}
+        progress={journalQuery.data?.uploadProgress ?? { done: 0, total: 0 }}
+      />
 
       {projectsQuery.isError ? (
         <VStack gap="12" max data-testid="projects-error">
@@ -373,7 +451,20 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
                     <HStack justify="between" align="start" max>
                       <VStack gap="4">
                         <Text>{project.name}</Text>
-                        <Text variant="muted">{project.status}</Text>
+                        <Text variant="muted">{projectStatusLabel(t, project.status)}</Text>
+                        <Text variant="muted">
+                          {!project.analysisVersionNo
+                            ? t('speechAnalytics.draftNoAnalysis', 'Черновик, разбор не идёт')
+                            : project.unpublished
+                              ? t('speechAnalytics.unpublishedAnalysis', {
+                                version: project.analysisVersionNo,
+                                defaultValue: 'Не опубликовано, разбор по версии {{version}}',
+                              })
+                              : t('speechAnalytics.analysisVersion', {
+                                version: project.analysisVersionNo,
+                                defaultValue: 'Версия {{version}}',
+                              })}
+                        </Text>
                       </VStack>
                       {renderActions(project)}
                     </HStack>
@@ -460,6 +551,40 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={purgeTarget != null} onOpenChange={(open) => { if (!open && !purgeState.isLoading) setPurgeTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t('speechAnalytics.purgeProjectTitle', {
+                name: purgeTarget?.name ?? '',
+                defaultValue: 'Удалить проект «{{name}}» окончательно?',
+              })}
+            </DialogTitle>
+          </DialogHeader>
+          <Text variant="muted">{t('speechAnalytics.purgeProjectBody', 'Записей нет. Проект и его настройки будут стёрты без восстановления.')}</Text>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={purgeState.isLoading} onClick={() => setPurgeTarget(null)}>
+              {t('common.cancel', 'Отмена')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={purgeState.isLoading || !purgeTarget}
+              onClick={() => {
+                if (!purgeTarget) return;
+                void purgeProject(purgeTarget.id).unwrap()
+                  .then(() => {
+                    toast.success(t('speechAnalytics.projectPurged', 'Проект удалён окончательно'));
+                    setPurgeTarget(null);
+                  })
+                  .catch(() => toast.error(t('speechAnalytics.purgeProjectFailed', 'Не удалось удалить проект окончательно')));
+              }}
+            >
+              {t('speechAnalytics.purgeProject', 'Удалить окончательно')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <BulkDeleteDialog
         open={rowDeleteIds != null || selection.bulkDeleteOpen}
         onOpenChange={(open) => {

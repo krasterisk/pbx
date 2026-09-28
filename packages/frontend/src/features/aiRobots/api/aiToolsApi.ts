@@ -3,7 +3,7 @@ import { rtkApi } from '@/shared/api/rtkApi';
 const aiToolsApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
-    getAiTools: builder.query<Array<{ id: string; name: string; status: string }>, void>({
+    getAiTools: builder.query<Array<{ id: string; name: string; status: string; kind: string }>, void>({
       query: () => '/ai-tools',
       providesTags: [{ type: 'AiVoice', id: 'TOOLS' }],
     }),

@@ -11,6 +11,19 @@ describe('speech analytics ops', () => {
     expect(isDigestDue(digest, mondayTen)).toBe(false);
   });
 
+  it('sends a second monthly day even after the first day already went out', () => {
+    const digest = {
+      ...defaultSaProjectConfig().digest,
+      enabled: true,
+      schedules: [
+        { id: 'first', schedule: 'monthly' as const, monthlyDay: 1, sendHour: 9, lastSentAt: '2026-09-01T09:00:00' },
+        { id: 'second', schedule: 'monthly' as const, monthlyDay: 15, sendHour: 9 },
+      ],
+    };
+    expect(isDigestDue(digest, new Date('2026-09-15T09:10:00'))).toBe(true);
+    expect(isDigestDue(digest, new Date('2026-09-02T09:10:00'))).toBe(false);
+  });
+
   it('flags a CSAT drop past the threshold', () => {
     const alerts = defaultSaProjectConfig().alerts;
     expect(detectCsatDrop({ ...alerts, enabled: true }, 3, 5, 6)).toBe(true);

@@ -33,9 +33,12 @@ import { SaProjectResolver } from './sa-project.resolver';
 import { ProjectEditorService } from './projects/project-editor.service';
 import { InsightsService } from './dashboard/insights.service';
 import { DashboardService } from './dashboard/dashboard.service';
+import { SaNoticeDeliveryService } from './notices/notice-delivery.service';
 import { SpeechAnalyticsJwtController } from './speech-analytics-jwt.controller';
 import { SpeechAnalyticsPublicController } from './speech-analytics-public.controller';
 import { User } from '../users/user.model';
+import { Tenant } from '../cloud-admin/tenant.model';
+import { SpeechProviderResolver } from './speech-provider.resolver';
 import { NumberList } from '../numbers/number-list.model';
 import { Route } from '../routes/route.model';
 import { NotificationIntegration } from '../notifications/notification-integration.model';
@@ -71,7 +74,7 @@ import {
       SaReportDefinition, SaReportRun, SaReportSnapshotItem, SaReportSchedule,
       SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem,
       SaTenantCapturePolicy, SaRecordingRelation, SaInsightsRequest,
-      User, NumberList, Route, NotificationIntegration,
+      User, NumberList, Route, NotificationIntegration, Tenant,
     ]),
   ],
   providers: [
@@ -83,8 +86,10 @@ import {
     ProjectEditorService,
     InsightsService,
     DashboardService,
+    SaNoticeDeliveryService,
     ModuleSettingsService,
     HangupAnalyticsPortService,
+    SpeechProviderResolver,
     { provide: HANGUP_ANALYTICS_PORT, useExisting: HangupAnalyticsPortService },
     saAnalysisWorkerProvider,
     {

@@ -89,6 +89,34 @@ export type SaCallTagDef = {
   description?: string;
 };
 
+/** One allowed tonality. Id stays stable so the journal can filter it. */
+export type SaSentimentValue = {
+  id: string;
+  name: string;
+  description: string;
+};
+
+/**
+ * Always present on every project. Summary has no scale.
+ * CSAT is an integer scale. Tonality is a closed list of labels.
+ */
+export type SaProjectInsights = {
+  summary: { enabled: boolean; instruction: string };
+  csat: {
+    enabled: boolean;
+    min: number;
+    max: number;
+    lowLabel: string;
+    highLabel: string;
+    instruction: string;
+  };
+  sentiment: {
+    enabled: boolean;
+    instruction: string;
+    values: SaSentimentValue[];
+  };
+};
+
 export type SaCustomMetricDef = {
   id: string;
   name: string;
@@ -113,20 +141,151 @@ export type SaEventWebhookConfig = {
   events: SaWebhookEvent[];
 };
 
+export type SaDigestCadence = 'daily' | 'weekly' | 'monthly';
+
+/** One send rule. A project can keep several, for example the 1st and the 15th. */
+export type SaDigestSchedule = {
+  id: string;
+  schedule: SaDigestCadence;
+  weeklyDay?: number;
+  monthlyDay?: number;
+  sendHour?: number;
+  lastSentAt?: string | null;
+};
+
 export type SaDigestConfig = {
   enabled: boolean;
   /** NotificationIntegrationsPage uids for this tenant (D-29). */
   integrationUids: number[];
   emails: string[];
   telegramChatIds: string[];
-  schedule: 'daily' | 'weekly' | 'monthly';
+  /** First schedule, kept so older readers still see a single rule. */
+  schedule: SaDigestCadence;
   reportWindow: 'last_7_days' | 'last_30_days' | 'previous_calendar_month';
   weeklyDay?: number;
   monthlyDay?: number;
   sendHour?: number;
+  /** All send rules. Empty means the legacy single schedule fields above. */
+  schedules?: SaDigestSchedule[];
   lastSentAt?: string | null;
   lastManualSentAt?: string | null;
 };
+
+export type SaNoticeKind = 'digest' | 'csat_drop' | 'negative_spike' | 'budget' | 'low_stt';
+
+export type SaNoticeWindow = 'last_7_days' | 'last_30_days' | 'previous_calendar_month';
+
+export type SaDigestBlocks = {
+  calls: boolean;
+  averageScore: boolean;
+  csat: boolean;
+  sentiment: boolean;
+  success: boolean;
+  cost: boolean;
+  metrics: boolean;
+  topics: boolean;
+};
+
+/** One "what to send" row. A project can keep as many as it needs. */
+export type SaNotice = {
+  id: string;
+  kind: SaNoticeKind;
+  title: string;
+  enabled: boolean;
+  lastFiredAt?: string | null;
+  reportWindow?: SaNoticeWindow;
+  blocks?: SaDigestBlocks;
+  dropPct?: number;
+  spikePp?: number;
+  windowDays?: number;
+  minCalls?: number;
+  lowSttPct?: number;
+  /** Monthly spend limit for a budget notice. 0 means no limit. */
+  softLimit?: number;
+};
+
+export function defaultDigestBlocks(): SaDigestBlocks {
+  return {
+    calls: true,
+    averageScore: true,
+    csat: true,
+    sentiment: true,
+    success: true,
+    cost: true,
+    metrics: true,
+    topics: true,
+  };
+}
+
+function legacyNotices(config: Pick<SaProjectConfigV1, 'digest' | 'alerts' | 'budget'>): SaNotice[] {
+  const alerts = config.alerts;
+  return [
+    {
+      id: 'legacy-digest',
+      kind: 'digest',
+      title: 'Сводка',
+      enabled: Boolean(config.digest?.enabled),
+      reportWindow: config.digest?.reportWindow ?? 'last_7_days',
+      blocks: defaultDigestBlocks(),
+    },
+    {
+      id: 'legacy-csat',
+      kind: 'csat_drop',
+      title: 'Падение CSAT',
+      enabled: Boolean(alerts?.enabled && alerts.csatDrop.enabled),
+      dropPct: alerts?.csatDrop.dropPct ?? 20,
+      windowDays: alerts?.csatDrop.windowDays ?? 7,
+      minCalls: alerts?.csatDrop.minCalls ?? 5,
+    },
+    {
+      id: 'legacy-negative',
+      kind: 'negative_spike',
+      title: 'Рост негатива',
+      enabled: Boolean(alerts?.enabled && alerts.negativeSpike.spikePp > 0),
+      spikePp: alerts?.negativeSpike.spikePp ?? 15,
+      windowDays: alerts?.negativeSpike.windowDays ?? 7,
+      minCalls: alerts?.negativeSpike.minCalls ?? 5,
+    },
+    {
+      id: 'legacy-budget',
+      kind: 'budget',
+      title: 'Превышение бюджета',
+      enabled: Boolean(alerts?.enabled && alerts.budgetExceeded.enabled),
+      windowDays: 1,
+      minCalls: 1,
+      softLimit: config.budget?.softLimit ?? 0,
+    },
+    {
+      id: 'legacy-stt',
+      kind: 'low_stt',
+      title: 'Плохое распознавание',
+      enabled: false,
+      lowSttPct: 30,
+      windowDays: 7,
+      minCalls: 5,
+    },
+  ];
+}
+
+/** Saved notices. A missing list falls back to the previous digest and alert switches. */
+export function projectNotices(config: Pick<SaProjectConfigV1, 'notices' | 'digest' | 'alerts' | 'budget'>): SaNotice[] {
+  if (Array.isArray(config.notices)) return config.notices.filter((row) => row?.id && row.kind);
+  return legacyNotices(config);
+}
+
+export function digestSchedules(digest: SaDigestConfig): SaDigestSchedule[] {
+  const listed = (digest.schedules ?? []).filter((row) => row?.id && row.schedule);
+  if (listed.length) return listed;
+  if (!digest.enabled) return [];
+  return [{
+    id: 'legacy',
+    schedule: digest.schedule ?? 'weekly',
+    weeklyDay: digest.weeklyDay ?? 1,
+    monthlyDay: digest.monthlyDay ?? 1,
+    sendHour: digest.sendHour ?? 9,
+    lastSentAt: digest.lastSentAt ?? null,
+  }];
+}
 
 export type SaAlertConfig = {
   enabled: boolean;
@@ -165,6 +324,8 @@ export type SaProjectConfigV1 = {
   customMetrics: SaCustomMetricDef[];
   /** Standard scales hidden from scoring / UI. */
   hiddenDefaultScales: string[];
+  /** Summary, CSAT and tonality. Always scored, rules come from here. */
+  insights: SaProjectInsights;
   systemPrompt: string;
   topics: string[];
   eventWebhook: SaEventWebhookConfig;
@@ -172,10 +333,15 @@ export type SaProjectConfigV1 = {
   eventWebhooks: SaEventWebhookItem[];
   digest: SaDigestConfig;
   alerts: SaAlertConfig;
+  /** What to send. Empty means the legacy digest window and alert switches. */
+  notices?: SaNotice[];
   budget: SaBudgetConfig;
   /** Optional project model overrides (D-38); empty/null = module default. */
   sttModelId?: string | null;
   scoreModelId?: string | null;
+  /** Provider uids used when the cabinet allows a project to override models. */
+  sttProviderUid?: number | null;
+  llmProviderUid?: number | null;
 };
 
 const SCALE_COPY: Record<SaDefaultScaleId, { name: string; rubric: string }> = {
@@ -253,6 +419,78 @@ export function rubricForMetric(metric: SaProjectMetric): string {
   return metric.description;
 }
 
+export function defaultProjectInsights(): SaProjectInsights {
+  return {
+    summary: {
+      enabled: true,
+      instruction: 'Кратко перескажи звонок на языке разговора: кто обратился, какой был запрос и чем закончилось.',
+    },
+    csat: {
+      enabled: true,
+      min: 1,
+      max: 5,
+      lowLabel: 'Совсем недоволен',
+      highLabel: 'Полностью доволен',
+      instruction: 'Оцени реакцию клиента на оператора, не на ограничение компании. Вежливый понятый отказ с благодарностью ставится у верхней границы шкалы.',
+    },
+    sentiment: {
+      enabled: true,
+      instruction: 'Общая тональность речи клиента за весь звонок.',
+      values: [
+        { id: 'Positive', name: 'Позитивная', description: 'Благодарность, согласие или спокойное принятие.' },
+        { id: 'Neutral', name: 'Нейтральная', description: 'Деловой тон без явной эмоции.' },
+        { id: 'Negative', name: 'Негативная', description: 'Раздражение, жалоба или недовольство оператором.' },
+      ],
+    },
+  };
+}
+
+function clampInsightInt(value: unknown, fallback: number, min: number, max: number): number {
+  const n = Number(value);
+  if (!Number.isInteger(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** Old projects without `insights` keep the 1-5 CSAT scale and three tonalities. */
+export function resolveProjectInsights(config: Partial<SaProjectConfigV1> | null | undefined): SaProjectInsights {
+  const base = defaultProjectInsights();
+  const raw = config?.insights;
+  if (!raw) return base;
+  let min = clampInsightInt(raw.csat?.min, base.csat.min, 0, 9);
+  let max = clampInsightInt(raw.csat?.max, base.csat.max, 1, 10);
+  if (min >= max) {
+    min = base.csat.min;
+    max = base.csat.max;
+  }
+  const values = (raw.sentiment?.values ?? [])
+    .filter((row) => row && row.id?.trim() && row.name?.trim())
+    .slice(0, 6)
+    .map((row) => ({
+      id: row.id.trim(),
+      name: row.name.trim(),
+      description: String(row.description ?? '').trim(),
+    }));
+  return {
+    summary: {
+      enabled: raw.summary?.enabled !== false,
+      instruction: raw.summary?.instruction?.trim() || base.summary.instruction,
+    },
+    csat: {
+      enabled: raw.csat?.enabled !== false,
+      min,
+      max,
+      lowLabel: raw.csat?.lowLabel?.trim() || base.csat.lowLabel,
+      highLabel: raw.csat?.highLabel?.trim() || base.csat.highLabel,
+      instruction: raw.csat?.instruction?.trim() || base.csat.instruction,
+    },
+    sentiment: {
+      enabled: raw.sentiment?.enabled !== false,
+      instruction: raw.sentiment?.instruction?.trim() || base.sentiment.instruction,
+      values: values.length ? values : base.sentiment.values,
+    },
+  };
+}
+
 export function defaultSaProjectConfig(): SaProjectConfigV1 {
   return {
     schemaVersion: 1,
@@ -270,6 +508,7 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
     callTaxonomy: [],
     customMetrics: [],
     hiddenDefaultScales: [],
+    insights: defaultProjectInsights(),
     systemPrompt: '',
     topics: [...SA_TOPICS],
     eventWebhook: { url: null, headers: {}, events: [] },
@@ -284,7 +523,9 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
       weeklyDay: 1,
       monthlyDay: 1,
       sendHour: 9,
+      schedules: [],
     },
+    notices: [],
     alerts: {
       enabled: false,
       integrationUids: [],
@@ -298,6 +539,8 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
     budget: { softLimit: 0 },
     sttModelId: null,
     scoreModelId: null,
+    sttProviderUid: null,
+    llmProviderUid: null,
   };
 }
 
@@ -335,7 +578,7 @@ export type AnalyticsFilterSpec = {
 export type RouteAnalyticsOptions = {
   /** Selected analytics project; null/omit means no auto analysis (D-01, D-02). */
   projectId?: string | null;
-  /** @deprecated D-01 — ignored; projectId alone decides auto analysis */
+  /** @deprecated D-01 - ignored; projectId alone decides auto analysis */
   mode?: 'inherit' | 'off' | 'on';
 };
 

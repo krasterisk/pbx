@@ -1,6 +1,6 @@
 {
   "id": "example-002-replacement-accepted",
-  "description": "Requested option unavailable today; operator offers a replacement the client accepts — call is successful (anti outcome-bias).",
+  "description": "Requested option unavailable today; operator offers a replacement the client accepts - call is successful (anti outcome-bias).",
   "language": "ru",
   "transcript": "Оператор: Добрый день, служба доставки Ромашка, оператор Мария, чем могу помочь?\nКлиент: Здравствуйте, хочу оформить доставку на сегодня к вечеру.\nОператор: Понимаю. К сожалению, на сегодня все слоты заняты, свободных окон нет.\nКлиент: Совсем ничего?\nОператор: Могу предложить завтра после обеда. Есть 14:30 и 16:00.\nКлиент: Хорошо, давайте на 14:30.\nОператор: Записала вас на завтра на 14:30. Что-нибудь ещё?\nКлиент: Нет, спасибо.\nОператор: Пожалуйста, до свидания!",
   "reference": {

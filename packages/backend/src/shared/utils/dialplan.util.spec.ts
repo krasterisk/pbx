@@ -840,6 +840,13 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Stasis(krasterisk_ai_voice,aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0099)');
     });
 
+    it('ai_voice_robot emits a catalog robot reference while retaining legacy deployment support', () => {
+      const dp = AsteriskDialplanUtils.actionToDialplan(
+        { type: 'ai_voice_robot', params: { robot_uid: 12 }, condition: {} }, vpbx,
+      );
+      expect(dp).toBe('Stasis(krasterisk_ai_voice,robot:12)');
+    });
+
     it('voicerobot Stasis app name follows ARI_APP_NAME', () => {
       const prev = process.env.ARI_APP_NAME;
       process.env.ARI_APP_NAME = 'krasterisk_robot_dev';

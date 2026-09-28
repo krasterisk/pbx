@@ -44,15 +44,15 @@ export class AiChatSettingsService {
     return providerUid;
   }
 
-  async getSeeAllThreads(tenantUid: number): Promise<boolean> {
-    const row = await this.model.findOne({ where: { user_uid: tenantUid } });
+  async getSeeAllThreads(_tenantUid?: number): Promise<boolean> {
+    const row = await this.model.findOne({ where: { user_uid: 0 } });
     return row?.settings?.adminSeesAllThreads === true;
   }
 
-  async setSeeAllThreads(tenantUid: number, enabled: boolean): Promise<boolean> {
+  async setSeeAllThreads(_tenantUid: number, enabled: boolean): Promise<boolean> {
     const [row] = await this.model.findOrCreate({
-      where: { user_uid: tenantUid },
-      defaults: { user_uid: tenantUid, confirm_destructive: 0, settings: {} } as any,
+      where: { user_uid: 0 },
+      defaults: { user_uid: 0, confirm_destructive: 0, settings: {} } as any,
     });
     const next = { ...(row.settings ?? {}), adminSeesAllThreads: enabled };
     await row.update({ settings: next });

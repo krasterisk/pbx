@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { ConversationSheet } from './ConversationSheet';
+import { ConversationExpandedPanel } from './ConversationExpandedPanel';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -12,23 +12,21 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@/shared/ui/AudioPlayer', () => ({
   AudioPlayer: ({ src }: { src: string }) => (
-    <div data-testid="conversation-sheet-audio-player" data-src={src} />
+    <div data-testid="conversation-expanded-audio-player" data-src={src} />
   ),
 }));
 
 const baseProps = {
-  open: true,
   conversationId: 'conv-1',
-  onOpenChange: vi.fn(),
   summary: 'Предыдущий саммари',
   transcriptText: 'Оператор: здравствуйте',
   runs: [{ id: 'run-1', amount: '12.50', currency: 'RUB', createdAt: '2026-09-21T10:00:00Z' }],
 };
 
-describe('ConversationSheet', () => {
+describe('ConversationExpandedPanel', () => {
   it('renders Analytics, Transcript, and Cost tabs with locked copy', async () => {
     const user = userEvent.setup();
-    render(<ConversationSheet {...baseProps} sourceKind="upload" audioUrl="/audio.mp3" />);
+    render(<ConversationExpandedPanel {...baseProps} sourceKind="upload" audioUrl="/audio.mp3" />);
 
     expect(screen.getByRole('tab', { name: 'Аналитика' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Расшифровка' })).toBeInTheDocument();
@@ -37,29 +35,29 @@ describe('ConversationSheet', () => {
     expect(screen.getByText('Посчитано, не списано')).toBeInTheDocument();
   });
 
-  it('hides sheet player for PBX-sourced conversations', async () => {
+  it('hides the player for PBX-sourced conversations', async () => {
     const user = userEvent.setup();
-    render(<ConversationSheet {...baseProps} sourceKind="pbx" audioUrl="/cdr-audio.mp3" />);
+    render(<ConversationExpandedPanel {...baseProps} sourceKind="pbx" audioUrl="/cdr-audio.mp3" />);
 
-    expect(screen.queryByTestId('conversation-sheet-audio-player')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('conversation-expanded-audio-player')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Расшифровка' }));
-    expect(screen.queryByTestId('conversation-sheet-audio-player')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('conversation-expanded-audio-player')).not.toBeInTheDocument();
   });
 
-  it('shows player only on Transcript for upload-sourced conversations', async () => {
+  it('shows the player only on Transcript for upload-sourced conversations', async () => {
     const user = userEvent.setup();
-    render(<ConversationSheet {...baseProps} sourceKind="upload" audioUrl="/upload.mp3" />);
+    render(<ConversationExpandedPanel {...baseProps} sourceKind="upload" audioUrl="/upload.mp3" />);
 
-    expect(screen.queryByTestId('conversation-sheet-audio-player')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('conversation-expanded-audio-player')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Расшифровка' }));
-    expect(screen.getByTestId('conversation-sheet-audio-player')).toBeInTheDocument();
+    expect(screen.getByTestId('conversation-expanded-audio-player')).toBeInTheDocument();
   });
 
-  it('keeps previous result visible with rebuild badge while rebuild is in progress', () => {
+  it('keeps the previous result visible with a rebuild badge while rebuild is in progress', () => {
     render(
-      <ConversationSheet
+      <ConversationExpandedPanel
         {...baseProps}
         sourceKind="upload"
         rebuildInProgress
@@ -71,8 +69,8 @@ describe('ConversationSheet', () => {
     expect(screen.getByText('Идёт пересборка')).toBeInTheDocument();
   });
 
-  it('hides delete and rebuild until a superadmin opens the sheet', () => {
-    render(<ConversationSheet {...baseProps} sourceKind="pbx" />);
+  it('hides delete and rebuild until a superadmin opens the row', () => {
+    render(<ConversationExpandedPanel {...baseProps} sourceKind="pbx" />);
     expect(screen.queryByTestId('conversation-admin-actions')).not.toBeInTheDocument();
   });
 
@@ -81,7 +79,7 @@ describe('ConversationSheet', () => {
     const onRegenerate = vi.fn();
     const onDelete = vi.fn();
     render(
-      <ConversationSheet
+      <ConversationExpandedPanel
         {...baseProps}
         sourceKind="pbx"
         canManage
@@ -94,15 +92,5 @@ describe('ConversationSheet', () => {
     await user.click(screen.getByTestId('conversation-delete'));
     expect(onRegenerate).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledTimes(1);
-  });
-
-  it('exposes icon-only close with title and aria-label', () => {
-    render(<ConversationSheet {...baseProps} sourceKind="pbx" />);
-
-    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
-    const closeButtons = screen.getAllByRole('button', { name: 'Закрыть' });
-    expect(closeButtons).toHaveLength(1);
-    expect(closeButtons[0]).toHaveAttribute('title', 'Закрыть');
-    expect(closeButtons[0]).toHaveAttribute('aria-label', 'Закрыть');
   });
 });

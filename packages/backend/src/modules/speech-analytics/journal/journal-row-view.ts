@@ -57,7 +57,7 @@ function sentimentOf(value: unknown): JournalSentiment | null {
 
 function csatOf(value: unknown): number | null {
   const n = typeof value === 'number' ? value : Number(text(value));
-  if (!Number.isInteger(n) || n < 1 || n > 5) return null;
+  if (!Number.isInteger(n) || n < 0 || n > 10) return null;
   return n;
 }
 
@@ -77,6 +77,7 @@ export function readJournalColumns(input: {
   metricResults: unknown;
   quality: string | null | undefined;
   projectName: string | null;
+  tagNames?: ReadonlyMap<string, string>;
 }): JournalListColumns {
   const meta = asRecord(input.metadata);
   const operatorObject = asRecord(meta.operator);
@@ -96,11 +97,11 @@ export function readJournalColumns(input: {
       if (Array.isArray(row.value)) {
         for (const item of row.value) {
           const label = text(item);
-          if (label) topics.push(label);
+          if (label) topics.push(input.tagNames?.get(label) ?? label);
         }
       } else {
         const label = text(row.value);
-        if (label) topics.push(label);
+        if (label) topics.push(input.tagNames?.get(label) ?? label);
       }
     } else if (id === 'csat' || id === 'score') {
       score = csatOf(row.value) ?? score;

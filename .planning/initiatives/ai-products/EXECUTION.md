@@ -4,13 +4,13 @@
 
 | Поле | Значение |
 |---|---|
-| Updated | 2026-09-22 |
+| Updated | 2026-09-28 |
 | Mode | `codex-direct` |
-| Coordination status | `idle` — open gates 1–5 recorded (SDES + pilot HTTP PASS; media/NAT/MET5/local-AI/liveMcp BLOCKED). Рефакторинг речевой аналитики — корневая Phase 18, не назначение этой инициативы |
+| Coordination status | `active` — AI voice donor parity, explicit user assignment; speech analytics remains separate |
 | Active implementation coordinator | `/root` |
-| Active PLAN / revision | [AI-11-PLAN](AI-11-PLAN.md) post open-gates, SHA-256 `134627CF6136025BB0E1C76A3FD91F8405803E4D2F0F52394EDC1B42A42F5756` |
-| Active workers / owned paths | none |
-| Next action | Wait for user on open gates. Speech analytics refactor is `/gsd-discuss-phase 18`, not an assignment here. Still need: decrypted SRTP media, NAT second host, MET5 corpus, GPU/ollama, vendor MCP |
+| Active PLAN / revision | [AI-VOICE-PARITY-PLAN](AI-VOICE-PARITY-PLAN.md), 2026-09-28-r1 |
+| Active workers / owned paths | current chat `/root` only; ai-voice, aiRobots, shared voice contracts; bounded ARI/dialplan/tools/knowledge integration |
+| Next action | Finish P1 concurrency/legacy writers and P2 parity gaps; validation collected in [AI-VOICE-PARITY-HANDOFF](AI-VOICE-PARITY-HANDOFF.md). P3 media runtime and P4–P6 remain; preserve dirty speech analytics baseline |
 | Implementation state | Default `productRuntime: not-installed`. Opt-in pilot: `AI_PRODUCT_RUNTIME_PILOT=1` + schema/workers flags. No live tenant debit. `cloud_wallet` off unless both COM2 flags |
 
 ## Следующее исполнение

@@ -126,6 +126,7 @@ krasterisk_v4/
   - Компонент: `shared/ui/TableRowActions`.
   - Полный канон страницы + таблицы: см. «Паттерн страницы списка и таблицы» ниже (в т.ч. **§4.2** массовое выделение, **§4.2.1** кросс-страничный select / баннер «Выбрать все N», **§4.2.2** Dialog preview, **§4.2.3** CSV).
 - **Cross-page table selection (MUST):** В CRUD-`DataTable` с client-side пагинацией header checkbox выбирает **только текущую страницу**; выбор отдельных строк **сохраняется** между страницами; при «вся страница» и `filteredCount > pageSize` — баннер `renderBanner` («Выбрать все N» / «Снять»). Массовые действия и CSV работают по полному `rowSelection`. Bulk confirm — Dialog с коротким preview (лимит 8), не `window.confirm` со всеми именами. Эталон: `features/endpoints/ui/EndpointsTable`. Детали — «Паттерн страницы списка и таблицы» §4.2–4.2.3.
+- **Сворачиваемая карточка (MUST):** Повторяющиеся сущности в модалке (метрика, тема, файл загрузки) — карточка, **свёрнутая по умолчанию**. Ховер на всю карточку, не на текст. Канон — «Паттерн сворачиваемой карточки» ниже. Эталоны: `ProjectSettingsForm` (метрики, темы), `UploadForm` (файлы).
 - **Focus ring inset (MUST):** обводка фокуса у полей ввода **обязана** рисоваться **внутри** рамки (`ring-inset`). Контейнеры модалок (`DialogContent size="large"` → `overflow: hidden`) и тело со скроллом (`.scrollBody` / `.formBody` → `overflow-y: auto`) **обрезают** внешний ring / `box-shadow` - слева/сверху «пропадает» половина выделения.
   - Tailwind: `focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-transparent` (для обёрток вроде `TagInput` - `focus-within:…`).
   - Запрещено: `focus:ring-1` / `focus-within:ring-1` без `ring-inset`, внешний `box-shadow: 0 0 0 2px` на контроле внутри скролла.
@@ -1182,6 +1183,81 @@ Tailwind на полосе табов в JSX **не использовать**. 
 ```
 
 При рефакторинге модалки на SCSS — удалить Tailwind с полосы табов и перейти на вариант A.
+
+### Паттерн сворачиваемой карточки (MUST)
+
+**Эталоны:** `features/speechAnalytics/ui/ProjectSettingsForm` (метрики и темы), `features/speechAnalytics/ui/UploadForm` (файлы загрузки).
+
+Список однотипных сущностей внутри модалки (метрика, тема, загруженный файл и аналоги) **обязан** быть набором карточек. Карточка **по умолчанию свёрнута** в одну строку. Поля редактирования видны только в развёрнутом состоянии.
+
+Исключение: только что добавленная пустая сущность может открываться сразу, чтобы её можно было заполнить (`ProjectSettingsForm` — новая метрика и новая тема).
+
+**Визуальная модель (свёрнуто):**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  ›  Название                          тип / размер  [x] │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Развёрнуто:** под строкой — только индивидуальные поля этой сущности. Общие для всех элементов параметры (проект, язык) живут **над** списком карточек, не внутри каждой.
+
+| Зона | Поведение |
+|------|-----------|
+| Карточка | `border`, `border-radius: var(--radius-lg)`, `padding` ~0.85–0.95rem, `background: var(--color-background)`, лёгкая тень покоя `0 1px 2px` |
+| Ховер | На **всю** карточку: `background: color-mix(in srgb, var(--color-primary) 6%, var(--color-background))`, тень `0 2px 8px color-mix(in srgb, var(--color-foreground) 10%, transparent)`, `transition` 0.15s. Подсветка только текста или кнопки-заголовка **запрещена** |
+| Строка | `button type="button"` на всю ширину строки, кроме удаления. `aria-expanded`. Клик по строке переключает свёрнуто/развёрнуто |
+| Шеврон | Слева, `lucide-react`: `ChevronRight` свёрнуто, `ChevronDown` развёрнуто. `size={16}`, цвет `var(--color-muted-foreground)`, `aria-hidden` |
+| Заголовок | Имя сущности, `font-weight: 600`, обрезка `ellipsis`. Справа в строке — необязательная вторичная мета (тип метрики, размер файла), мельче и `muted` |
+| Удаление | Отдельная кнопка **вне** toggle, чтобы клик не раскрывал карточку. Иконка `Trash2` или `X`, `size={16}`, `variant="ghost"`, цвет `var(--color-destructive)`, hover `hover:bg-destructive/10`. `aria-label` из `common.delete` |
+| Тело | Рендерится только при `open`. Индивидуальные поля сущности |
+
+**❌ Запрещено:**
+
+- Ховер-заливка только у текста или у `button` заголовка, пока сама карточка не меняется.
+- Кнопка «Развернуть» текстом вместо шеврона и клика по строке.
+- Удаление внутри toggle-кнопки.
+- Дублировать в каждой карточке параметры, общие для всего списка.
+
+```scss
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-foreground) 5%, transparent);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-background));
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-foreground) 10%, transparent);
+  }
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-muted-foreground);
+}
+```
+
 - **Инпуты и текстовые поля:** Строго компоненты `<Input>`, `<Select>`, `<Label>` из `@/shared/ui`. Запрет на использование сырой HTML разметки `<input>`, `<select>` в слое `features`.
 
 ### Паттерн копирования (Copy/Duplicate Modal)

@@ -76,7 +76,7 @@ export class SaAnalysisRun extends Model {
   @AllowNull(false) @Column(DataType.DATE) declare updated_at: Date;
 }
 
-/** On-demand insights request row — SA-CHARGE-INSIGHTS amounts (D-47). */
+/** On-demand insights request row - SA-CHARGE-INSIGHTS amounts (D-47). */
 @Table({ tableName: 'sa_insights_requests', timestamps: false })
 export class SaInsightsRequest extends Model {
   @PrimaryKey @AllowNull(false) @Column(DataType.STRING(36)) declare id: string;

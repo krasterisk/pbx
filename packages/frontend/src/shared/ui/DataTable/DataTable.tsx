@@ -66,6 +66,11 @@ export interface DataTableProps<TData> {
   onRowClick?: (row: TData) => void;
   /** Stable test id for a data row. */
   getRowTestId?: (row: TData) => string;
+  /**
+   * Inline detail under a row. Return null when the row is collapsed.
+   * Clicks inside the detail do not toggle the parent row.
+   */
+  renderExpandedRow?: (row: TData) => React.ReactNode;
 
   // ─── Server-side pagination ────────────────────────────────
   /**
@@ -232,6 +237,7 @@ function DataTableInner<TData>(
     selectAllAriaLabel,
     onRowClick,
     getRowTestId,
+    renderExpandedRow,
     paginationMode = 'client',
     totalRows: serverTotalRows,
     currentPage: serverCurrentPage,
@@ -292,8 +298,9 @@ function DataTableInner<TData>(
   });
 
   const selectAllFiltered = useCallback(() => {
+    const source = table.getPrePaginationRowModel().rows;
     const next: RowSelectionState = {};
-    for (const row of table.getFilteredRowModel().rows) {
+    for (const row of source) {
       next[row.id] = true;
     }
     handleRowSelectionChange(next);
@@ -428,36 +435,49 @@ function DataTableInner<TData>(
               </TableCell>
             </TableRow>
           ) : (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-testid={getRowTestId?.(row.original)}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                className={`border-border/50 transition-colors ${
-                  onRowClick ? 'cursor-pointer' : ''
-                } ${
-                  row.getIsSelected()
-                    ? 'bg-primary/5 hover:bg-primary/10'
-                    : 'hover:bg-white/[0.02]'
-                } ${getRowClassName ? getRowClassName(row.original) : ''}`}
-              >
-                {selectable && (
-                  <TableCell className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={row.getIsSelected()}
-                      onChange={row.getToggleSelectedHandler()}
-                      className="w-4 h-4 rounded border-border bg-background accent-primary cursor-pointer"
-                    />
-                  </TableCell>
-                )}
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-4 py-3 text-sm">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
+            table.getRowModel().rows.map((row) => {
+              const expanded = renderExpandedRow?.(row.original);
+              const colSpan = columns.length + (selectable ? 1 : 0);
+              return (
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    data-testid={getRowTestId?.(row.original)}
+                    onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                    className={`border-border/50 transition-colors ${
+                      onRowClick ? 'cursor-pointer' : ''
+                    } ${
+                      row.getIsSelected()
+                        ? 'bg-primary/5 hover:bg-primary/10'
+                        : 'hover:bg-white/[0.02]'
+                    } ${getRowClassName ? getRowClassName(row.original) : ''}`}
+                  >
+                    {selectable && (
+                      <TableCell className="px-4 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={row.getIsSelected()}
+                          onChange={row.getToggleSelectedHandler()}
+                          onClick={(event) => event.stopPropagation()}
+                          className="w-4 h-4 rounded border-border bg-background accent-primary cursor-pointer"
+                        />
+                      </TableCell>
+                    )}
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="px-4 py-3 text-sm">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {expanded ? (
+                    <TableRow className="border-border/50 hover:bg-transparent">
+                      <TableCell colSpan={colSpan} className="px-4 py-3">
+                        {expanded}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </React.Fragment>
+              );
+            })
           )}
         </TableBody>
       </UITable>

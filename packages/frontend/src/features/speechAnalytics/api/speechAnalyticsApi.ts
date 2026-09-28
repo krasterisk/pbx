@@ -9,6 +9,14 @@ export interface SaProject {
   status: 'draft' | 'active' | 'archived';
   draft_revision: number;
   active_version_id: string | null;
+  /** Cabinet id (`vpbx_user_uid`). Present on list responses. */
+  tenant_uid?: number;
+  /** Conversations tied to the project. Permanent delete is allowed only at 0. */
+  recordingCount?: number;
+  /** Published version used by analysis. Null until the first publish. */
+  analysisVersionNo?: number | null;
+  /** Draft differs from the published version, or nothing is published yet. */
+  unpublished?: boolean;
   draft_config?: SaProjectConfigV1;
 }
 
@@ -26,9 +34,32 @@ function parseDraftConfig(raw: unknown): SaProjectConfigV1 {
   return defaultSaProjectConfig();
 }
 
-function normalizeProject(row: SaProject & { draft_config?: unknown }): SaProject {
+function tenantUidFromToken(token: string | null | undefined): number | null {
+  if (!token) return null;
+  const part = token.split('.')[1];
+  if (!part) return null;
+  try {
+    const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as { vpbx_user_uid?: unknown };
+    return typeof payload.vpbx_user_uid === 'number' ? payload.vpbx_user_uid : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Same set as «Проекты аналитики»: current cabinet, without archived. */
+export function cabinetSaProjects(rows: SaProject[] | undefined): SaProject[] {
+  return (rows ?? []).filter((project) => project.status !== 'archived');
+}
+
+function normalizeProject(row: SaProject & { draft_config?: unknown; vpbx_user_uid?: unknown }): SaProject {
+  const tenantUid = typeof row.tenant_uid === 'number'
+    ? row.tenant_uid
+    : typeof row.vpbx_user_uid === 'number'
+      ? row.vpbx_user_uid
+      : undefined;
   return {
     ...row,
+    tenant_uid: tenantUid,
     draft_config: parseDraftConfig(row.draft_config),
   };
 }
@@ -88,10 +119,19 @@ export interface SaJournalRow {
   projectName?: string | null;
 }
 
+export interface SaAnalysisJob {
+  id: string;
+  filename: string;
+  projectName: string | null;
+  state: 'queued' | 'running' | 'failed';
+  reason: string | null;
+}
+
 export interface SaJournalList {
   items: SaJournalRow[];
   total: number;
   uploadProgress: { done: number; total: number };
+  analysisJobs?: SaAnalysisJob[];
 }
 
 export interface SaConversationDetail {
@@ -102,11 +142,14 @@ export interface SaConversationDetail {
   quality?: string | null;
   metricResults?: Array<{ id: string; value: unknown; rationale?: string; quote?: string }>;
   transcriptText: string | null;
+  turns?: Array<{ speaker: string; text: string; startMs: number; endMs: number }>;
   rebuildInProgress: boolean;
   runs: Array<{
     id: string;
     amount: string | null;
     currency: string | null;
+    audioMs?: string | null;
+    providerTokens?: string | null;
     createdAt: string;
   }>;
 }
@@ -118,9 +161,31 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       query: () => '/speech-analytics/journal',
       providesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
     }),
+    exportSaJournalExcel: builder.mutation<Blob, { ids: string[]; locale: string; timeZone: string; headers: Record<string, string> }>({
+      query: (body) => ({
+        url: '/speech-analytics/journal/export',
+        method: 'POST',
+        body,
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
     getSaConversation: builder.query<SaConversationDetail, string>({
       query: (id) => `/speech-analytics/journal/${id}`,
       providesTags: (_r, _e, id) => [{ type: 'SpeechAnalytics', id: `CONV-${id}` }],
+    }),
+    saveSaConversationOverride: builder.mutation<
+      { overrides: Array<{ metricId: string; value: string; note: string }> },
+      { id: string; metricId: string; value: string; note?: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/speech-analytics/journal/${id}/overrides`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'SpeechAnalytics', id: 'JOURNAL' },
+        { type: 'SpeechAnalytics', id: `CONV-${arg.id}` },
+      ],
     }),
     regenerateSaConversation: builder.mutation<{ runId: string }, string>({
       query: (id) => ({
@@ -132,6 +197,14 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
         { type: 'SpeechAnalytics', id: `CONV-${id}` },
       ],
     }),
+    deleteSaConversations: builder.mutation<{ deleted: number }, string[]>({
+      query: (ids) => ({
+        url: '/speech-analytics/journal/delete',
+        method: 'POST',
+        body: { ids },
+      }),
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
+    }),
     deleteSaConversation: builder.mutation<{ deleted: true }, string>({
       query: (id) => ({
         url: `/speech-analytics/journal/${id}`,
@@ -140,10 +213,23 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       invalidatesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
     }),
     getSaProjects: builder.query<SaProject[], void>({
-      query: () => '/speech-analytics/projects',
-      transformResponse: (rows: Array<SaProject & { draft_config?: unknown }>) =>
-        (rows ?? []).map(normalizeProject),
+      async queryFn(_arg, api, _extra, baseQuery) {
+        const result = await baseQuery({ url: '/speech-analytics/projects' });
+        if (result.error) return { error: result.error };
+        const rows = Array.isArray(result.data) ? result.data : [];
+        const token = (api.getState() as { auth?: { accessToken?: string | null } }).auth?.accessToken
+          ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') : null);
+        const tenantUid = tenantUidFromToken(token);
+        const data = rows
+          .map((row) => normalizeProject(row as SaProject & { draft_config?: unknown; vpbx_user_uid?: unknown }))
+          .filter((row) => tenantUid == null || row.tenant_uid == null || row.tenant_uid === tenantUid);
+        return { data };
+      },
       providesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
+    }),
+    purgeSaProject: builder.mutation<{ deleted: true }, string>({
+      query: (id) => ({ url: `/speech-analytics/projects/${id}/permanent`, method: 'DELETE' }),
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
     }),
     deleteSaProject: builder.mutation<{ deleted: true }, string>({
       query: (id) => ({ url: `/speech-analytics/projects/${id}`, method: 'DELETE' }),
@@ -180,15 +266,44 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       transformResponse: (row: SaProject & { draft_config?: unknown }) => normalizeProject(row),
       invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
     }),
+    getSaProjectVersions: builder.query<Array<{
+      id: string;
+      versionNo: number;
+      createdAt: string;
+      current: boolean;
+      metricStamp: string;
+    }>, string>({
+      query: (id) => `/speech-analytics/projects/${id}/versions`,
+      providesTags: (_r, _e, id) => [{ type: 'SpeechAnalytics', id: `VERSIONS-${id}` }],
+    }),
+    restoreSaProjectVersion: builder.mutation<SaProject, { projectId: string; versionId: string }>({
+      query: ({ projectId, versionId }) => ({
+        url: `/speech-analytics/projects/${projectId}/versions/${versionId}/restore`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_r, _e, { projectId }) => [
+        { type: 'SpeechAnalytics', id: 'PROJECTS' },
+        { type: 'SpeechAnalytics', id: `VERSIONS-${projectId}` },
+      ],
+    }),
     publishSaProject: builder.mutation<unknown, { id: string; operationKey: string }>({
       query: ({ id, operationKey }) => ({
         url: `/speech-analytics/projects/${id}/publish`, method: 'POST', body: { operationKey },
       }),
-      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'PROJECTS' }],
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'SpeechAnalytics', id: 'PROJECTS' },
+        { type: 'SpeechAnalytics', id: `VERSIONS-${id}` },
+      ],
     }),
     sendSaProjectDigest: builder.mutation<{ sent: boolean; draftRevision: number }, { id: string }>({
       query: ({ id }) => ({
         url: `/speech-analytics/projects/${id}/digest/send`,
+        method: 'POST',
+      }),
+    }),
+    testSaNotice: builder.mutation<{ sent: boolean; recipients: number }, { id: string; noticeId: string }>({
+      query: ({ id, noticeId }) => ({
+        url: `/speech-analytics/projects/${id}/notices/${noticeId}/test`,
         method: 'POST',
       }),
     }),
@@ -442,8 +557,13 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
               headers: { 'Idempotency-Key': crypto.randomUUID() },
             });
             if (run.error) {
-              results.push({ filename: file.filename, ok: false, error: 'analyze_failed', assetId });
-              continue;
+              const data = (run.error as { data?: { code?: string } }).data;
+              return {
+                error: {
+                  status: 422,
+                  data: { code: data?.code || 'analysis_failed' },
+                },
+              };
             }
             results.push({ filename: file.filename, ok: true, assetId });
           } catch {
@@ -462,6 +582,35 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       },
       invalidatesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
     }),
+    getSaSpeechModels: builder.query<{
+      ownModels: boolean;
+      projectOverride: boolean;
+      sttProviderUid: number | null;
+      llmProviderUid: number | null;
+      providers: Array<{
+        uid: number;
+        name: string;
+        capabilities: string[];
+        model: string | null;
+        enabled: boolean;
+      }>;
+    }, void>({
+      query: () => '/speech-analytics/speech-models',
+      providesTags: [{ type: 'SpeechAnalytics', id: 'SPEECH_MODELS' }],
+    }),
+    saveSaSpeechModels: builder.mutation<{
+      ownModels: boolean;
+      projectOverride: boolean;
+      sttProviderUid: number | null;
+      llmProviderUid: number | null;
+    }, {
+      sttProviderUid?: number | null;
+      llmProviderUid?: number | null;
+      projectOverride?: boolean;
+    }>({
+      query: (body) => ({ url: '/speech-analytics/speech-models', method: 'PUT', body }),
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'SPEECH_MODELS' }],
+    }),
   }),
 });
 
@@ -469,11 +618,15 @@ export const {
   useGetSaProjectsQuery,
   useCreateSaProjectMutation,
   useDeleteSaProjectMutation,
+  usePurgeSaProjectMutation,
   useBulkDeleteSaProjectsMutation,
   useUpdateSaProjectDraftMutation,
+  useGetSaProjectVersionsQuery,
+  useRestoreSaProjectVersionMutation,
   usePublishSaProjectMutation,
   useTestSaProjectWebhookMutation,
   useSendSaProjectDigestMutation,
+  useTestSaNoticeMutation,
   useTestSaProjectAlertMutation,
   useSetSaProjectIntakeMutation,
   useGetSaRecordingsQuery,
@@ -482,6 +635,8 @@ export const {
   usePublishSaMetricMutation,
   useGetSaDashboardQuery,
   useRequestSaInsightsMutation,
+  useGetSaSpeechModelsQuery,
+  useSaveSaSpeechModelsMutation,
   useGetSaCapturePolicyQuery,
   useSetSaCapturePolicyMutation,
   useGetSaModuleSettingsQuery,
@@ -490,8 +645,11 @@ export const {
   useReviewSaRunMutation,
   useCorrectSaTranscriptMutation,
   useGetSaJournalQuery,
+  useExportSaJournalExcelMutation,
   useGetSaConversationQuery,
+  useSaveSaConversationOverrideMutation,
   useRegenerateSaConversationMutation,
   useDeleteSaConversationMutation,
+  useDeleteSaConversationsMutation,
   useUploadSaCabinetBatchMutation,
 } = speechAnalyticsApi;

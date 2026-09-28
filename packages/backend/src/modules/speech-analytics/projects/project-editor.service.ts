@@ -53,6 +53,9 @@ export function metricSetStampPayload(config: SaProjectConfigV1): unknown {
     topics: config.topics,
     systemPrompt: config.systemPrompt,
     hiddenDefaultScales: [...(config.hiddenDefaultScales ?? [])].sort(),
+    insights: config.insights ?? null,
+    sttProviderUid: config.sttProviderUid ?? null,
+    llmProviderUid: config.llmProviderUid ?? null,
   };
 }
 
@@ -134,7 +137,7 @@ export function publishDraft(
   };
 }
 
-/** Cannot re-activate an older version as current — restore via draft + new publish (D-26). */
+/** Cannot re-activate an older version as current - restore via draft + new publish (D-26). */
 export function activateVersion(
   _state: EditorProjectState,
   _versionNo: number,

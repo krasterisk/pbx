@@ -66,6 +66,9 @@ vi.mock('@/shared/api/endpoints/sttEnginesApi', () => ({
 vi.mock('@/shared/api/endpoints/voiceRobotsApi', () => ({
   useGetVoiceRobotsQuery: () => ({ data: [], isLoading: false }),
 }));
+vi.mock('@/shared/api/endpoints/aiVoiceRobotsApi', () => ({
+  useGetAiVoiceRobotsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+}));
 
 vi.mock('@/shared/api/endpoints/contextApi', () => ({
   useGetContextsQuery: () => ({ data: [], isLoading: false }),

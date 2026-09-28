@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { Input, VStack, HStack } from '@/shared/ui';
 
 export type AuthMode = 'none' | 'bearer' | 'custom';
@@ -16,6 +17,8 @@ interface WebhookAuthConfigProps {
   onAuthModeChange: (mode: AuthMode) => void;
   onTokenChange: (token: string) => void;
   onHeadersChange: (headers: WebhookHeader[]) => void;
+  /** Parent already provides the collapse. The block itself stays closed until opened. */
+  defaultOpen?: boolean;
 }
 
 const AUTH_MODES: AuthMode[] = ['none', 'bearer', 'custom'];
@@ -27,8 +30,10 @@ export function WebhookAuthConfig({
   onAuthModeChange,
   onTokenChange,
   onHeadersChange,
+  defaultOpen = false,
 }: WebhookAuthConfigProps) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(defaultOpen);
 
   const addHeader = () => onHeadersChange([...customHeaders, { key: '', value: '' }]);
   
@@ -47,11 +52,19 @@ export function WebhookAuthConfig({
   };
 
   return (
-    <>
+    <VStack gap={open ? '12' : '0'}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-sm font-medium text-foreground hover:bg-primary/5"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        {open ? <ChevronDown size={16} className="text-muted-foreground" /> : <ChevronRight size={16} className="text-muted-foreground" />}
+        {t('webhookAuth.authMode', 'Авторизация')}
+      </button>
+      {open ? (
+      <>
       <VStack gap="4">
-        <label className="text-sm font-medium text-muted-foreground">
-          {t('webhookAuth.authMode', 'Авторизация')}
-        </label>
         <HStack gap="8">
           {AUTH_MODES.map((am) => (
             <button
@@ -123,6 +136,8 @@ export function WebhookAuthConfig({
           </button>
         </VStack>
       )}
-    </>
+      </>
+      ) : null}
+    </VStack>
   );
 }

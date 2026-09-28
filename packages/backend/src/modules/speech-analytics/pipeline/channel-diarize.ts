@@ -1,5 +1,5 @@
 /**
- * Channel energy diarize — one STT pass + L/R energy roles (D-23, D-24).
+ * Channel energy diarize - one STT pass + L/R energy roles (D-23, D-24).
  * Independent per-channel recognition is intentionally not offered.
  */
 

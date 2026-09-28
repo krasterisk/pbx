@@ -1,4 +1,6 @@
-/** Speech-analytics analysis worker — wait for stable non-empty recording before pipeline (D-03). */
+/** Speech-analytics analysis worker - wait for stable non-empty recording before pipeline (D-03). */
+
+import path from 'node:path';
 
 export const FILE_WAIT_POLL_MS = 500;
 export const FILE_WAIT_CEILING_MS = 60_000;
@@ -77,7 +79,16 @@ export type SaAnalysisJob = {
   durationSec?: number;
   /** Precomputed audio duration in ms (durationSec*1000). Never file byte size. */
   audioMs?: number;
+  /** Cabinet upload uses the upload channel map. Hangup stays on the route map. */
+  channelSource?: 'route' | 'upload';
 };
+
+/** Asterisk MixMonitor ids get `.mp3` under the records root. Absolute upload files stay as written. */
+export function resolveAnalysisAudioPath(recordPath: string, recordsBase = '/usr/records'): string {
+  if (path.isAbsolute(recordPath)) return recordPath;
+  if (/\.(mp3|wav|ogg|m4a)$/i.test(recordPath)) return `${recordsBase}/${recordPath}`;
+  return `${recordsBase}/${recordPath}.mp3`;
+}
 
 export type SaAnalysisWorkerDeps = {
   waitForFile: (recordPath: string) => Promise<FileWaitResult>;
@@ -146,9 +157,6 @@ export class SaAnalysisWorker {
 /** Default wait wired to absolute/relative recording paths under records root. */
 export function createDefaultWaitForFile(recordsBase = '/usr/records') {
   return async (recordPath: string): Promise<FileWaitResult> => {
-    const absolute = recordPath.endsWith('.mp3')
-      ? (recordPath.startsWith('/') ? recordPath : `${recordsBase}/${recordPath}`)
-      : `${recordsBase}/${recordPath}.mp3`;
-    return waitForStableNonEmptyFile(absolute);
+    return waitForStableNonEmptyFile(resolveAnalysisAudioPath(recordPath, recordsBase));
   };
 }

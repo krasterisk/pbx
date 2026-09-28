@@ -1,35 +1,67 @@
 .dialog {
-  width: min(36rem, calc(100vw - 2rem));
+  width: min(42rem, calc(100vw - 2rem));
   max-width: 100%;
   overflow-x: hidden;
 }
 
-.form {
-  width: 100%;
-  min-width: 0;
+.subtitle {
+  font-size: 0.8125rem;
+  line-height: 1.45;
 }
 
+.form,
 .body {
+  width: 100%;
   min-width: 0;
 }
 
-.field {
-  min-width: 0;
+.dropZone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   width: 100%;
+  padding: 1.4rem 1rem;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 35%, var(--color-background));
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-background));
+  }
 }
 
-.operatorRow,
-.optionalRow {
-  min-width: 0;
-  width: 100%;
-  flex-wrap: wrap;
+.dragging {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-background));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
-.wrapField {
-  min-width: 0;
-  width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+.hasFiles {
+  padding: 0.85rem 1rem;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+}
+
+.dropIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-bottom: 0.2rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+}
+
+.dropTitle {
+  font-weight: 600;
 }
 
 .hiddenFile {
@@ -44,26 +76,190 @@
   border: 0;
 }
 
-.fileList {
+.listTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.fileCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-foreground) 5%, transparent);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-background));
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-foreground) 10%, transparent);
+  }
+}
+
+.fileHead {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   min-width: 0;
 }
 
-.fileName {
-  overflow-wrap: anywhere;
-  word-break: break-word;
+.fileToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.15rem 0.25rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chevron {
+  flex-shrink: 0;
   color: var(--color-muted-foreground);
+}
+
+.fileIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+.fileMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.fileSize {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+
+.removeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-destructive);
+    background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  }
+}
+
+.shared {
+  display: grid;
+  grid-template-columns: 1fr 12rem;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 28%, var(--color-background));
+}
+
+.fileFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.progressWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.progressBar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-muted) 70%, var(--color-background));
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -40%;
+    width: 40%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--color-primary);
+    animation: uploadProgress 1.2s ease-in-out infinite;
+  }
 }
 
 .error {
   color: var(--color-destructive);
 }
 
+.formDisabled {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
 .spinner {
   animation: spin 0.8s linear infinite;
 }
 
+@keyframes uploadProgress {
+  to { left: 100%; }
+}
+
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .shared,
+  .fileFields {
+    grid-template-columns: 1fr;
   }
 }

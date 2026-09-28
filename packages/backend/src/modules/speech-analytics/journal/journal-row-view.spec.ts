@@ -45,4 +45,16 @@ describe('readJournalColumns', () => {
     expect(columns.durationMs).toBe(45000);
     expect(columns.score).toBeNull();
   });
+
+  it('replaces topic ids with the project taxonomy names', () => {
+    const columns = readJournalColumns({
+      metadata: {},
+      audioMs: 1000,
+      quality: 'ok',
+      projectName: 'Клиника',
+      tagNames: new Map([['tag_1790393836127', 'Маршрут']]),
+      metricResults: [{ id: 'topics', value: ['tag_1790393836127', 'sales'] }],
+    });
+    expect(columns.topics).toEqual(['Маршрут', 'sales']);
+  });
 });

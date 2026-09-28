@@ -48,6 +48,7 @@ export interface UpdateTenantDto {
   max_trunks?: number;
   max_queues?: number;
   seller_id?: number;
+  sa_own_models?: boolean;
 }
 
 export interface TenantFilters {

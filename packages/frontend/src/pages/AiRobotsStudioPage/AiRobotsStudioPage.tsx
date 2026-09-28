@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { RobotStudioPanel } from '@/features/aiRobots/ui/RobotStudioPanel';
+import { RobotsTable } from '@/features/aiRobots/ui/RobotsTable';
 
-export const AiRobotsStudioPage = memo(() => <RobotStudioPanel />);
+export const AiRobotsStudioPage = memo(() => <RobotsTable />);
 AiRobotsStudioPage.displayName = 'AiRobotsStudioPage';

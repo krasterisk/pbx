@@ -1,4 +1,4 @@
-/** Scoring adapter port — bounded metric JSON against published rubric (D-38, T-18-04-PROMPT). */
+/** Scoring adapter port - bounded metric JSON against published rubric (D-38, T-18-04-PROMPT). */
 
 import type { SaMetricResult } from '@krasterisk/shared';
 import type { DiarizedSegment } from './run-analysis';

@@ -148,6 +148,16 @@ const CATALOG_DEFAULTS: Record<
     sectionKey: 'routes.chain.catalog.voiceRobotsSection',
     sectionFallback: 'Голосовые роботы',
   },
+  aiVoiceRobots: {
+    href: '/ai-robots/studio',
+    sectionKey: 'aiVoiceDesigner.title',
+    sectionFallback: 'Голосовые AI-роботы',
+  },
+  'stt-engines': {
+    href: '/settings/stt-engines',
+    sectionKey: 'routes.chain.catalog.sttSection',
+    sectionFallback: 'Движки распознавания',
+  },
   contexts: {
     href: '/contexts',
     sectionKey: 'routes.chain.catalog.contextsSection',

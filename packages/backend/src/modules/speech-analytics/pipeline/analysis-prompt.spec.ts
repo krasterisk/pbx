@@ -1,5 +1,5 @@
-import { applyIndustryTemplate } from '@krasterisk/shared';
-import { buildAnalysisPrompt, parseAnalysisResponse, PROMPT_VERSION } from './analysis-prompt';
+import { applyIndustryTemplate, defaultSaProjectConfig } from '@krasterisk/shared';
+import { analysisToMetricRows, buildAnalysisPrompt, parseAnalysisResponse, PROMPT_VERSION, scoringMetrics } from './analysis-prompt';
 
 describe('analysis prompt', () => {
   it('fills the draft from an industry template and keeps the builtin rubric', () => {
@@ -24,9 +24,58 @@ describe('analysis prompt', () => {
       success: true,
       topic_tag_ids: ['sales', 'invented'],
       greeting_quality: 100,
-      assessments: { greeting_quality: { rationale: 'есть приветствие', quote: 'здравствуйте' } },
+      assessments: {
+        greeting_quality: { rationale: 'есть приветствие', quote: 'здравствуйте' },
+        csat: { rationale: 'клиент поблагодарил', quote: 'спасибо' },
+      },
     }), config);
     expect(parsed.topicTagIds).toEqual(['sales']);
+    expect(buildAnalysisPrompt(config, 'Алло')).toContain('CALL TOPIC TAGGING');
     expect(parsed.metrics.find((m) => m.id === 'greeting_quality')?.value).toBe(100);
+    const rows = analysisToMetricRows(parsed, parsed.assessments);
+    expect(rows.find((row) => row.id === 'csat')).toMatchObject({
+      value: 5,
+      rationale: 'клиент поблагодарил',
+      quote: 'спасибо',
+    });
+  });
+
+  it('scores only the project metrics and skips hidden standard scales', () => {
+    const config = defaultSaProjectConfig();
+    config.hiddenDefaultScales = ['greeting_quality'];
+    config.customMetrics = [{ id: 'booking_made', name: 'Запись создана', type: 'boolean', description: 'Оператор записал клиента' }];
+    const ids = scoringMetrics(config).map((metric) => metric.id);
+    expect(ids).not.toContain('greeting_quality');
+    expect(ids).toContain('booking_made');
+    expect(ids).toContain('closing_quality');
+    const prompt = buildAnalysisPrompt(config, 'Алло');
+    expect(prompt).toContain('ALWAYS RETURN');
+    const withoutSummary = defaultSaProjectConfig();
+    withoutSummary.insights = {
+      ...withoutSummary.insights,
+      summary: { ...withoutSummary.insights.summary, enabled: false },
+    };
+    expect(buildAnalysisPrompt(withoutSummary, 'Алло')).not.toContain('summary (string');
+    expect(prompt).toContain('csat (integer 1-5');
+    expect(prompt).not.toContain('CALL TOPIC TAGGING');
+    expect(prompt).toContain('booking_made');
+    expect(prompt).not.toContain('greeting_quality');
+  });
+
+  it('reads a numeric score nested in the assessment when the top-level field is missing', () => {
+    const config = defaultSaProjectConfig();
+    const parsed = parseAnalysisResponse(JSON.stringify({
+      summary: 'ok',
+      customer_sentiment: 'Neutral',
+      csat: 4,
+      assessments: {
+        greeting_quality: { value: '75', rationale: 'есть приветствие', quote: 'добрый день' },
+      },
+    }), config);
+    expect(parsed.metrics.find((metric) => metric.id === 'greeting_quality')).toMatchObject({
+      value: 75,
+      rationale: 'есть приветствие',
+      quote: 'добрый день',
+    });
   });
 });

@@ -11,6 +11,8 @@ import { RedisStatusCard } from '@/features/system-settings/ui/RedisStatusCard';
 import { TenantSettingsSection } from '@/features/tenant-settings/ui/TenantSettingsSection';
 import { TablePageSizeSetting } from '@/features/tenant-settings/ui/TablePageSizeSetting/TablePageSizeSetting';
 import { AiChatProviderCard } from '@/features/system-settings/ui/AiChatProviderCard';
+import { TenantSpeechModelsCard } from '@/features/speechAnalytics/ui/TenantSpeechModelsCard/TenantSpeechModelsCard';
+import { useGetSaSpeechModelsQuery } from '@/features/speechAnalytics/api/speechAnalyticsApi';
 import cls from './SettingsPage.module.scss';
 
 const SECTIONS = [
@@ -74,6 +76,8 @@ const SECTIONS = [
 
 export function SettingsPage() {
   const { t } = useTranslation();
+  const { data: speechModels } = useGetSaSpeechModelsQuery();
+  const sections = SECTIONS.filter((section) => section.key !== 'aiChat' || speechModels?.ownModels);
 
   return (
     <VStack
@@ -92,8 +96,10 @@ export function SettingsPage() {
         </VStack>
       </HStack>
 
+      <TenantSpeechModelsCard />
+
       {/* Sections - stacked forms for 360px (D-29) */}
-      {SECTIONS.map((section, i) => {
+      {sections.map((section, i) => {
         const Icon = section.icon;
         return (
           <motion.div

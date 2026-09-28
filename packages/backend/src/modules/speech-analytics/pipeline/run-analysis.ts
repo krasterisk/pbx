@@ -1,4 +1,4 @@
-/** runAnalysis — STT → diarize → score → SA-CHARGE-RUN (D-23, D-38, D-46). */
+/** runAnalysis - STT → diarize → score → SA-CHARGE-RUN (D-23, D-38, D-46). */
 
 import type { SaProjectConfigV1 } from '@krasterisk/shared';
 import type { SaChargeRunDeps, SaChargeRunInput, SaChargeRunResult } from '../charging/sa-charge-run';

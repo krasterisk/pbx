@@ -121,7 +121,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
               {t('speechAnalytics.dashboard', 'Дашборд')}
             </Text>
             <Text variant="muted">
-              {t('speechAnalytics.rankingInsufficient')}: {dashboard?.ranking ?? '—'}
+              {t('speechAnalytics.rankingInsufficient')}: {dashboard?.ranking ?? '-'}
             </Text>
           </VStack>
         </HStack>
@@ -183,7 +183,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
               <Text variant="h2" as="p">
                 {dashboard?.successRate != null
                   ? `${Math.round(dashboard.successRate * 100)}%`
-                  : '—'}
+                  : '-'}
               </Text>
             </Card>
           </div>
@@ -295,7 +295,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
             <Text>
               {dashboard?.successRate != null
                 ? `${Math.round(dashboard.successRate * 100)}%`
-                : '—'}
+                : '-'}
             </Text>
           </Card>
 

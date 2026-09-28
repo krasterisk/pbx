@@ -1,6 +1,6 @@
 import { DomainError } from '../project-engine';
 
-/** @deprecated D-01 — inherit/off/on removed; projectId alone decides auto analysis */
+/** @deprecated D-01 - inherit/off/on removed; projectId alone decides auto analysis */
 export type AnalyticsRouteMode = 'inherit' | 'off' | 'on';
 
 export type CaptureResolveInput = {
@@ -14,11 +14,11 @@ export type CaptureResolveInput = {
   projectPublished: boolean;
   sameTenantProject: boolean;
   policyRevision: number;
-  /** @deprecated Ignored — no company default project (D-01, D-21). */
+  /** @deprecated Ignored - no company default project (D-01, D-21). */
   defaultEnabled?: boolean;
-  /** @deprecated Ignored — no company default project (D-01, D-21). */
+  /** @deprecated Ignored - no company default project (D-01, D-21). */
   defaultProjectId?: string | null;
-  /** @deprecated Ignored — modes replaced by projectId (D-01). */
+  /** @deprecated Ignored - modes replaced by projectId (D-01). */
   routeMode?: AnalyticsRouteMode;
 };
 

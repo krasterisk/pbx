@@ -9,6 +9,10 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
+  useGetSaSpeechModelsQuery: () => ({ data: { ownModels: true, providers: [] }, isLoading: false }),
+}));
+
 vi.mock('@/features/ai-providers', () => ({
   AiProvidersTable: () => <div data-testid="ai-providers-table-stub">providers</div>,
   AiProviderModal: () => null,

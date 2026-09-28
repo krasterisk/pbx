@@ -51,11 +51,12 @@ describe('UploadForm', () => {
     const submit = screen.getByTestId('upload-submit');
     expect(submit).toBeDisabled();
 
-    await user.selectOptions(screen.getByLabelText(/проект|project/i), 'proj-1');
-    expect(submit).toBeDisabled();
-
     const file = new File([new Uint8Array([1, 2, 3])], 'call.wav', { type: 'audio/wav' });
     await user.upload(screen.getByTestId('upload-file-input'), file);
+    expect(screen.getByTestId('upload-submit')).toBeDisabled();
+    expect(screen.getByRole('option', { name: 'Выбрать проект' })).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByTestId('upload-project'), 'proj-1');
     expect(screen.getByTestId('upload-submit')).not.toBeDisabled();
 
     rerender(
@@ -74,17 +75,15 @@ describe('UploadForm', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('keeps one field set for single file and batch; pre-queue refusal stays in the form', async () => {
+  it('gives each file its own operator, phone, and project; bad files stay in the form', async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm({
       formError: 'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
     });
 
-    expect(screen.getByLabelText(/проект|project/i)).toBeInTheDocument();
-    expect(screen.getByLabelText('Оператор')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Оператор')).not.toBeInTheDocument();
     expect(screen.getByTestId('upload-form-error')).toHaveTextContent(/Не удалось загрузить файл/);
 
-    await user.selectOptions(screen.getByLabelText(/проект|project/i), 'proj-1');
     const good = new File([new Uint8Array([1])], 'a.wav', { type: 'audio/wav' });
     const bad = new File([new Uint8Array([1])], 'b.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByTestId('upload-file-input'), {
@@ -93,7 +92,13 @@ describe('UploadForm', () => {
 
     expect(screen.getByTestId('upload-file-list')).toHaveTextContent('a.wav');
     expect(screen.getByTestId('upload-file-list')).toHaveTextContent('b.pdf');
-    expect(screen.getAllByLabelText(/проект|project/i)).toHaveLength(1);
+    expect(screen.queryByLabelText('Оператор')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /a\.wav/ }));
+    await user.click(screen.getByRole('button', { name: /b\.pdf/ }));
+    expect(screen.getAllByLabelText('Оператор')).toHaveLength(2);
+    expect(screen.getAllByLabelText(/телефон/i)).toHaveLength(2);
+    expect(screen.getAllByTestId('upload-project')).toHaveLength(1);
+    expect(screen.getByLabelText('Язык')).toBeInTheDocument();
 
     await user.click(screen.getByTestId('upload-submit'));
     expect(onSubmit).not.toHaveBeenCalled();

@@ -1,5 +1,5 @@
 /**
- * Nest binding for SaAnalysisWorker — always injects runAnalysis (G-18-02, D-03, D-23).
+ * Nest binding for SaAnalysisWorker - always injects runAnalysis (G-18-02, D-03, D-23).
  * Legacy handoffPipeline remains available only for unit tests that construct the worker manually.
  */
 
@@ -8,16 +8,28 @@ import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/sequelize';
 import { readFile } from 'node:fs/promises';
 import { invokeSaChargeRun } from '../charging/sa-charge-run';
+import { configForAnalysis } from '../pipeline/analysis-prompt';
 import { diarizeChannels } from '../pipeline/channel-diarize';
+import { decodeToPcmWav, isPcmWav } from '../pipeline/decode-pcm-wav';
 import { runAnalysis as pipelineRunAnalysis } from '../pipeline/run-analysis';
 import type { RunAnalysisDeps } from '../pipeline/run-analysis';
 import { PlatformSpeechModelsService } from '../../ai-connectivity/platform-speech-models.service';
+import { SpeechProviderResolver } from '../speech-provider.resolver';
 import { ModuleSettingsService } from '../module-settings.service';
-import { SaAnalysisRun, SaProjectVersion, SaResult, SaTranscript, SaTranscriptSegment } from '../speech-analytics.models';
-import { defaultSaProjectConfig, type SaProjectConfigV1 } from '@krasterisk/shared';
+import { SaAnalysisRun, SaProjectVersion, SaRecording, SaResult, SaTranscript, SaTranscriptSegment } from '../speech-analytics.models';
+import { type SaProjectConfigV1 } from '@krasterisk/shared';
 import { randomUUID } from 'node:crypto';
+import { AiProvidersService } from '../../ai-connectivity/ai-providers.service';
+import { decryptSecret } from '../../ai-connectivity/secret-cipher.util';
+import {
+  labelProviderSpeakers,
+  readAudioFile,
+  scoreProviderTranscript,
+  transcribeProviderAudio,
+} from '../pipeline/provider-analysis';
 import {
   createDefaultWaitForFile,
+  resolveAnalysisAudioPath,
   SaAnalysisWorker,
   type SaAnalysisJob,
 } from './sa-analysis.worker';
@@ -31,17 +43,22 @@ export type SaAnalysisWorkerNestDeps = {
   moduleSettings: ModuleSettingsService;
   config: ConfigService;
   runs: typeof SaAnalysisRun;
-  /** Optional STT provider — null result → runAnalysis error path (no charge). */
+  /** Optional STT provider - null result → runAnalysis error path (no charge). */
   stt?: RunAnalysisDeps['stt'];
-  /** Optional score provider — null result → runAnalysis error path (no charge). */
+  /** Optional score provider - null result → runAnalysis error path (no charge). */
   score?: RunAnalysisDeps['score'];
   findLatestRates?: RunAnalysisDeps['findLatestRates'];
   /** Platform STT/LLM ids used when the cabinet cannot edit its own models. */
   resolvePlatformModels?: () => Promise<{ sttModelId: string | null; scoreModelId: string | null }>;
   loadProjectConfig?: (job: SaAnalysisJob) => Promise<SaProjectConfigV1 | null>;
+  /** Platform STT/LLM catalog. When set, the default providers call those engines. */
+  providers?: AiProvidersService;
+  platformModels?: PlatformSpeechModelsService;
+  speechProviders?: SpeechProviderResolver;
   results?: typeof SaResult;
   transcripts?: typeof SaTranscript;
   segments?: typeof SaTranscriptSegment;
+  recordings?: typeof SaRecording;
 };
 
 /**
@@ -56,15 +73,56 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
   const waitForFile = createDefaultWaitForFile(recordsBase);
 
   const stt: RunAnalysisDeps['stt'] = deps.stt
-    ?? (async () => {
-      nestLogger.warn('STT provider not configured — analysis cannot score');
-      return null;
+    ?? (async ({ audioPath, modelId }) => {
+      if (!deps.providers || !deps.platformModels) {
+        nestLogger.warn('STT provider not configured - analysis cannot score');
+        return null;
+      }
+      const assignment = await deps.platformModels.get();
+      if (!assignment.sttProviderUid) {
+        nestLogger.warn('Speech analytics STT provider is not assigned');
+        return null;
+      }
+      try {
+        const engine = await deps.providers.loadSpeechEngine(0, assignment.sttProviderUid, 'stt');
+        const audio = await readAudioFile(resolveAnalysisAudioPath(audioPath, recordsBase));
+        return await transcribeProviderAudio(engine, audio, 'audio.bin', modelId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        nestLogger.warn(`STT failed: ${message}`);
+        return null;
+      }
     });
 
   const score: RunAnalysisDeps['score'] = deps.score
-    ?? (async () => {
-      nestLogger.warn('Score provider not configured — analysis cannot score');
-      return null;
+    ?? (async ({ segments, modelId, projectConfig, transcript }) => {
+      if (!deps.providers || !deps.platformModels) {
+        nestLogger.warn('Score provider not configured - analysis cannot score');
+        return null;
+      }
+      const assignment = await deps.platformModels.get();
+      if (!assignment.llmProviderUid) {
+        nestLogger.warn('Speech analytics LLM provider is not assigned');
+        return null;
+      }
+      const rows = await deps.providers.findGlobal('llm');
+      const provider = rows.find((row) => row.uid === assignment.llmProviderUid);
+      if (!provider) return null;
+      try {
+        const token = provider.encrypted_api_key ? decryptSecret(provider.encrypted_api_key) : '';
+        return await scoreProviderTranscript({
+          provider,
+          token,
+          segments,
+          transcript,
+          projectConfig,
+          modelId,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        nestLogger.warn(`Score failed: ${message}`);
+        return null;
+      }
     });
 
   const findLatestRates: RunAnalysisDeps['findLatestRates'] = deps.findLatestRates
@@ -92,6 +150,15 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
       : null;
     const audioMs = fromAudioMs ?? fromDurationSec ?? 0;
 
+    const queued = await deps.runs.findOne({
+      where: { id: job.runId, tenant_uid: job.tenantUid },
+    });
+    if (queued && queued.state === 'queued') {
+      queued.state = 'running';
+      queued.updated_at = new Date();
+      await queued.save();
+    }
+
     const settings = deps.moduleSettings.get(job.tenantUid);
     const platform = deps.resolvePlatformModels
       ? await deps.resolvePlatformModels()
@@ -109,9 +176,99 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
       ...(platform.scoreModelId ? [platform.scoreModelId] : []),
     ]));
 
-    const absolute = job.recordPath.endsWith('.mp3')
-      ? (job.recordPath.startsWith('/') ? job.recordPath : `${recordsBase}/${job.recordPath}`)
-      : `${recordsBase}/${job.recordPath}.mp3`;
+    const absolute = resolveAnalysisAudioPath(job.recordPath, recordsBase);
+    const channelSource = job.channelSource ?? 'route';
+    const projectConfig = deps.loadProjectConfig
+      ? await deps.loadProjectConfig(job)
+      : configForAnalysis(null);
+    const resolved = deps.speechProviders
+      ? await deps.speechProviders.resolve(job.tenantUid, projectConfig)
+      : null;
+    const llmAuth = async () => {
+      const uid = resolved?.llmProviderUid ?? null;
+      if (!deps.providers || !uid) return null;
+      const own = await deps.providers.findAll(job.tenantUid, 'llm');
+      const global = await deps.providers.findGlobal('llm');
+      const provider = [...own, ...global].find((row) => row.uid === uid);
+      if (!provider) return null;
+      let token = '';
+      try {
+        const blob = provider.encrypted_api_key?.trim() ?? '';
+        token = blob ? decryptSecret(blob) : '';
+      } catch {
+        return null;
+      }
+      const model = typeof provider.defaults?.model === 'string' && provider.defaults.model.trim()
+        ? provider.defaults.model.trim()
+        : scoreModelId;
+      return { provider, token, model };
+    };
+    const jobStt: RunAnalysisDeps['stt'] = deps.stt ?? (async ({ audioPath, modelId }) => {
+      const uid = resolved?.sttProviderUid ?? null;
+      if (!deps.providers || !uid) {
+        nestLogger.warn('Speech analytics STT provider is not assigned');
+        return null;
+      }
+      let named = modelId;
+      try {
+        const engine = await deps.providers.loadSpeechEngine(job.tenantUid, uid, 'stt');
+        const fromEngine = typeof engine.settings?.model === 'string' ? engine.settings.model.trim() : '';
+        named = fromEngine || modelId || 'whisper-1';
+        const audio = await readAudioFile(resolveAnalysisAudioPath(audioPath, recordsBase));
+        return await transcribeProviderAudio(engine, audio, 'audio.bin', named);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        nestLogger.warn(`STT failed provider=${uid} model=${named}: ${message}`);
+        return null;
+      }
+    });
+    const jobScore: RunAnalysisDeps['score'] = deps.score ?? (async ({ segments, modelId, projectConfig: config, transcript }) => {
+      const uid = resolved?.llmProviderUid ?? null;
+      if (!deps.providers || !uid) {
+        nestLogger.warn('Speech analytics LLM provider is not assigned');
+        return null;
+      }
+      const own = await deps.providers.findAll(job.tenantUid, 'llm');
+      const global = await deps.providers.findGlobal('llm');
+      const provider = [...own, ...global].find((row) => row.uid === uid);
+      if (!provider) {
+        nestLogger.warn(`Score provider ${uid} was not found among tenant or global LLM connections`);
+        return null;
+      }
+      const model = typeof provider.defaults?.model === 'string' && provider.defaults.model.trim()
+        ? provider.defaults.model.trim()
+        : modelId;
+      let token = '';
+      try {
+        const blob = provider.encrypted_api_key?.trim() ?? '';
+        token = blob ? decryptSecret(blob) : '';
+      } catch (error) {
+        const blob = provider.encrypted_api_key?.trim() ?? '';
+        const envelope = blob.startsWith('v2:') ? blob.split(':').slice(0, 2).join(':') : 'legacy';
+        const message = error instanceof Error ? error.message : String(error);
+        nestLogger.warn(
+          `Score provider=${provider.uid} name=${provider.name} endpoint=${provider.endpoint} auth=${provider.auth_type} key=${envelope} cannot be decrypted (${message}). Save the API key again in Global models.`,
+        );
+        return null;
+      }
+      nestLogger.log(
+        `Score provider=${provider.uid} name=${provider.name} model=${model} auth=${provider.auth_type} endpoint=${provider.endpoint}`,
+      );
+      try {
+        return await scoreProviderTranscript({
+          provider,
+          token,
+          segments,
+          transcript,
+          projectConfig: config,
+          modelId: model,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        nestLogger.warn(`Score failed provider=${provider.uid} name=${provider.name} endpoint=${provider.endpoint}: ${message}`);
+        return null;
+      }
+    });
 
     let stereoWav: Buffer | null = null;
     try {
@@ -121,28 +278,65 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
     }
 
     const pipelineDeps: RunAnalysisDeps = {
-      stt,
-      score,
-      diarize: async (args) => diarizeChannels({
-        segments: args.segments,
-        stereoWav,
-        channels: args.channels,
-        stereoVerified: args.stereoVerified,
-        channelSource: args.channelSource,
-        swapChannels: args.swapChannels,
-      }),
+      stt: jobStt,
+      score: jobScore,
+      diarize: async (args) => {
+        let wav = stereoWav;
+        if (wav && !isPcmWav(wav)) {
+          wav = await decodeToPcmWav(absolute);
+        }
+        const labeled = diarizeChannels({
+          segments: args.segments,
+          stereoWav: wav,
+          channels: args.channels,
+          stereoVerified: args.stereoVerified && Boolean(wav && isPcmWav(wav)),
+          channelSource: args.channelSource,
+          swapChannels: args.swapChannels,
+        });
+        const unlabeled = labeled.segments.length > 0
+          && labeled.segments.every((segment) => segment.speakerRole === 'unknown');
+        if (!unlabeled) return labeled;
+        const auth = await llmAuth();
+        if (!auth) return labeled;
+        const roles = await labelProviderSpeakers({
+          provider: auth.provider,
+          token: auth.token,
+          modelId: auth.model,
+          segments: labeled.segments,
+        });
+        if (!roles) return labeled;
+        return {
+          ...labeled,
+          mode: 'llm_roles',
+          segments: labeled.segments.map((segment, index) => ({
+            ...segment,
+            speakerRole: roles[index],
+            roleSource: 'llm' as const,
+            channel: roles[index] === 'operator' ? 0 : 1,
+          })),
+        };
+      },
       persistSuccess: async (patch) => {
         const run = await deps.runs.findOne({
           where: { id: job.runId, tenant_uid: job.tenantUid },
         });
         if (!run) return;
-        if (deps.transcripts && deps.segments && patch.segments.length) {
+        const recording = deps.recordings
+          ? await deps.recordings.findOne({
+            where: { id: run.recording_id, tenant_uid: job.tenantUid },
+          })
+          : null;
+        const assetId = recording?.asset_id;
+        if (!assetId && patch.segments.length) {
+          nestLogger.warn(`Transcript not stored: recording ${run.recording_id} has no media asset`);
+        }
+        if (deps.transcripts && deps.segments && patch.segments.length && assetId) {
           const transcriptId = randomUUID();
           await deps.transcripts.create({
             id: transcriptId,
             tenant_uid: job.tenantUid,
-            asset_id: run.recording_id,
-            stt_revision_id: patch.models.sttModelId || 'stt',
+            asset_id: assetId,
+            stt_revision_id: (patch.models.sttModelId || 'stt').slice(0, 36),
             content_digest: transcriptId,
             coverage: 'full',
             created_at: new Date(),
@@ -174,7 +368,7 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
             metric_results: JSON.stringify(patch.metrics ?? []),
             evidence_refs: '[]',
             quality: 'ok',
-            status: 'scored',
+            status: 'completed',
             created_at: new Date(),
           });
           run.result_id = resultId;
@@ -188,7 +382,7 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
           where: { id: job.runId, tenant_uid: job.tenantUid },
         });
         if (!run) return;
-        run.state = 'error';
+        run.state = 'failed';
         run.reason = reason.slice(0, 64);
         run.updated_at = new Date();
         await run.save();
@@ -205,16 +399,14 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
         audioPath: absolute,
         audioMs,
         currency: 'RUB',
-        channelSource: 'route',
+        channelSource,
         swapChannels: false,
         channels: 2,
         stereoVerified: true,
         moduleDefaults: { sttModelId, scoreModelId },
         publishedVersionModels: { sttModelId, scoreModelId },
         platformAllowlist: allowlist,
-        projectConfig: deps.loadProjectConfig
-          ? await deps.loadProjectConfig(job)
-          : defaultSaProjectConfig(),
+        projectConfig,
       },
       pipelineDeps,
     );
@@ -234,7 +426,7 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
       args[1] as Parameters<typeof invokeSaChargeRun>[1],
     ),
     runAnalysis,
-    // handoffPipeline intentionally omitted — Nest production path must use runAnalysis.
+    // handoffPipeline intentionally omitted - Nest production path must use runAnalysis.
   });
 }
 
@@ -246,10 +438,13 @@ export const saAnalysisWorkerProvider = {
     config: ConfigService,
     runs: typeof SaAnalysisRun,
     platformModels: PlatformSpeechModelsService,
+    providers: AiProvidersService,
     versions: typeof SaProjectVersion,
     results: typeof SaResult,
     transcripts: typeof SaTranscript,
     segments: typeof SaTranscriptSegment,
+    speechProviders: SpeechProviderResolver,
+    recordings: typeof SaRecording,
   ) => createSaAnalysisWorker({
     moduleSettings,
     config,
@@ -257,32 +452,39 @@ export const saAnalysisWorkerProvider = {
     results,
     transcripts,
     segments,
+    recordings,
     loadProjectConfig: async (job) => {
       const run = await runs.findOne({ where: { id: job.runId, tenant_uid: job.tenantUid } });
-      if (!run?.project_version_id) return defaultSaProjectConfig();
+      if (!run?.project_version_id) return configForAnalysis(null);
       const version = await versions.findOne({
         where: { id: run.project_version_id, tenant_uid: job.tenantUid },
       });
-      if (!version?.config) return defaultSaProjectConfig();
+      if (!version?.config) return configForAnalysis(null);
       try {
-        return { ...defaultSaProjectConfig(), ...JSON.parse(version.config) as SaProjectConfigV1 };
+        return configForAnalysis(JSON.parse(version.config) as SaProjectConfigV1);
       } catch {
-        return defaultSaProjectConfig();
+        return configForAnalysis(null);
       }
     },
     resolvePlatformModels: () => platformModels.modelIds().catch(() => ({
       sttModelId: null,
       scoreModelId: null,
     })),
+    providers,
+    platformModels,
+    speechProviders,
   }),
   inject: [
     ModuleSettingsService,
     ConfigService,
     getModelToken(SaAnalysisRun),
     PlatformSpeechModelsService,
+    AiProvidersService,
     getModelToken(SaProjectVersion),
     getModelToken(SaResult),
     getModelToken(SaTranscript),
     getModelToken(SaTranscriptSegment),
+    SpeechProviderResolver,
+    getModelToken(SaRecording),
   ],
 };

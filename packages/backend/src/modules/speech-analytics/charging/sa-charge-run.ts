@@ -1,4 +1,4 @@
-/** SA-CHARGE-RUN — persist calculated run amount; wallet debit is future-only (D-46, D-49). */
+/** SA-CHARGE-RUN - persist calculated run amount; wallet debit is future-only (D-46, D-49). */
 
 import { multiplyUnitsByRate, sumChunksRoundOnce } from '../../ai-usage/money';
 
@@ -40,7 +40,7 @@ export type SaChargeRunResult = {
 const PRODUCT = 'speech_analytics';
 const UNITS = ['audio_ms', 'provider_tokens'] as const;
 
-/** Future wallet operation key — run id only (D-46). */
+/** Future wallet operation key - run id only (D-46). */
 export function saChargeRunOperationKey(runId: string): string {
   return runId;
 }

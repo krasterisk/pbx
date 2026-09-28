@@ -59,7 +59,7 @@ export interface SaAiTokensPort {
 }
 
 const pauseInput = z.strictObject({
-  pause_new: z.boolean().describe('true — пауза новых авторазборов; false — снять паузу'),
+  pause_new: z.boolean().describe('true - пауза новых авторазборов; false - снять паузу'),
 });
 const pauseArgs = pauseInput;
 
@@ -91,7 +91,7 @@ type TokenInput = z.infer<typeof tokenInput>;
 type TokenArgs = z.infer<typeof tokenArgs>;
 
 /**
- * SpeechAnalyticsAiAdapter — module tools for pause, project edit, and token issue
+ * SpeechAnalyticsAiAdapter - module tools for pause, project edit, and token issue
  * (Phase 15 D-16/D-17 pairing with skills/speech-analytics/SKILL.md).
  */
 @Injectable()
@@ -128,7 +128,7 @@ export class SpeechAnalyticsAiAdapter implements DomainAiAdapter, OnModuleInit {
 - Пауза (pause_speech_analytics) останавливает только новые авторазборы; ручная загрузка и «Получить аналитику» работают.
 - Правка проекта (edit_speech_analytics_project) меняет весь черновик; при смене метрик подтверждение публикует.
 - Токен (issue_speech_analytics_token) привязан к одному проекту; секрет показывается один раз в карточке и в историю чата не пишется.
-- Модели модуля и замены проекта меняет только суперадмин или кабинетный админ с включённым правом; супервизор и чат без права — нет.`;
+- Модели модуля и замены проекта меняет только суперадмин или кабинетный админ с включённым правом; супервизор и чат без права - нет.`;
   }
 
   /**

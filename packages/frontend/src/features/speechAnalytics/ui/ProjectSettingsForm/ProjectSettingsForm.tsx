@@ -2,23 +2,34 @@ import { memo, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
+  ChevronDown,
+  ChevronRight,
   Save,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import {
   SA_WEBHOOK_EVENTS,
+  defaultDigestBlocks,
   defaultSaProjectConfig,
+  digestSchedules,
   normalizeProjectMetric,
+  projectNotices,
+  resolveProjectInsights,
   type SaAlertConfig,
   type SaCallTagDef,
   type SaDigestConfig,
+  type SaDigestSchedule,
+  type SaNotice,
+  type SaNoticeKind,
   type SaProjectConfigV1,
+  type SaProjectInsights,
   type SaProjectMetric,
   type SaWebhookEvent,
 } from '@krasterisk/shared';
 import {
   Button, Card, Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle, Input, Label, Select, Tabs, TabsContent, TabsList, TabsTrigger,
+  DialogHeader, DialogTitle, InfoTooltip, Input, Label, Select, Switch, Tabs, TabsContent, TabsList, TabsTrigger,
   Text, Textarea, type AuthMode, type WebhookHeader,
 } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
@@ -26,14 +37,58 @@ import { useGetNotificationsQuery } from '@/shared/api/endpoints/notificationApi
 import { WebhookList, type WebhookListItem } from '@/shared/ui/WebhookList/WebhookList';
 import {
   useGetSaProjectsQuery,
+  useGetSaProjectVersionsQuery,
   usePublishSaProjectMutation,
-  useSendSaProjectDigestMutation,
+  useRestoreSaProjectVersionMutation,
+  useTestSaNoticeMutation,
   useTestSaProjectAlertMutation,
   useUpdateSaProjectDraftMutation,
+  useGetSaSpeechModelsQuery,
 } from '../../api/speechAnalyticsApi';
+import { SpeechAnalyticsModelFields } from '../SpeechAnalyticsModelFields/SpeechAnalyticsModelFields';
 import cls from './ProjectSettingsForm.module.scss';
 
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const WEEKDAY_INDEXES = [1, 2, 3, 4, 5, 6, 7] as const;
+const MONTH_DAY_INDEXES = Array.from({ length: 28 }, (_, index) => index + 1);
+const WEEKDAY_NAME_FALLBACK: Record<number, string> = {
+  1: 'Понедельник',
+  2: 'Вторник',
+  3: 'Среда',
+  4: 'Четверг',
+  5: 'Пятница',
+  6: 'Суббота',
+  7: 'Воскресенье',
+};
+
+function scheduleTitle(t: (key: string, fallback?: string) => string, slot: SaDigestSchedule): string {
+  const when = slot.schedule === 'daily'
+    ? t('speechAnalytics.settingsDigestDaily', 'Каждый день')
+    : slot.schedule === 'weekly'
+      ? `${t('speechAnalytics.settingsDigestWeekly', 'Раз в неделю')}, ${t(`speechAnalytics.settingsDigestWeekdayName.${slot.weeklyDay ?? 1}`, WEEKDAY_NAME_FALLBACK[slot.weeklyDay ?? 1])}`
+      : `${t('speechAnalytics.settingsDigestMonthly', 'Раз в месяц')}, ${slot.monthlyDay ?? 1}`;
+  return `${when}, ${slot.sendHour ?? 9}:00`;
+}
+
+function metricStampOf(config: SaProjectConfigV1): string {
+  return JSON.stringify({
+    metrics: config.metrics ?? [],
+    callTaxonomy: config.callTaxonomy ?? [],
+    customMetrics: config.customMetrics,
+    topics: config.topics,
+    systemPrompt: config.systemPrompt,
+    hiddenDefaultScales: [...(config.hiddenDefaultScales ?? [])].sort(),
+    insights: config.insights ?? null,
+    sttProviderUid: config.sttProviderUid ?? null,
+    llmProviderUid: config.llmProviderUid ?? null,
+  });
+}
+
+const METRIC_TYPE_LABELS: Record<SaProjectMetric['type'], string> = {
+  boolean: 'Boolean (Да/Нет)',
+  number: 'Number (Число)',
+  enum: 'Enum (Список)',
+  string: 'String (Текст)',
+};
 
 function notifyErrorCode(error: unknown): string | null {
   const code = (error as { data?: { code?: string } })?.data?.code;
@@ -124,26 +179,42 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   const project = (projectsQuery.data ?? []).find((row) => row.id === projectId);
   const [saveDraft, saveState] = useUpdateSaProjectDraftMutation();
   const [publishProject, publishState] = usePublishSaProjectMutation();
-  const [sendDigest] = useSendSaProjectDigestMutation();
+  const versionsQuery = useGetSaProjectVersionsQuery(projectId);
+  const [restoreVersion, restoreState] = useRestoreSaProjectVersionMutation();
   const [testAlert] = useTestSaProjectAlertMutation();
+  const [testNotice] = useTestSaNoticeMutation();
   const { data: integrations = [] } = useGetNotificationsQuery();
   const [notice, setNotice] = useState<{ text: string; tone: 'success' | 'error' } | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [sttProviderUid, setSttProviderUid] = useState<number | null>(null);
+  const [llmProviderUid, setLlmProviderUid] = useState<number | null>(null);
+  const { data: speechModels } = useGetSaSpeechModelsQuery();
   const [metrics, setMetrics] = useState<SaProjectMetric[]>([]);
+  const [insights, setInsights] = useState<SaProjectInsights>(defaultSaProjectConfig().insights);
   const [topics, setTopics] = useState<SaCallTagDef[]>([]);
   const [webhookItems, setWebhookItems] = useState<WebhookListItem[]>([]);
   const [digest, setDigest] = useState<SaDigestConfig>(defaultSaProjectConfig().digest);
   const [alerts, setAlerts] = useState<SaAlertConfig>(defaultSaProjectConfig().alerts);
+  const [notices, setNotices] = useState<SaNotice[]>([]);
+  const [openNotices, setOpenNotices] = useState<Record<string, boolean>>({});
+  const [addingNotice, setAddingNotice] = useState(false);
   const [budget, setBudget] = useState('');
   const [revision, setRevision] = useState(1);
   const [hydrated, setHydrated] = useState<string | null>(null);
   const [tab, setTab] = useState('general');
+  const [skipPublish, setSkipPublish] = useState(false);
   const [pendingTopic, setPendingTopic] = useState<number | null>(null);
   const [pendingMetric, setPendingMetric] = useState<number | null>(null);
+  const [openMetrics, setOpenMetrics] = useState<Record<string, boolean>>({});
+  const [openInsights, setOpenInsights] = useState({ summary: false, csat: false, sentiment: false });
+  const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
+  const [openNotify, setOpenNotify] = useState({ where: false, when: false, what: false });
+  const [aliasDraft, setAliasDraft] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!project || hydrated === `${project.id}:${project.draft_revision}`) return;
@@ -151,14 +222,19 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
     setName(project.name);
     setDescription(cfg.description ?? '');
     setSystemPrompt(cfg.systemPrompt ?? '');
+    setSttProviderUid(cfg.sttProviderUid ?? null);
+    setLlmProviderUid(cfg.llmProviderUid ?? null);
+    setInsights(resolveProjectInsights(cfg));
     setMetrics((cfg.metrics ?? []).map((metric) => ({
       ...normalizeProjectMetric(metric),
       sourceScaleId: null,
     })));
     setTopics(cfg.callTaxonomy ?? []);
     setWebhookItems(webhookItemsFromConfig(cfg));
-    setDigest({ ...defaultSaProjectConfig().digest, ...cfg.digest });
+    const mergedDigest = { ...defaultSaProjectConfig().digest, ...cfg.digest };
+    setDigest({ ...mergedDigest, schedules: digestSchedules(mergedDigest) });
     setAlerts({ ...defaultSaProjectConfig().alerts, ...cfg.alerts });
+    setNotices(Array.isArray(cfg.notices) ? cfg.notices : projectNotices(cfg));
     setBudget(cfg.budget?.softLimit ? String(cfg.budget.softLimit) : '');
     setRevision(project.draft_revision);
     setHydrated(`${project.id}:${project.draft_revision}`);
@@ -173,12 +249,16 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
         headers: headersFromAuth(row.authMode, row.token, row.customHeaders),
       }));
     const headerMap = eventWebhooks[0]?.headers ?? {};
-    const parsedBudget = budget.trim() === '' ? 0 : Number(budget.replace(',', '.'));
+    const budgetNotice = notices.find((row) => row.kind === 'budget' && row.enabled);
+    const parsedBudget = budgetNotice?.softLimit ?? (budget.trim() === '' ? 0 : Number(budget.replace(',', '.')));
     return {
       ...defaultSaProjectConfig(),
       ...(project?.draft_config ?? {}),
       description,
       systemPrompt,
+      sttProviderUid,
+      llmProviderUid,
+      insights,
       metrics: metrics.map((metric) => ({ ...normalizeProjectMetric(metric), sourceScaleId: null })),
       callTaxonomy: topics,
       customMetrics: [],
@@ -189,8 +269,17 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
         events: [...new Set(eventWebhooks.map((row) => row.event))],
       },
       eventWebhooks,
-      digest,
+      digest: {
+        ...digest,
+        enabled: (digest.schedules ?? []).length > 0,
+        schedules: digest.schedules ?? [],
+        schedule: digest.schedules?.[0]?.schedule ?? digest.schedule,
+        weeklyDay: digest.schedules?.[0]?.weeklyDay ?? digest.weeklyDay,
+        monthlyDay: digest.schedules?.[0]?.monthlyDay ?? digest.monthlyDay,
+        sendHour: digest.schedules?.[0]?.sendHour ?? digest.sendHour,
+      },
       alerts,
+      notices,
       budget: { softLimit: Number.isFinite(parsedBudget) && parsedBudget > 0 ? parsedBudget : 0 },
     };
   };
@@ -226,7 +315,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
     showNotice(fallback, 'error');
   };
 
-  const onSendDigest = async () => {
+  const onTestNotice = async (noticeId: string) => {
     if (!digest.integrationUids.length) {
       showNotice(t('speechAnalytics.settingsIntegrationRequired', 'Выберите интеграцию'), 'error');
       return;
@@ -239,13 +328,10 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
       }).unwrap();
       setRevision(saved.draft_revision);
       setHydrated(`${projectId}:${saved.draft_revision}`);
-      await sendDigest({ id: projectId }).unwrap().then((sent) => {
-        setRevision(sent.draftRevision);
-        setHydrated(`${projectId}:${sent.draftRevision}`);
-      });
-      showNotice(t('speechAnalytics.settingsDigestSent', 'Сообщение отправлено'), 'success');
+      await testNotice({ id: projectId, noticeId }).unwrap();
+      showNotice(t('speechAnalytics.settingsAlertSent', 'Сообщение отправлено'), 'success');
     } catch (error) {
-      notifyToast(error, t('speechAnalytics.settingsDigestFailed', 'Не удалось отправить сводку'));
+      notifyToast(error, t('speechAnalytics.settingsAlertFailed', 'Не удалось отправить уведомление'));
     }
   };
 
@@ -274,9 +360,16 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   const onSave = async () => {
     try {
       const saved = await saveDraft({ id: projectId, expectedRevision: revision, config: buildConfig() }).unwrap();
-      await publishProject({ id: projectId, operationKey: `settings-${saved.draft_revision}` }).unwrap();
       setRevision(saved.draft_revision);
-      toast.success(t('speechAnalytics.draftSaved', 'Черновик сохранён'));
+      setHydrated(`${projectId}:${saved.draft_revision}`);
+      if (!createsVersion || !skipPublish) {
+        await publishProject({ id: projectId, operationKey: `settings-${saved.draft_revision}` }).unwrap();
+        toast.success(t('speechAnalytics.publishedSaved', 'Сохранено и опубликовано'));
+      } else {
+        toast.success(project?.active_version_id
+          ? t('speechAnalytics.draftSavedKeepPublished', 'Черновик сохранён. Разбор идёт по опубликованной версии')
+          : t('speechAnalytics.draftSavedNoAnalysis', 'Черновик сохранён. Разбор не идёт, пока проект не опубликован'));
+      }
       onSaved?.();
     } catch {
       toast.error(t('speechAnalytics.saveFailed', 'Не удалось сохранить'));
@@ -287,12 +380,24 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   if (!project) return <Text>{t('speechAnalytics.projectNotFound', 'Проект не найден')}</Text>;
 
   const busy = saveState.isLoading || publishState.isLoading;
+  const editedSchedule = (digest.schedules ?? []).find((row) => row.id === editingScheduleId) ?? null;
+  const patchSchedule = (patch: Partial<SaDigestSchedule>) => {
+    if (!editedSchedule) return;
+    setDigest((current) => ({
+      ...current,
+      schedules: (current.schedules ?? []).map((row) => (
+        row.id === editedSchedule.id ? { ...row, ...patch } : row
+      )),
+    }));
+  };
+  const currentStamp = (versionsQuery.data ?? []).find((version) => version.current)?.metricStamp;
+  const createsVersion = !versionsQuery.isLoading && (!currentStamp || metricStampOf(buildConfig()) !== currentStamp);
 
   return (
     <div className={cls.shell} data-testid="sa-project-settings">
       <DialogHeader className={cls.header}>
         <DialogTitle>{name.trim() || t('speechAnalytics.settingsTitle', 'Настройки проекта')}</DialogTitle>
-        <Text variant="muted">{t('speechAnalytics.settingsSubtitle', 'Промпт, метрики, темы и уведомления этого проекта')}</Text>
+        <Text variant="muted" className={cls.subtitle}>{t('speechAnalytics.settingsSubtitle', 'Промпт, метрики, темы и уведомления этого проекта')}</Text>
       </DialogHeader>
       <Tabs value={tab} onValueChange={setTab} className={cls.tabs}>
         <TabsList aria-label={t('speechAnalytics.settingsTitle', 'Настройки проекта')}>
@@ -301,45 +406,98 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
           <TabsTrigger value="topics">{t('speechAnalytics.settingsCallTopics', 'Темы звонков')}</TabsTrigger>
           <TabsTrigger value="webhook">{t('speechAnalytics.settingsWebhooks', 'Webhooks')}</TabsTrigger>
           <TabsTrigger value="notifications">{t('speechAnalytics.settingsNotifications', 'Уведомления')}</TabsTrigger>
+          <TabsTrigger value="versions">{t('speechAnalytics.settingsVersions', 'Версии')}</TabsTrigger>
+          {speechModels?.projectOverride ? (
+            <TabsTrigger value="models">{t('speechAnalytics.settingsModels', 'Модели')}</TabsTrigger>
+          ) : null}
         </TabsList>
         <div className={cls.formBody}>
-        <TabsContent value="general">
-        <VStack gap="12" max>
-          <VStack gap="4" max>
-            <Label htmlFor="sa-settings-name">{t('speechAnalytics.projectName', 'Название проекта')}</Label>
-            <Input id="sa-settings-name" value={name} onChange={(e) => setName(e.target.value)} />
-          </VStack>
-          <VStack gap="4" max>
-            <Label htmlFor="sa-settings-description">{t('speechAnalytics.wizardProjectDescription', 'Описание проекта')}</Label>
-            <Input id="sa-settings-description" value={description} onChange={(e) => setDescription(e.target.value)} />
-          </VStack>
-          <VStack gap="4" max>
+        <TabsContent value="general" className={cls.generalPanel}>
+        <VStack gap="12" max className={cls.generalFields}>
+          <div className={cls.identity}>
+            <VStack gap="4" max>
+              <Label htmlFor="sa-settings-name">{t('speechAnalytics.projectName', 'Название проекта')}</Label>
+              <Input id="sa-settings-name" value={name} onChange={(e) => setName(e.target.value)} />
+            </VStack>
+            <VStack gap="4" max>
+              <Label htmlFor="sa-settings-description">{t('speechAnalytics.wizardProjectDescription', 'Описание проекта')}</Label>
+              <Input id="sa-settings-description" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </VStack>
+          </div>
+          <VStack gap="4" max className={cls.promptField}>
             <Label htmlFor="sa-settings-prompt">{t('speechAnalytics.settingsSystemPrompt', 'Системный промпт')}</Label>
-            <Textarea id="sa-settings-prompt" rows={4} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} />
+            <Textarea
+              id="sa-settings-prompt"
+              className={`${cls.promptArea} min-h-0 h-full flex-1`}
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+            />
           </VStack>
         </VStack>
         </TabsContent>
 
         <TabsContent value="topics">
           <VStack gap="12" max>
-          <Text variant="muted">{t('speechAnalytics.wizardTopicsHint', 'Темы - метки для звонков. При анализе ИИ выбирает подходящие темы из справочника по смыслу разговора.')}</Text>
-          {topics.map((tag, index) => (
-            <Card key={tag.id} className={cls.nested}>
+          <Text variant="muted" className={cls.hint}>{t('speechAnalytics.wizardTopicsHint', 'Темы - метки для звонков. При анализе ИИ выбирает подходящие темы из справочника по смыслу разговора.')}</Text>
+          {topics.map((tag, index) => {
+            const topicOpen = openTopics[tag.id] === true;
+            return (
+            <Card key={tag.id} className={`${cls.nested} ${cls.metricCard}`}>
               <VStack gap="8" max>
-                <HStack justify="between" max>
-                  <Text>{tag.name || t('speechAnalytics.wizardNewTopic', 'Новая тема')}</Text>
-                  <Button type="button" variant="outline" onClick={() => setPendingTopic(index)}>{t('common.delete', 'Удалить')}</Button>
-                </HStack>
+                <div className={cls.metricHeadRow}>
+                  <button
+                    type="button"
+                    className={cls.metricHead}
+                    aria-expanded={topicOpen}
+                    onClick={() => setOpenTopics((prev) => ({ ...prev, [tag.id]: !topicOpen }))}
+                  >
+                    <span className={cls.metricHeadMain}>
+                      {topicOpen ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                      <span className={cls.itemTitle}>{tag.name || t('speechAnalytics.wizardNewTopic', 'Новая тема')}</span>
+                    </span>
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={`${cls.deleteBtn} text-destructive hover:text-destructive hover:bg-destructive/10`}
+                    aria-label={t('common.delete', 'Удалить')}
+                    onClick={() => setPendingTopic(index)}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+                {topicOpen ? (
+                <>
                 <Label>{t('speechAnalytics.wizardTopicName', 'Название темы')}</Label>
                 <Input value={tag.name} onChange={(e) => setTopics((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} />
                 <Label>{t('speechAnalytics.wizardTopicWhen', 'Описание (когда ставить тему)')}</Label>
                 <Textarea rows={2} value={tag.description ?? ''} onChange={(e) => setTopics((prev) => prev.map((row, i) => (i === index ? { ...row, description: e.target.value } : row)))} />
-                <Label>{t('speechAnalytics.wizardTopicPhrases', 'Формулировки (необязательно)')}</Label>
-                <Input value={tag.aliases.join(', ')} onChange={(e) => setTopics((prev) => prev.map((row, i) => (i === index ? { ...row, aliases: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) } : row)))} />
+                <HStack gap="4" align="center">
+                  <Label>{t('speechAnalytics.wizardTopicPhrases', 'Формулировки (необязательно)')}</Label>
+                  <InfoTooltip text={t('speechAnalytics.settingsTopicPhrasesTooltip', 'Необязательно. Слова и фразы, которые могут прозвучать в таком звонке. ИИ использует их как подсказку, точное совпадение не нужно.\nНапример: возврат, вернуть товар, обмен')} />
+                </HStack>
+                <Input
+                  value={aliasDraft[tag.id] ?? tag.aliases.join(', ')}
+                  placeholder={t('speechAnalytics.wizardTopicPhrasesPlaceholder', 'например: возврат, вернуть товар, обмен')}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setAliasDraft((prev) => ({ ...prev, [tag.id]: raw }));
+                    const aliases = raw.split(',').map((part) => part.trim()).filter(Boolean);
+                    setTopics((prev) => prev.map((row, i) => (i === index ? { ...row, aliases } : row)));
+                  }}
+                />
+                </>
+                ) : null}
               </VStack>
             </Card>
-          ))}
-          <Button type="button" variant="outline" onClick={() => setTopics((prev) => [...prev, { id: `tag_${Date.now()}`, name: '', aliases: [], description: '' }])}>
+            );
+          })}
+          <Button type="button" variant="outline" onClick={() => {
+            const id = `tag_${Date.now()}`;
+            setOpenTopics((prev) => ({ ...prev, [id]: true }));
+            setTopics((prev) => [...prev, { id, name: '', aliases: [], description: '' }]);
+          }}>
             {t('speechAnalytics.wizardAddTopic', 'Добавить тему')}
           </Button>
           </VStack>
@@ -347,14 +505,194 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
 
         <TabsContent value="metrics">
           <VStack gap="12" max>
-          <Text variant="muted">{t('speechAnalytics.settingsMetricsHint', 'Один набор метрик проекта. Разбор смотрит на название, тип ответа и описание, без деления на стандартные и свои.')}</Text>
-          {metrics.map((metric, index) => (
-            <Card key={`${metric.id}-${index}`} className={cls.nested}>
+          <Text variant="muted" className={cls.hint}>{t('speechAnalytics.settingsInsightsHint', 'Саммари, удовлетворённость и тональность есть в каждом проекте. Ниже задаются шкала и правила, по которым модель их ставит.')}</Text>
+          <Card className={`${cls.nested} ${cls.metricCard}`}>
+            <VStack gap="8" max>
+              <div className={cls.metricHeadRow}>
+                <button
+                  type="button"
+                  className={cls.metricHead}
+                  aria-expanded={openInsights.summary}
+                  onClick={() => setOpenInsights((current) => ({ ...current, summary: !current.summary }))}
+                >
+                  <span className={cls.metricHeadMain}>
+                    {openInsights.summary ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                    <span className={cls.itemTitle}>{t('speechAnalytics.insightSummary', 'Саммари')}</span>
+                  </span>
+                </button>
+                <Switch
+                  checked={insights.summary.enabled}
+                  aria-label={t('speechAnalytics.insightEnabled', 'Включена')}
+                  onClick={(event) => event.stopPropagation()}
+                  onCheckedChange={(checked) => setInsights((current) => ({
+                    ...current,
+                    summary: { ...current.summary, enabled: checked },
+                  }))}
+                />
+              </div>
+              {openInsights.summary ? (
+                <>
+                  <Label htmlFor="sa-summary-instruction">{t('speechAnalytics.wizardLlmDescription', 'Описание для LLM')}</Label>
+                  <Textarea
+                    id="sa-summary-instruction"
+                    rows={2}
+                    value={insights.summary.instruction}
+                    onChange={(event) => setInsights((current) => ({
+                      ...current,
+                      summary: { instruction: event.target.value },
+                    }))}
+                  />
+                </>
+              ) : null}
+            </VStack>
+          </Card>
+          <Card className={`${cls.nested} ${cls.metricCard}`}>
+            <VStack gap="8" max>
+              <div className={cls.metricHeadRow}>
+                <button
+                  type="button"
+                  className={cls.metricHead}
+                  aria-expanded={openInsights.csat}
+                  onClick={() => setOpenInsights((current) => ({ ...current, csat: !current.csat }))}
+                >
+                  <span className={cls.metricHeadMain}>
+                    {openInsights.csat ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                    <span className={cls.itemTitle}>{t('speechAnalytics.insightCsat', 'Удовлетворённость клиента (CSAT)')}</span>
+                  </span>
+                  {openInsights.csat ? null : (
+                    <span className={cls.metricType}>{`${insights.csat.min}-${insights.csat.max}`}</span>
+                  )}
+                </button>
+                <Switch
+                  checked={insights.csat.enabled}
+                  aria-label={t('speechAnalytics.insightEnabled', 'Включена')}
+                  onClick={(event) => event.stopPropagation()}
+                  onCheckedChange={(checked) => setInsights((current) => ({
+                    ...current,
+                    csat: { ...current.csat, enabled: checked },
+                  }))}
+                />
+              </div>
+              {openInsights.csat ? (
+                <>
+                  <HStack gap="8" align="end">
+                    <VStack gap="4">
+                      <Label htmlFor="sa-csat-min">{t('speechAnalytics.settingsScaleFrom', 'От')}</Label>
+                      <Input id="sa-csat-min" type="number" value={insights.csat.min} onChange={(event) => setInsights((current) => ({ ...current, csat: { ...current.csat, min: Number(event.target.value) } }))} />
+                    </VStack>
+                    <VStack gap="4">
+                      <Label htmlFor="sa-csat-max">{t('speechAnalytics.settingsScaleTo', 'До')}</Label>
+                      <Input id="sa-csat-max" type="number" value={insights.csat.max} onChange={(event) => setInsights((current) => ({ ...current, csat: { ...current.csat, max: Number(event.target.value) } }))} />
+                    </VStack>
+                  </HStack>
+                  <Label htmlFor="sa-csat-low">{t('speechAnalytics.insightLowLabel', 'Подпись нижней границы')}</Label>
+                  <Input id="sa-csat-low" value={insights.csat.lowLabel} onChange={(event) => setInsights((current) => ({ ...current, csat: { ...current.csat, lowLabel: event.target.value } }))} />
+                  <Label htmlFor="sa-csat-high">{t('speechAnalytics.insightHighLabel', 'Подпись верхней границы')}</Label>
+                  <Input id="sa-csat-high" value={insights.csat.highLabel} onChange={(event) => setInsights((current) => ({ ...current, csat: { ...current.csat, highLabel: event.target.value } }))} />
+                  <Label htmlFor="sa-csat-instruction">{t('speechAnalytics.wizardLlmDescription', 'Описание для LLM')}</Label>
+                  <Textarea id="sa-csat-instruction" rows={2} value={insights.csat.instruction} onChange={(event) => setInsights((current) => ({ ...current, csat: { ...current.csat, instruction: event.target.value } }))} />
+                </>
+              ) : null}
+            </VStack>
+          </Card>
+          <Card className={`${cls.nested} ${cls.metricCard}`}>
+            <VStack gap="8" max>
+              <div className={cls.metricHeadRow}>
+                <button
+                  type="button"
+                  className={cls.metricHead}
+                  aria-expanded={openInsights.sentiment}
+                  onClick={() => setOpenInsights((current) => ({ ...current, sentiment: !current.sentiment }))}
+                >
+                  <span className={cls.metricHeadMain}>
+                    {openInsights.sentiment ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                    <span className={cls.itemTitle}>{t('speechAnalytics.insightSentiment', 'Тональность')}</span>
+                  </span>
+                </button>
+                <Switch
+                  checked={insights.sentiment.enabled}
+                  aria-label={t('speechAnalytics.insightEnabled', 'Включена')}
+                  onClick={(event) => event.stopPropagation()}
+                  onCheckedChange={(checked) => setInsights((current) => ({
+                    ...current,
+                    sentiment: { ...current.sentiment, enabled: checked },
+                  }))}
+                />
+              </div>
+              {openInsights.sentiment ? (
+                <>
+                  <Label htmlFor="sa-sentiment-instruction">{t('speechAnalytics.wizardLlmDescription', 'Описание для LLM')}</Label>
+                  <Textarea id="sa-sentiment-instruction" rows={2} value={insights.sentiment.instruction} onChange={(event) => setInsights((current) => ({ ...current, sentiment: { ...current.sentiment, instruction: event.target.value } }))} />
+                  {insights.sentiment.values.map((row, index) => (
+                    <VStack key={row.id} gap="4" max>
+                      <Text variant="small">{row.id}</Text>
+                      <Input
+                        aria-label={t('speechAnalytics.insightSentimentName', 'Название тональности')}
+                        value={row.name}
+                        onChange={(event) => setInsights((current) => ({
+                          ...current,
+                          sentiment: {
+                            ...current.sentiment,
+                            values: current.sentiment.values.map((item, itemIndex) => (
+                              itemIndex === index ? { ...item, name: event.target.value } : item
+                            )),
+                          },
+                        }))}
+                      />
+                      <Textarea
+                        rows={2}
+                        aria-label={t('speechAnalytics.wizardLlmDescription', 'Описание для LLM')}
+                        value={row.description}
+                        onChange={(event) => setInsights((current) => ({
+                          ...current,
+                          sentiment: {
+                            ...current.sentiment,
+                            values: current.sentiment.values.map((item, itemIndex) => (
+                              itemIndex === index ? { ...item, description: event.target.value } : item
+                            )),
+                          },
+                        }))}
+                      />
+                    </VStack>
+                  ))}
+                </>
+              ) : null}
+            </VStack>
+          </Card>
+          <Text variant="muted" className={cls.hint}>{t('speechAnalytics.settingsMetricsHint', 'Набор метрик проекта. Разбор смотрит на название, тип ответа и описание.')}</Text>
+          {metrics.map((metric, index) => {
+            const metricOpen = openMetrics[metric.id] === true;
+            return (
+            <Card key={`${metric.id}-${index}`} className={`${cls.nested} ${cls.metricCard}`}>
               <VStack gap="8" max>
-                <HStack justify="between" max>
-                  <Text>{metric.name || t('speechAnalytics.wizardNewMetric', 'Новая метрика')}</Text>
-                  <Button type="button" variant="outline" onClick={() => setPendingMetric(index)}>{t('common.delete', 'Удалить')}</Button>
-                </HStack>
+                <div className={cls.metricHeadRow}>
+                  <button
+                    type="button"
+                    className={cls.metricHead}
+                    aria-expanded={metricOpen}
+                    onClick={() => setOpenMetrics((prev) => ({ ...prev, [metric.id]: !metricOpen }))}
+                  >
+                    <span className={cls.metricHeadMain}>
+                      {metricOpen ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                      <span className={cls.itemTitle}>{metric.name || t('speechAnalytics.wizardNewMetric', 'Новая метрика')}</span>
+                    </span>
+                    {metricOpen ? null : (
+                      <span className={cls.metricType}>{METRIC_TYPE_LABELS[metric.type]}</span>
+                    )}
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={`${cls.deleteBtn} text-destructive hover:text-destructive hover:bg-destructive/10`}
+                    aria-label={t('common.delete', 'Удалить')}
+                    onClick={() => setPendingMetric(index)}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+                {metricOpen ? (
+                <>
                 <Label>{t('speechAnalytics.wizardMetricName', 'Название метрики')}</Label>
                 <Input value={metric.name} onChange={(e) => setMetrics((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value, sourceScaleId: null } : row)))} />
                 <Label>{t('speechAnalytics.wizardMetricType', 'Тип метрики')}</Label>
@@ -426,10 +764,17 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                 ) : null}
                 <Label>{t('speechAnalytics.wizardLlmDescription', 'Описание для LLM')}</Label>
                 <Textarea rows={2} value={metric.description} onChange={(e) => setMetrics((prev) => prev.map((row, i) => (i === index ? { ...row, description: e.target.value, sourceScaleId: null } : row)))} />
+                </>
+                ) : null}
               </VStack>
             </Card>
-          ))}
-          <Button type="button" variant="outline" onClick={() => setMetrics((prev) => [...prev, { id: `metric_${Date.now()}`, name: '', type: 'boolean', description: '', polarity: 'neutral', sourceScaleId: null }])}>
+            );
+          })}
+          <Button type="button" variant="outline" onClick={() => {
+            const id = `metric_${Date.now()}`;
+            setOpenMetrics((prev) => ({ ...prev, [id]: true }));
+            setMetrics((prev) => [...prev, { id, name: '', type: 'boolean', description: '', polarity: 'neutral', sourceScaleId: null }]);
+          }}>
             {t('speechAnalytics.wizardAddMetric', 'Добавить метрику')}
           </Button>
           </VStack>
@@ -453,11 +798,22 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
         <TabsContent value="notifications">
           <VStack gap="12" max>
           <div className={cls.group}>
-            <Text>{t('speechAnalytics.settingsWhere', 'Куда уведомлять')}</Text>
-            <Link to="/integrations" target="_blank" rel="noopener noreferrer" className={cls.integrationsLink}>
-              <Text variant="muted">{t('speechAnalytics.settingsWhereHint', 'Интеграция из раздела уведомлений.')}</Text>
-            </Link>
-            <Label htmlFor="sa-settings-integration">{t('speechAnalytics.settingsIntegration', 'Интеграция')}</Label>
+            <button type="button" className={cls.metricHead} aria-expanded={openNotify.where} onClick={() => setOpenNotify((current) => ({ ...current, where: !current.where }))}>
+              <span className={cls.metricHeadMain}>
+                {openNotify.where ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                <span className={cls.groupTitle}>{t('speechAnalytics.settingsWhere', 'Куда уведомлять')}</span>
+              </span>
+            </button>
+            {openNotify.where ? (
+            <>
+            <HStack gap="8" align="center">
+              <Label htmlFor="sa-settings-integration">
+                {t('speechAnalytics.settingsIntegration', 'Интеграция')}
+              </Label>
+              <Link to="/integrations" className={cls.integrationsLink}>
+                {t('speechAnalytics.settingsIntegrationSetup', 'настроить')}
+              </Link>
+            </HStack>
             <Select
               id="sa-settings-integration"
               value={digest.integrationUids[0] != null ? String(digest.integrationUids[0]) : ''}
@@ -472,59 +828,364 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                 <option key={row.uid} value={row.uid}>{row.name}</option>
               ))}
             </Select>
-          </div>
-          <div className={cls.group}>
-            <Text>{t('speechAnalytics.settingsWhen', 'Расписание')}</Text>
-            <HStack gap="8">
-              <Checkbox checked={digest.enabled} onChange={() => setDigest((d) => ({ ...d, enabled: !d.enabled }))} />
-              <Text>{t('speechAnalytics.settingsDigestEnabled', 'Включить расписание')}</Text>
-            </HStack>
-            {digest.enabled ? (
-              <Button type="button" variant="outline" onClick={() => setScheduleOpen(true)}>
-                {t('speechAnalytics.settingsScheduleOpen', 'Настроить расписание')}
-              </Button>
+            </>
             ) : null}
           </div>
           <div className={cls.group}>
-            <Text>{t('speechAnalytics.settingsWhat', 'Что отправлять')}</Text>
-            <Text>{t('speechAnalytics.settingsDigest', 'Сводка')}</Text>
-            <Label>{t('speechAnalytics.settingsDigestWindow', 'Период в сводке')}</Label>
-            <Select value={digest.reportWindow} onChange={(e) => setDigest((d) => ({ ...d, reportWindow: e.target.value as SaDigestConfig['reportWindow'] }))}>
-              <option value="last_7_days">{t('speechAnalytics.settingsDigestWindow7', 'Последние 7 дней')}</option>
-              <option value="last_30_days">{t('speechAnalytics.settingsDigestWindow30', 'Последние 30 дней')}</option>
-              <option value="previous_calendar_month">{t('speechAnalytics.settingsDigestWindowMonth', 'Прошлый календарный месяц')}</option>
-            </Select>
-            <Button type="button" variant="outline" onClick={() => void onSendDigest()}>{t('speechAnalytics.settingsDigestSend', 'Отправить сейчас')}</Button>
-            <Text>{t('speechAnalytics.settingsAlerts', 'Критичные события')}</Text>
-            <HStack gap="8"><Checkbox checked={alerts.enabled} onChange={() => setAlerts((a) => ({ ...a, enabled: !a.enabled }))} /><Text>{t('speechAnalytics.settingsAlertEnabled', 'Включить критичные уведомления')}</Text></HStack>
-            <Text>{t('speechAnalytics.settingsAlertCsat', 'Падение CSAT')}</Text>
-            <HStack gap="8">
-              <Input aria-label={t('speechAnalytics.settingsAlertDrop', 'Порог падения, %')} type="number" value={alerts.csatDrop.dropPct} onChange={(e) => setAlerts((a) => ({ ...a, csatDrop: { ...a.csatDrop, dropPct: Number(e.target.value) } }))} />
-              <Input aria-label={t('speechAnalytics.settingsAlertWindow', 'Окно, дней')} type="number" value={alerts.csatDrop.windowDays} onChange={(e) => setAlerts((a) => ({ ...a, csatDrop: { ...a.csatDrop, windowDays: Number(e.target.value) } }))} />
-              <Input aria-label={t('speechAnalytics.settingsAlertMinCalls', 'Мин. звонков')} type="number" value={alerts.csatDrop.minCalls} onChange={(e) => setAlerts((a) => ({ ...a, csatDrop: { ...a.csatDrop, minCalls: Number(e.target.value) } }))} />
-            </HStack>
-            <Text>{t('speechAnalytics.settingsAlertNegative', 'Рост негатива')}</Text>
-            <HStack gap="8">
-              <Input aria-label={t('speechAnalytics.settingsAlertSpike', 'Рост, п.п.')} type="number" value={alerts.negativeSpike.spikePp} onChange={(e) => setAlerts((a) => ({ ...a, negativeSpike: { ...a.negativeSpike, spikePp: Number(e.target.value) } }))} />
-              <Input aria-label={t('speechAnalytics.settingsAlertWindow', 'Окно, дней')} type="number" value={alerts.negativeSpike.windowDays} onChange={(e) => setAlerts((a) => ({ ...a, negativeSpike: { ...a.negativeSpike, windowDays: Number(e.target.value) } }))} />
-              <Input aria-label={t('speechAnalytics.settingsAlertMinCalls', 'Мин. звонков')} type="number" value={alerts.negativeSpike.minCalls} onChange={(e) => setAlerts((a) => ({ ...a, negativeSpike: { ...a.negativeSpike, minCalls: Number(e.target.value) } }))} />
-            </HStack>
-            <Text>{t('speechAnalytics.settingsBudget', 'Порог бюджета')}</Text>
-            <Label htmlFor="sa-settings-budget">{t('speechAnalytics.settingsBudgetLabel', 'USD (0 - без лимита)')}</Label>
-            <Input id="sa-settings-budget" type="number" value={budget} onChange={(e) => setBudget(e.target.value)} />
-            <HStack gap="8"><Checkbox checked={alerts.budgetExceeded.enabled} onChange={() => setAlerts((a) => ({ ...a, budgetExceeded: { enabled: !a.budgetExceeded.enabled } }))} /><Text>{t('speechAnalytics.settingsAlertBudget', 'Превышение бюджета')}</Text></HStack>
-            <Button type="button" variant="outline" onClick={() => void onTestAlert()}>{t('speechAnalytics.settingsAlertTest', 'Отправить тест')}</Button>
+            <button type="button" className={cls.metricHead} aria-expanded={openNotify.when} onClick={() => setOpenNotify((current) => ({ ...current, when: !current.when }))}>
+              <span className={cls.metricHeadMain}>
+                {openNotify.when ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                <span className={cls.groupTitle}>{t('speechAnalytics.settingsWhen', 'Расписание')}</span>
+              </span>
+            </button>
+            {openNotify.when ? (
+            <>
+            {(digest.schedules ?? []).map((slot) => (
+              <div key={slot.id} className={cls.metricHeadRow}>
+                <button
+                  type="button"
+                  className={cls.metricHead}
+                  onClick={() => {
+                    setEditingScheduleId(slot.id);
+                    setScheduleOpen(true);
+                  }}
+                >
+                  <span className={cls.itemTitle}>{scheduleTitle(t, slot)}</span>
+                </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={`${cls.deleteBtn} text-destructive hover:text-destructive hover:bg-destructive/10`}
+                  aria-label={t('common.delete', 'Удалить')}
+                  onClick={() => setDigest((current) => ({
+                    ...current,
+                    schedules: (current.schedules ?? []).filter((row) => row.id !== slot.id),
+                  }))}
+                >
+                  <Trash2 size={16} />
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const id = `sched_${Date.now()}`;
+                setDigest((current) => ({
+                  ...current,
+                  enabled: true,
+                  schedules: [
+                    ...(current.schedules ?? []),
+                    { id, schedule: 'monthly', weeklyDay: 1, monthlyDay: 1, sendHour: 9 },
+                  ],
+                }));
+                setEditingScheduleId(id);
+                setScheduleOpen(true);
+              }}
+            >
+              {t('speechAnalytics.settingsAddSchedule', 'Добавить расписание')}
+            </Button>
+            </>
+            ) : null}
+          </div>
+          <div className={cls.group}>
+            <button type="button" className={cls.metricHead} aria-expanded={openNotify.what} onClick={() => setOpenNotify((current) => ({ ...current, what: !current.what }))}>
+              <span className={cls.metricHeadMain}>
+                {openNotify.what ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                <span className={cls.groupTitle}>{t('speechAnalytics.settingsWhat', 'Что отправлять')}</span>
+              </span>
+            </button>
+            {openNotify.what ? (
+            <>
+            {notices.length > 0 ? (
+              <Text variant="muted" className={cls.hint}>{t('speechAnalytics.settingsNoticesHint', 'Каждая строка - отдельная отправка. Сводки уходят по расписанию, критические - когда условие выполнено.')}</Text>
+            ) : null}
+            {notices.map((notice) => {
+              const open = openNotices[notice.id] === true;
+              const blocks = { ...defaultDigestBlocks(), ...(notice.blocks ?? {}) };
+              const patch = (next: Partial<SaNotice>) => setNotices((current) => current.map((row) => (
+                row.id === notice.id ? { ...row, ...next } : row
+              )));
+              return (
+                <Card key={notice.id} className={`${cls.nested} ${cls.metricCard}`}>
+                  <VStack gap="8" max>
+                    <div className={cls.metricHeadRow}>
+                      <button
+                        type="button"
+                        className={cls.metricHead}
+                        aria-expanded={open}
+                        onClick={() => setOpenNotices((current) => ({ ...current, [notice.id]: !open }))}
+                      >
+                        <span className={cls.metricHeadMain}>
+                          {open ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                          <span className={cls.itemTitle}>{notice.title || t(`speechAnalytics.noticeKind.${notice.kind}`, notice.kind)}</span>
+                        </span>
+                        {open ? null : <span className={cls.metricType}>{t(`speechAnalytics.noticeKind.${notice.kind}`, notice.kind)}</span>}
+                      </button>
+                      <Switch
+                        checked={notice.enabled}
+                        aria-label={t('speechAnalytics.insightEnabled', 'Включена')}
+                        onClick={(event) => event.stopPropagation()}
+                        onCheckedChange={(checked) => patch({ enabled: checked })}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={`${cls.deleteBtn} text-destructive hover:text-destructive hover:bg-destructive/10`}
+                        aria-label={t('common.delete', 'Удалить')}
+                        onClick={() => setNotices((current) => current.filter((row) => row.id !== notice.id))}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                    {open ? (
+                      <>
+                        <Label>{t('speechAnalytics.noticeTitle', 'Название')}</Label>
+                        <Input value={notice.title} onChange={(event) => patch({ title: event.target.value })} />
+                        {notice.kind === 'digest' ? (
+                          <>
+                            <HStack gap="4" align="center">
+                              <Label htmlFor={`sa-digest-window-${notice.id}`}>{t('speechAnalytics.settingsDigestWindow', 'Период в сводке')}</Label>
+                              <InfoTooltip text={t('speechAnalytics.settingsDigestWindowHint', 'Какие звонки попадут в документ. Последние 7 или 30 дней считаются от момента отправки. Прошлый месяц - календарный, без текущего.')} />
+                            </HStack>
+                            <Select id={`sa-digest-window-${notice.id}`} value={notice.reportWindow ?? 'last_7_days'} onChange={(event) => patch({ reportWindow: event.target.value as SaNotice['reportWindow'] })}>
+                              <option value="last_7_days">{t('speechAnalytics.settingsDigestWindow7', 'Последние 7 дней')}</option>
+                              <option value="last_30_days">{t('speechAnalytics.settingsDigestWindow30', 'Последние 30 дней')}</option>
+                              <option value="previous_calendar_month">{t('speechAnalytics.settingsDigestWindowMonth', 'Прошлый календарный месяц')}</option>
+                            </Select>
+                            <HStack gap="4" align="center">
+                              <Text>{t('speechAnalytics.noticeBlocksTitle', 'Что включить в документ')}</Text>
+                              <InfoTooltip text={t('speechAnalytics.noticeBlocksHint', 'В текст и HTML попадут только отмеченные блоки. Снятая галка не удаляет данные из журнала.')} />
+                            </HStack>
+                            {([
+                              ['calls', 'speechAnalytics.noticeBlockCalls', 'Число звонков', 'speechAnalytics.noticeBlockCallsHint', 'Сколько разговоров попало в выбранный период.'],
+                              ['averageScore', 'speechAnalytics.noticeBlockScore', 'Средняя оценка', 'speechAnalytics.noticeBlockScoreHint', 'Среднее по оценкам звонков. Звонки с плохим распознаванием в среднее не входят.'],
+                              ['csat', 'speechAnalytics.noticeBlockCsat', 'CSAT', 'speechAnalytics.noticeBlockCsatHint', 'Средняя удовлетворённость клиента по шкале проекта.'],
+                              ['sentiment', 'speechAnalytics.noticeBlockSentiment', 'Тональность', 'speechAnalytics.noticeBlockSentimentHint', 'Сколько звонков с позитивной, нейтральной и негативной тональностью.'],
+                              ['success', 'speechAnalytics.noticeBlockSuccess', 'Успех', 'speechAnalytics.noticeBlockSuccessHint', 'Доля звонков, которые модель отметила как успешные.'],
+                              ['cost', 'speechAnalytics.noticeBlockCost', 'Стоимость', 'speechAnalytics.noticeBlockCostHint', 'Сумма стоимости последних разборов за период. Это расчёт, не списание.'],
+                              ['metrics', 'speechAnalytics.noticeBlockMetrics', 'Метрики проекта', 'speechAnalytics.noticeBlockMetricsHint', 'Среднее по каждой метрике, которая задана в проекте.'],
+                              ['topics', 'speechAnalytics.noticeBlockTopics', 'Темы', 'speechAnalytics.noticeBlockTopicsHint', 'Сколько раз встретилась каждая тема звонка из справочника проекта.'],
+                            ] as const).map(([key, i18nKey, fallback, hintKey, hintFallback]) => (
+                              <HStack key={key} gap="8" align="center">
+                                <Checkbox
+                                  checked={blocks[key]}
+                                  onChange={() => patch({ blocks: { ...blocks, [key]: !blocks[key] } })}
+                                />
+                                <Text>{t(i18nKey, fallback)}</Text>
+                                <InfoTooltip text={t(hintKey, hintFallback)} />
+                              </HStack>
+                            ))}
+                          </>
+                        ) : null}
+                        {notice.kind === 'csat_drop' ? (
+                          <HStack gap="8" align="start">
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-csat-drop-${notice.id}`}>{t('speechAnalytics.settingsAlertDrop', 'Порог падения, %')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.settingsAlertDropHint', 'На сколько процентов средняя оценка за окно должна упасть относительно предыдущего такого же окна. 20 значит: было 5, стало 4 или ниже.')} />
+                              </HStack>
+                              <Input id={`sa-csat-drop-${notice.id}`} type="number" value={notice.dropPct ?? 20} onChange={(event) => patch({ dropPct: Number(event.target.value) })} />
+                            </VStack>
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-csat-window-${notice.id}`}>{t('speechAnalytics.settingsAlertWindow', 'Окно, дней')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.settingsAlertWindowHint', 'Сколько последних дней сравнивать с таким же периодом перед ними. 7 значит: эта неделя против предыдущей.')} />
+                              </HStack>
+                              <Input id={`sa-csat-window-${notice.id}`} type="number" value={notice.windowDays ?? 7} onChange={(event) => patch({ windowDays: Number(event.target.value) })} />
+                            </VStack>
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-csat-min-${notice.id}`}>{t('speechAnalytics.settingsAlertMinCalls', 'Мин. звонков')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.settingsAlertMinCallsHint', 'Меньше этого числа звонков в окне уведомление не отправится. 5 отсекает случайное падение на одном-двух звонках.')} />
+                              </HStack>
+                              <Input id={`sa-csat-min-${notice.id}`} type="number" value={notice.minCalls ?? 5} onChange={(event) => patch({ minCalls: Number(event.target.value) })} />
+                            </VStack>
+                          </HStack>
+                        ) : null}
+                        {notice.kind === 'negative_spike' ? (
+                          <HStack gap="8" align="start">
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-spike-${notice.id}`}>{t('speechAnalytics.settingsAlertSpike', 'Рост, п.п.')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.settingsAlertSpikeHint', 'На сколько процентных пунктов доля негативных звонков должна вырасти относительно предыдущего окна. 15 значит: было 10%, стало 25% или выше.')} />
+                              </HStack>
+                              <Input id={`sa-spike-${notice.id}`} type="number" value={notice.spikePp ?? 15} onChange={(event) => patch({ spikePp: Number(event.target.value) })} />
+                            </VStack>
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-spike-window-${notice.id}`}>{t('speechAnalytics.settingsAlertWindow', 'Окно, дней')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.settingsAlertWindowHint', 'Сколько последних дней сравнивать с таким же периодом перед ними. 7 значит: эта неделя против предыдущей.')} />
+                              </HStack>
+                              <Input id={`sa-spike-window-${notice.id}`} type="number" value={notice.windowDays ?? 7} onChange={(event) => patch({ windowDays: Number(event.target.value) })} />
+                            </VStack>
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-spike-min-${notice.id}`}>{t('speechAnalytics.settingsAlertMinCalls', 'Мин. звонков')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.settingsAlertMinCallsHint', 'Меньше этого числа звонков в окне уведомление не отправится. 5 отсекает случайное падение на одном-двух звонках.')} />
+                              </HStack>
+                              <Input id={`sa-spike-min-${notice.id}`} type="number" value={notice.minCalls ?? 5} onChange={(event) => patch({ minCalls: Number(event.target.value) })} />
+                            </VStack>
+                          </HStack>
+                        ) : null}
+                        {notice.kind === 'low_stt' ? (
+                          <HStack gap="8" align="start">
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-stt-${notice.id}`}>{t('speechAnalytics.noticeLowSttPct', 'Доля, %')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.noticeLowSttPctHint', 'Какая доля звонков в окне должна быть с плохим распознаванием. 30 значит: из 10 звонков хотя бы 3 разобраны плохо.')} />
+                              </HStack>
+                              <Input id={`sa-stt-${notice.id}`} type="number" value={notice.lowSttPct ?? 30} onChange={(event) => patch({ lowSttPct: Number(event.target.value) })} />
+                            </VStack>
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-stt-window-${notice.id}`}>{t('speechAnalytics.settingsAlertWindow', 'Окно, дней')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.settingsAlertWindowHint', 'Сколько последних дней сравнивать с таким же периодом перед ними. 7 значит: эта неделя против предыдущей.')} />
+                              </HStack>
+                              <Input id={`sa-stt-window-${notice.id}`} type="number" value={notice.windowDays ?? 7} onChange={(event) => patch({ windowDays: Number(event.target.value) })} />
+                            </VStack>
+                            <VStack gap="4" className={cls.row}>
+                              <HStack gap="4" align="center">
+                                <Label htmlFor={`sa-stt-min-${notice.id}`}>{t('speechAnalytics.settingsAlertMinCalls', 'Мин. звонков')}</Label>
+                                <InfoTooltip text={t('speechAnalytics.settingsAlertMinCallsHint', 'Меньше этого числа звонков в окне уведомление не отправится. 5 отсекает случайное падение на одном-двух звонках.')} />
+                              </HStack>
+                              <Input id={`sa-stt-min-${notice.id}`} type="number" value={notice.minCalls ?? 5} onChange={(event) => patch({ minCalls: Number(event.target.value) })} />
+                            </VStack>
+                          </HStack>
+                        ) : null}
+                        {notice.kind === 'budget' ? (
+                          <VStack gap="4" className={cls.row}>
+                            <HStack gap="4" align="center">
+                              <Label htmlFor={`sa-notice-budget-${notice.id}`}>{t('speechAnalytics.settingsBudgetLabel', 'Порог (0 - без лимита)')}</Label>
+                              <InfoTooltip text={t('speechAnalytics.noticeBudgetHint', 'Срабатывает, когда сумма стоимости разборов за текущий месяц выше этого числа. 0 отключает порог: уведомление не уйдёт.')} />
+                            </HStack>
+                            <Input
+                              id={`sa-notice-budget-${notice.id}`}
+                              type="number"
+                              value={notice.softLimit ?? 0}
+                              onChange={(event) => patch({ softLimit: Number(event.target.value) || 0 })}
+                            />
+                          </VStack>
+                        ) : null}
+                        <Button type="button" variant="outline" onClick={() => void onTestNotice(notice.id)}>
+                          {t('speechAnalytics.settingsAlertTest', 'Отправить тест')}
+                        </Button>
+                      </>
+                    ) : null}
+                  </VStack>
+                </Card>
+              );
+            })}
+            {addingNotice ? (
+              <Select
+                aria-label={t('speechAnalytics.noticeAddKind', 'Что добавить')}
+                value=""
+                onChange={(event) => {
+                  const kind = event.target.value as SaNoticeKind;
+                  if (!kind) return;
+                  const id = `notice_${Date.now()}`;
+                  const created: SaNotice = kind === 'digest'
+                    ? { id, kind, enabled: true, title: t('speechAnalytics.noticeKind.digest', 'Сводка'), reportWindow: 'last_7_days', blocks: defaultDigestBlocks() }
+                    : kind === 'csat_drop'
+                      ? { id, kind, enabled: true, title: t('speechAnalytics.noticeKind.csat_drop', 'Падение CSAT'), dropPct: 20, windowDays: 7, minCalls: 5 }
+                      : kind === 'negative_spike'
+                        ? { id, kind, enabled: true, title: t('speechAnalytics.noticeKind.negative_spike', 'Рост негатива'), spikePp: 15, windowDays: 7, minCalls: 5 }
+                        : kind === 'budget'
+                          ? { id, kind, enabled: true, title: t('speechAnalytics.noticeKind.budget', 'Превышение бюджета'), windowDays: 1, minCalls: 1, softLimit: 0 }
+                          : { id, kind, enabled: true, title: t('speechAnalytics.noticeKind.low_stt', 'Плохое распознавание'), lowSttPct: 30, windowDays: 7, minCalls: 5 };
+                  setNotices((current) => [...current, created]);
+                  setOpenNotices((current) => ({ ...current, [id]: true }));
+                  setAddingNotice(false);
+                }}
+              >
+                <option value="">{t('speechAnalytics.noticeAddKind', 'Выберите уведомление')}</option>
+                <option value="digest">{t('speechAnalytics.noticeKind.digest', 'Сводка')}</option>
+                <option value="csat_drop">{t('speechAnalytics.noticeKind.csat_drop', 'Падение CSAT')}</option>
+                <option value="negative_spike">{t('speechAnalytics.noticeKind.negative_spike', 'Рост негатива')}</option>
+                <option value="budget">{t('speechAnalytics.noticeKind.budget', 'Превышение бюджета')}</option>
+                <option value="low_stt">{t('speechAnalytics.noticeKind.low_stt', 'Плохое распознавание')}</option>
+              </Select>
+            ) : (
+              <Button type="button" variant="outline" onClick={() => setAddingNotice(true)}>
+                {t('speechAnalytics.noticeAdd', 'Добавить уведомление')}
+              </Button>
+            )}
             {notice ? (
               <Text className={notice.tone === 'success' ? cls.noticeSuccess : cls.noticeError}>
                 {notice.text}
               </Text>
             ) : null}
+            </>
+            ) : null}
           </div>
+          </VStack>
+        </TabsContent>
+
+        <TabsContent value="models">
+          <VStack gap="12" max>
+            <Text variant="muted" className={cls.hint}>
+              {t('speechAnalytics.settingsModelsHint', 'Модели этого проекта. Пустое значение берёт модель кабинета, а если её нет - модель платформы.')}
+            </Text>
+            <SpeechAnalyticsModelFields
+              idPrefix="project-speech"
+              providers={speechModels?.providers ?? []}
+              sttProviderUid={sttProviderUid}
+              llmProviderUid={llmProviderUid}
+              onSttChange={setSttProviderUid}
+              onLlmChange={setLlmProviderUid}
+            />
+          </VStack>
+        </TabsContent>
+
+        <TabsContent value="versions">
+          <VStack gap="12" max>
+            <Text variant="muted" className={cls.hint}>
+              {t('speechAnalytics.settingsVersionsHint', 'Версия - это сохранённые настройки проекта на момент публикации. Разбор идёт только по текущей. Возврат к прежней версии возвращает её промпт, метрики и темы и снова включает их в разбор.')}
+            </Text>
+            {(versionsQuery.data ?? []).length === 0 ? (
+              <Text variant="muted">{t('speechAnalytics.settingsNoVersions', 'Опубликованных версий ещё нет')}</Text>
+            ) : (versionsQuery.data ?? []).map((version) => (
+              <div key={version.id} className={cls.nested}>
+                <HStack justify="between" align="center" max>
+                  <VStack gap="4">
+                    <Text className={cls.itemTitle}>
+                      {t('speechAnalytics.analysisVersion', { version: version.versionNo, defaultValue: 'Версия {{version}}' })}
+                      {version.current ? ` · ${t('speechAnalytics.versionCurrent', 'текущая')}` : ''}
+                    </Text>
+                    <Text variant="muted">
+                      {version.createdAt ? new Date(version.createdAt).toLocaleString() : ''}
+                    </Text>
+                  </VStack>
+                  {version.current ? null : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={restoreState.isLoading}
+                      onClick={() => {
+                        void restoreVersion({ projectId, versionId: version.id }).unwrap()
+                          .then(() => toast.success(t('speechAnalytics.versionRestored', 'Эта версия снова текущая')))
+                          .catch(() => toast.error(t('speechAnalytics.versionRestoreFailed', 'Не удалось вернуться к этой версии')));
+                      }}
+                    >
+                      {t('speechAnalytics.versionRestore', 'Вернуться к этой версии')}
+                    </Button>
+                  )}
+                </HStack>
+              </div>
+            ))}
           </VStack>
         </TabsContent>
         </div>
       </Tabs>
       <div className={cls.footer}>
+        {createsVersion ? (
+          <HStack gap="8" align="center">
+            <Checkbox id="sa-settings-skip-publish" checked={skipPublish} onChange={() => setSkipPublish((value) => !value)} />
+            <Label htmlFor="sa-settings-skip-publish">{t('speechAnalytics.skipPublish', 'Не публиковать')}</Label>
+          </HStack>
+        ) : <span />}
         <Button type="button" disabled={busy || !name.trim()} onClick={() => void onSave()}>
           <Save size={16} />
           {busy ? t('speechAnalytics.wizardSaving', 'Сохранение...') : t('speechAnalytics.settingsSave', 'Сохранить')}
@@ -537,24 +1198,41 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
             <DialogTitle>{t('speechAnalytics.settingsDigestSchedule', 'Расписание')}</DialogTitle>
             <DialogDescription>{t('speechAnalytics.settingsScheduleHint', 'Когда отправлять сводку в выбранные интеграции.')}</DialogDescription>
           </DialogHeader>
+          {editedSchedule ? (
           <VStack gap="8">
             <Label>{t('speechAnalytics.settingsDigestSchedule', 'Расписание')}</Label>
-            <Select value={digest.schedule} onChange={(e) => setDigest((d) => ({ ...d, schedule: e.target.value as SaDigestConfig['schedule'] }))}>
+            <Select value={editedSchedule.schedule} onChange={(e) => patchSchedule({ schedule: e.target.value as SaDigestSchedule['schedule'] })}>
               <option value="daily">{t('speechAnalytics.settingsDigestDaily', 'Каждый день')}</option>
               <option value="weekly">{t('speechAnalytics.settingsDigestWeekly', 'Раз в неделю')}</option>
               <option value="monthly">{t('speechAnalytics.settingsDigestMonthly', 'Раз в месяц')}</option>
             </Select>
-            {digest.schedule === 'weekly' ? (
-              <Select aria-label={t('speechAnalytics.settingsDigestWeekday', 'День недели')} value={String(digest.weeklyDay ?? 1)} onChange={(e) => setDigest((d) => ({ ...d, weeklyDay: Number(e.target.value) }))}>
-                {WEEKDAYS.map((label, index) => <option key={label} value={String(index + 1)}>{label}</option>)}
+            {editedSchedule.schedule === 'weekly' ? (
+              <Select aria-label={t('speechAnalytics.settingsDigestWeekday', 'День недели')} value={String(editedSchedule.weeklyDay ?? 1)} onChange={(e) => patchSchedule({ weeklyDay: Number(e.target.value) })}>
+                {WEEKDAY_INDEXES.map((day) => (
+                  <option key={day} value={String(day)}>
+                    {t(`speechAnalytics.settingsDigestWeekdayName.${day}`, WEEKDAY_NAME_FALLBACK[day])}
+                  </option>
+                ))}
               </Select>
             ) : null}
-            {digest.schedule === 'monthly' ? (
-              <Input aria-label={t('speechAnalytics.settingsDigestMonthDay', 'День месяца (1-28)')} type="number" value={digest.monthlyDay ?? 1} onChange={(e) => setDigest((d) => ({ ...d, monthlyDay: Math.min(28, Math.max(1, Number(e.target.value) || 1)) }))} />
+            {editedSchedule.schedule === 'monthly' ? (
+              <>
+                <Label htmlFor="sa-settings-month-day">{t('speechAnalytics.settingsDigestMonthDay', 'Число месяца')}</Label>
+                <Select
+                  id="sa-settings-month-day"
+                  value={String(editedSchedule.monthlyDay ?? 1)}
+                  onChange={(e) => patchSchedule({ monthlyDay: Math.min(28, Math.max(1, Number(e.target.value) || 1)) })}
+                >
+                  {MONTH_DAY_INDEXES.map((day) => (
+                    <option key={day} value={String(day)}>{day}</option>
+                  ))}
+                </Select>
+              </>
             ) : null}
             <Label>{t('speechAnalytics.settingsDigestHour', 'Час отправки (0-23)')}</Label>
-            <Input type="number" value={digest.sendHour ?? 9} onChange={(e) => setDigest((d) => ({ ...d, sendHour: Math.min(23, Math.max(0, Number(e.target.value) || 0)) }))} />
+            <Input type="number" value={editedSchedule.sendHour ?? 9} onChange={(e) => patchSchedule({ sendHour: Math.min(23, Math.max(0, Number(e.target.value) || 0)) })} />
           </VStack>
+          ) : null}
           <DialogFooter>
             <Button type="button" onClick={() => setScheduleOpen(false)}>{t('common.close', 'Закрыть')}</Button>
           </DialogFooter>

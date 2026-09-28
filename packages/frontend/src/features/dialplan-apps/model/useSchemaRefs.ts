@@ -8,6 +8,7 @@ import { useGetIvrsQuery } from '@/shared/api/endpoints/ivrsApi';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
 import { useGetSttEnginesQuery } from '@/shared/api/endpoints/sttEnginesApi';
 import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
+import { useGetAiVoiceRobotsQuery } from '@/shared/api/endpoints/aiVoiceRobotsApi';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 import { useGetNumbersQuery } from '@/shared/api/endpoints/numberApi';
@@ -36,6 +37,7 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
   const ttsEngines = useGetTtsEnginesQuery(undefined, { skip: !needs('tts-engines') });
   const sttEngines = useGetSttEnginesQuery(undefined, { skip: !needs('stt-engines') });
   const voiceRobots = useGetVoiceRobotsQuery(undefined, { skip: !needs('voiceRobots') });
+  const aiVoiceRobots = useGetAiVoiceRobotsQuery(undefined, { skip: !needs('aiVoiceRobots') });
   const contexts = useGetContextsQuery(undefined, { skip: !needs('contexts') });
   const endpoints = useGetEndpointsQuery(undefined, { skip: !needs('endpoints') });
   const numberLists = useGetNumbersQuery(undefined, { skip: !needs('numberLists') });
@@ -144,6 +146,15 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
         sectionKey: 'routes.chain.catalog.voiceRobotsSection',
         sectionFallback: 'Голосовые роботы',
       },
+      aiVoiceRobots: {
+        items: (aiVoiceRobots.data ?? []).filter(robot => robot.config.enabled && robot.versionId).map(robot => ({
+          value: String(robot.uid), label: robot.config.name,
+        })),
+        isLoading: aiVoiceRobots.isLoading,
+        sectionHref: '/ai-robots/studio',
+        sectionKey: 'aiVoiceDesigner.title',
+        sectionFallback: 'Голосовые AI-роботы',
+      },
       contexts: {
         items: (contexts.data ?? []).map((context) => ({
           value: context.name,
@@ -214,6 +225,8 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       sttEngines.isLoading,
       voiceRobots.data,
       voiceRobots.isLoading,
+      aiVoiceRobots.data,
+      aiVoiceRobots.isLoading,
       contexts.data,
       contexts.isLoading,
       endpoints.data,

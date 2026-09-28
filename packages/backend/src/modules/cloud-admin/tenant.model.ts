@@ -93,6 +93,22 @@ export class Tenant extends Model {
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare created_by: number | null;
 
+  /** Cabinet connects its own speech models instead of the platform assignment. */
+  @Default(false)
+  @Column({ type: DataType.BOOLEAN })
+  declare sa_own_models: boolean;
+
+  /** When own models are on, a project may store its own recognition and LLM providers. */
+  @Default(false)
+  @Column({ type: DataType.BOOLEAN })
+  declare sa_project_model_override: boolean;
+
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare sa_stt_provider_uid: number | null;
+
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare sa_llm_provider_uid: number | null;
+
   declare created_at: Date;
   declare updated_at: Date;
 }

@@ -4,13 +4,23 @@ import { Plug, Plus } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { AiProviderModal, AiProvidersTable } from '@/features/ai-providers';
+import { useGetSaSpeechModelsQuery } from '@/features/speechAnalytics/api/speechAnalyticsApi';
 import type { IAiProvider } from '@/shared/api/endpoints/aiAgentsApi';
 import cls from './AiProvidersPage.module.scss';
 
 export const AiProvidersPage = memo(() => {
   const { t } = useTranslation();
+  const { data: speechModels, isLoading: modelsLoading } = useGetSaSpeechModelsQuery();
   const [editing, setEditing] = useState<IAiProvider | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  if (!modelsLoading && speechModels && !speechModels.ownModels) {
+    return (
+      <VStack gap="12" max className={cls.page}>
+        <Text variant="muted">{t('aiProviders.ownModelsOff', 'Свои модели для этого кабинета выключены.')}</Text>
+      </VStack>
+    );
+  }
 
   return (
     <VStack gap="24" max className={cls.page} data-testid="ai-providers-page-responsive">

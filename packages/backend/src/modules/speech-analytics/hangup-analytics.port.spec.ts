@@ -176,7 +176,7 @@ describe('HangupAnalyticsPortService (G-18-01, D-03)', () => {
       expect.objectContaining({ source_kind: 'hangup_origin', source_id: originKey }),
       expect.anything(),
     );
-    // Worker is fire-and-forget — processJob scheduled, hangup does not await STT
+    // Worker is fire-and-forget - processJob scheduled, hangup does not await STT
     expect(worker.processJob).toHaveBeenCalledWith(
       expect.objectContaining({
         jobId: 'job-new',

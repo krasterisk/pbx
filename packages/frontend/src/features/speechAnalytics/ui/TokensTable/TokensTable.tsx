@@ -31,7 +31,7 @@ export interface TokensTableProps {
   isLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
-  /** ADMIN / SUPERADMIN — supervisor must pass false (D-33). */
+  /** ADMIN / SUPERADMIN - supervisor must pass false (D-33). */
   canIssue?: boolean;
   moduleActive?: boolean;
   onIssue?: (input: { name: string; projectId: string }) => Promise<{ secret: string } | null>;

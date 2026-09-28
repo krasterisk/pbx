@@ -1,11 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, renderHook, screen } from '@testing-library/react';
+import { AI_VOICE_ROBOT_DEFAULTS } from '@krasterisk/shared';
 import '@testing-library/jest-dom';
 import { useSchemaRefs } from './useSchemaRefs';
 import * as directoryApi from '@/shared/api/endpoints/directoryApi';
 import * as trunkApi from '@/shared/api/endpoints/trunkApi';
+import { useGetAiVoiceRobotsQuery } from '@/shared/api/endpoints/aiVoiceRobotsApi';
 
 const { useGetConferenceRoomsQuery, useGetCallGroupsQuery } = vi.hoisted(() => ({
   useGetConferenceRoomsQuery: vi.fn(() => ({ data: [] as Array<{ uid: number; number?: string; exten?: string; name: string }>,  isLoading: false })),
@@ -35,6 +37,9 @@ vi.mock('@/shared/api/endpoints/sttEnginesApi', () => ({
 }));
 vi.mock('@/shared/api/endpoints/voiceRobotsApi', () => ({
   useGetVoiceRobotsQuery: () => ({ data: [], isLoading: false }),
+}));
+vi.mock('@/shared/api/endpoints/aiVoiceRobotsApi', () => ({
+  useGetAiVoiceRobotsQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 vi.mock('@/shared/api/endpoints/contextApi', () => ({
   useGetContextsQuery: () => ({ data: [], isLoading: false }),
@@ -66,6 +71,20 @@ function Probe() {
 }
 
 describe('useSchemaRefs', () => {
+  it('updates the AI robot catalog after loading and hides disabled or unsaved robots', () => {
+    const query = vi.mocked(useGetAiVoiceRobotsQuery, { partial: true });
+    query.mockReturnValueOnce({ data: undefined, isLoading: true });
+    const { result, rerender } = renderHook(() => useSchemaRefs(['aiVoiceRobots']));
+    expect(result.current.aiVoiceRobots?.items).toEqual([]);
+    query.mockReturnValueOnce({ data: [
+      { uid: 1, robotUuid: 'r1', revision: 1, versionId: 'v1', config: { ...AI_VOICE_ROBOT_DEFAULTS, name: 'Ready' } },
+      { uid: 2, robotUuid: 'r2', revision: 1, versionId: 'v2', config: { ...AI_VOICE_ROBOT_DEFAULTS, name: 'Off', enabled: false } },
+      { uid: 3, robotUuid: 'r3', revision: 1, versionId: null, config: { ...AI_VOICE_ROBOT_DEFAULTS, name: 'Legacy' } },
+    ], isLoading: false });
+    rerender();
+    expect(result.current.aiVoiceRobots?.items).toEqual([{ value: '1', label: 'Ready' }]);
+    expect(result.current.aiVoiceRobots?.isLoading).toBe(false);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     (directoryApi.useGetDirectoriesQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue({

@@ -1,4 +1,4 @@
-/** STT adapter port — real provider call lands behind deps (D-23, D-38). */
+/** STT adapter port - real provider call lands behind deps (D-23, D-38). */
 
 export type SttRequest = {
   audioPath: string;

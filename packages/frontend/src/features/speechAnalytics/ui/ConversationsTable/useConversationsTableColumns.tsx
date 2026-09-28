@@ -8,7 +8,7 @@ import type { SaJournalRow } from '../../api/speechAnalyticsApi';
 import { sourceGroup } from './filterJournalRows';
 import cls from './ConversationsTable.module.scss';
 
-function formatWhen(value: string): string {
+export function formatJournalWhen(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value || '-';
   return new Intl.DateTimeFormat(undefined, {
@@ -21,7 +21,7 @@ function formatWhen(value: string): string {
   }).format(date);
 }
 
-function formatDuration(ms: number | null | undefined): string {
+export function formatJournalDuration(ms: number | null | undefined): string {
   if (ms == null || !Number.isFinite(ms) || ms <= 0) return '-';
   const total = Math.round(ms / 1000);
   const minutes = Math.floor(total / 60);
@@ -41,7 +41,7 @@ export function useConversationsTableColumns(): ColumnDef<SaJournalRow, unknown>
       id: 'occurredAt',
       accessorKey: 'occurredAt',
       header: t('speechAnalytics.colOccurred', 'Дата'),
-      cell: ({ row }) => <Text>{formatWhen(row.original.occurredAt)}</Text>,
+      cell: ({ row }) => <Text>{formatJournalWhen(row.original.occurredAt)}</Text>,
     },
     {
       id: 'operatorName',
@@ -79,7 +79,7 @@ export function useConversationsTableColumns(): ColumnDef<SaJournalRow, unknown>
       id: 'durationMs',
       accessorFn: (row) => row.durationMs ?? 0,
       header: t('speechAnalytics.colDuration', 'Длительность'),
-      cell: ({ row }) => <Text>{formatDuration(row.original.durationMs)}</Text>,
+      cell: ({ row }) => <Text>{formatJournalDuration(row.original.durationMs)}</Text>,
     },
     {
       id: 'latestAmount',

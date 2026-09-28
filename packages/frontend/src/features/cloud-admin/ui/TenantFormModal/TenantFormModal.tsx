@@ -2,7 +2,7 @@ import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Input, Label, Text, Select, PasswordInput,
+  Button, Input, Label, Text, Select, PasswordInput, Checkbox,
 } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
@@ -36,6 +36,7 @@ export const TenantFormModal = memo(() => {
   const [maxTrunks, setMaxTrunks] = useState('2');
   const [maxQueues, setMaxQueues] = useState('3');
   const [sellerId, setSellerId] = useState<number | ''>('');
+  const [ownModels, setOwnModels] = useState(false);
 
   const [createTenant, { isLoading: isCreating }] = useCreateTenantMutation();
   const [updateTenant, { isLoading: isUpdating }] = useUpdateTenantMutation();
@@ -52,7 +53,8 @@ export const TenantFormModal = memo(() => {
       setMaxExt(String(selectedTenant.max_extensions));
       setMaxTrunks(String(selectedTenant.max_trunks));
       setMaxQueues(String(selectedTenant.max_queues));
-      setSellerId(selectedTenant.seller_id);
+      setSellerId(selectedTenant.seller_id || '');
+      setOwnModels(selectedTenant.sa_own_models === true);
       setPassword('');
     } else {
       setName('');
@@ -66,23 +68,31 @@ export const TenantFormModal = memo(() => {
       setMaxExt('10');
       setMaxTrunks('2');
       setMaxQueues('3');
-      const def = sellers.find((s) => s.isDefault) ?? sellers[0];
-      setSellerId(def?.id ?? '');
+      setSellerId('');
+      setOwnModels(false);
     }
     setActiveTab('general');
-  }, [modalMode, selectedTenant, isModalOpen, sellers]);
+  }, [modalMode, selectedTenant, isModalOpen]);
+
+  useEffect(() => {
+    if (!isModalOpen || sellerId) return;
+    const fallback = sellers.find((seller) => seller.isDefault) ?? sellers[0];
+    if (fallback) setSellerId(fallback.id);
+  }, [isModalOpen, sellerId, sellers]);
 
   const handleClose = () => dispatch(tenantsPageActions.closeModal());
 
-  const isValid = Boolean(
-    name.trim()
-    && email.trim()
-    && sellerId
-    && (modalMode === 'edit' || password.trim()),
-  );
+  const resolvedSellerId = sellerId
+    || sellers.find((seller) => seller.isDefault)?.id
+    || sellers[0]?.id
+    || '';
+  const isValid = modalMode === 'edit'
+    ? Boolean(name.trim())
+    : Boolean(name.trim() && email.trim() && resolvedSellerId && password.trim());
 
   const handleSubmit = async () => {
-    if (!isValid || !sellerId) return;
+    if (!isValid) return;
+    const seller = resolvedSellerId || selectedTenant?.seller_id || undefined;
     try {
       if (modalMode === 'create') {
         await createTenant({
@@ -97,7 +107,7 @@ export const TenantFormModal = memo(() => {
           max_extensions: parseInt(maxExt, 10) || 10,
           max_trunks: parseInt(maxTrunks, 10) || 2,
           max_queues: parseInt(maxQueues, 10) || 3,
-          seller_id: sellerId,
+          seller_id: seller,
         }).unwrap();
       } else if (selectedTenant) {
         await updateTenant({
@@ -105,13 +115,14 @@ export const TenantFormModal = memo(() => {
           data: {
             name: name.trim(),
             slug: slug.trim() || undefined,
-            email: email.trim(),
+            email: email.trim() || undefined,
             phone: phone.trim() || undefined,
             company_inn: inn.trim() || undefined,
             max_extensions: parseInt(maxExt, 10) || 10,
             max_trunks: parseInt(maxTrunks, 10) || 2,
             max_queues: parseInt(maxQueues, 10) || 3,
-            seller_id: sellerId,
+            seller_id: seller,
+            sa_own_models: ownModels,
           },
         }).unwrap();
       }
@@ -242,6 +253,19 @@ export const TenantFormModal = memo(() => {
                   </Select>
                 </VStack>
               </Flex>
+
+              {modalMode === 'edit' && (
+                <HStack gap="8" align="center">
+                  <Checkbox
+                    id="tenant-own-models"
+                    checked={ownModels}
+                    onChange={(event) => setOwnModels(event.target.checked)}
+                  />
+                  <Label htmlFor="tenant-own-models">
+                    {t('cloudAdmin.tenants.ownModels', 'Использует свои модели')}
+                  </Label>
+                </HStack>
+              )}
 
               {modalMode === 'create' && (
                 <VStack gap="12" max className={cls.section}>

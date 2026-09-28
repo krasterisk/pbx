@@ -80,8 +80,9 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     !!currentModule && !isHub && currentModule.code !== 'overview';
   const showSidebar = inModuleNav && !isMobile;
 
+  const pageSource = hubRow?.pages ?? currentModule?.pages ?? [];
   const navPages = inModuleNav && currentModule
-    ? filterPagesByLevel(currentModule.pages, level)
+    ? filterPagesByLevel(pageSource, level)
     : [];
 
   const currentPage = inModuleNav
@@ -133,7 +134,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
 
     const pages =
       currentModule && currentModule.code !== 'overview'
-        ? filterPagesByLevel(currentModule.pages, level).map((p) => ({
+        ? filterPagesByLevel(pageSource, level).map((p) => ({
             id: p.id,
             label: t(p.labelKey),
             path: p.path,
@@ -141,7 +142,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         : [];
 
     return buildPaletteItems(licensed, pages);
-  }, [licensedModules, currentModule, level, t]);
+  }, [licensedModules, currentModule, pageSource, level, t]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

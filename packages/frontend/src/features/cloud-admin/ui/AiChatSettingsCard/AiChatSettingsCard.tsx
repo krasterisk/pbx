@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot, Building2, CheckCircle2, Loader2 } from 'lucide-react';
 import {
-  Card, CardHeader, CardContent, Button, Checkbox, Label, InfoTooltip, Text, Select,
+  Card, CardHeader, CardContent, Button, Checkbox, Label, InfoTooltip, Text, Select, Switch,
 } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
@@ -148,6 +148,23 @@ export const AiChatSettingsCard = memo(() => {
               </Text>
             )}
           </VStack>
+
+          <HStack justify="between" align="center" className={cls.togglePanel}>
+            <HStack gap="4" align="center">
+              <Label htmlFor="ai-chat-see-all-threads">
+                {t('systemSettings.aiChatSeeAllThreads')}
+              </Label>
+              <InfoTooltip text={t('systemSettings.aiChatSeeAllThreadsHint')} />
+            </HStack>
+            <Switch
+              id="ai-chat-see-all-threads"
+              checked={data?.seeAllThreads ?? false}
+              onCheckedChange={(next) => {
+                void update({ seeAllThreads: next });
+              }}
+              aria-label={t('systemSettings.aiChatSeeAllThreads')}
+            />
+          </HStack>
 
           <HStack justify="between" align="center" className={cls.togglePanel}>
             <VStack gap="2">

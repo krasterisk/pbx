@@ -1,0 +1,10 @@
+.spin {
+  animation: analysisSpin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes analysisSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

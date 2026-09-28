@@ -99,7 +99,7 @@ export type HangupAnalysisAdmissionResult = {
 
 /**
  * Decide whether a hangup should enqueue an analysis job.
- * STT must not run here — only policy + admission (D-03).
+ * STT must not run here - only policy + admission (D-03).
  */
 export function decideHangupAnalysisAdmission(
   input: HangupAnalysisAdmissionInput,

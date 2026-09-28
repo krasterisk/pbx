@@ -237,8 +237,8 @@ export class AiChatController {
     @SkipThrottle({ default: true, global: true })
     @Put('settings')
     async updateSettings(@Body() dto: UpdateAiChatSettingsDto, @Req() req: any) {
-        if (dto.seeAllThreads !== undefined) {
-            this.assertAdmin(req);
+        if (dto.seeAllThreads !== undefined && Number(req.user?.level) !== 0) {
+            throw new ForbiddenException('Only a platform admin can change who sees every conversation');
         }
         return this.aiChatSettingsService.updateSettings(req.user.vpbx_user_uid, dto);
     }

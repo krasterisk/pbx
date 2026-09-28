@@ -1,4 +1,4 @@
-/** SA-CHARGE-INSIGHTS — persist insights-only amount; wallet debit is future-only (D-47, D-49). */
+/** SA-CHARGE-INSIGHTS - persist insights-only amount; wallet debit is future-only (D-47, D-49). */
 
 import { multiplyUnitsByRate } from '../../ai-usage/money';
 
@@ -41,7 +41,7 @@ export type SaChargeInsightsResult = {
 const PRODUCT = 'speech_analytics';
 const UNIT = 'provider_tokens';
 
-/** Future wallet operation key — insights request id only (D-47). */
+/** Future wallet operation key - insights request id only (D-47). */
 export function saChargeInsightsOperationKey(insightsRequestId: string): string {
   return insightsRequestId;
 }

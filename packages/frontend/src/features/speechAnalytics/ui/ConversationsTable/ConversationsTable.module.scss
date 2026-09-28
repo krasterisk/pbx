@@ -13,14 +13,17 @@
 
 .toolbar {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .toolbarRow {
   flex-wrap: nowrap;
   gap: 1rem;
   min-height: 2.25rem;
+  min-width: 0;
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     flex-wrap: wrap;
     flex-direction: column;
     align-items: stretch;
@@ -42,9 +45,33 @@
   position: relative;
   min-width: 0;
   width: 16rem;
+  max-width: 100%;
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     width: 100%;
+  }
+}
+
+.selectionInline {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.selectionLink {
+  height: auto;
+  padding: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.toolbarActions {
+  min-width: 0;
+  flex-shrink: 1;
+  max-width: 100%;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    flex-wrap: wrap;
   }
 }
 
@@ -58,6 +85,9 @@
 }
 
 .searchInput {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding-left: 2.25rem;
 }
 
@@ -65,10 +95,23 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: flex-end;
+  min-width: 0;
+  max-width: 100%;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .filterField {
-  min-width: 10rem;
+  min-width: 0;
+  width: 10rem;
+  max-width: 100%;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
 }
 
 .scoreChip {
@@ -161,4 +204,21 @@
   height: auto;
   justify-content: flex-start;
   text-align: left;
+  white-space: normal;
+}
+
+.mobileField {
+  width: 100%;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.mobileLabel {
+  flex-shrink: 0;
+}
+
+.mobileValue {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
 }

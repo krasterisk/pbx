@@ -22,6 +22,10 @@ vi.mock('@/shared/hooks/useIsMobile', () => ({
   useIsMobile: () => false,
 }));
 
+vi.mock('@/shared/hooks/useAppStore', () => ({
+  useAppDispatch: () => vi.fn(),
+}));
+
 const projectsState: {
   data: Array<{
     id: string;
@@ -43,6 +47,15 @@ const projectsState: {
 };
 
 vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
+  cabinetSaProjects: (rows: Array<{ status: string }> | undefined) =>
+    (rows ?? []).filter((project) => project.status !== 'archived'),
+  usePurgeSaProjectMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ deleted: true }) })), { isLoading: false }],
+  useGetSaJournalQuery: () => ({
+    data: { items: [], total: 0, uploadProgress: { done: 0, total: 0 }, analysisJobs: [] },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
   useGetSaProjectsQuery: () => ({
     data: projectsState.data,
     isLoading: projectsState.isLoading,

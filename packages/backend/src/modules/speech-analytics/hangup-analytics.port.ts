@@ -22,11 +22,11 @@ import { internalOriginKey } from './reporting/internal-admission';
 const HANGUP_PRINCIPAL = 'system:hangup';
 const HANGUP_ORIGIN_KIND = 'hangup_origin';
 
-/** Nest token for SaAnalysisWorker — bound in sa-analysis.worker.nest.ts (G-18-02). */
+/** Nest token for SaAnalysisWorker - bound in sa-analysis.worker.nest.ts (G-18-02). */
 export const SA_ANALYSIS_WORKER = 'SA_ANALYSIS_WORKER';
 
 /**
- * Production HangupAnalyticsPort — resolve capture gates + enqueue sa_* rows and ai_jobs.
+ * Production HangupAnalyticsPort - resolve capture gates + enqueue sa_* rows and ai_jobs.
  * STT / runAnalysis stay in the worker (D-03). No wallet debit / CDR writes.
  */
 @Injectable()
@@ -282,7 +282,7 @@ export class HangupAnalyticsPortService implements HangupAnalyticsPort {
       };
     });
 
-    // Fire-and-forget worker — never await STT on the hangup HTTP path (D-03).
+    // Fire-and-forget worker - never await STT on the hangup HTTP path (D-03).
     // CR-02 / D-46: pass duration (not file bytes) so Nest charge uses audio_ms correctly.
     if (!result.replay && this.worker) {
       const durationSec = Math.max(0, input.durationSec);

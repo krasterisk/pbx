@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useGetHubCatalogQuery } from '@/shared/api/endpoints/cloudAdminApi';
+import { useGetSaSpeechModelsQuery } from '@/features/speechAnalytics/api/speechAnalyticsApi';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { UserLevel } from '@krasterisk/shared';
 import {
@@ -36,6 +37,7 @@ export function useHubModules(): UseHubModulesResult {
   const { data: catalog, isLoading } = useGetHubCatalogQuery(undefined, {
     skip: !user,
   });
+  const { data: speechModels } = useGetSaSpeechModelsQuery(undefined, { skip: !user });
 
   const [favoriteCodes, setFavoriteCodes] = useState<string[]>(() =>
     loadFavoriteCodes(),
@@ -43,8 +45,13 @@ export function useHubModules(): UseHubModulesResult {
 
   const rows = useMemo(() => {
     const visible = filterModulesForLevel(BASELINE_MODULES, level);
-    return mergeModulesWithCatalog(visible, catalog, favoriteCodes);
-  }, [catalog, favoriteCodes, level]);
+    const merged = mergeModulesWithCatalog(visible, catalog, favoriteCodes);
+    if (!speechModels || speechModels.ownModels) return merged;
+    return merged.map((row) => ({
+      ...row,
+      pages: row.pages.filter((page) => page.id !== 'ai-providers'),
+    }));
+  }, [catalog, favoriteCodes, level, speechModels?.ownModels]);
 
   const { active, marketplace } = useMemo(
     () => buildHubSections(rows, favoriteCodes),

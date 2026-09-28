@@ -248,6 +248,7 @@ export interface IVoiceRobotParams {
 }
 
 export interface IAiVoiceRobotParams {
+  robot_uid?: number;
   deployment_id?: string;
 }
 

@@ -1,7 +1,7 @@
 /**
  * Public API ingest wiring (G-18-03 / CR-01).
  * allocateUpload → putUploadContent → completeUpload → createRun → runAnalysis.
- * Success ids are sa_* recording UUIDs — never journal: / journal-url: stubs.
+ * Success ids are sa_* recording UUIDs - never journal: / journal-url: stubs.
  */
 
 import { randomUUID } from 'node:crypto';

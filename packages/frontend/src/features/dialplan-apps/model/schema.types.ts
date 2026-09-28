@@ -26,6 +26,7 @@ export type OptionsSource =
   | 'stt-engines'
   | 'callGroups'
   | 'voiceRobots'
+  | 'aiVoiceRobots'
   | 'contexts'
   | 'endpoints'
   | 'numberLists'

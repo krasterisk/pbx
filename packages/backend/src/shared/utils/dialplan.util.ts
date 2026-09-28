@@ -403,8 +403,11 @@ export class AsteriskDialplanUtils {
         break;
       }
       case 'ai_voice_robot': {
+        const robotUid = Number(params.robot_uid);
         const deploymentId = this.sanitizeDialplanInput(String(params.deployment_id || ''));
-        dp = deploymentId
+        dp = Number.isSafeInteger(robotUid) && robotUid > 0
+          ? `Stasis(${resolveAiVoiceAriAppName()},robot:${robotUid})`
+          : deploymentId
           ? `Stasis(${resolveAiVoiceAriAppName()},${deploymentId})`
           : `NoOp(Missing AI Voice deployment)`;
         break;

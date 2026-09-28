@@ -1,14 +1,24 @@
-import type { SaAlertConfig, SaDigestConfig, SaProjectConfigV1 } from '@krasterisk/shared';
+import { digestSchedules, type SaAlertConfig, type SaDigestConfig, type SaDigestSchedule, type SaProjectConfigV1 } from '@krasterisk/shared';
 
-export function isDigestDue(digest: SaDigestConfig, now: Date): boolean {
-  if (!digest.enabled) return false;
-  const hour = digest.sendHour ?? 9;
+function scheduleIsDue(slot: SaDigestSchedule, now: Date): boolean {
+  const hour = slot.sendHour ?? 9;
   if (now.getHours() !== hour) return false;
-  if (digest.schedule === 'weekly' && now.getDay() !== (digest.weeklyDay ?? 1) % 7) return false;
-  if (digest.schedule === 'monthly' && now.getDate() !== (digest.monthlyDay ?? 1)) return false;
-  if (!digest.lastSentAt) return true;
-  const last = new Date(digest.lastSentAt);
+  if (slot.schedule === 'weekly' && now.getDay() !== (slot.weeklyDay ?? 1) % 7) return false;
+  if (slot.schedule === 'monthly' && now.getDate() !== (slot.monthlyDay ?? 1)) return false;
+  if (!slot.lastSentAt) return true;
+  const last = new Date(slot.lastSentAt);
   return now.getTime() - last.getTime() > 20 * 60 * 60 * 1000;
+}
+
+/** Rules that should send at `now`. Each rule keeps its own lastSentAt. */
+export function dueDigestSchedules(digest: SaDigestConfig, now: Date): SaDigestSchedule[] {
+  if (!digest.enabled && !(digest.schedules ?? []).length) return [];
+  return digestSchedules(digest).filter((slot) => scheduleIsDue(slot, now));
+}
+
+/** True when any saved rule should send now. */
+export function isDigestDue(digest: SaDigestConfig, now: Date): boolean {
+  return dueDigestSchedules(digest, now).length > 0;
 }
 
 export function detectCsatDrop(

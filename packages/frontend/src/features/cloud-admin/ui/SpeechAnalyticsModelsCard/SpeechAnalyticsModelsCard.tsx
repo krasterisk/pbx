@@ -2,17 +2,14 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AudioLines } from 'lucide-react';
 import {
-  Button, Card, CardContent, CardHeader, Label, Select, Text,
+  Button, Card, CardContent, CardHeader, Text,
 } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
+import { SpeechAnalyticsModelFields } from '@/features/speechAnalytics/ui/SpeechAnalyticsModelFields/SpeechAnalyticsModelFields';
 import {
   useGetSpeechAnalyticsModelsQuery,
   useSaveSpeechAnalyticsModelsMutation,
 } from '@/shared/api/endpoints/aiAgentsApi';
-
-function optionLabel(name: string, model: string | null): string {
-  return model && model !== name ? `${name} · ${model}` : name;
-}
 
 /** Platform STT and LLM used by speech analytics when a cabinet cannot use its own models. */
 export function SpeechAnalyticsModelsCard() {
@@ -29,8 +26,6 @@ export function SpeechAnalyticsModelsCard() {
   }, [data]);
 
   const providers = data?.providers ?? [];
-  const sttOptions = providers.filter((row) => row.enabled && row.capabilities.includes('stt'));
-  const llmOptions = providers.filter((row) => row.enabled && row.capabilities.includes('llm'));
 
   return (
     <Card data-testid="speech-analytics-models">
@@ -48,38 +43,14 @@ export function SpeechAnalyticsModelsCard() {
           {providers.length === 0 && !isLoading && (
             <Text variant="muted">{t('platform.speechModelsEmpty')}</Text>
           )}
-          <VStack gap="8" max>
-            <Label htmlFor="speech-stt-model">{t('platform.speechModelsStt')}</Label>
-            <Select
-              id="speech-stt-model"
-              data-testid="speech-stt-model"
-              value={sttProviderUid ?? ''}
-              onChange={(event) => setStt(event.target.value ? Number(event.target.value) : null)}
-            >
-              <option value="">{t('platform.speechModelsNone')}</option>
-              {sttOptions.map((row) => (
-                <option key={row.uid} value={row.uid}>
-                  {optionLabel(row.name, row.model)}
-                </option>
-              ))}
-            </Select>
-          </VStack>
-          <VStack gap="8" max>
-            <Label htmlFor="speech-llm-model">{t('platform.speechModelsLlm')}</Label>
-            <Select
-              id="speech-llm-model"
-              data-testid="speech-llm-model"
-              value={llmProviderUid ?? ''}
-              onChange={(event) => setLlm(event.target.value ? Number(event.target.value) : null)}
-            >
-              <option value="">{t('platform.speechModelsNone')}</option>
-              {llmOptions.map((row) => (
-                <option key={row.uid} value={row.uid}>
-                  {optionLabel(row.name, row.model)}
-                </option>
-              ))}
-            </Select>
-          </VStack>
+          <SpeechAnalyticsModelFields
+            idPrefix="speech"
+            providers={providers}
+            sttProviderUid={sttProviderUid}
+            llmProviderUid={llmProviderUid}
+            onSttChange={setStt}
+            onLlmChange={setLlm}
+          />
           <HStack justify="end">
             <Button
               type="button"

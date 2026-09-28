@@ -53,16 +53,15 @@ describe('journal Excel column contract (D-37)', () => {
     const headers = (sheet.getRow(1).values as Array<string | null | undefined>).slice(1);
 
     expect(headers.slice(0, JOURNAL_EXCEL_BASE_KEYS.length)).toEqual([
-      'id',
-      'occurredAt',
-      'sourceKind',
-      'latestAmount',
-      'currency',
-      'summary',
-      'transcript',
-      'sttQuality',
-      'topics',
-      'rationales',
+      'Дата',
+      'Источник',
+      'Стоимость',
+      'Валюта',
+      'Саммари',
+      'Расшифровка',
+      'Качество распознавания',
+      'Темы',
+      'Обоснования',
     ]);
     expect(headers.slice(JOURNAL_EXCEL_BASE_KEYS.length)).toEqual(scaleKeys);
   });
@@ -74,9 +73,23 @@ describe('journal Excel column contract (D-37)', () => {
     await workbook.xlsx.load(buffer as any);
     const sheet = workbook.worksheets[0];
     const headers = (sheet.getRow(1).values as Array<string | null | undefined>).slice(1);
+    expect(headers).not.toContain('id');
     for (const forbidden of ROBOT_COLUMN_KEYS) {
       expect(headers).not.toContain(forbidden);
     }
+    const occurredAt = String(sheet.getRow(2).getCell(1).value);
+    expect(occurredAt).not.toContain('T10:00');
+    expect(occurredAt).toMatch(/2026/);
+  });
+
+  it('uses English headers when the locale is en', async () => {
+    const buffer = await buildJournalExcel([row], [], { locale: 'en', timeZone: 'UTC' });
+    const workbook = new ExcelJS.Workbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await workbook.xlsx.load(buffer as any);
+    const headers = (workbook.worksheets[0].getRow(1).values as string[]).slice(1);
+    expect(headers[0]).toBe('Date');
+    expect(headers).not.toContain('id');
   });
 
   it('applies truncateCell to the transcript cell in the workbook', async () => {

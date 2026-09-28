@@ -1,4 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
+import ExcelJS from 'exceljs';
+import { Op } from 'sequelize';
 import { UserLevel } from '../../users/user.model';
 import {
   SaJournalService,
@@ -257,5 +259,28 @@ describe('SaJournalService list/detail/regenerate/delete (D-05, D-12, D-13)', ()
     expect(wallet.settleShadow).not.toHaveBeenCalled();
     void reviews;
     void recordings;
+  });
+
+  it('exports only the explicitly selected conversations', async () => {
+    const findAll = jest.fn().mockResolvedValue([
+      { id: 'selected-recording', occurred_at: new Date('2026-09-21T10:00:00.000Z') },
+    ]);
+    const { service } = buildService({
+      recordings: {
+        findAll,
+      },
+    });
+
+    const buffer = await service.exportExcel(tenant, ['selected-recording']);
+    const workbook = new ExcelJS.Workbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await workbook.xlsx.load(buffer as any);
+    const sheet = workbook.worksheets[0];
+
+    expect(findAll.mock.calls[0][0].where.id[Op.in]).toEqual(['selected-recording']);
+    expect(sheet.rowCount).toBe(2);
+    const occurredAt = String(sheet.getRow(2).getCell(1).value);
+    expect(occurredAt).not.toContain('selected-recording');
+    expect(occurredAt).not.toContain('T');
   });
 });

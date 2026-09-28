@@ -1,7 +1,10 @@
 import {
-  ConflictException, ForbiddenException, HttpException, Injectable, Logger,
-  NotFoundException, PayloadTooLargeException, UnprocessableEntityException,
+  ConflictException, ForbiddenException, HttpException, Inject, Injectable, Logger,
+  NotFoundException, Optional, PayloadTooLargeException, UnprocessableEntityException,
 } from '@nestjs/common';
+import { mkdir, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 import { randomUUID } from 'node:crypto';
@@ -11,6 +14,7 @@ import {
   defaultSaProjectConfig, saEventWebhookTargets, type SaProjectConfigV1,
 } from '@krasterisk/shared';
 import { AiJobAdmissionService } from '../ai-jobs/ai-job-admission.service';
+import { SpeechProviderResolver } from './speech-provider.resolver';
 import { AiMediaAsset, AiUpload } from '../media-assets/media-asset.models';
 import { ProductAccessService } from '../product-access/product-access.service';
 import { ProductResourceAuthorization } from '../integration-credentials/product-resource.authorization';
@@ -25,6 +29,8 @@ import { NotificationDispatcherService } from '../notifications/notification-dis
 import { WebhookQueueService } from '../routes/webhook-queue.service';
 import { configDigest, DomainError } from './project-engine';
 import { claimRecording, emptyIngestStores, metadataAllowlist, uploadChecksum } from './ingest-engine';
+import { SA_ANALYSIS_WORKER } from './hangup-analytics.port';
+import type { SaAnalysisWorker } from './jobs/sa-analysis.worker';
 import { runPipeline } from './pipeline';
 import {
   SaAnalysisRun, SaProject, SaProjectMember, SaProjectVersion, SaRecording, SaResult, SaTranscript,
@@ -35,6 +41,7 @@ import {
   assertValidTemplate,
   canDeleteProject,
   canPublishProject,
+  metricSetStampPayload,
   stampChanged,
 } from './projects/project-editor.service';
 import {
@@ -78,10 +85,13 @@ export class SpeechAnalyticsService {
     @InjectModel(Route) private readonly routes: typeof Route,
     @InjectModel(NotificationIntegration) private readonly integrations: typeof NotificationIntegration,
     private readonly notifications: NotificationDispatcherService,
+    @Optional() @Inject(SA_ANALYSIS_WORKER) private readonly worker: SaAnalysisWorker | null = null,
+    @Optional() private readonly speechProviders?: SpeechProviderResolver,
   ) {}
 
   /** In-process byte store for putUploadContent (closes skeleton gap; D-14). */
   private readonly uploadBodies = new Map<string, Buffer>();
+  private readonly uploadQueue = new Map<number, Promise<void>>();
 
   private userId(context: TenantContext): number {
     const match = /^user:(\d+)$/.exec(context.principalId);
@@ -176,8 +186,85 @@ export class SpeechAnalyticsService {
   }
 
   async listProjects(context: TenantContext): Promise<SaProject[]> {
-    return this.projects.findAll({
-      where: { tenant_uid: context.tenantUid }, order: [['created_at', 'DESC']], limit: 100,
+    const tenantUid = Number(context.tenantUid);
+    if (!Number.isInteger(tenantUid) || tenantUid < 0) {
+      throw new ForbiddenException({ code: 'tenant_inactive' });
+    }
+    const rows = await this.projects.findAll({
+      where: { tenant_uid: tenantUid },
+      order: [['created_at', 'DESC']],
+      limit: 100,
+    });
+    const counts = await this.recordings.findAll({
+      attributes: [
+        'project_id',
+        [this.sequelize.fn('COUNT', this.sequelize.col('id')), 'recordingCount'],
+      ],
+      where: { tenant_uid: tenantUid },
+      group: ['project_id'],
+      raw: true,
+    }) as unknown as Array<{ project_id: string; recordingCount: string | number }>;
+    const countByProject = new Map(counts.map((row) => [row.project_id, Number(row.recordingCount) || 0]));
+    const activeIds = rows.map((row) => row.active_version_id).filter((id): id is string => Boolean(id));
+    const versions = activeIds.length === 0
+      ? []
+      : await this.versions.findAll({
+        where: { tenant_uid: tenantUid, id: { [Op.in]: activeIds } },
+        attributes: ['id', 'version_no', 'config'],
+      });
+    const versionById = new Map(versions.map((version) => [version.id, version]));
+    return rows.map((row) => {
+      const published = row.active_version_id ? versionById.get(row.active_version_id) : undefined;
+      const draftDigest = configDigest(this.parseConfig(row.draft_config));
+      const publishedDigest = published ? configDigest(this.parseConfig(published.config)) : null;
+      return {
+        ...row.toJSON(),
+        recordingCount: countByProject.get(row.id) ?? 0,
+        analysisVersionNo: published?.version_no ?? null,
+        unpublished: !published || draftDigest !== publishedDigest,
+      };
+    }) as unknown as SaProject[];
+  }
+
+  async listVersions(context: TenantContext, projectId: string) {
+    const project = await this.assertScope(context, projectId, 'analytics:read');
+    const rows = await this.versions.findAll({
+      where: { tenant_uid: context.tenantUid, project_id: projectId },
+      order: [['version_no', 'DESC']],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      versionNo: row.version_no,
+      createdAt: row.created_at,
+      current: row.id === project.active_version_id,
+      metricStamp: JSON.stringify(metricSetStampPayload(this.parseConfig(row.config))),
+    }));
+  }
+
+  /** Point analysis at an older published snapshot and copy it into the draft. */
+  async restoreVersion(context: TenantContext, projectId: string, versionId: string): Promise<SaProject> {
+    if (context.principalKind === 'integration') throw new ForbiddenException({ code: 'resource_permission_denied' });
+    const level = await this.resolveUserLevel(context);
+    if (!canPublishProject(level)) throw new ForbiddenException({ code: 'resource_permission_denied' });
+    return this.sequelize.transaction(async (transaction) => {
+      const project = await this.projects.findOne({
+        where: { tenant_uid: context.tenantUid, id: projectId },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!project) throw new NotFoundException({ code: 'resource_not_found' });
+      const version = await this.versions.findOne({
+        where: { tenant_uid: context.tenantUid, project_id: projectId, id: versionId },
+        transaction,
+      });
+      if (!version) throw new NotFoundException({ code: 'resource_not_found' });
+      project.active_version_id = version.id;
+      project.draft_config = version.config;
+      project.draft_revision += 1;
+      project.status = 'active';
+      project.updated_at = new Date();
+      await project.save({ transaction });
+      return project;
     });
   }
 
@@ -341,6 +428,49 @@ export class SpeechAnalyticsService {
     return { deleted: true, effects };
   }
 
+  /** Hard-delete a project that has no conversations. History rows block this. */
+  async purgeProject(context: TenantContext, projectId: string): Promise<{ deleted: true }> {
+    if (context.principalKind === 'integration') throw new ForbiddenException({ code: 'resource_permission_denied' });
+    const level = await this.resolveUserLevel(context);
+    if (!canDeleteProject(level)) throw new ForbiddenException({ code: 'resource_permission_denied' });
+    await this.assertScope(context, projectId, 'analytics:read');
+    const tenantUid = context.tenantUid;
+    const recordings = await this.recordings.count({ where: { tenant_uid: tenantUid, project_id: projectId } });
+    if (recordings > 0) throw new ConflictException({ code: 'project_has_recordings' });
+
+    await this.sequelize.transaction(async (transaction) => {
+      const project = await this.projects.findOne({
+        where: { tenant_uid: tenantUid, id: projectId },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!project) throw new NotFoundException({ code: 'resource_not_found' });
+      const again = await this.recordings.count({ where: { tenant_uid: tenantUid, project_id: projectId }, transaction });
+      if (again > 0) throw new ConflictException({ code: 'project_has_recordings' });
+
+      const drop = async (sql: string) => {
+        await this.sequelize.query(sql, { replacements: { tenantUid, projectId }, transaction });
+      };
+      await drop(`DELETE FROM sa_report_snapshot_items WHERE vpbx_user_uid = :tenantUid AND run_id IN (SELECT id FROM sa_report_runs WHERE vpbx_user_uid = :tenantUid AND definition_id IN (SELECT id FROM sa_report_definitions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId))`);
+      await drop(`DELETE FROM sa_report_schedules WHERE vpbx_user_uid = :tenantUid AND definition_id IN (SELECT id FROM sa_report_definitions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId)`);
+      await drop(`DELETE FROM sa_report_runs WHERE vpbx_user_uid = :tenantUid AND definition_id IN (SELECT id FROM sa_report_definitions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId)`);
+      await drop(`DELETE FROM sa_report_definitions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await drop(`DELETE FROM sa_bulk_reanalysis_items WHERE vpbx_user_uid = :tenantUid AND batch_id IN (SELECT id FROM sa_bulk_reanalysis_batches WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId)`);
+      await drop(`DELETE FROM sa_bulk_reanalysis_batches WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await drop(`DELETE FROM sa_budget_policies WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await drop(`DELETE FROM sa_insights_requests WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await drop(`DELETE FROM ai_webhook_deliveries WHERE vpbx_user_uid = :tenantUid AND endpoint_id IN (SELECT id FROM ai_webhook_endpoints WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId)`);
+      await drop(`DELETE FROM ai_webhook_endpoints WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await drop(`DELETE FROM sa_project_version_metrics WHERE vpbx_user_uid = :tenantUid AND project_version_id IN (SELECT id FROM sa_project_versions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId)`);
+      await drop(`DELETE FROM sa_metric_revisions WHERE vpbx_user_uid = :tenantUid AND definition_id IN (SELECT id FROM sa_metric_definitions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId)`);
+      await drop(`DELETE FROM sa_metric_definitions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await drop(`DELETE FROM sa_project_versions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await drop(`DELETE FROM sa_project_members WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await project.destroy({ transaction });
+    });
+    return { deleted: true };
+  }
+
   async testProjectWebhook(context: TenantContext, projectId: string) {
     const project = await this.assertScope(context, projectId, 'analytics:read');
     if (context.principalKind === 'integration') throw new ForbiddenException({ code: 'resource_permission_denied' });
@@ -366,7 +496,12 @@ export class SpeechAnalyticsService {
     return { results };
   }
 
-  private async deliverToIntegrations(tenantUid: number, uids: number[], message: string): Promise<number> {
+  private async deliverToIntegrations(
+    tenantUid: number,
+    uids: number[],
+    message: string,
+    attach?: { filename: string; content: string; contentType: string },
+  ): Promise<number> {
     if (!uids.length) {
       throw new UnprocessableEntityException({ code: 'digest_recipient_required' });
     }
@@ -382,6 +517,7 @@ export class SpeechAnalyticsService {
         integration_uid: row.uid,
         subject: 'Речевая аналитика',
         message,
+        ...(attach ? { attach } : {}),
       });
       if (!result?.success) {
         this.logger.warn(
@@ -534,7 +670,7 @@ export class SpeechAnalyticsService {
     return { receivedBytes: body.length };
   }
 
-  /** Bytes previously stored by putUploadContent (same asset — no second copy). */
+  /** Bytes previously stored by putUploadContent (same asset - no second copy). */
   getStoredUploadBytes(assetId: string): Buffer | null {
     return this.uploadBodies.get(assetId) ?? null;
   }
@@ -571,6 +707,14 @@ export class SpeechAnalyticsService {
     if (!project.active_version_id || project.status === 'archived') {
       throw new ConflictException({ code: 'project_archived' });
     }
+    const published = await this.versions.findOne({
+      where: { id: project.active_version_id, tenant_uid: context.tenantUid },
+    });
+    let publishedConfig: SaProjectConfigV1 | null = null;
+    if (published?.config) {
+      try { publishedConfig = JSON.parse(published.config) as SaProjectConfigV1; } catch { publishedConfig = null; }
+    }
+    await this.assertAnalysisProviders(context.tenantUid, publishedConfig);
     const asset = await this.assets.findOne({ where: { tenant_uid: context.tenantUid, id: input.assetId } });
     if (!asset) throw new NotFoundException({ code: 'resource_not_found' });
     if (asset.state !== 'ready') throw new ConflictException({ code: 'asset_not_ready' });
@@ -579,6 +723,7 @@ export class SpeechAnalyticsService {
     stores.assets.set(asset.id, {
       id: asset.id, tenantUid: context.tenantUid, state: asset.state, sha256: asset.sha256 ?? '',
     });
+    const accepted = await this.sequelize.transaction(async (transaction) => {
     const recordingClaim = claimRecording({
       stores,
       tenantUid: context.tenantUid,
@@ -594,7 +739,6 @@ export class SpeechAnalyticsService {
       assetId: asset.id,
       metadata: metadataAllowlist(input.metadata ?? {}),
     });
-    return this.sequelize.transaction(async (transaction) => {
       let recording = await this.recordings.findOne({
         where: {
           tenant_uid: context.tenantUid, project_id: project.id,
@@ -651,9 +795,123 @@ export class SpeechAnalyticsService {
         projectVersionId: project.active_version_id, replay: receipt.replay,
       };
     });
+    if (accepted && !accepted.replay) {
+      this.enqueueUploadAnalysis(context.tenantUid, asset.id, accepted.runId, input.metadata);
+    }
+    return accepted;
     } catch (error) {
       this.mapError(error);
     }
+  }
+
+  /** Refuse the upload before any journal row when speech providers are not assigned. */
+  private async assertAnalysisProviders(tenantUid: number, project: SaProjectConfigV1 | null): Promise<void> {
+    const assignment = await this.speechProviders?.resolve(tenantUid, project);
+    if (!assignment?.sttProviderUid || !assignment.llmProviderUid) {
+      throw new UnprocessableEntityException({ code: 'analysis_provider_missing' });
+    }
+  }
+
+  async cabinetSpeechModels(tenantUid: number) {
+    if (!this.speechProviders) {
+      return {
+        ownModels: false, projectOverride: false,
+        sttProviderUid: null, llmProviderUid: null, providers: [],
+      };
+    }
+    const described = await this.speechProviders.describe(tenantUid);
+    return {
+      ownModels: described.ownModels,
+      projectOverride: described.projectOverride,
+      sttProviderUid: described.sttProviderUid,
+      llmProviderUid: described.llmProviderUid,
+      providers: described.providers,
+    };
+  }
+
+  async saveCabinetSpeechModels(tenantUid: number, patch: {
+    sttProviderUid?: number | null;
+    llmProviderUid?: number | null;
+    projectOverride?: boolean;
+  }) {
+    if (!this.speechProviders) return this.cabinetSpeechModels(tenantUid);
+    const saved = await this.speechProviders.saveTenant(tenantUid, patch);
+    return {
+      ownModels: saved.ownModels,
+      projectOverride: saved.projectOverride,
+      sttProviderUid: saved.sttProviderUid,
+      llmProviderUid: saved.llmProviderUid,
+      providers: saved.providers,
+    };
+  }
+
+  /** Keep cabinet uploads off the request and run one analysis at a time per tenant. */
+  private enqueueUploadAnalysis(
+    tenantUid: number,
+    assetId: string,
+    runId: string,
+    metadata?: Record<string, unknown>,
+  ): void {
+    const prev = this.uploadQueue.get(tenantUid) ?? Promise.resolve();
+    const next = prev
+      .catch(() => undefined)
+      .then(() => this.startUploadAnalysis(tenantUid, assetId, runId, metadata));
+    this.uploadQueue.set(tenantUid, next);
+    void next.finally(() => {
+      if (this.uploadQueue.get(tenantUid) === next) this.uploadQueue.delete(tenantUid);
+    });
+  }
+
+  /**
+   * Cabinet upload returns as soon as the run is queued. STT and scoring continue
+   * here. A failure marks the run failed and leaves it out of the journal list.
+   */
+  private async startUploadAnalysis(
+    tenantUid: number,
+    assetId: string,
+    runId: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      if (!this.worker) {
+        throw new Error('worker is not registered');
+      }
+      const bytes = this.getStoredUploadBytes(assetId);
+      if (!bytes?.length) {
+        throw new Error(`no audio bytes for asset ${assetId}`);
+      }
+      const filename = typeof metadata?.filename === 'string' ? metadata.filename : 'audio.wav';
+      const ext = path.extname(filename).toLowerCase();
+      const safeExt = ext === '.mp3' || ext === '.wav' || ext === '.ogg' || ext === '.m4a' ? ext : '.wav';
+      const filePath = path.join(os.tmpdir(), 'sa-uploads', `${assetId}${safeExt}`);
+      await mkdir(path.dirname(filePath), { recursive: true });
+      await writeFile(filePath, bytes);
+      this.uploadBodies.delete(assetId);
+      const outcome = await this.worker.processJob({
+        jobId: runId,
+        runId,
+        recordPath: filePath,
+        tenantUid,
+        channelSource: 'upload',
+      });
+      if (outcome.state !== 'completed' || outcome.scored !== true) {
+        await this.markUploadFailed(tenantUid, runId, outcome.reason || outcome.state || 'analysis_failed');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Upload analysis failed run=${runId}: ${message}`);
+      this.uploadBodies.delete(assetId);
+      await this.markUploadFailed(tenantUid, runId, 'analysis_failed');
+    }
+  }
+
+  private async markUploadFailed(tenantUid: number, runId: string, reason: string): Promise<void> {
+    const run = await this.runs.findOne({ where: { tenant_uid: tenantUid, id: runId } });
+    if (!run || run.state === 'completed') return;
+    run.state = 'failed';
+    run.reason = reason.slice(0, 64);
+    run.updated_at = new Date();
+    await run.save();
   }
 
   async getRun(context: TenantContext, runId: string, scope: 'analytics:read' | 'analytics:transcript' | 'analytics:audio') {

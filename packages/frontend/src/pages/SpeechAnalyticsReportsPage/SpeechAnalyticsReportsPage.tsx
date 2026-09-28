@@ -1,5 +1,5 @@
 /**
- * Legacy stub kept on disk only. D-37: not a product surface — router redirects
+ * Legacy stub kept on disk only. D-37: not a product surface - router redirects
  * `/speech-analytics/reports` → `/speech-analytics/conversations` (Excel is a journal toolbar action).
  */
 import { memo } from 'react';

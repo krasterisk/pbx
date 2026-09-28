@@ -91,7 +91,7 @@ export async function defaultLoadSkillText(): Promise<string> {
 
 /**
  * Resolve insights model: module setting first, else call-analysis model (D-36).
- * Never invents a model outside the platform allowlist — callers supply resolved ids.
+ * Never invents a model outside the platform allowlist - callers supply resolved ids.
  */
 export function resolveInsightsModelId(
   moduleInsightsModel: string | null | undefined,
@@ -254,7 +254,7 @@ export class InsightsService {
   }
 
   /**
-   * HTTP entry — uses depot rates + in-memory cache. LLM is injected later;
+   * HTTP entry - uses depot rates + in-memory cache. LLM is injected later;
    * until then returns a skill-bounded stub insight so charge/cache contracts stay live.
    */
   async requestForTenant(

@@ -272,7 +272,7 @@ describe('SpeechAnalyticsAiAdapter', () => {
       publish: true,
       config: { customMetrics: [{ id: 'm2', name: 'Bye', type: 'boolean' }] },
     }));
-    // Partial only — full merge happens at apply against live draft (CR-01).
+    // Partial only - full merge happens at apply against live draft (CR-01).
     expect(Object.keys(applyArgs.config)).toEqual(['customMetrics']);
 
     const stale = await tool.mutation!.revalidate(

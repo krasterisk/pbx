@@ -76,6 +76,7 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'system', page_code: 'stt_engines', path: '/settings/stt-engines', sort_order: 60 },
   { hub_code: 'system', page_code: 'audit_log', path: '/audit-log', sort_order: 70 },
   { hub_code: 'system', page_code: 'tenant_modules', path: '/my-modules', sort_order: 80 },
+  { hub_code: 'system', page_code: 'ai_providers', path: '/ai-providers', sort_order: 90 },
 
   // Call Center (market) — custom robot tables stay off the general menu
   { hub_code: 'callcenter', page_code: 'cc_agent', path: '/callcenter/agent', sort_order: 20 },
@@ -95,7 +96,6 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'analytics', page_code: 'voice_robot_cdr', path: '/reports/voice-robot-cdr', sort_order: 30 },
 
   // AI (market)
-  { hub_code: 'ai', page_code: 'ai_providers', path: '/ai-providers', sort_order: 10 },
   { hub_code: 'ai', page_code: 'ai_agents', path: '/ai-agents', sort_order: 20 },
 
   // Independent AI products (speech analytics starts at the journal; robots keep a landing)

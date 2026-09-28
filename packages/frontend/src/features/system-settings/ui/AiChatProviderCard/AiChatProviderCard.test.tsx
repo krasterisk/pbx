@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import '@testing-library/jest-dom';
 import { rtkApi } from '@/shared/api/rtkApi';
 
-const { roleFlags } = vi.hoisted(() => ({
+const { roleFlags, speechModels } = vi.hoisted(() => ({
   roleFlags: { admin: true, superAdmin: false },
+  speechModels: { ownModels: true },
 }));
 
 vi.mock('react-i18next', () => ({
@@ -38,6 +39,10 @@ vi.mock('@/entities/User', async (importOriginal) => {
     selectIsSuperAdmin: () => roleFlags.superAdmin,
   };
 });
+
+vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
+  useGetSaSpeechModelsQuery: () => ({ data: { ownModels: speechModels.ownModels } }),
+}));
 
 vi.mock('@/shared/api/endpoints/aiAgentsApi', () => ({
   useGetAiProvidersQuery: () => ({
@@ -95,6 +100,7 @@ describe('AiChatProviderCard', () => {
   beforeEach(() => {
     roleFlags.admin = true;
     roleFlags.superAdmin = false;
+    speechModels.ownModels = true;
     let resolve!: (value: Response) => void;
     let reject!: (reason?: unknown) => void;
     const promise = new Promise<Response>((res, rej) => {
@@ -133,29 +139,15 @@ describe('AiChatProviderCard', () => {
     expect(screen.getByTestId('ai-chat-all-providers')).toHaveAttribute('href', '/ai-providers');
   });
 
-  it('shows the seeAllThreads switch to an admin', async () => {
-    renderCard();
-    expect(await screen.findByRole('switch', { name: 'systemSettings.aiChatSeeAllThreads' })).toBeInTheDocument();
-  });
-
-  it('hides the seeAllThreads switch from an operator', async () => {
-    roleFlags.admin = false;
-    roleFlags.superAdmin = false;
+  it('does not show the platform see-all-threads switch', async () => {
     renderCard();
     await waitFor(() => expect(screen.getByTestId('ai-chat-provider')).toHaveValue('7'));
     expect(screen.queryByRole('switch', { name: 'systemSettings.aiChatSeeAllThreads' })).toBeNull();
   });
 
-  it('flips seeAllThreads immediately and undoes the switch when the PUT fails', async () => {
+  it('hides the model override when the cabinet cannot use its own models', () => {
+    speechModels.ownModels = false;
     renderCard();
-    const toggle = await screen.findByRole('switch', { name: 'systemSettings.aiChatSeeAllThreads' });
-    await waitFor(() => expect(toggle).not.toBeDisabled());
-    expect(toggle).toHaveAttribute('data-state', 'unchecked');
-
-    fireEvent.click(toggle);
-    await waitFor(() => expect(toggle).toHaveAttribute('data-state', 'checked'));
-
-    putGate.resolve(jsonResponse({ message: 'fail' }, 500));
-    await waitFor(() => expect(toggle).toHaveAttribute('data-state', 'unchecked'), { timeout: 3000 });
+    expect(screen.queryByTestId('ai-chat-provider-card')).toBeNull();
   });
 });

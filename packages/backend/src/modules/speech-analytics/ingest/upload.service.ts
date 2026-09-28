@@ -1,6 +1,6 @@
 /**
  * Cabinet / API upload batches (D-14…D-17, D-32).
- * One file is a batch of 1. Journal rows only — never Asterisk CDR.
+ * One file is a batch of 1. Journal rows only - never Asterisk CDR.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -119,7 +119,7 @@ export class UploadService {
     if (!input.moduleActive) {
       throw Object.assign(new Error('module_inactive'), { code: 'module_inactive' });
     }
-    // pauseNew intentionally ignored — manual upload is not blocked (D-19).
+    // pauseNew intentionally ignored - manual upload is not blocked (D-19).
 
     let projectId = input.projectId;
     if (input.channel === 'api' && input.tokenProjectId) {

@@ -17,6 +17,7 @@ export interface ITenant {
   max_extensions: number;
   max_trunks: number;
   max_queues: number;
+  sa_own_models?: boolean;
   created_by: number | null;
   created_at: string;
   updated_at: string;
@@ -57,4 +58,5 @@ export interface IUpdateTenant {
   max_trunks?: number;
   max_queues?: number;
   seller_id?: number;
+  sa_own_models?: boolean;
 }

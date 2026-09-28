@@ -67,7 +67,7 @@ describe('SA-CHARGE-INSIGHTS persist seam (D-47)', () => {
   it('documents that a cache hit must not call invokeSaChargeInsights again', () => {
     // Cache-hit path is owned by the insights service (18-08); the seam itself is
     // only invoked on a successful model response (D-47). This suite asserts the
-    // seam is side-effect free until explicitly called — calling once ≠ twice.
+    // seam is side-effect free until explicitly called - calling once ≠ twice.
     const updateInsightsRequest = jest.fn(async () => undefined);
     const deps = {
       findLatestRates: async () => [],

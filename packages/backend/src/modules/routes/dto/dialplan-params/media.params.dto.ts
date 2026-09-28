@@ -279,6 +279,12 @@ export class VoiceRobotParamsDto implements IVoiceRobotParams {
 
 export class AiVoiceRobotParamsDto implements IAiVoiceRobotParams {
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  robot_uid?: number;
+
+  @IsOptional()
   @Transform(({ value }) => (value === '' || value == null ? undefined : value))
   @IsString()
   @MaxLength(36)

@@ -40,6 +40,8 @@ vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  cabinetSaProjects: (rows: Array<{ status?: string }> | undefined) =>
+    (rows ?? []).filter((project) => project.status !== 'archived'),
   useGetSaProjectsQuery: () => ({
     data: [{ id: 'proj-1', name: 'Support', status: 'active', draft_revision: 1, active_version_id: null }],
     isLoading: false,
@@ -51,7 +53,10 @@ vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
     { isLoading: false },
   ],
   useRegenerateSaConversationMutation: () => [vi.fn(), { isLoading: false }],
+  useSaveSaConversationOverrideMutation: () => [vi.fn(), { isLoading: false }],
   useDeleteSaConversationMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteSaConversationsMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ deleted: 0 }) })), { isLoading: false }],
+  useExportSaJournalExcelMutation: () => [vi.fn(), { isLoading: false }],
   useGetSaConversationQuery: () => ({
     data: {
       id: 'conv-1',
@@ -86,21 +91,22 @@ function renderJournal(path = '/speech-analytics/conversations') {
 }
 
 describe('SpeechAnalyticsJournalPage', () => {
-  it('opens ConversationSheet at a stable conversation URL when a row is clicked', async () => {
+  it('expands the conversation under the row at a stable URL', async () => {
     const user = userEvent.setup();
     renderJournal();
 
     expect(screen.getByTestId('speech-analytics-journal')).toBeInTheDocument();
+    expect(screen.queryByTestId('conversation-expanded')).not.toBeInTheDocument();
     await user.click(screen.getByTestId('journal-row-conv-1'));
 
-    expect(screen.getByTestId('conversation-sheet')).toBeInTheDocument();
+    expect(screen.getByTestId('conversation-expanded')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Аналитика' })).toBeInTheDocument();
   });
 
-  it('opens the sheet from a deep-linked conversation URL', () => {
+  it('expands the row from a deep-linked conversation URL', () => {
     renderJournal('/speech-analytics/conversations/conv-1');
 
-    expect(screen.getByTestId('conversation-sheet')).toBeInTheDocument();
+    expect(screen.getByTestId('conversation-expanded')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Стоимость' })).toBeInTheDocument();
   });
 });

@@ -96,3 +96,4 @@ export type {
   WalkScenarioValues,
   WalkSegment,
 } from './utils/dialplan-walk';
+export * from './types/ai-voice.types';

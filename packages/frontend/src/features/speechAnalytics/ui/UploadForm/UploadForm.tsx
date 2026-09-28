@@ -1,14 +1,14 @@
 import {
   memo,
   useCallback,
-  useMemo,
   useRef,
   useState,
   type ChangeEvent,
+  type DragEvent,
   type FormEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileAudio, Loader2, Upload, X } from 'lucide-react';
 import {
   Button,
   Dialog,
@@ -36,12 +36,16 @@ export interface UploadFormOperator {
   name: string;
 }
 
-export interface UploadFormSubmitPayload {
+export interface UploadFormItem {
+  file: File;
   projectId: string;
-  operator?: { userId?: number; name?: string };
+  operatorName?: string;
   clientPhone?: string;
+}
+
+export interface UploadFormSubmitPayload {
   language?: string;
-  files: File[];
+  items: UploadFormItem[];
 }
 
 export interface UploadFormProps {
@@ -54,58 +58,53 @@ export interface UploadFormProps {
   formError?: string | null;
 }
 
+type DraftFile = {
+  id: string;
+  file: File;
+  operatorName: string;
+  clientPhone: string;
+  open: boolean;
+};
+
 function extensionOf(name: string): string {
   const i = name.lastIndexOf('.');
   return i >= 0 ? name.slice(i + 1).toLowerCase() : '';
 }
 
-function validateFiles(files: File[]): string | null {
-  for (const file of files) {
-    const ext = extensionOf(file.name);
-    if (!ALLOWED_EXTS.has(ext) || file.size > MAX_BYTES || file.size <= 0) {
-      return 'format_or_size';
-    }
-  }
-  return null;
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileInvalid(file: File): boolean {
+  return !ALLOWED_EXTS.has(extensionOf(file.name)) || file.size > MAX_BYTES || file.size <= 0;
 }
 
 export const UploadForm = memo(({
   open,
   onOpenChange,
   projects,
-  operators = [],
   onSubmit,
   isSubmitting = false,
   formError = null,
 }: UploadFormProps) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [projectId, setProjectId] = useState('');
-  const [operatorMode, setOperatorMode] = useState<'user' | 'name'>('name');
-  const [operatorUserId, setOperatorUserId] = useState('');
-  const [operatorName, setOperatorName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
   const [language, setLanguage] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
+  const [drafts, setDrafts] = useState<DraftFile[]>([]);
+  const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const errorText = localError
-    ?? formError
-    ?? null;
-
-  const canSubmit = Boolean(projectId) && files.length > 0 && !isSubmitting;
-
-  const operatorOptions = useMemo(() => operators, [operators]);
+  const errorText = localError ?? formError ?? null;
+  const canSubmit = drafts.length > 0 && Boolean(projectId) && !isSubmitting;
 
   const resetLocal = useCallback(() => {
     setProjectId('');
-    setOperatorMode('name');
-    setOperatorUserId('');
-    setOperatorName('');
-    setClientPhone('');
     setLanguage('');
-    setFiles([]);
+    setDrafts([]);
+    setDragging(false);
     setLocalError(null);
   }, []);
 
@@ -114,67 +113,67 @@ export const UploadForm = memo(({
     onOpenChange(next);
   }, [onOpenChange, resetLocal]);
 
-  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const list = event.target.files ? Array.from(event.target.files) : [];
-    event.target.value = '';
-    setFiles(list);
+  const addFiles = useCallback((list: File[]) => {
+    if (!list.length) return;
+    setDrafts((prev) => [
+      ...prev,
+      ...list.map((file, index) => ({
+        id: `${file.name}-${file.size}-${file.lastModified}-${index}-${Date.now()}`,
+        file,
+        operatorName: '',
+        clientPhone: '',
+        open: false,
+      })),
+    ]);
     setLocalError(null);
   }, []);
 
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const list = event.target.files ? Array.from(event.target.files) : [];
+    event.target.value = '';
+    addFiles(list);
+  }, [addFiles]);
+
+  const onDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    if (isSubmitting) return;
+    addFiles(Array.from(event.dataTransfer.files));
+  }, [addFiles, isSubmitting]);
+
+  const patchDraft = (id: string, patch: Partial<DraftFile>) => {
+    setDrafts((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+  };
+
   const handleSubmit = useCallback(async (event: FormEvent) => {
     event.preventDefault();
-    if (!projectId || files.length === 0 || isSubmitting) return;
-
-    const invalid = validateFiles(files);
-    if (invalid) {
-      setLocalError(
-        t(
-          'speechAnalytics.errorUpload',
-          'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
-        ),
-      );
+    if (!canSubmit) return;
+    if (drafts.some((row) => fileInvalid(row.file))) {
+      setLocalError(t(
+        'speechAnalytics.errorUpload',
+        'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
+      ));
       return;
     }
-
-    const operator =
-      operatorMode === 'user' && operatorUserId
-        ? { userId: Number(operatorUserId) }
-        : operatorName.trim()
-          ? { name: operatorName.trim() }
-          : undefined;
-
     try {
       await onSubmit({
-        projectId,
-        operator,
-        clientPhone: clientPhone.trim() || undefined,
         language: language.trim() || undefined,
-        files,
+          items: drafts.map((row) => ({
+          file: row.file,
+          projectId,
+          operatorName: row.operatorName.trim() || undefined,
+          clientPhone: row.clientPhone.trim() || undefined,
+        })),
       });
       resetLocal();
       onOpenChange(false);
     } catch {
-      setLocalError(
-        t(
-          'speechAnalytics.errorUpload',
-          'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
-        ),
-      );
+      setLocalError(t(
+        'speechAnalytics.errorUpload',
+        'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
+      ));
     }
-  }, [
-    clientPhone,
-    files,
-    isSubmitting,
-    language,
-    onOpenChange,
-    onSubmit,
-    operatorMode,
-    operatorName,
-    operatorUserId,
-    projectId,
-    resetLocal,
-    t,
-  ]);
+  }, [canSubmit, drafts, language, onOpenChange, onSubmit, projectId, resetLocal, t]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -188,122 +187,25 @@ export const UploadForm = memo(({
           <DialogTitle>
             {t('speechAnalytics.uploadRecording', 'Загрузить запись')}
           </DialogTitle>
+          <Text variant="muted" className={cls.subtitle}>
+            {t('speechAnalytics.uploadHint', 'Проект и язык общие для всех файлов. У каждой записи свои оператор и номер.')}
+          </Text>
         </DialogHeader>
 
         <form className={cls.form} onSubmit={(e) => void handleSubmit(e)} autoComplete="off">
-          <VStack gap="16" max className={cls.body}>
-            <VStack gap="8" max className={cls.field}>
-              <Label htmlFor="sa-upload-project">
-                {t('speechAnalytics.routeProjectLabel', 'Проект аналитики')} *
-              </Label>
-              <Select
-                id="sa-upload-project"
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-                disabled={isSubmitting}
-                data-testid="upload-project"
-              >
-                <option value="">
-                  {t('speechAnalytics.routeProjectPlaceholder', 'Без проекта')}
-                </option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </Select>
-            </VStack>
-
-            <VStack gap="8" max className={cls.field}>
-              <Label htmlFor="sa-upload-operator">
-                {t('speechAnalytics.uploadOperator', 'Оператор')}
-              </Label>
-              <HStack gap="8" max className={cls.operatorRow}>
-                <Select
-                  id="sa-upload-operator-mode"
-                  value={operatorMode}
-                  onChange={(e) => setOperatorMode(e.target.value as 'user' | 'name')}
-                  disabled={isSubmitting}
-                  aria-label={t('speechAnalytics.uploadOperatorMode', 'Способ выбора')}
-                >
-                  <option value="name">
-                    {t('speechAnalytics.uploadOperatorFreeText', 'Имя текстом')}
-                  </option>
-                  <option value="user">
-                    {t('speechAnalytics.uploadOperatorUser', 'Пользователь кабинета')}
-                  </option>
-                </Select>
-                {operatorMode === 'user' ? (
-                  <Select
-                    id="sa-upload-operator"
-                    value={operatorUserId}
-                    onChange={(e) => setOperatorUserId(e.target.value)}
-                    disabled={isSubmitting}
-                    className={cls.wrapField}
-                  >
-                    <option value="">
-                      {t('speechAnalytics.uploadOperatorPick', 'Выберите оператора')}
-                    </option>
-                    {operatorOptions.map((op) => (
-                      <option key={op.id} value={String(op.id)}>
-                        {op.name}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    id="sa-upload-operator"
-                    value={operatorName}
-                    onChange={(e) => setOperatorName(e.target.value)}
-                    disabled={isSubmitting}
-                    className={cls.wrapField}
-                    placeholder={t('speechAnalytics.uploadOperatorNamePh', 'Имя оператора')}
-                  />
-                )}
-              </HStack>
-            </VStack>
-
-            <HStack gap="12" max className={cls.optionalRow}>
-              <VStack gap="8" max className={cls.field}>
-                <Label htmlFor="sa-upload-phone">
-                  {t('speechAnalytics.uploadClientPhone', 'Телефон клиента')}
-                </Label>
-                <Input
-                  id="sa-upload-phone"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  disabled={isSubmitting}
-                  className={cls.wrapField}
-                />
-              </VStack>
-              <VStack gap="8" max className={cls.field}>
-                <Label htmlFor="sa-upload-lang">
-                  {t('speechAnalytics.uploadLanguage', 'Язык')}
-                </Label>
-                <Input
-                  id="sa-upload-lang"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  disabled={isSubmitting}
-                  className={cls.wrapField}
-                />
-              </VStack>
-            </HStack>
-
-            <VStack gap="8" max className={cls.field}>
-              <Label htmlFor="sa-upload-files">
-                {t('speechAnalytics.uploadFiles', 'Файлы')}
-              </Label>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSubmitting}
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="upload-pick-files"
-              >
-                <Upload size={16} />
-                {t('speechAnalytics.uploadPickFiles', 'Выбрать файлы')}
-              </Button>
+          <VStack gap="16" max className={isSubmitting ? `${cls.body} ${cls.formDisabled}` : cls.body}>
+            <div
+              className={`${cls.dropZone}${dragging ? ` ${cls.dragging}` : ''}${drafts.length ? ` ${cls.hasFiles}` : ''}`}
+              onDrop={onDrop}
+              onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onClick={() => { if (!isSubmitting) fileInputRef.current?.click(); }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') fileInputRef.current?.click();
+              }}
+            >
               <input
                 ref={fileInputRef}
                 id="sa-upload-files"
@@ -312,41 +214,122 @@ export const UploadForm = memo(({
                 multiple
                 className={cls.hiddenFile}
                 data-testid="upload-file-input"
-                tabIndex={-1}
-                aria-hidden="true"
                 onChange={handleFileChange}
               />
-              {files.length > 0 ? (
-                <VStack gap="4" max className={cls.fileList} data-testid="upload-file-list">
-                  {files.map((file) => (
-                    <Text key={`${file.name}-${file.size}`} className={cls.fileName}>
-                      {file.name}
-                    </Text>
-                  ))}
-                </VStack>
-              ) : null}
-            </VStack>
+              <span className={cls.dropIcon}><Upload size={22} /></span>
+              <Text className={cls.dropTitle}>{t('speechAnalytics.uploadDrop', 'Перетащите файлы сюда')}</Text>
+              <Text variant="muted">{t('speechAnalytics.uploadPickFiles', 'или выберите файлы')}</Text>
+              <Text variant="xs">mp3, wav, ogg, m4a · 50 MB</Text>
+            </div>
+
+            {drafts.length > 0 ? (
+              <VStack gap="12" max data-testid="upload-file-list">
+                <div className={cls.shared}>
+                  <VStack gap="4" max>
+                    <Label htmlFor="sa-upload-project">
+                      {t('speechAnalytics.routeProjectLabel', 'Проект аналитики')} *
+                    </Label>
+                    <Select
+                      id="sa-upload-project"
+                      value={projectId}
+                      disabled={isSubmitting}
+                      data-testid="upload-project"
+                      onChange={(e) => setProjectId(e.target.value)}
+                    >
+                      <option value="">
+                        {t('speechAnalytics.uploadProjectPlaceholder', 'Выбрать проект')}
+                      </option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>{project.name}</option>
+                      ))}
+                    </Select>
+                  </VStack>
+                  <VStack gap="4" max>
+                    <Label htmlFor="sa-upload-lang">{t('speechAnalytics.uploadLanguage', 'Язык')}</Label>
+                    <Input
+                      id="sa-upload-lang"
+                      value={language}
+                      disabled={isSubmitting}
+                      placeholder="ru"
+                      onChange={(e) => setLanguage(e.target.value)}
+                    />
+                  </VStack>
+                </div>
+                <HStack justify="between" max align="center">
+                  <Text className={cls.listTitle}>{t('speechAnalytics.uploadFiles', 'Файлы')}</Text>
+                  <span className={cls.count}>{drafts.length}</span>
+                </HStack>
+                {drafts.map((row) => (
+                  <div key={row.id} className={cls.fileCard}>
+                    <div className={cls.fileHead}>
+                      <button
+                        type="button"
+                        className={cls.fileToggle}
+                        aria-expanded={row.open}
+                        onClick={() => patchDraft(row.id, { open: !row.open })}
+                      >
+                        {row.open
+                          ? <ChevronDown size={16} className={cls.chevron} aria-hidden />
+                          : <ChevronRight size={16} className={cls.chevron} aria-hidden />}
+                        <span className={cls.fileIcon}><FileAudio size={16} /></span>
+                        <span className={cls.fileMeta}>
+                          <span className={cls.fileName}>{row.file.name}</span>
+                          <span className={cls.fileSize}>{formatFileSize(row.file.size)}</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className={cls.removeBtn}
+                        aria-label={t('common.delete', 'Удалить')}
+                        onClick={() => setDrafts((prev) => prev.filter((item) => item.id !== row.id))}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    {row.open ? (
+                    <div className={cls.fileFields}>
+                      <VStack gap="4" max>
+                        <Label htmlFor={`sa-upload-op-${row.id}`}>{t('speechAnalytics.uploadOperator', 'Оператор')}</Label>
+                        <Input
+                          id={`sa-upload-op-${row.id}`}
+                          value={row.operatorName}
+                          placeholder={t('speechAnalytics.uploadOperatorNamePh', 'Имя оператора')}
+                          disabled={isSubmitting}
+                          onChange={(e) => patchDraft(row.id, { operatorName: e.target.value })}
+                        />
+                      </VStack>
+                      <VStack gap="4" max>
+                        <Label htmlFor={`sa-upload-phone-${row.id}`}>{t('speechAnalytics.uploadClientPhone', 'Телефон клиента')}</Label>
+                        <Input
+                          id={`sa-upload-phone-${row.id}`}
+                          value={row.clientPhone}
+                          disabled={isSubmitting}
+                          onChange={(e) => patchDraft(row.id, { clientPhone: e.target.value })}
+                        />
+                      </VStack>
+                    </div>
+                    ) : null}
+                  </div>
+                ))}
+              </VStack>
+            ) : null}
+
+            {isSubmitting ? (
+              <div className={cls.progressWrap}>
+                <div className={cls.progressBar} />
+                <Text variant="xs">{t('speechAnalytics.uploadSubmitBusy', 'Загрузка...')}</Text>
+              </div>
+            ) : null}
 
             {errorText ? (
-              <Text className={cls.error} data-testid="upload-form-error">
-                {errorText}
-              </Text>
+              <Text className={cls.error} data-testid="upload-form-error">{errorText}</Text>
             ) : null}
 
             <HStack justify="end" gap="8" max>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSubmitting}
-                onClick={() => handleOpenChange(false)}
-              >
+              <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => handleOpenChange(false)}>
                 {t('common.cancel', 'Отмена')}
               </Button>
-              <Button
-                type="submit"
-                disabled={!canSubmit}
-                data-testid="upload-submit"
-              >
+              <Button type="submit" disabled={!canSubmit} data-testid="upload-submit">
                 {isSubmitting ? (
                   <>
                     <Loader2 size={16} className={cls.spinner} />

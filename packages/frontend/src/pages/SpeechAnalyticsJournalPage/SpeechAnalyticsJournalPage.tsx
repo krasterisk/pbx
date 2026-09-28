@@ -11,14 +11,16 @@ import {
   useDeleteSaConversationMutation,
   useGetSaConversationQuery,
   useGetSaJournalQuery,
+  cabinetSaProjects,
   useGetSaProjectsQuery,
   useRegenerateSaConversationMutation,
+  useSaveSaConversationOverrideMutation,
   useUploadSaCabinetBatchMutation,
 } from '@/features/speechAnalytics/api/speechAnalyticsApi';
 import {
-  ConversationSheet,
+  ConversationExpandedPanel,
   type ConversationSourceKind,
-} from '@/features/speechAnalytics/ui/ConversationSheet/ConversationSheet';
+} from '@/features/speechAnalytics/ui/ConversationExpandedPanel/ConversationExpandedPanel';
 import { ConversationsTable } from '@/features/speechAnalytics/ui/ConversationsTable/ConversationsTable';
 import {
   UploadForm,
@@ -49,14 +51,13 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { conversationId } = useParams<{ conversationId?: string }>();
-  const sheetOpen = Boolean(conversationId);
-
   const accessToken = useAppSelector((s) => s.auth.accessToken);
   const canManage = readImpersonation(accessToken) != null;
-  const journalQuery = useGetSaJournalQuery();
+  const journalQuery = useGetSaJournalQuery(undefined, { pollingInterval: 4000 });
   const projectsQuery = useGetSaProjectsQuery();
   const [uploadBatch, uploadState] = useUploadSaCabinetBatchMutation();
   const [regenerate, regenerateState] = useRegenerateSaConversationMutation();
+  const [saveOverride, overrideState] = useSaveSaConversationOverrideMutation();
   const [removeConversation, deleteState] = useDeleteSaConversationMutation();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFormError, setUploadFormError] = useState<string | null>(null);
@@ -67,15 +68,16 @@ export const SpeechAnalyticsJournalPage = memo(() => {
 
   const items = journalQuery.data?.items ?? [];
   const uploadProgress = journalQuery.data?.uploadProgress ?? { done: 0, total: 0 };
-  const isEmpty = !journalQuery.isLoading && !journalQuery.isError && items.length === 0;
-  const projects = (projectsQuery.data ?? []).map((p) => ({ id: p.id, name: p.name }));
+  const analysisJobs = journalQuery.data?.analysisJobs ?? [];
+  const isEmpty = !journalQuery.isLoading && !journalQuery.isError && items.length === 0 && analysisJobs.length === 0;
+  const projects = cabinetSaProjects(projectsQuery.data).map((p) => ({ id: p.id, name: p.name }));
 
   const openConversation = (id: string) => {
+    if (conversationId === id) {
+      navigate('/speech-analytics/conversations');
+      return;
+    }
     navigate(`/speech-analytics/conversations/${id}`);
-  };
-
-  const closeSheet = (open: boolean) => {
-    if (!open) navigate('/speech-analytics/conversations');
   };
 
   const openUpload = () => {
@@ -86,26 +88,35 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   const handleUpload = useCallback(async (payload: UploadFormSubmitPayload) => {
     setUploadFormError(null);
     try {
-      const files = await Promise.all(
-        payload.files.map(async (file) => ({
-          filename: file.name,
-          bytesBase64: await fileToBase64(file),
-        })),
-      );
-      await uploadBatch({
-        projectId: payload.projectId,
-        operator: payload.operator,
-        clientPhone: payload.clientPhone,
-        language: payload.language,
-        files,
-      }).unwrap();
-    } catch {
-      setUploadFormError(
-        t(
-          'speechAnalytics.errorUpload',
-          'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
-        ),
-      );
+      for (const item of payload.items) {
+        await uploadBatch({
+          projectId: item.projectId,
+          operator: item.operatorName ? { name: item.operatorName } : undefined,
+          clientPhone: item.clientPhone,
+          language: payload.language,
+          files: [{
+            filename: item.file.name,
+            bytesBase64: await fileToBase64(item.file),
+          }],
+        }).unwrap();
+      }
+    } catch (error) {
+      const code = (error as { data?: { code?: string } })?.data?.code;
+      const message = code === 'analysis_provider_missing'
+        ? t(
+          'speechAnalytics.errorUploadNoProvider',
+          'Разбор не запущен: для речевой аналитики не назначены распознавание и LLM. Запись не сохранена.',
+        )
+        : code === 'analysis_failed'
+          ? t(
+            'speechAnalytics.errorUploadNoAnalysis',
+            'Разбор не получен, запись не сохранена.',
+          )
+          : t(
+            'speechAnalytics.errorUpload',
+            'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
+          );
+      setUploadFormError(message);
       throw new Error('upload_failed');
     }
   }, [t, uploadBatch]);
@@ -180,24 +191,29 @@ export const SpeechAnalyticsJournalPage = memo(() => {
       ) : null}
 
       {isEmpty ? (
-        <VStack gap="12" max className={cls.empty} data-testid="journal-empty">
-          <Text variant="h2" as="h2">
-            {t('speechAnalytics.emptyJournalHeading', 'Разговоров пока нет')}
-          </Text>
-          <Text variant="muted">
-            {t(
-              'speechAnalytics.emptyJournalBody',
-              'Загрузите запись или дождитесь разбора звонка с маршрута, где выбран проект.',
-            )}
-          </Text>
-          <Button type="button" data-testid="journal-empty-upload-cta" onClick={openUpload}>
+        <VStack gap="16" max align="center" className={cls.empty} data-testid="journal-empty">
+          <Flex align="center" justify="center" className={cls.emptyIcon}>
+            <MessageSquareText size={28} />
+          </Flex>
+          <VStack gap="8" align="center" className={cls.emptyCopy}>
+            <Text variant="h2" as="h2">
+              {t('speechAnalytics.emptyJournalHeading', 'Разговоров пока нет')}
+            </Text>
+            <Text variant="muted">
+              {t(
+                'speechAnalytics.emptyJournalBody',
+                'Загрузите запись или дождитесь разбора звонка с маршрута, где выбран проект.',
+              )}
+            </Text>
+          </VStack>
+          <Button type="button" className={cls.uploadBtn} data-testid="journal-empty-upload-cta" onClick={openUpload}>
             <Upload size={16} className={cls.uploadIcon} />
             {t('speechAnalytics.uploadRecording', 'Загрузить запись')}
           </Button>
         </VStack>
       ) : null}
 
-      {!journalQuery.isError && (journalQuery.isLoading || items.length > 0) ? (
+      {!journalQuery.isError && (journalQuery.isLoading || items.length > 0 || analysisJobs.length > 0) ? (
         journalQuery.isLoading && items.length === 0 ? (
           <VStack gap="8" max data-testid="journal-loading">
             {[1, 2, 3].map((i) => (
@@ -208,32 +224,38 @@ export const SpeechAnalyticsJournalPage = memo(() => {
           <ConversationsTable
             items={items}
             uploadProgress={uploadProgress}
+            analysisJobs={analysisJobs}
             isLoading={journalQuery.isLoading}
+            expandedId={conversationId ?? null}
             onRowClick={openConversation}
+            renderExpanded={() => (
+              <ConversationExpandedPanel
+                conversationId={conversationId ?? null}
+                sourceKind={normalizeSourceKind(conversationQuery.data?.sourceKind)}
+                audioUrl={conversationQuery.data?.audioUrl}
+                rebuildInProgress={conversationQuery.data?.rebuildInProgress === true}
+                summary={conversationQuery.data?.summary}
+                metricResults={conversationQuery.data?.metricResults}
+                transcriptText={conversationQuery.data?.transcriptText}
+                turns={conversationQuery.data?.turns}
+                runs={conversationQuery.data?.runs}
+                onSaveOverride={canManage && conversationId
+                  ? (input) => { void saveOverride({ id: conversationId, ...input }); }
+                  : undefined}
+                isSavingOverride={overrideState.isLoading}
+                isLoading={conversationQuery.isLoading}
+                isError={conversationQuery.isError}
+                onRetry={() => void conversationQuery.refetch()}
+                canManage={canManage}
+                onRegenerate={() => void handleRegenerate()}
+                onDelete={() => void handleDelete()}
+                isRegenerating={regenerateState.isLoading}
+                isDeleting={deleteState.isLoading}
+              />
+            )}
           />
         )
       ) : null}
-
-      <ConversationSheet
-        open={sheetOpen}
-        conversationId={conversationId ?? null}
-        onOpenChange={closeSheet}
-        sourceKind={normalizeSourceKind(conversationQuery.data?.sourceKind)}
-        audioUrl={conversationQuery.data?.audioUrl}
-        rebuildInProgress={conversationQuery.data?.rebuildInProgress === true}
-        summary={conversationQuery.data?.summary}
-        metricResults={conversationQuery.data?.metricResults}
-        transcriptText={conversationQuery.data?.transcriptText}
-        runs={conversationQuery.data?.runs}
-        isLoading={conversationQuery.isLoading}
-        isError={conversationQuery.isError}
-        onRetry={() => void conversationQuery.refetch()}
-        canManage={canManage}
-        onRegenerate={() => void handleRegenerate()}
-        onDelete={() => void handleDelete()}
-        isRegenerating={regenerateState.isLoading}
-        isDeleting={deleteState.isLoading}
-      />
 
       <UploadForm
         open={uploadOpen}

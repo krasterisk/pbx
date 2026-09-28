@@ -66,6 +66,15 @@
   flex-direction: column;
 }
 
+.draftBadge {
+  color: var(--color-warning, var(--color-primary));
+  font-weight: 600;
+}
+
+.pendingBadge {
+  color: var(--color-muted-foreground);
+}
+
 .spinner {
   animation: sa-spin 1s linear infinite;
   color: var(--color-primary);

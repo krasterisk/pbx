@@ -8,7 +8,9 @@ import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
 import { SaMetricsService } from './metrics/metrics.service';
 import { SaReportingService } from './reporting/reporting.service';
 import { SaJournalService } from './journal/journal.service';
+import type { JournalExcelHeaderLabels } from './journal/excel-export';
 import { InsightsService } from './dashboard/insights.service';
+import { SaNoticeDeliveryService } from './notices/notice-delivery.service';
 import type { AnalyticsFilterSpec } from '@krasterisk/shared';
 import type { SaProjectConfigV1 } from '@krasterisk/shared';
 import type { MetricRubric } from './metrics/metric-engine';
@@ -19,6 +21,29 @@ import {
 
 type Authed = TenantContextRequest & { tenantContext: NonNullable<TenantContextRequest['tenantContext']> };
 
+const JOURNAL_EXCEL_HEADER_KEYS = [
+  'occurredAt', 'sourceKind', 'latestAmount', 'currency', 'summary',
+  'transcript', 'sttQuality', 'topics', 'rationales',
+] as const;
+
+function journalExportLocale(bodyLocale: unknown, request: Authed): string {
+  if (typeof bodyLocale === 'string' && bodyLocale.trim()) return bodyLocale.trim();
+  const header = request.headers?.['accept-language'];
+  if (typeof header === 'string' && header.trim()) return header.split(',')[0]?.trim() || 'ru';
+  return 'ru';
+}
+
+function journalExportHeaders(raw: unknown): JournalExcelHeaderLabels | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const source = raw as Record<string, unknown>;
+  const out: JournalExcelHeaderLabels = {};
+  for (const key of JOURNAL_EXCEL_HEADER_KEYS) {
+    const value = source[key];
+    if (typeof value === 'string' && value.trim()) out[key] = value.trim();
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 @UseGuards(TenantContextGuard)
 @Controller('speech-analytics')
 export class SpeechAnalyticsJwtController {
@@ -28,6 +53,7 @@ export class SpeechAnalyticsJwtController {
     private readonly reporting: SaReportingService,
     private readonly journal: SaJournalService,
     private readonly insights: InsightsService,
+    private readonly notices: SaNoticeDeliveryService,
     private readonly products: ProductAccessService,
   ) {}
 
@@ -36,10 +62,40 @@ export class SpeechAnalyticsJwtController {
     return this.journal.list(request.tenantContext);
   }
 
-  /** Entire filtered selection Excel (D-37). Must be registered before journal/:id. */
+  /** Entire access-scoped journal Excel (D-37). Must be registered before journal/:id. */
   @Get('journal/export')
   async exportJournalExcel(@Req() request: Authed, @Res() res: Response) {
-    const buffer = await this.journal.exportExcel(request.tenantContext);
+    return this.sendJournalExcel(res, await this.journal.exportExcel(
+      request.tenantContext,
+      undefined,
+      { locale: journalExportLocale(undefined, request) },
+    ));
+  }
+
+  /**
+   * Export only the conversations selected in the journal UI. The service
+   * intersects these IDs with the current tenant and the caller's CDR scope.
+   */
+  @Post('journal/export')
+  async exportSelectedJournalExcel(
+    @Req() request: Authed,
+    @Body() body: { ids?: unknown; locale?: unknown; timeZone?: unknown; headers?: unknown } = {},
+    @Res() res: Response,
+  ) {
+    const selectedIds = Array.isArray(body.ids)
+      ? body.ids.filter((id): id is string => typeof id === 'string')
+      : [];
+    return this.sendJournalExcel(
+      res,
+      await this.journal.exportExcel(request.tenantContext, selectedIds, {
+        locale: journalExportLocale(body.locale, request),
+        timeZone: typeof body.timeZone === 'string' ? body.timeZone : undefined,
+        headers: journalExportHeaders(body.headers),
+      }),
+    );
+  }
+
+  private sendJournalExcel(res: Response, buffer: Buffer) {
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -57,11 +113,35 @@ export class SpeechAnalyticsJwtController {
     return this.journal.get(request.tenantContext, id);
   }
 
+  @Post('journal/:id/overrides')
+  saveJournalOverride(@Req() request: Authed, @Param('id') id: string, @Body() body: {
+    metricId?: string;
+    value?: string;
+    note?: string;
+  }) {
+    assertUuid(id);
+    return this.journal.saveOverride(request.tenantContext, id, {
+      metricId: String(body.metricId ?? ''),
+      value: String(body.value ?? ''),
+      note: body.note,
+    });
+  }
+
   @Post('journal/:id/regenerate')
   @HttpCode(202)
   regenerateJournal(@Req() request: Authed, @Param('id') id: string) {
     assertUuid(id);
     return this.journal.regenerate(request.tenantContext, id);
+  }
+
+  @Post('journal/delete')
+  @HttpCode(200)
+  deleteJournalMany(@Req() request: Authed, @Body() body: { ids?: unknown } = {}) {
+    const ids = Array.isArray(body.ids)
+      ? body.ids.filter((id): id is string => typeof id === 'string')
+      : [];
+    for (const id of ids) assertUuid(id);
+    return this.journal.deleteMany(request.tenantContext, ids);
   }
 
   @Delete('journal/:id')
@@ -101,7 +181,7 @@ export class SpeechAnalyticsJwtController {
     if (!idempotencyKey) {
       throw new ForbiddenException({ code: 'idempotency_key_required' });
     }
-    // Same assetId — never allocate a second copy (D-18).
+    // Same assetId - never allocate a second copy (D-18).
     return this.analytics.createRun(request.tenantContext, {
       projectId,
       assetId: body.assetId,
@@ -135,10 +215,29 @@ export class SpeechAnalyticsJwtController {
     return this.analytics.setIntake(request.tenantContext, id, body.enabled === true);
   }
 
+  @Get('projects/:id/versions')
+  listVersions(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.listVersions(request.tenantContext, id);
+  }
+
+  @Post('projects/:id/versions/:versionId/restore')
+  restoreVersion(@Req() request: Authed, @Param('id') id: string, @Param('versionId') versionId: string) {
+    assertUuid(id);
+    assertUuid(versionId);
+    return this.analytics.restoreVersion(request.tenantContext, id, versionId);
+  }
+
   @Post('projects/:id/publish')
   publish(@Req() request: Authed, @Param('id') id: string, @Body() body: { operationKey: string }) {
     assertUuid(id);
     return this.analytics.publish(request.tenantContext, id, body.operationKey);
+  }
+
+  @Delete('projects/:id/permanent')
+  purgeProject(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.analytics.purgeProject(request.tenantContext, id);
   }
 
   @Delete('projects/:id')
@@ -152,6 +251,13 @@ export class SpeechAnalyticsJwtController {
   sendDigest(@Req() request: Authed, @Param('id') id: string) {
     assertUuid(id);
     return this.analytics.sendProjectDigest(request.tenantContext, id);
+  }
+
+  @Post('projects/:id/notices/:noticeId/test')
+  @HttpCode(200)
+  testNotice(@Req() request: Authed, @Param('id') id: string, @Param('noticeId') noticeId: string) {
+    assertUuid(id);
+    return this.notices.sendTest(request.tenantContext.tenantUid, id, noticeId);
   }
 
   @Post('projects/:id/alerts/test')
@@ -190,6 +296,20 @@ export class SpeechAnalyticsJwtController {
   @Get('capabilities')
   capabilities() {
     return this.analytics.capabilities();
+  }
+
+  @Get('speech-models')
+  speechModels(@Req() request: Authed) {
+    return this.analytics.cabinetSpeechModels(request.tenantContext.tenantUid);
+  }
+
+  @Put('speech-models')
+  saveSpeechModels(@Req() request: Authed, @Body() body: {
+    sttProviderUid?: number | null;
+    llmProviderUid?: number | null;
+    projectOverride?: boolean;
+  }) {
+    return this.analytics.saveCabinetSpeechModels(request.tenantContext.tenantUid, body ?? {});
   }
 
   @Post('uploads')

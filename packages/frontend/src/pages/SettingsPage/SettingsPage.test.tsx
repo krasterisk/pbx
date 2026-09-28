@@ -36,6 +36,14 @@ vi.mock('@/features/system-settings/ui/RedisStatusCard', () => ({
   RedisStatusCard: () => <div data-testid="redis-card-stub">redis</div>,
 }));
 
+vi.mock('@/features/speechAnalytics/ui/TenantSpeechModelsCard/TenantSpeechModelsCard', () => ({
+  TenantSpeechModelsCard: () => null,
+}));
+
+vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
+  useGetSaSpeechModelsQuery: () => ({ data: { ownModels: true } }),
+}));
+
 vi.mock('@/features/tenant-settings/ui/TablePageSizeSetting/TablePageSizeSetting', () => ({
   TablePageSizeSetting: () => <div data-testid="table-page-size-stub">tables</div>,
 }));
