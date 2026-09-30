@@ -84,11 +84,21 @@ describe('buildIntegrationSubmitPayload', () => {
         chat_id: '-1001',
       }),
     ).toEqual({
-      config: { chat_id: '-1001' },
+      config: { chat_id: '-1001', chat_ids: ['-1001'] },
       credentials: { bot_token: 'tok123' },
     });
   });
 
+  it('stores every chat id, not only the first', () => {
+    expect(
+      buildIntegrationSubmitPayload('telegram', { bot_token: 'tok' }, {
+        chat_id: ['-1001', '-1002', ''],
+      }),
+    ).toEqual({
+      config: { chat_id: '-1001', chat_ids: ['-1001', '-1002'] },
+      credentials: { bot_token: 'tok' },
+    });
+  });
   it('parses webhook payload_template JSON into an object', () => {
     expect(
       buildIntegrationSubmitPayload('webhook', {
@@ -98,6 +108,7 @@ describe('buildIntegrationSubmitPayload', () => {
     ).toEqual({
       config: {
         url: 'https://hooks.example.com/x',
+        urls: ['https://hooks.example.com/x'],
         payload_template: { text: '{{message}}', caller: '{{clid}}' },
       },
       credentials: {},
@@ -239,7 +250,7 @@ describe('NotificationIntegrationFormModal', () => {
     expect(createMock).toHaveBeenCalledWith({
       name: 'Sales Bot',
       channel: 'telegram',
-      config: { chat_id: '-10099' },
+      config: { chat_id: '-10099', chat_ids: ['-10099'] },
       credentials: { bot_token: 'secret-token' },
     });
   });

@@ -18,6 +18,7 @@ import { SaTenantCapturePolicy, SaRecordingRelation } from './reporting/reportin
 import { SaAnalysisRun, SaProject, SaRecording } from './speech-analytics.models';
 import type { SaAnalysisWorker } from './jobs/sa-analysis.worker';
 import { internalOriginKey } from './reporting/internal-admission';
+import { releaseFinishedSpeechJobs } from './release-speech-jobs';
 
 const HANGUP_PRINCIPAL = 'system:hangup';
 const HANGUP_ORIGIN_KIND = 'hangup_origin';
@@ -225,6 +226,7 @@ export class HangupAnalyticsPortService implements HangupAnalyticsPort {
         return { jobId: existingRun.job_id, runId: existingRun.id, replay: true as const };
       }
 
+      await releaseFinishedSpeechJobs(input.tenantUid, this.runs, this.admission, transaction);
       const receipt = await this.admission.admit({
         tenantUid: input.tenantUid,
         principalId: HANGUP_PRINCIPAL,

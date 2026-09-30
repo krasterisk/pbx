@@ -26,6 +26,7 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
 }));
 
 vi.mock('../../api/speechAnalyticsApi', () => ({
+  useDismissSaAnalysisJobMutation: () => [vi.fn(), { isLoading: false }],
   useExportSaJournalExcelMutation: () => [exportJournalExcelMock, { isLoading: false }],
   useDeleteSaConversationMutation: () => [vi.fn(), { isLoading: false }],
   useDeleteSaConversationsMutation: () => [vi.fn(), { isLoading: false }],
@@ -71,7 +72,7 @@ describe('ConversationsTable', () => {
     expect(screen.getAllByText('Источник').length).toBeGreaterThan(0);
     expect(screen.getByText('Длительность')).toBeInTheDocument();
     expect(screen.getByText('Стоимость')).toBeInTheDocument();
-    expect(screen.getByText('Оценка')).toBeInTheDocument();
+    expect(screen.getAllByText('Оценка').length).toBeGreaterThan(1);
     expect(screen.getAllByText('Настроение').length).toBeGreaterThan(1);
     expect(screen.getByText('Темы')).toBeInTheDocument();
     expect(screen.getByText('Результат')).toBeInTheDocument();

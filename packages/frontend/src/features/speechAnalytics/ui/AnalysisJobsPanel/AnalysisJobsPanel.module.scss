@@ -1,3 +1,12 @@
+.head {
+  width: 100%;
+  height: auto;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-xl);
+}
+
 .spin {
   animation: analysisSpin 1s linear infinite;
   flex-shrink: 0;

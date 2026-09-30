@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ColumnDef } from '@tanstack/react-table';
-import { ChevronDown, ChevronUp, Download, Loader2, MessageSquareText, Search, Star, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Loader2, MessageSquareText, Search, Trash2 } from 'lucide-react';
 import {
   Button, Card, CardContent, CardHeader, DataTable, Dialog, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle, Input, Label, Select, TableRowAction, Text,
@@ -21,7 +21,7 @@ import { formatJournalDuration, formatJournalWhen, useConversationsTableColumns 
 import cls from './ConversationsTable.module.scss';
 
 const PAGE_SIZE = 20;
-const SCORE_VALUES = [1, 2, 3, 4, 5];
+const DEFAULT_SCORE_SCALE = { min: 1, max: 5 };
 
 const EMPTY_FILTERS: JournalTableFilters = {
   search: '',
@@ -29,7 +29,8 @@ const EMPTY_FILTERS: JournalTableFilters = {
   dateFrom: '',
   dateTo: '',
   sentiment: '',
-  scores: [],
+  scoreFrom: '',
+  scoreTo: '',
 };
 
 export interface ConversationsTableProps {
@@ -40,6 +41,8 @@ export interface ConversationsTableProps {
   expandedId?: string | null;
   onRowClick?: (id: string) => void;
   renderExpanded?: (row: SaJournalRow) => ReactNode;
+  /** Cabinet CSAT bounds. The inputs stay two fields even when max is 100. */
+  scoreScale?: { min: number; max: number };
 }
 
 export const ConversationsTable = memo(({
@@ -50,6 +53,7 @@ export const ConversationsTable = memo(({
   expandedId = null,
   onRowClick,
   renderExpanded,
+  scoreScale = DEFAULT_SCORE_SCALE,
 }: ConversationsTableProps) => {
   const { t, i18n } = useTranslation();
   const isMobile = useIsMobile(768);
@@ -89,12 +93,16 @@ export const ConversationsTable = memo(({
   ], [baseColumns, expandedId, onRowClick, t]);
   const [filters, setFilters] = useState<JournalTableFilters>(EMPTY_FILTERS);
   const [page, setPage] = useState(0);
+  const scoreMin = Number.isInteger(scoreScale.min) ? scoreScale.min : DEFAULT_SCORE_SCALE.min;
+  const scoreMax = Number.isInteger(scoreScale.max) && scoreScale.max >= scoreMin
+    ? scoreScale.max
+    : DEFAULT_SCORE_SCALE.max;
 
   const filtered = useMemo(() => filterJournalRows(items, filters), [items, filters]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const pageRows = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
-  const filterKey = `${filters.search}|${filters.source}|${filters.dateFrom}|${filters.dateTo}|${filters.sentiment}|${filters.scores.join(',')}`;
+  const filterKey = `${filters.search}|${filters.source}|${filters.dateFrom}|${filters.dateTo}|${filters.sentiment}|${filters.scoreFrom}|${filters.scoreTo}`;
   const selection = useCrossPageRowSelection({ globalFilter: filterKey });
   const [exportJournalExcel, { isLoading: isExporting }] = useExportSaJournalExcelMutation();
   const [deleteConversations, { isLoading: isDeleting }] = useDeleteSaConversationsMutation();
@@ -105,6 +113,21 @@ export const ConversationsTable = memo(({
   }, [filterKey]);
 
   useEffect(() => {
+    setFilters((prev) => {
+      const clamp = (raw: string) => {
+        if (!raw.trim()) return raw;
+        const value = Number(raw);
+        if (!Number.isFinite(value)) return '';
+        return String(Math.min(scoreMax, Math.max(scoreMin, value)));
+      };
+      const scoreFrom = clamp(prev.scoreFrom);
+      const scoreTo = clamp(prev.scoreTo);
+      if (scoreFrom === prev.scoreFrom && scoreTo === prev.scoreTo) return prev;
+      return { ...prev, scoreFrom, scoreTo };
+    });
+  }, [scoreMin, scoreMax]);
+
+  useEffect(() => {
     if (!expandedId) return;
     const index = filtered.findIndex((row) => row.id === expandedId);
     if (index < 0) return;
@@ -112,13 +135,8 @@ export const ConversationsTable = memo(({
     setPage((current) => (current === nextPage ? current : nextPage));
   }, [expandedId, filtered]);
 
-  const toggleScore = (score: number) => {
-    setFilters((prev) => ({
-      ...prev,
-      scores: prev.scores.includes(score)
-        ? prev.scores.filter((item) => item !== score)
-        : [...prev.scores, score],
-    }));
+  const setScoreBound = (key: 'scoreFrom' | 'scoreTo', raw: string) => {
+    setFilters((prev) => ({ ...prev, [key]: raw }));
   };
 
   const selectedActionIds = selection.allMatchingSelected
@@ -283,25 +301,35 @@ export const ConversationsTable = memo(({
             <option value="negative">{t('speechAnalytics.sentimentNegative', 'Негативное')}</option>
           </Select>
         </VStack>
-        <VStack gap="4">
-          <Text variant="small">{t('speechAnalytics.filterScore', 'Фильтр по оценке')}</Text>
-          <HStack gap="4" align="center" wrap="wrap" role="group" aria-label={t('speechAnalytics.filterScore', 'Фильтр по оценке')}>
-            {SCORE_VALUES.map((score) => {
-              const selected = filters.scores.includes(score);
-              return (
-                <Button
-                  key={score}
-                  type="button"
-                  variant={selected ? 'default' : 'outline'}
-                  aria-pressed={selected}
-                  className={cls.scoreChip}
-                  onClick={() => toggleScore(score)}
-                >
-                  <Star size={14} className={selected ? cls.csatStar : cls.scoreStarMuted} />
-                  <Text as="span">{score}</Text>
-                </Button>
-              );
-            })}
+        <VStack gap="4" className={cls.filterField}>
+          <Label htmlFor="journal-score-from">
+            {t('speechAnalytics.filterScore', 'Оценка')}
+          </Label>
+          <HStack gap="8" align="center">
+            <Input
+              id="journal-score-from"
+              type="number"
+              inputMode="numeric"
+              min={scoreMin}
+              max={scoreMax}
+              className={cls.scoreBound}
+              placeholder={t('speechAnalytics.settingsScaleFrom', 'От')}
+              aria-label={t('speechAnalytics.filterScoreFrom', 'Оценка от')}
+              value={filters.scoreFrom}
+              onChange={(event) => setScoreBound('scoreFrom', event.target.value)}
+            />
+            <Input
+              id="journal-score-to"
+              type="number"
+              inputMode="numeric"
+              min={scoreMin}
+              max={scoreMax}
+              className={cls.scoreBound}
+              placeholder={t('speechAnalytics.settingsScaleTo', 'До')}
+              aria-label={t('speechAnalytics.filterScoreTo', 'Оценка до')}
+              value={filters.scoreTo}
+              onChange={(event) => setScoreBound('scoreTo', event.target.value)}
+            />
           </HStack>
         </VStack>
       </Flex>
@@ -406,7 +434,7 @@ export const ConversationsTable = memo(({
               direction="column"
               align="stretch"
               max
-              className={cls.tableScroll}
+              className={`${cls.tableScroll} ${cls.journalTable}`}
               data-testid="conversations-wide-table"
               data-hybrid="overflow-x-auto"
             >
@@ -422,6 +450,7 @@ export const ConversationsTable = memo(({
                 rowSelection={selection.rowSelection}
                 onRowSelectionChange={selection.onRowSelectionChange}
                 onRowClick={(row) => onRowClick?.(row.id)}
+                getRowClassName={(row) => (expandedId === row.id ? cls.rowOpen : cls.row)}
                 renderExpandedRow={(row) => (expandedId === row.id ? renderExpanded?.(row) : null)}
                 emptyText={t('speechAnalytics.emptyFilter', 'Нет разговоров по этому фильтру')}
                 className={cls.tableFill}

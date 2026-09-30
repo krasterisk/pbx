@@ -90,6 +90,17 @@ export class SaInsightsRequest extends Model {
   @AllowNull(false) @Column(DataType.DATE) declare updated_at: Date;
 }
 
+/** Durable insights cache. Key is the facts, period, skill version and project focus. */
+@Table({ tableName: 'sa_insights_cache', timestamps: false })
+export class SaInsightsCache extends Model {
+  @PrimaryKey @AllowNull(false) @Column(DataType.CHAR(64)) declare cache_key: string;
+  @AllowNull(false) @Column({ type: DataType.INTEGER, field: 'vpbx_user_uid' }) declare tenant_uid: number;
+  @AllowNull(false) @Column(DataType.STRING(36)) declare project_id: string;
+  @AllowNull(false) @Column(DataType.TEXT) declare payload: string;
+  @AllowNull(false) @Column(DataType.DATE) declare expires_at: Date;
+  @AllowNull(false) @Column(DataType.DATE) declare created_at: Date;
+}
+
 @Table({ tableName: 'sa_transcripts', timestamps: false })
 export class SaTranscript extends Model {
   @PrimaryKey @AllowNull(false) @Column(DataType.STRING(36)) declare id: string;

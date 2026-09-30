@@ -82,3 +82,20 @@ describe('AN3 pipeline fixtures', () => {
     }, 1000).state).toBe('failed');
   });
 });
+
+describe('metadataAllowlist', () => {
+  it('keeps the upload filename and drops unknown keys', () => {
+    expect(metadataAllowlist({
+      filename: 'calls/20260922102403-+79832090143-9059768100.mp3',
+      source: 'upload',
+      direction: 'in',
+      operator: { name: '  Татьяна  ', userId: 4, extra: true },
+      clientPhone: ' +79832090143 ',
+    })).toEqual({
+      filename: '20260922102403-+79832090143-9059768100.mp3',
+      direction: 'in',
+      operator: { name: 'Татьяна', userId: 4 },
+      clientPhone: '+79832090143',
+    });
+  });
+});

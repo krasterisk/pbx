@@ -114,8 +114,9 @@
   }
 }
 
-.scoreChip {
-  gap: 0.25rem;
+.scoreBound {
+  width: 4.5rem;
+  min-width: 0;
 }
 
 .scoreStarMuted {
@@ -194,6 +195,59 @@
   overflow-x: auto;
 }
 
+.journalTable {
+  :global(thead) {
+    background: color-mix(in srgb, var(--color-muted) 42%, transparent);
+  }
+
+  :global(tr).row,
+  :global(tr).rowOpen {
+    transition: background-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  :global(tr).row:hover,
+  :global(tr).rowOpen {
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    box-shadow: inset 3px 0 0 var(--color-primary);
+  }
+
+  :global(tr).rowOpen + :global(tr) {
+    background: color-mix(in srgb, var(--color-muted) 28%, transparent);
+  }
+}
+
+.when,
+.phone,
+.duration {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted-foreground);
+}
+
+.name {
+  font-weight: 600;
+}
+
+.scorePill {
+  width: fit-content;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-warning, var(--color-primary)) 14%, transparent);
+}
+
+.topics {
+  flex-wrap: wrap;
+  max-width: 16rem;
+}
+
+.topic {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  padding: 0.125rem 0.45rem;
+  border-radius: 9999px;
+  color: var(--color-foreground);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
 .mobileList {
   width: 100%;
   padding: 0.75rem;
@@ -205,6 +259,12 @@
   justify-content: flex-start;
   text-align: left;
   white-space: normal;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.mobileList .mobileCard:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .mobileField {

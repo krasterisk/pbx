@@ -15,7 +15,6 @@ const GLOBAL_SCORING = [
   'Scores: 0|25|50|75|100 only (0=absent, 25=poor, 50=adequate, 75=good, 100=all checklist items present).',
   'Give 100 when every checklist item is clearly present (synonyms OK). Below 100: name the missing item.',
   'PROCESS vs OUTCOME: Score checklist behavior, not whether the customer got their preferred outcome.',
-  'SUCCESS: true when the operator handled the request correctly within company scope, including a clear business limit plus a next step. success=false only for operator-caused failure.',
   'CSAT and sentiment rate the customer reaction to the OPERATOR, not to a business limit.',
   'LANGUAGE: prose in the transcript language. JSON keys and enums Positive/Neutral/Negative stay English.',
 ].join('\n');
@@ -116,6 +115,7 @@ export function configForAnalysis(raw: Partial<SaProjectConfigV1> | null | undef
     hiddenDefaultScales: Array.isArray(parsed.hiddenDefaultScales) ? parsed.hiddenDefaultScales : [],
     callTaxonomy: Array.isArray(parsed.callTaxonomy) ? parsed.callTaxonomy : [],
     systemPrompt: typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt : '',
+    insightsFocus: typeof parsed.insightsFocus === 'string' ? parsed.insightsFocus.trim().slice(0, 2000) : '',
   };
 }
 
@@ -167,6 +167,10 @@ export function buildAnalysisPrompt(config: SaProjectConfigV1, transcript: strin
     required.push(`customer_sentiment (one of ${insights.sentiment.values.map((row) => row.id).join('|')}): ${insights.sentiment.instruction}`);
     assessmentKeys.push('customer_sentiment');
   }
+  if (insights.success.enabled) {
+    required.push(`success (boolean): ${insights.success.instruction}`);
+    assessmentKeys.push('success');
+  }
   return [
     'Call center QA analyzer. JSON only.',
     GLOBAL_SCORING,
@@ -186,6 +190,15 @@ export function buildAnalysisPrompt(config: SaProjectConfigV1, transcript: strin
     'TRANSCRIPTION:',
     transcript,
   ].filter(Boolean).join('\n\n');
+}
+
+function readSuccessFlag(value: unknown): boolean | null {
+  if (value === true || value === 'true' || value === 1 || value === '1') return true;
+  if (value === false || value === 'false' || value === 0 || value === '0') return false;
+  if (value && typeof value === 'object' && 'value' in value) {
+    return readSuccessFlag((value as { value: unknown }).value);
+  }
+  return null;
 }
 
 function asSentiment(value: unknown, allowed: Set<string>): string {
@@ -229,24 +242,91 @@ export function analysisToMetricRows(
       ...assessmentNote(assessments, 'csat'),
     });
   }
+  if (insights.success.enabled) {
+    rows.push({
+      id: 'success',
+      value: score.success,
+      ...assessmentNote(assessments, 'success'),
+    });
+  }
   rows.push({ id: 'topics', value: score.topicTagIds, rationale: '', quote: '' });
   return rows;
 }
 
-export function parseAnalysisResponse(raw: string, config: SaProjectConfigV1): AnalysisScore {
+/** First balanced object that parses. Skips prose fragments such as {rationale, quote}. */
+export function parseJsonObject(raw: string): Record<string, unknown> | null {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const source = fenced?.[1] ?? raw;
-  const start = source.indexOf('{');
-  const end = source.lastIndexOf('}');
-  let json = start >= 0 && end > start ? source.slice(start, end + 1) : '{}';
-  json = json.replace(/,\s*([}\]])/g, '$1');
-  let body: Record<string, unknown>;
-  try {
-    body = JSON.parse(json) as Record<string, unknown>;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const sample = json.replace(/\s+/g, ' ').slice(0, 240);
-    throw new Error(`${message} sample=${sample}`);
+  const found: Record<string, unknown>[] = [];
+  let searchFrom = 0;
+  while (searchFrom < source.length) {
+    const start = source.indexOf('{', searchFrom);
+    if (start < 0) break;
+    const end = matchingJsonBrace(source, start);
+    if (end < 0) {
+      searchFrom = start + 1;
+      continue;
+    }
+    const slice = source.slice(start, end + 1).replace(/,\s*([}\]])/g, '$1');
+    try {
+      const parsed = JSON.parse(slice) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        found.push(parsed as Record<string, unknown>);
+      }
+    } catch {
+      /* look for the next object */
+    }
+    searchFrom = start + 1;
+  }
+  if (found.length === 0) return null;
+  return found.sort((left, right) => jsonObjectScore(right) - jsonObjectScore(left))[0];
+}
+
+function jsonObjectScore(body: Record<string, unknown>): number {
+  let score = Object.keys(body).length;
+  if ('summary' in body) score += 20;
+  if ('assessments' in body) score += 20;
+  if ('csat' in body || 'customer_sentiment' in body) score += 10;
+  if ('metrics' in body || 'roles' in body) score += 10;
+  return score;
+}
+
+function matchingJsonBrace(source: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (char === '\\') {
+        escape = true;
+        continue;
+      }
+      if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '{') depth += 1;
+    else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+export function parseAnalysisResponse(raw: string, config: SaProjectConfigV1): AnalysisScore {
+  const body = parseJsonObject(raw);
+  if (!body) {
+    const sample = raw.replace(/\s+/g, ' ').slice(0, 240);
+    throw new Error(`score response has no JSON object sample=${sample}`);
   }
   const insights = resolveProjectInsights(config);
   const allowedSentiment = new Set(insights.sentiment.values.map((row) => row.id));
@@ -302,7 +382,7 @@ export function parseAnalysisResponse(raw: string, config: SaProjectConfigV1): A
     csat: Number.isFinite(csatNum)
       ? Math.min(insights.csat.max, Math.max(insights.csat.min, Math.round(csatNum)))
       : csatFallback,
-    success: body.success === true,
+    success: readSuccessFlag(body.success) ?? readSuccessFlag(assessments.success) ?? false,
     metrics,
     topicTagIds,
     assessments,

@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -17,6 +17,13 @@ import {
   useSaveSaConversationOverrideMutation,
   useUploadSaCabinetBatchMutation,
 } from '@/features/speechAnalytics/api/speechAnalyticsApi';
+import {
+  addPendingUploads,
+  mergeAnalysisJobs,
+  removePendingUpload,
+  usePendingUploads,
+} from '@/features/speechAnalytics/model/pendingUploads';
+import { journalScoreScale } from '@/features/speechAnalytics/ui/ConversationsTable/filterJournalRows';
 import {
   ConversationExpandedPanel,
   type ConversationSourceKind,
@@ -55,12 +62,12 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   const canManage = readImpersonation(accessToken) != null;
   const journalQuery = useGetSaJournalQuery(undefined, { pollingInterval: 4000 });
   const projectsQuery = useGetSaProjectsQuery();
-  const [uploadBatch, uploadState] = useUploadSaCabinetBatchMutation();
+  const [uploadBatch] = useUploadSaCabinetBatchMutation();
   const [regenerate, regenerateState] = useRegenerateSaConversationMutation();
   const [saveOverride, overrideState] = useSaveSaConversationOverrideMutation();
   const [removeConversation, deleteState] = useDeleteSaConversationMutation();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [uploadFormError, setUploadFormError] = useState<string | null>(null);
+  const pendingJobs = usePendingUploads();
 
   const conversationQuery = useGetSaConversationQuery(conversationId ?? '', {
     skip: !conversationId,
@@ -68,9 +75,19 @@ export const SpeechAnalyticsJournalPage = memo(() => {
 
   const items = journalQuery.data?.items ?? [];
   const uploadProgress = journalQuery.data?.uploadProgress ?? { done: 0, total: 0 };
-  const analysisJobs = journalQuery.data?.analysisJobs ?? [];
+  const analysisJobs = mergeAnalysisJobs(journalQuery.data?.analysisJobs ?? [], pendingJobs);
   const isEmpty = !journalQuery.isLoading && !journalQuery.isError && items.length === 0 && analysisJobs.length === 0;
-  const projects = cabinetSaProjects(projectsQuery.data).map((p) => ({ id: p.id, name: p.name }));
+  const cabinetProjects = cabinetSaProjects(projectsQuery.data);
+  const projects = cabinetProjects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    unpublished: p.unpublished,
+    analysisVersionNo: p.analysisVersionNo,
+  }));
+  const scoreScale = useMemo(
+    () => journalScoreScale(cabinetSaProjects(projectsQuery.data)),
+    [projectsQuery.data],
+  );
 
   const openConversation = (id: string) => {
     if (conversationId === id) {
@@ -81,45 +98,57 @@ export const SpeechAnalyticsJournalPage = memo(() => {
   };
 
   const openUpload = () => {
-    setUploadFormError(null);
     setUploadOpen(true);
   };
 
-  const handleUpload = useCallback(async (payload: UploadFormSubmitPayload) => {
-    setUploadFormError(null);
-    try {
-      for (const item of payload.items) {
-        await uploadBatch({
-          projectId: item.projectId,
-          operator: item.operatorName ? { name: item.operatorName } : undefined,
-          clientPhone: item.clientPhone,
-          language: payload.language,
-          files: [{
-            filename: item.file.name,
-            bytesBase64: await fileToBase64(item.file),
-          }],
-        }).unwrap();
+  const handleUpload = useCallback((payload: UploadFormSubmitPayload) => {
+    const projectName = projects.find((project) => project.id === payload.items[0]?.projectId)?.name ?? null;
+    const pending = payload.items.map((item) => ({
+      id: crypto.randomUUID(),
+      filename: item.file.name,
+      projectName,
+      item,
+    }));
+    addPendingUploads(pending.map(({ id, filename, projectName: name }) => ({
+      id,
+      filename,
+      projectName: name,
+    })));
+    void (async () => {
+      for (const row of pending) {
+        let accepted = false;
+        try {
+          await uploadBatch({
+            projectId: row.item.projectId,
+            configSource: payload.configSource,
+            operator: row.item.operatorName ? { name: row.item.operatorName } : undefined,
+            clientPhone: row.item.clientPhone,
+            language: payload.language,
+            files: [{
+              filename: row.item.file.name,
+              bytesBase64: await fileToBase64(row.item.file),
+            }],
+          }).unwrap();
+          accepted = true;
+        } catch (error) {
+          const code = (error as { data?: { code?: string } })?.data?.code;
+          const message = code === 'analysis_provider_missing'
+            ? t(
+              'speechAnalytics.errorUploadNoProvider',
+              'Разбор не запущен: для речевой аналитики не назначены распознавание и LLM. Запись не сохранена.',
+            )
+            : t(
+              'speechAnalytics.errorUpload',
+              'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
+            );
+          toast.error(`${row.filename}: ${message}`);
+        }
+        if (accepted) await journalQuery.refetch().catch(() => undefined);
+        removePendingUpload(row.id);
       }
-    } catch (error) {
-      const code = (error as { data?: { code?: string } })?.data?.code;
-      const message = code === 'analysis_provider_missing'
-        ? t(
-          'speechAnalytics.errorUploadNoProvider',
-          'Разбор не запущен: для речевой аналитики не назначены распознавание и LLM. Запись не сохранена.',
-        )
-        : code === 'analysis_failed'
-          ? t(
-            'speechAnalytics.errorUploadNoAnalysis',
-            'Разбор не получен, запись не сохранена.',
-          )
-          : t(
-            'speechAnalytics.errorUpload',
-            'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
-          );
-      setUploadFormError(message);
-      throw new Error('upload_failed');
-    }
-  }, [t, uploadBatch]);
+    })();
+    return Promise.resolve();
+  }, [journalQuery, projects, t, uploadBatch]);
 
   const handleRegenerate = useCallback(async () => {
     if (!conversationId) return;
@@ -214,7 +243,7 @@ export const SpeechAnalyticsJournalPage = memo(() => {
       ) : null}
 
       {!journalQuery.isError && (journalQuery.isLoading || items.length > 0 || analysisJobs.length > 0) ? (
-        journalQuery.isLoading && items.length === 0 ? (
+        journalQuery.isLoading && items.length === 0 && analysisJobs.length === 0 ? (
           <VStack gap="8" max data-testid="journal-loading">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className={cls.skeletonRow} />
@@ -228,6 +257,7 @@ export const SpeechAnalyticsJournalPage = memo(() => {
             isLoading={journalQuery.isLoading}
             expandedId={conversationId ?? null}
             onRowClick={openConversation}
+            scoreScale={scoreScale}
             renderExpanded={() => (
               <ConversationExpandedPanel
                 conversationId={conversationId ?? null}
@@ -262,8 +292,6 @@ export const SpeechAnalyticsJournalPage = memo(() => {
         onOpenChange={setUploadOpen}
         projects={projects}
         onSubmit={handleUpload}
-        isSubmitting={uploadState.isLoading}
-        formError={uploadFormError}
       />
     </VStack>
   );

@@ -52,6 +52,7 @@ export function metricSetStampPayload(config: SaProjectConfigV1): unknown {
     customMetrics: config.customMetrics,
     topics: config.topics,
     systemPrompt: config.systemPrompt,
+    insightsFocus: config.insightsFocus ?? '',
     hiddenDefaultScales: [...(config.hiddenDefaultScales ?? [])].sort(),
     insights: config.insights ?? null,
     sttProviderUid: config.sttProviderUid ?? null,

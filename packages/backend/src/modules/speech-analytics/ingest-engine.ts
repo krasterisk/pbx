@@ -117,8 +117,34 @@ export function metadataAllowlist(input: Record<string, unknown>): Record<string
   for (const key of allowed) {
     if (key in input) out[key] = input[key];
   }
+  if (typeof input.filename === 'string') {
+    const base = input.filename.trim().split(/[/\\]/).pop()?.trim() ?? '';
+    if (base) out.filename = base.slice(0, 255);
+  }
+  const operator = sanitizeOperator(input.operator);
+  if (operator) out.operator = operator;
+  const phone = clipText(input.clientPhone, 32);
+  if (phone) out.clientPhone = phone;
   if (JSON.stringify(out).length > 4096) throw new DomainError('metadata_invalid', 422);
   return out;
+}
+
+function clipText(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().slice(0, max);
+  return trimmed || null;
+}
+
+function sanitizeOperator(value: unknown): { name?: string; userId?: number } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as { name?: unknown; userId?: unknown };
+  const name = clipText(row.name, 128);
+  const userId = typeof row.userId === 'number' && Number.isInteger(row.userId) ? row.userId : null;
+  if (!name && userId == null) return null;
+  return {
+    ...(name ? { name } : {}),
+    ...(userId != null ? { userId } : {}),
+  };
 }
 
 export function uploadChecksum(body: Buffer): string {

@@ -115,6 +115,10 @@
         {
           "id": "0028-sa-tenant-models.sql",
           "artifact": "0028-sa-tenant-models.sql"
+        },
+        {
+          "id": "0029-sa-insights-cache.sql",
+          "artifact": "0029-sa-insights-cache.sql"
         }
       ],
       "profiles": {
@@ -214,6 +218,10 @@
           {
             "id": "0028-sa-tenant-models.sql",
             "artifact": "0028-sa-tenant-models.sql"
+          },
+          {
+            "id": "0029-sa-insights-cache.sql",
+            "artifact": "0029-sa-insights-cache.sql"
           }
         ],
         "robot-api": [
@@ -312,6 +320,10 @@
           {
             "id": "0028-sa-tenant-models.sql",
             "artifact": "0028-sa-tenant-models.sql"
+          },
+          {
+            "id": "0029-sa-insights-cache.sql",
+            "artifact": "0029-sa-insights-cache.sql"
           }
         ]
       }
@@ -430,6 +442,10 @@
         {
           "id": "0028-sa-tenant-models.sql",
           "artifact": "postgres/0028-sa-tenant-models.sql"
+        },
+        {
+          "id": "0029-sa-insights-cache.sql",
+          "artifact": "postgres/0029-sa-insights-cache.sql"
         }
       ],
       "profiles": {
@@ -529,6 +545,10 @@
           {
             "id": "0028-sa-tenant-models.sql",
             "artifact": "postgres/0028-sa-tenant-models.sql"
+          },
+          {
+            "id": "0029-sa-insights-cache.sql",
+            "artifact": "postgres/0029-sa-insights-cache.sql"
           }
         ],
         "robot-api": [
@@ -627,6 +647,10 @@
           {
             "id": "0028-sa-tenant-models.sql",
             "artifact": "postgres/0028-sa-tenant-models.sql"
+          },
+          {
+            "id": "0029-sa-insights-cache.sql",
+            "artifact": "postgres/0029-sa-insights-cache.sql"
           }
         ]
       }

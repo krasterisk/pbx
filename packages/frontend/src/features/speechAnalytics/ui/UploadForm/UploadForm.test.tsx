@@ -104,4 +104,18 @@ describe('UploadForm', () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId('upload-form-error')).toBeInTheDocument();
   });
+
+  it('offers the draft when the selected project has unpublished edits', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm({
+      projects: [{ id: 'proj-1', name: 'Support', unpublished: true, analysisVersionNo: 3 }],
+    });
+    const file = new File([new Uint8Array([1, 2, 3])], 'call.wav', { type: 'audio/wav' });
+    await user.upload(screen.getByTestId('upload-file-input'), file);
+    await user.selectOptions(screen.getByTestId('upload-project'), 'proj-1');
+    expect(screen.getByTestId('upload-config-source')).toHaveValue('draft');
+    await user.selectOptions(screen.getByTestId('upload-config-source'), 'published');
+    await user.click(screen.getByTestId('upload-submit'));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ configSource: 'published' }));
+  });
 });

@@ -22,6 +22,8 @@ describe('HangupAnalyticsPortService (G-18-01, D-03)', () => {
       get: jest.fn().mockReturnValue({ pauseNew: opts.pauseNew === true }),
     };
     const admission = {
+      openSpeechJobIds: jest.fn().mockResolvedValue([]),
+      settle: jest.fn().mockResolvedValue(undefined),
       admit: jest.fn().mockResolvedValue({
         status: 202,
         jobId: opts.admitReplay ? 'job-replay' : 'job-new',

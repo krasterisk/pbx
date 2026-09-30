@@ -45,7 +45,7 @@ import {
   AiCaptureIntent, AiCaptureNodeBinding, AiCaptureReceipt, AiCaptureSegment,
 } from '../modules/recording-capture/capture.models';
 import {
-  SaAnalysisRun, SaProject, SaProjectMember, SaProjectVersion, SaRecording, SaResult,
+  SaAnalysisRun, SaInsightsCache, SaInsightsRequest, SaProject, SaProjectMember, SaProjectVersion, SaRecording, SaResult,
   SaTranscript, SaTranscriptSegment,
 } from '../modules/speech-analytics/speech-analytics.models';
 import { AiWebhookAttempt, AiWebhookDelivery, AiWebhookEndpoint } from '../modules/integration-delivery/webhook.models';
@@ -99,7 +99,7 @@ export class StandaloneAiCoreModule {
                 AiTrialPolicySnapshot, AiSkuRevision, AiSkuOffer, AiSkuEntitlement,
                 AiCaptureNodeBinding, AiCaptureIntent, AiCaptureSegment, AiCaptureReceipt,
                 SaProject, SaProjectVersion, SaProjectMember, SaRecording, SaAnalysisRun,
-                SaTranscript, SaTranscriptSegment, SaResult,
+                SaTranscript, SaTranscriptSegment, SaResult, SaInsightsCache, SaInsightsRequest,
                 AiWebhookEndpoint, AiWebhookDelivery, AiWebhookAttempt,
                 CcAiAgent, AiRobotDraft, AiRobotVersion, AiRobotDeployment,
                 AiVoiceSession, AiVoiceTurn, AiVoiceEvent, AiCallControlOperation, AiVoiceTicket,

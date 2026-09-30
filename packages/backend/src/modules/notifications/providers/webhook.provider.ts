@@ -7,6 +7,7 @@ import {
   NotificationSendResult,
   trimNotificationMessage,
 } from './notification-provider.interface';
+import { readNotificationDestinations } from '@krasterisk/shared';
 
 const AXIOS_TIMEOUT_MS = 10_000;
 
@@ -69,12 +70,12 @@ export class WebhookProvider implements INotificationProvider {
     message: string,
     options?: NotificationSendOptions,
   ): Promise<NotificationSendResult> {
-    const url =
-      integration.config?.url ??
-      integration.credentials?.url ??
-      '';
-
-    if (!url || !isHttpUrl(String(url))) {
+    const configured = readNotificationDestinations(integration.config, 'url');
+    const urls = configured.length
+      ? configured
+      : [String(integration.config?.url ?? integration.credentials?.url ?? '')].filter((value) => value.trim());
+    const valid = urls.filter((value) => isHttpUrl(value));
+    if (!valid.length) {
       this.logger.warn('Webhook send skipped: invalid or non-http(s) URL');
       return { success: false, error: 'invalid_url' };
     }
@@ -106,15 +107,21 @@ export class WebhookProvider implements INotificationProvider {
       (integration.credentials?.headers as Record<string, string> | undefined) ??
       {};
 
-    try {
-      await axios.post(String(url), payload, {
-        headers,
-        timeout: AXIOS_TIMEOUT_MS,
-      });
-      return { success: true };
-    } catch (e: any) {
-      this.logger.error(`Webhook send failed: ${e?.message ?? e}`);
-      return { success: false, error: e?.message };
+    let sent = 0;
+    let firstError = 'notify_failed';
+    for (const url of valid) {
+      try {
+        await axios.post(url, payload, {
+          headers,
+          timeout: AXIOS_TIMEOUT_MS,
+        });
+        sent += 1;
+      } catch (e: any) {
+        firstError = e?.message || firstError;
+        this.logger.error(`Webhook send failed: ${e?.message ?? e}`);
+      }
     }
+    if (!sent) return { success: false, error: firstError };
+    return { success: true };
   }
 }

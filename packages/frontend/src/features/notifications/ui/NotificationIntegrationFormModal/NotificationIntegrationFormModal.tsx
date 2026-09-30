@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NotificationChannel } from '@krasterisk/shared';
+import { packNotificationDestinations, readNotificationDestinations } from '@krasterisk/shared';
 import {
   Dialog,
   DialogContent,
@@ -55,11 +56,20 @@ export function parseWebhookPayloadTemplate(
 export function buildIntegrationSubmitPayload(
   channel: NotificationChannel,
   fieldValues: Record<string, string>,
+  lists: Record<string, string[]> = {},
 ): { config: Record<string, unknown>; credentials: Record<string, unknown>; error?: string } {
   const config: Record<string, unknown> = {};
   const credentials: Record<string, unknown> = {};
 
   for (const field of CHANNEL_FIELDS[channel]) {
+    if (field.multiple) {
+      const items = lists[field.key]?.length
+        ? lists[field.key]
+        : [(fieldValues[field.key] ?? '')];
+      Object.assign(config, packNotificationDestinations(field.key, items));
+      continue;
+    }
+
     const value = (fieldValues[field.key] ?? '').trim();
     if (!value) continue;
 
@@ -156,6 +166,7 @@ export const NotificationIntegrationFormModal = () => {
   const [name, setName] = useState('');
   const [channel, setChannel] = useState<NotificationChannel>('telegram');
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [lists, setLists] = useState<Record<string, string[]>>({});
   const [authMode, setAuthMode] = useState<AuthMode>('none');
   const [authToken, setAuthToken] = useState('');
   const [customHeaders, setCustomHeaders] = useState<WebhookHeader[]>([]);
@@ -168,6 +179,7 @@ export const NotificationIntegrationFormModal = () => {
       setName('');
       setChannel('telegram');
       setFieldValues({});
+      setLists({});
       setAuthMode('none');
       setAuthToken('');
       setCustomHeaders([]);
@@ -183,7 +195,13 @@ export const NotificationIntegrationFormModal = () => {
       setChannel(integrationData.channel);
 
       const nextValues: Record<string, string> = {};
+      const nextLists: Record<string, string[]> = {};
       CHANNEL_FIELDS[integrationData.channel].forEach((field) => {
+        if (field.multiple) {
+          const saved = readNotificationDestinations(integrationData.config, field.key);
+          nextLists[field.key] = saved.length ? saved : [''];
+          return;
+        }
         if (!field.secret) {
           const raw = integrationData.config?.[field.key];
           nextValues[field.key] =
@@ -197,6 +215,7 @@ export const NotificationIntegrationFormModal = () => {
         }
       });
       setFieldValues(nextValues);
+      setLists(nextLists);
 
       // Restore webhook auth mode/keys (non-secret); secret values are re-entered.
       const cfgAuthMode = (integrationData.config?.auth_mode as AuthMode) ?? 'none';
@@ -215,10 +234,13 @@ export const NotificationIntegrationFormModal = () => {
     setChannel(nextChannel);
     if (mode === 'create') {
       const nextValues: Record<string, string> = {};
+      const nextLists: Record<string, string[]> = {};
       CHANNEL_FIELDS[nextChannel].forEach((field) => {
-        nextValues[field.key] = '';
+        if (field.multiple) nextLists[field.key] = [''];
+        else nextValues[field.key] = '';
       });
       setFieldValues(nextValues);
+      setLists(nextLists);
       setAuthMode('none');
       setAuthToken('');
       setCustomHeaders([]);
@@ -232,7 +254,7 @@ export const NotificationIntegrationFormModal = () => {
   const handleSubmit = async () => {
     if (!name.trim()) return;
 
-    const { config, credentials, error } = buildIntegrationSubmitPayload(channel, fieldValues);
+    const { config, credentials, error } = buildIntegrationSubmitPayload(channel, fieldValues, lists);
     if (error === 'payload_template_invalid') {
       alert(t('notifications.payloadTemplateInvalid'));
       return;
@@ -372,6 +394,48 @@ export const NotificationIntegrationFormModal = () => {
                   placeholder={t('notifications.payloadTemplatePh')}
                   spellCheck={false}
                 />
+              ) : field.multiple ? (
+                <VStack gap="8">
+                  {(lists[field.key]?.length ? lists[field.key] : ['']).map((value, index, rows) => (
+                    <HStack key={`${field.key}-${index}`} gap="8" align="center">
+                      <Input
+                        type="text"
+                        value={value}
+                        onChange={(event) => setLists((current) => {
+                          const next = [...(current[field.key]?.length ? current[field.key] : [''])];
+                          next[index] = event.target.value;
+                          return { ...current, [field.key]: next };
+                        })}
+                        autoComplete="off"
+                      />
+                      {rows.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={cls.removeDestination}
+                          aria-label={t('notifications.removeDestination', 'Удалить')}
+                          onClick={() => setLists((current) => ({
+                            ...current,
+                            [field.key]: (current[field.key] ?? ['']).filter((_, row) => row !== index),
+                          }))}
+                        >
+                          ×
+                        </Button>
+                      ) : null}
+                    </HStack>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setLists((current) => ({
+                      ...current,
+                      [field.key]: [...(current[field.key]?.length ? current[field.key] : ['']), ''],
+                    }))}
+                  >
+                    {t('notifications.addDestination', 'Добавить')}
+                  </Button>
+                </VStack>
               ) : (
                 <Input
                   type={field.secret ? 'password' : 'text'}

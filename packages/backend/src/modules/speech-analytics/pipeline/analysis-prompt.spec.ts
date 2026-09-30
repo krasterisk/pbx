@@ -33,6 +33,7 @@ describe('analysis prompt', () => {
     expect(buildAnalysisPrompt(config, 'Алло')).toContain('CALL TOPIC TAGGING');
     expect(parsed.metrics.find((m) => m.id === 'greeting_quality')?.value).toBe(100);
     const rows = analysisToMetricRows(parsed, parsed.assessments);
+    expect(rows.find((row) => row.id === 'success')).toMatchObject({ value: true });
     expect(rows.find((row) => row.id === 'csat')).toMatchObject({
       value: 5,
       rationale: 'клиент поблагодарил',
@@ -56,6 +57,14 @@ describe('analysis prompt', () => {
       summary: { ...withoutSummary.insights.summary, enabled: false },
     };
     expect(buildAnalysisPrompt(withoutSummary, 'Алло')).not.toContain('summary (string');
+    expect(prompt).toContain('success (boolean)');
+    expect(prompt).toContain('обращение закрыто успешно');
+    const withoutSuccess = defaultSaProjectConfig();
+    withoutSuccess.insights = {
+      ...withoutSuccess.insights,
+      success: { ...withoutSuccess.insights.success, enabled: false },
+    };
+    expect(buildAnalysisPrompt(withoutSuccess, 'Алло')).not.toContain('success (boolean)');
     expect(prompt).toContain('csat (integer 1-5');
     expect(prompt).not.toContain('CALL TOPIC TAGGING');
     expect(prompt).toContain('booking_made');
@@ -77,5 +86,21 @@ describe('analysis prompt', () => {
       rationale: 'есть приветствие',
       quote: 'добрый день',
     });
+  });
+
+  it('ignores a prose fragment and reads the JSON score after it', () => {
+    const config = applyIndustryTemplate('custom');
+    const answer = JSON.stringify({
+      summary: 'клиент записался',
+      customer_sentiment: 'Neutral',
+      csat: 4,
+      greeting_quality: 75,
+    });
+    const parsed = parseAnalysisResponse(
+      `We need answer JSON only. assessments are {rationale, quote}. ${answer}`,
+      config,
+    );
+    expect(parsed.summary).toBe('клиент записался');
+    expect(parsed.metrics.find((metric) => metric.id === 'greeting_quality')?.value).toBe(75);
   });
 });

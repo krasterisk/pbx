@@ -29,7 +29,7 @@ export class EmailProvider implements INotificationProvider {
     try {
       const result = await this.mailer.sendNotification({
         to,
-        subject: integration.config?.subject,
+        subject: options?.subject || integration.config?.subject,
         text: trimNotificationMessage(message),
         ...(options?.attach
           ? {

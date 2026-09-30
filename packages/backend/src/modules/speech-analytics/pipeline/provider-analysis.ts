@@ -22,6 +22,7 @@ import {
   coerceMetricValue,
   configForAnalysis,
   parseAnalysisResponse,
+  parseJsonObject,
   scoringMetrics,
   type AnalysisScore,
 } from './analysis-prompt';
@@ -115,6 +116,7 @@ export async function scoreProviderTranscript(input: {
           ? input.provider.defaults.reasoning_effort
           : undefined,
       ),
+      ...deepseekStructuredParams(model, input.provider.endpoint),
       messages: [{ role: 'user', content: buildAnalysisPrompt(config, transcript) }],
       response_format: { type: 'json_object' },
     }, { headers, timeout: SCORE_TIMEOUT_MS });
@@ -193,6 +195,7 @@ async function fillMissingMetricValues(input: {
           ? input.provider.defaults.reasoning_effort
           : undefined,
       ),
+      ...deepseekStructuredParams(input.model, input.url),
       messages: [{
         role: 'user',
         content: [
@@ -211,15 +214,8 @@ async function fillMissingMetricValues(input: {
     return 0;
   }
   const raw = completionText(response.data?.choices?.[0]?.message);
-  if (!raw.trim()) return 0;
-  let body: Record<string, unknown> = {};
-  try {
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    body = JSON.parse(start >= 0 && end > start ? raw.slice(start, end + 1) : '{}') as Record<string, unknown>;
-  } catch {
-    return 0;
-  }
+  const body = parseJsonObject(raw);
+  if (!body) return 0;
   const listed = Array.isArray(body.metrics) ? body.metrics : [];
   const byId = new Map<string, unknown>();
   for (const row of listed) {
@@ -237,12 +233,55 @@ async function fillMissingMetricValues(input: {
   return Number.isFinite(tokens) ? tokens : 0;
 }
 
+const SPEAKER_CHUNK = 10;
+
+export function normalizeSpeakerRole(value: unknown): 'operator' | 'customer' | null {
+  const raw = String(value ?? '').trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === 'operator' || raw === 'agent' || raw.startsWith('опер') || raw.startsWith('админ')) return 'operator';
+  if (raw === 'customer' || raw === 'client' || raw === 'caller' || raw.startsWith('клиен') || raw.startsWith('паци')) {
+    return 'customer';
+  }
+  return null;
+}
+
+/** Accept a parallel list or {"i","role"} rows. Null slots stay unlabeled. */
+export function readSpeakerRoles(
+  body: Record<string, unknown> | null,
+  expected: number,
+): Array<'operator' | 'customer' | null> | null {
+  if (!body || expected <= 0) return null;
+  const listed = body.roles ?? body.speakers ?? body.labels;
+  if (!Array.isArray(listed) || listed.length === 0) return null;
+  const out: Array<'operator' | 'customer' | null> = Array.from({ length: expected }, () => null);
+  const indexed = listed.every((item) => item && typeof item === 'object' && 'i' in (item as object));
+  if (indexed) {
+    for (const item of listed) {
+      const row = item as { i?: unknown; role?: unknown; speaker?: unknown };
+      const index = Number(row.i);
+      const role = normalizeSpeakerRole(row.role ?? row.speaker);
+      if (Number.isInteger(index) && index >= 0 && index < expected && role) out[index] = role;
+    }
+  } else if (listed.length === expected) {
+    listed.forEach((item, index) => {
+      const role = item && typeof item === 'object'
+        ? normalizeSpeakerRole((item as { role?: unknown; speaker?: unknown }).role
+          ?? (item as { speaker?: unknown }).speaker)
+        : normalizeSpeakerRole(item);
+      if (role) out[index] = role;
+    });
+  } else {
+    return null;
+  }
+  return out.some((role) => role != null) ? out : null;
+}
+
 export async function labelProviderSpeakers(input: {
   provider: CcAiProvider;
   token: string;
   modelId: string;
   segments: Array<{ text: string }>;
-}): Promise<Array<'operator' | 'customer'> | null> {
+}): Promise<Array<'operator' | 'customer' | null> | null> {
   if (input.segments.length === 0) return null;
   const url = resolveChatCompletionsUrl(input.provider.endpoint);
   if (!url) return null;
@@ -254,44 +293,63 @@ export async function labelProviderSpeakers(input: {
     input.provider.auth_type,
     input.token,
   );
+  const roles: Array<'operator' | 'customer' | null> = [];
+  let labeled = 0;
+  for (let offset = 0; offset < input.segments.length; offset += SPEAKER_CHUNK) {
+    const chunk = input.segments.slice(offset, offset + SPEAKER_CHUNK);
+    const part = await labelSpeakerChunk({ url, model, headers, endpoint: input.provider.endpoint, segments: chunk });
+    if (!part) {
+      roles.push(...chunk.map(() => null));
+      continue;
+    }
+    labeled += part.filter((role) => role != null).length;
+    roles.push(...part);
+  }
+  if (labeled === 0) return null;
+  return roles;
+}
+
+async function labelSpeakerChunk(input: {
+  url: string;
+  model: string;
+  headers: Record<string, string>;
+  endpoint: string;
+  segments: Array<{ text: string }>;
+}): Promise<Array<'operator' | 'customer' | null> | null> {
   const lines = input.segments
     .map((segment, index) => `${index}. ${segment.text.replace(/\s+/g, ' ').slice(0, 240)}`)
     .join('\n');
   let response;
   try {
-    response = await axios.post(url, {
-      ...(model ? { model } : {}),
-      ...chatSamplingParams(model, 0),
-      ...chatTokenLimitParams(model, 2000),
+    response = await axios.post(input.url, {
+      ...(input.model ? { model: input.model } : {}),
+      ...chatSamplingParams(input.model, 0),
+      ...chatTokenLimitParams(input.model, 1200),
+      ...deepseekStructuredParams(input.model, input.endpoint),
       messages: [{
         role: 'user',
         content: [
-          'Label each line of a phone call as operator or customer.',
-          'The operator greets, names the company or role, and gives instructions. The customer asks for help.',
-          `Return JSON {"roles":[...]} with exactly ${input.segments.length} items, each "operator" or "customer", in the same order.`,
+          'Label each numbered line of a phone call.',
+          'operator greets, names the company or a role, and offers a slot. customer asks for a service or answers a question.',
+          `Return JSON {"roles":[{"i":0,"role":"operator"|"customer"}, ...]} with one item for every line 0..${input.segments.length - 1}.`,
           lines,
         ].join('\n'),
       }],
       response_format: { type: 'json_object' },
-    }, { headers, timeout: SCORE_TIMEOUT_MS });
+    }, { headers: input.headers, timeout: SCORE_TIMEOUT_MS });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     scoreLog.warn(`Speaker labels failed: ${message}`);
     return null;
   }
   const raw = completionText(response.data?.choices?.[0]?.message);
-  if (!raw.trim()) return null;
-  try {
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    const body = JSON.parse(start >= 0 && end > start ? raw.slice(start, end + 1) : '{}') as { roles?: unknown };
-    if (!Array.isArray(body.roles) || body.roles.length !== input.segments.length) return null;
-    const roles = body.roles.map((role) => (role === 'operator' || role === 'customer' ? role : null));
-    if (roles.some((role) => role == null)) return null;
-    return roles as Array<'operator' | 'customer'>;
-  } catch {
-    return null;
+  const roles = readSpeakerRoles(parseJsonObject(raw), input.segments.length);
+  if (!roles) {
+    scoreLog.warn(
+      `Speaker labels unmatched lines=${input.segments.length} sample=${raw.replace(/\s+/g, ' ').slice(0, 240)}`,
+    );
   }
+  return roles;
 }
 
 async function transcribeYandex(
@@ -369,6 +427,31 @@ async function transcribeWhisper(
   };
 }
 
+/**
+ * deepseek-flash thinks by default and spends max_tokens on reasoning_content,
+ * so the JSON score never arrives. Structured calls turn that mode off.
+ */
+export function deepseekStructuredParams(
+  model: string | undefined,
+  endpoint: string | undefined,
+): Record<string, unknown> {
+  const modelName = String(model ?? '').toLowerCase();
+  let host = '';
+  try {
+    host = new URL(endpoint ?? '').hostname.toLowerCase();
+  } catch {
+    host = '';
+  }
+  const deepseek = modelName.includes('deepseek')
+    || host === 'api.deepseek.com'
+    || host.endsWith('.deepseek.com');
+  if (!deepseek) return {};
+  return {
+    thinking: { type: 'disabled' },
+    reasoning_effort: 'none',
+  };
+}
+
 function completionText(message: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown; thinking?: unknown } | null | undefined): string {
   if (typeof message?.content === 'string' && message.content.trim()) return message.content;
   if (Array.isArray(message?.content)) {
@@ -382,7 +465,7 @@ function completionText(message: { content?: unknown; reasoning_content?: unknow
   for (const key of ['reasoning_content', 'reasoning', 'thinking'] as const) {
     const value = message?.[key];
     if (typeof value !== 'string' || !value.trim()) continue;
-    if (value.trim().startsWith('{') || value.includes('"summary"')) return value;
+    if (parseJsonObject(value)) return value;
   }
   return '';
 }

@@ -37,6 +37,8 @@ export { RadioCards } from './RadioCards';
 export type { RadioCardsProps, RadioCardOption } from './RadioCards';
 export * from './Popover';
 export * from './Tabs';
+export { PeriodNavigator } from './PeriodNavigator';
+export type { PeriodNavigatorProps } from './PeriodNavigator';
 export { SegmentedControl } from './SegmentedControl';
 export type { SegmentedControlProps, SegmentedControlOption } from './SegmentedControl';
 export { Sparkline } from './Sparkline';

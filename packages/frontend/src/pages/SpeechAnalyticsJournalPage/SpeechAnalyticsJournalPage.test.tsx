@@ -21,6 +21,7 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
 }));
 
 vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
+  useDismissSaAnalysisJobMutation: () => [vi.fn(), { isLoading: false }],
   useGetSaJournalQuery: () => ({
     data: {
       items: [

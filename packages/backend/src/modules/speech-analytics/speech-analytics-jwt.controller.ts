@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, ForbiddenException, Get, Headers, HttpCode, Param, Post, Put, Query, Req, Res, UseGuards,
+  Body, Controller, Delete, ForbiddenException, Get, Headers, HttpCode, HttpException, Param, Post, Put, Query, Req, Res, UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
@@ -60,6 +60,13 @@ export class SpeechAnalyticsJwtController {
   @Get('journal')
   listJournal(@Req() request: Authed) {
     return this.journal.list(request.tenantContext);
+  }
+
+  @Post('analysis-jobs/:id/dismiss')
+  @HttpCode(200)
+  dismissAnalysisJob(@Req() request: Authed, @Param('id') id: string) {
+    assertUuid(id);
+    return this.journal.dismissAnalysisJob(request.tenantContext, id);
   }
 
   /** Entire access-scoped journal Excel (D-37). Must be registered before journal/:id. */
@@ -336,6 +343,7 @@ export class SpeechAnalyticsJwtController {
   run(@Req() request: Authed, @Headers('idempotency-key') idempotencyKey: string, @Body() body: {
     projectId: string; assetId: string; externalCallId?: string; sourcePart?: string;
     metadata?: Record<string, unknown>;
+    configSource?: 'draft' | 'published';
   }) {
     assertUuid(body.projectId);
     assertUuid(body.assetId);
@@ -410,18 +418,41 @@ export class SpeechAnalyticsJwtController {
     return this.reporting.dashboard(request.tenantContext, body);
   }
 
+  @Post('dashboard/drill')
+  @HttpCode(200)
+  dashboardDrill(@Req() request: Authed, @Body() body: AnalyticsFilterSpec & {
+    drill?: {
+      type?: string;
+      sentiment?: string;
+      success?: string | boolean;
+      day?: string;
+      topic?: string;
+      operatorName?: string | null;
+      metricId?: string;
+      insightType?: string;
+      recordingIds?: string[];
+    };
+  }) {
+    const drill = body.drill ?? { type: 'all' };
+    const type = drill.type;
+    if (
+      type !== 'all' && type !== 'lowStt' && type !== 'cost' && type !== 'success'
+      && type !== 'sentiment' && type !== 'day' && type !== 'topic'
+      && type !== 'operator' && type !== 'metric' && type !== 'exemplars' && type !== 'recordings'
+    ) {
+      throw new HttpException({ code: 'filter_invalid' }, 400);
+    }
+    return this.reporting.dashboardDrill(request.tenantContext, body, { ...drill, type });
+  }
+
   @Post('insights')
   requestInsights(
     @Req() request: Authed,
     @Body() body: {
       projectId: string;
-      filterDigest?: string;
+      from?: string;
+      to?: string;
       refresh?: boolean;
-      conversationCount?: number;
-      projectName?: string;
-      systemPrompt?: string | null;
-      dashboardFacts?: Record<string, unknown>;
-      currency?: string;
     },
   ) {
     assertUuid(body.projectId);

@@ -29,6 +29,7 @@ export interface NotificationAttachment {
 export interface NotificationSendOptions {
   attach?: NotificationAttachment;
   extraVars?: Record<string, string>;
+  subject?: string;
 }
 
 export const NOTIFICATION_MESSAGE_MAX_LEN = 4096;

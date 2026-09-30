@@ -1,4 +1,5 @@
 import { defaultSaProjectConfig, type SaProjectConfigV1 } from '@krasterisk/shared';
+import type { DashboardCall } from '../model/dashboardDrill';
 import { rtkApi } from '@/shared/api/rtkApi';
 
 export type { SaProjectConfigV1 };
@@ -123,7 +124,7 @@ export interface SaAnalysisJob {
   id: string;
   filename: string;
   projectName: string | null;
-  state: 'queued' | 'running' | 'failed';
+  state: 'uploading' | 'queued' | 'running' | 'failed';
   reason: string | null;
 }
 
@@ -160,6 +161,24 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
     getSaJournal: builder.query<SaJournalList, void>({
       query: () => '/speech-analytics/journal',
       providesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
+    }),
+    dismissSaAnalysisJob: builder.mutation<{ dismissed: boolean }, string>({
+      query: (id) => ({
+        url: `/speech-analytics/analysis-jobs/${id}/dismiss`,
+        method: 'POST',
+      }),
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        const patch = dispatch(speechAnalyticsApi.util.updateQueryData('getSaJournal', undefined, (draft) => {
+          if (!draft.analysisJobs) return;
+          draft.analysisJobs = draft.analysisJobs.filter((job) => job.id !== id);
+        }));
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'JOURNAL' }],
     }),
     exportSaJournalExcel: builder.mutation<Blob, { ids: string[]; locale: string; timeZone: string; headers: Record<string, string> }>({
       query: (body) => ({
@@ -301,7 +320,7 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
         method: 'POST',
       }),
     }),
-    testSaNotice: builder.mutation<{ sent: boolean; recipients: number }, { id: string; noticeId: string }>({
+    testSaNotice: builder.mutation<{ sent: boolean; recipients: number; failed?: number }, { id: string; noticeId: string }>({
       query: ({ id, noticeId }) => ({
         url: `/speech-analytics/projects/${id}/notices/${noticeId}/test`,
         method: 'POST',
@@ -353,23 +372,66 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       filterDigest: string;
       conversationCount?: number;
       costTotal?: string;
+      averageCost?: string | null;
+      averageDurationMs?: number | null;
+      currency?: string | null;
       lowSttCount?: number;
+      averageScore?: number | null;
       successRate?: number;
       sentiment?: { positive: number; neutral: number; negative: number };
-      scales?: Array<{ key: string; avg: number }>;
-      customMetrics?: Array<{ id: string; label: string; avg: number }>;
+      metrics?: Array<{ id: string; label?: string; avg: number }>;
       dynamics?: Array<{ label: string; avgScore: number; calls: number }>;
-    }, { projectId: string }>({
-      query: ({ projectId }) => ({
+      operators?: Array<{
+        operatorName: string | null;
+        callsCount: number;
+        averageScore: number | null;
+        successRate: number | null;
+        negativeRate: number | null;
+      }>;
+      topics?: Array<{ label: string; count: number }>;
+      calls?: DashboardCall[];
+    }, { projectId: string; from: string; to: string }>({
+      query: ({ projectId, from, to }) => ({
         url: '/speech-analytics/dashboard',
         method: 'POST',
         body: {
           projectIds: [projectId],
-          from: new Date(Date.now() - 30 * 86400000).toISOString(),
-          to: new Date().toISOString(),
+          from,
+          to,
           timezone: 'Europe/Moscow',
           runSelector: 'latest_completed',
           view: 'ai',
+        },
+      }),
+      keepUnusedDataFor: 0,
+    }),
+    drillSaDashboard: builder.mutation<{ calls: DashboardCall[] }, {
+      projectId: string;
+      from: string;
+      to: string;
+      drill: {
+        type: 'all' | 'lowStt' | 'cost' | 'success' | 'sentiment' | 'day' | 'topic' | 'operator' | 'metric' | 'exemplars' | 'recordings';
+        sentiment?: string;
+        success?: string | boolean;
+        day?: string;
+        topic?: string;
+        operatorName?: string | null;
+        metricId?: string;
+        insightType?: string;
+        recordingIds?: string[];
+      };
+    }>({
+      query: ({ projectId, from, to, drill }) => ({
+        url: '/speech-analytics/dashboard/drill',
+        method: 'POST',
+        body: {
+          projectIds: [projectId],
+          from,
+          to,
+          timezone: 'Europe/Moscow',
+          runSelector: 'latest_completed',
+          view: 'ai',
+          drill,
         },
       }),
     }),
@@ -381,13 +443,18 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
           title: string;
           observation: string;
           recommendation: string;
-          evidence?: Record<string, unknown>;
+          evidence?: {
+            metric?: string;
+            value?: number | null;
+            operators?: string[];
+            periodLabel?: string;
+            recordingIds?: string[];
+          };
         }>;
-        amount: string | null;
-        currency: string | null;
+        conversationCount?: number;
         fromCache?: boolean;
       },
-      { projectId: string; filterDigest?: string; refresh?: boolean; conversationCount?: number }
+      { projectId: string; from: string; to: string; refresh?: boolean }
     >({
       query: (body) => ({
         url: '/speech-analytics/insights',
@@ -497,6 +564,7 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       },
       {
         projectId: string;
+        configSource?: 'draft' | 'published';
         operator?: { userId?: number; name?: string };
         clientPhone?: string;
         language?: string;
@@ -546,6 +614,7 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
               body: {
                 projectId: arg.projectId,
                 assetId,
+                configSource: arg.configSource ?? 'published',
                 metadata: {
                   source: 'upload',
                   filename: file.filename,
@@ -634,6 +703,7 @@ export const {
   useGetSaMetricsQuery,
   usePublishSaMetricMutation,
   useGetSaDashboardQuery,
+  useDrillSaDashboardMutation,
   useRequestSaInsightsMutation,
   useGetSaSpeechModelsQuery,
   useSaveSaSpeechModelsMutation,
@@ -645,6 +715,7 @@ export const {
   useReviewSaRunMutation,
   useCorrectSaTranscriptMutation,
   useGetSaJournalQuery,
+  useDismissSaAnalysisJobMutation,
   useExportSaJournalExcelMutation,
   useGetSaConversationQuery,
   useSaveSaConversationOverrideMutation,

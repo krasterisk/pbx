@@ -99,9 +99,11 @@ export type SaSentimentValue = {
 /**
  * Always present on every project. Summary has no scale.
  * CSAT is an integer scale. Tonality is a closed list of labels.
+ * Success is a boolean decided by the project prompt.
  */
 export type SaProjectInsights = {
   summary: { enabled: boolean; instruction: string };
+  success: { enabled: boolean; instruction: string };
   csat: {
     enabled: boolean;
     min: number;
@@ -327,6 +329,11 @@ export type SaProjectConfigV1 = {
   /** Summary, CSAT and tonality. Always scored, rules come from here. */
   insights: SaProjectInsights;
   systemPrompt: string;
+  /**
+   * What dashboard insights should pay attention to.
+   * Empty keeps the shared skill rules. This does not change the JSON contract.
+   */
+  insightsFocus: string;
   topics: string[];
   eventWebhook: SaEventWebhookConfig;
   /** One row per destination. eventWebhook stays for older readers. */
@@ -425,6 +432,10 @@ export function defaultProjectInsights(): SaProjectInsights {
       enabled: true,
       instruction: 'Кратко перескажи звонок на языке разговора: кто обратился, какой был запрос и чем закончилось.',
     },
+    success: {
+      enabled: true,
+      instruction: 'Успешный звонок: обращение закрыто успешно. Оператор корректно обработал запрос в рамках возможностей компании. Понятный отказ с ограничением компании и следующим шагом тоже успех. Неуспех ставь только при ошибке оператора: запрос проигнорирован, разговор оборван или не сделано то, что оператор мог сделать. Отказ клиента и отсутствие услуги сами по себе не делают звонок неуспешным.',
+    },
     csat: {
       enabled: true,
       min: 1,
@@ -475,6 +486,10 @@ export function resolveProjectInsights(config: Partial<SaProjectConfigV1> | null
       enabled: raw.summary?.enabled !== false,
       instruction: raw.summary?.instruction?.trim() || base.summary.instruction,
     },
+    success: {
+      enabled: raw.success?.enabled !== false,
+      instruction: raw.success?.instruction?.trim() || base.success.instruction,
+    },
     csat: {
       enabled: raw.csat?.enabled !== false,
       min,
@@ -489,6 +504,13 @@ export function resolveProjectInsights(config: Partial<SaProjectConfigV1> | null
       values: values.length ? values : base.sentiment.values,
     },
   };
+}
+
+/** Business focus for dashboard insights. Blank is allowed. */
+export function resolveInsightsFocus(config: Partial<SaProjectConfigV1> | null | undefined): string {
+  const raw = config?.insightsFocus;
+  if (typeof raw !== 'string') return '';
+  return raw.trim().slice(0, 2000);
 }
 
 export function defaultSaProjectConfig(): SaProjectConfigV1 {
@@ -510,6 +532,7 @@ export function defaultSaProjectConfig(): SaProjectConfigV1 {
     hiddenDefaultScales: [],
     insights: defaultProjectInsights(),
     systemPrompt: '',
+    insightsFocus: '',
     topics: [...SA_TOPICS],
     eventWebhook: { url: null, headers: {}, events: [] },
     eventWebhooks: [],

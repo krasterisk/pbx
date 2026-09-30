@@ -17,6 +17,7 @@ import {
   SaAnalysisRun, SaProject, SaRecording, SaResult, SaTranscript, SaTranscriptSegment,
 } from '../speech-analytics.models';
 import { readJournalColumns } from './journal-row-view';
+import { aggregateDashboard, dashboardDayLabel, orderDashboardMetrics, readDashboardMetricScores, type DashboardConversation } from '../dashboard/dashboard.service';
 import { SaRecordingRelation } from '../reporting/reporting.models';
 import { SaHumanReview } from '../metrics/metric.models';
 import {
@@ -361,6 +362,29 @@ export class SaJournalService {
         total: activeCount > 0 ? done + activeCount : 0,
       },
     };
+  }
+
+  /** Hide a failed upload card. The recording stays out of the journal. */
+  async dismissAnalysisJob(context: TenantContext, runId: string) {
+    const viewer = await this.resolveViewer(context);
+    const scope = await this.resolveCdrScope(viewer);
+    const run = await this.runs.findOne({ where: { tenant_uid: context.tenantUid, id: runId } });
+    if (!run || run.state !== 'failed') throw new NotFoundException({ code: 'resource_not_found' });
+    const recording = await this.recordings.findOne({
+      where: { tenant_uid: context.tenantUid, id: run.recording_id },
+    });
+    if (!recording) throw new NotFoundException({ code: 'resource_not_found' });
+    const relation = await this.relations.findAll({
+      where: { tenant_uid: context.tenantUid, recording_id: recording.id },
+    });
+    const sourceKind = relation[0]?.source_kind ?? 'upload';
+    if (!isJournalRowVisible(accessFieldsFromRecording(recording, sourceKind), scope, viewer)) {
+      throw new NotFoundException({ code: 'resource_not_found' });
+    }
+    run.state = 'cancelled';
+    run.updated_at = new Date();
+    await run.save();
+    return { dismissed: true as const };
   }
 
   async get(context: TenantContext, id: string) {
@@ -728,6 +752,152 @@ export class SaJournalService {
 
     return buildJournalExcel(enriched, [...scaleKeySet].sort(), presentation);
   }
+
+  /** Completed conversations in the dashboard window, with the same visibility as the journal. */
+  async dashboardAggregate(context: TenantContext, filter: {
+    projectIds: string[];
+    from: string;
+    to: string;
+    timezone: string;
+  }) {
+    const viewer = await this.resolveViewer(context);
+    const scope = await this.resolveCdrScope(viewer);
+    const recordings = await this.recordings.findAll({
+      where: {
+        tenant_uid: context.tenantUid,
+        project_id: { [Op.in]: filter.projectIds },
+        occurred_at: { [Op.gte]: new Date(filter.from), [Op.lte]: new Date(filter.to) },
+      },
+    });
+    if (recordings.length === 0) {
+      return aggregateDashboard({ conversations: [], scope, viewer });
+    }
+    const relations = await this.relations.findAll({
+      where: {
+        tenant_uid: context.tenantUid,
+        recording_id: { [Op.in]: recordings.map((row) => row.id) },
+      },
+    });
+    const sourceByRecording = new Map(relations.map((rel) => [rel.recording_id, rel.source_kind]));
+    const visible = recordings.filter((row) => {
+      const sourceKind = sourceByRecording.get(row.id) ?? 'upload';
+      return isJournalRowVisible(accessFieldsFromRecording(row, sourceKind), scope, viewer);
+    });
+    const runRows = visible.length === 0
+      ? []
+      : await this.runs.findAll({
+        where: {
+          tenant_uid: context.tenantUid,
+          recording_id: { [Op.in]: visible.map((row) => row.id) },
+        },
+        order: [['created_at', 'DESC']],
+      });
+    const runsByRecording = new Map<string, SaAnalysisRun[]>();
+    for (const run of runRows) {
+      const bucket = runsByRecording.get(run.recording_id) ?? [];
+      bucket.push(run);
+      runsByRecording.set(run.recording_id, bucket);
+    }
+    const displayRun = (recordingId: string) => (
+      (runsByRecording.get(recordingId) ?? []).find((run) => runHasResult(run))
+    );
+    const shownRuns = visible
+      .map((row) => displayRun(row.id))
+      .filter((run): run is SaAnalysisRun => Boolean(run));
+    const resultIds = [...new Set(shownRuns.map((run) => run.result_id).filter((id): id is string => Boolean(id)))];
+    const resultRows = resultIds.length === 0
+      ? []
+      : await this.results.findAll({
+        where: { tenant_uid: context.tenantUid, id: { [Op.in]: resultIds } },
+      });
+    const resultById = new Map(resultRows.map((row) => [row.id, row]));
+    const projectRows = await this.projects.findAll({
+      where: { tenant_uid: context.tenantUid, id: { [Op.in]: filter.projectIds } },
+      attributes: ['id', 'name', 'draft_config'],
+    });
+    const projectNameById = new Map(projectRows.map((project) => [project.id, project.name]));
+    const namesByProject = new Map(projectRows.map((project) => [project.id, projectMetricCatalog(project.draft_config)]));
+    const tagNamesByProject = new Map(projectRows.map((project) => [project.id, taxonomyNames(project.draft_config)]));
+    const conversations: DashboardConversation[] = [];
+    for (const row of visible) {
+      const shown = displayRun(row.id);
+      if (!shown) continue;
+      const sourceKind = sourceByRecording.get(row.id) ?? 'upload';
+      const access = accessFieldsFromRecording(row, sourceKind);
+      const result = shown.result_id ? resultById.get(shown.result_id) : undefined;
+      const columns = readJournalColumns({
+        metadata: row.metadata,
+        audioMs: shown.audio_ms ?? null,
+        metricResults: result?.metric_results ?? null,
+        quality: result?.quality ?? null,
+        projectName: projectNameById.get(row.project_id) ?? null,
+        tagNames: tagNamesByProject.get(row.project_id),
+      });
+      const scores = readDashboardMetricScores(result?.metric_results ?? null);
+      const occurred = row.occurred_at ? new Date(row.occurred_at) : new Date(shown.created_at);
+      conversations.push({
+        id: row.id,
+        operatorExten: access.operatorExten,
+        operatorName: columns.operatorName,
+        callerPhone: columns.callerPhone,
+        uploadedByUserId: access.uploadedByUserId,
+        sourceKind,
+        latestAmount: shown.amount ?? null,
+        currency: shown.currency ?? null,
+        lowStt: columns.lowStt,
+        success: columns.success,
+        sentiment: columns.sentiment,
+        metricScores: scores.scores,
+        metricNotes: scores.rationales,
+        topics: columns.topics,
+        occurredAt: occurred.toISOString(),
+        dayLabel: dashboardDayLabel(occurred, filter.timezone),
+        overallScore: columns.score,
+        durationMs: columns.durationMs,
+      });
+    }
+    const aggregate = aggregateDashboard({ conversations, scope, viewer });
+    const labels = new Map<string, string>();
+    const order: string[] = [];
+    const seen = new Set<string>();
+    for (const names of namesByProject.values()) {
+      for (const [id, label] of names.labels) labels.set(id, label);
+      for (const id of names.order) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        order.push(id);
+      }
+    }
+    return {
+      ...aggregate,
+      metrics: orderDashboardMetrics(aggregate.metrics, order, labels),
+    };
+  }
+}
+
+/** One catalog: project metrics, then any older ids that were stored only as custom metrics. */
+function projectMetricCatalog(configText: unknown): { labels: Map<string, string>; order: string[] } {
+  const labels = new Map<string, string>();
+  const order: string[] = [];
+  const seen = new Set<string>();
+  let parsed: unknown = configText;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed) as unknown; } catch { parsed = null; }
+  }
+  if (!parsed || typeof parsed !== 'object') return { labels, order };
+  const config = parsed as {
+    metrics?: Array<{ id?: unknown; name?: unknown }>;
+    customMetrics?: Array<{ id?: unknown; name?: unknown }>;
+  };
+  const push = (metric: { id?: unknown; name?: unknown }) => {
+    if (typeof metric.id !== 'string' || seen.has(metric.id)) return;
+    seen.add(metric.id);
+    order.push(metric.id);
+    if (typeof metric.name === 'string' && metric.name.trim()) labels.set(metric.id, metric.name.trim());
+  };
+  for (const metric of config.metrics ?? []) push(metric);
+  for (const metric of config.customMetrics ?? []) push(metric);
+  return { labels, order };
 }
 
 function parseMetricResults(raw: unknown, names?: ReadonlyMap<string, string>): {

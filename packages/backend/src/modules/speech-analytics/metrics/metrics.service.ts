@@ -17,6 +17,7 @@ import {
   SaProjectVersionMetric, SaTranscriptCorrection,
 } from './metric.models';
 import { SaAnalysisRun, SaProject, SaProjectVersion, SaTranscript } from '../speech-analytics.models';
+import { releaseFinishedSpeechJobs } from '../release-speech-jobs';
 
 @Injectable()
 export class SaMetricsService {
@@ -120,6 +121,7 @@ export class SaMetricsService {
       await this.project(context, version.project_id, 'analytics:reanalyze');
       const access = await this.products.decide(context.tenantUid, 'speech_analytics');
       if (!access.allowed) throw new ForbiddenException({ code: access.reason ?? 'not_entitled' });
+      await releaseFinishedSpeechJobs(context.tenantUid, this.runs, this.admission);
       const receipt = await this.admission.admit({
         tenantUid: context.tenantUid, principalId: context.principalId,
         product: 'speech_analytics', kind: 'reanalyze', resourceKind: 'project',

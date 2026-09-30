@@ -15,3 +15,13 @@
   color: var(--muted-foreground);
   margin-top: 0.125rem;
 }
+
+.removeDestination {
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 1.75rem;
+  padding: 0;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}

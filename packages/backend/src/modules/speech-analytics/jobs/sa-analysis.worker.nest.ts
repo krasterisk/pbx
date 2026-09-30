@@ -34,6 +34,7 @@ import {
   type SaAnalysisJob,
 } from './sa-analysis.worker';
 import { SA_ANALYSIS_WORKER } from '../hangup-analytics.port';
+import { AiJobAdmissionService } from '../../ai-jobs/ai-job-admission.service';
 
 export { SA_ANALYSIS_WORKER };
 
@@ -59,6 +60,8 @@ export type SaAnalysisWorkerNestDeps = {
   transcripts?: typeof SaTranscript;
   segments?: typeof SaTranscriptSegment;
   recordings?: typeof SaRecording;
+  /** Closes the fairness slot when the in-process analysis finishes. */
+  settleAdmission?: (tenantUid: number, jobId: string, outcome: 'succeeded' | 'failed') => Promise<void>;
 };
 
 /**
@@ -277,6 +280,16 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
       stereoWav = null;
     }
 
+    const closeAdmission = async (jobId: string | null, outcome: 'succeeded' | 'failed') => {
+      if (!jobId || !deps.settleAdmission) return;
+      try {
+        await deps.settleAdmission(job.tenantUid, jobId, outcome);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        nestLogger.warn(`Could not close analysis job ${jobId}: ${message}`);
+      }
+    };
+
     const pipelineDeps: RunAnalysisDeps = {
       stt: jobStt,
       score: jobScore,
@@ -308,12 +321,16 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
         return {
           ...labeled,
           mode: 'llm_roles',
-          segments: labeled.segments.map((segment, index) => ({
-            ...segment,
-            speakerRole: roles[index],
-            roleSource: 'llm' as const,
-            channel: roles[index] === 'operator' ? 0 : 1,
-          })),
+          segments: labeled.segments.map((segment, index) => {
+            const role = roles[index];
+            if (role !== 'operator' && role !== 'customer') return segment;
+            return {
+              ...segment,
+              speakerRole: role,
+              roleSource: 'llm' as const,
+              channel: role === 'operator' ? 0 : 1,
+            };
+          }),
         };
       },
       persistSuccess: async (patch) => {
@@ -376,6 +393,7 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
         run.state = 'completed';
         run.updated_at = new Date();
         await run.save();
+        await closeAdmission(run.job_id, 'succeeded');
       },
       persistError: async (reason: string) => {
         const run = await deps.runs.findOne({
@@ -386,6 +404,7 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
         run.reason = reason.slice(0, 64);
         run.updated_at = new Date();
         await run.save();
+        await closeAdmission(run.job_id, 'failed');
       },
       invokeSaChargeRun,
       findLatestRates,
@@ -445,6 +464,7 @@ export const saAnalysisWorkerProvider = {
     segments: typeof SaTranscriptSegment,
     speechProviders: SpeechProviderResolver,
     recordings: typeof SaRecording,
+    admission: AiJobAdmissionService,
   ) => createSaAnalysisWorker({
     moduleSettings,
     config,
@@ -473,6 +493,7 @@ export const saAnalysisWorkerProvider = {
     providers,
     platformModels,
     speechProviders,
+    settleAdmission: (tenantUid, jobId, outcome) => admission.settle(tenantUid, jobId, outcome),
   }),
   inject: [
     ModuleSettingsService,
@@ -486,5 +507,6 @@ export const saAnalysisWorkerProvider = {
     getModelToken(SaTranscriptSegment),
     SpeechProviderResolver,
     getModelToken(SaRecording),
+    AiJobAdmissionService,
   ],
 };

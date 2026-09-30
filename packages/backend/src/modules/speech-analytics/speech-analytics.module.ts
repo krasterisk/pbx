@@ -43,7 +43,7 @@ import { NumberList } from '../numbers/number-list.model';
 import { Route } from '../routes/route.model';
 import { NotificationIntegration } from '../notifications/notification-integration.model';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { SaInsightsRequest } from './speech-analytics.models';
+import { SaInsightsCache, SaInsightsRequest } from './speech-analytics.models';
 import { ModuleSettingsService } from './module-settings.service';
 import { HangupAnalyticsPortService, SA_ANALYSIS_WORKER } from './hangup-analytics.port';
 import { saAnalysisWorkerProvider } from './jobs/sa-analysis.worker.nest';
@@ -73,7 +73,7 @@ import {
       SaHumanReview, SaTranscriptCorrection,
       SaReportDefinition, SaReportRun, SaReportSnapshotItem, SaReportSchedule,
       SaBudgetPolicy, SaBulkReanalysisBatch, SaBulkReanalysisItem,
-      SaTenantCapturePolicy, SaRecordingRelation, SaInsightsRequest,
+      SaTenantCapturePolicy, SaRecordingRelation, SaInsightsRequest, SaInsightsCache,
       User, NumberList, Route, NotificationIntegration, Tenant,
     ]),
   ],

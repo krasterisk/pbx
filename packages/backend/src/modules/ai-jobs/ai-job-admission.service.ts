@@ -169,6 +169,61 @@ export class AiJobAdmissionService {
     return { status: 202, jobId, replay: false };
   }
 
+  /** Speech-analytics jobs that still count toward the tenant fairness cap. */
+  async openSpeechJobIds(tenantUid: number, transaction?: Transaction): Promise<string[]> {
+    const rows = await this.jobs.findAll({
+      where: { tenant_uid: tenantUid, product: 'speech_analytics', state: ['queued', 'running'] },
+      attributes: ['id'],
+      transaction,
+      lock: transaction?.LOCK.UPDATE,
+    });
+    return rows.map((row) => row.id);
+  }
+
+  /**
+   * Cabinet analysis finishes in-process. The admitted job must leave queued/running
+   * or the tenant cap (32 queued) stays full and the next upload returns 503.
+   */
+  async settle(
+    tenantUid: number,
+    jobId: string,
+    outcome: 'succeeded' | 'failed',
+    transaction?: Transaction,
+  ): Promise<void> {
+    const job = await this.jobs.findOne({
+      where: { tenant_uid: tenantUid, id: jobId },
+      transaction,
+      lock: transaction?.LOCK.UPDATE,
+    });
+    if (!job) return;
+    if (job.state === 'succeeded' || job.state === 'failed' || job.state === 'cancelled') return;
+    const now = new Date();
+    const from = job.state;
+    if (job.state === 'queued') {
+      job.state = 'running';
+      job.version += 1;
+      job.updated_at = now;
+      await job.save({ transaction });
+    }
+    if (job.state !== 'running' && job.state !== 'awaiting_reconciliation') return;
+    job.state = outcome;
+    job.terminal_at = now;
+    job.version += 1;
+    job.updated_at = now;
+    await job.save({ transaction });
+    await this.events.create({
+      id: randomUUID(),
+      tenant_uid: tenantUid,
+      job_id: jobId,
+      event_type: 'job.settled',
+      from_state: from,
+      to_state: outcome,
+      actor: 'speech_analytics',
+      reason: null,
+      occurred_at: now,
+    }, { transaction });
+  }
+
   private replay(existing: AiIdempotency, requestHash: string): AdmissionReceipt {
     if (existing.request_hash !== requestHash) {
       throw Object.assign(new Error('Idempotency-Key reused with a different request'), {

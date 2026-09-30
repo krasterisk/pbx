@@ -29,6 +29,8 @@ const MAX_BYTES = 50 * 1024 * 1024;
 export interface UploadFormProject {
   id: string;
   name: string;
+  unpublished?: boolean;
+  analysisVersionNo?: number | null;
 }
 
 export interface UploadFormOperator {
@@ -45,6 +47,7 @@ export interface UploadFormItem {
 
 export interface UploadFormSubmitPayload {
   language?: string;
+  configSource: 'draft' | 'published';
   items: UploadFormItem[];
 }
 
@@ -92,16 +95,21 @@ export const UploadForm = memo(({
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [projectId, setProjectId] = useState('');
+  const [configSource, setConfigSource] = useState<'draft' | 'published'>('published');
   const [language, setLanguage] = useState('');
   const [drafts, setDrafts] = useState<DraftFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const errorText = localError ?? formError ?? null;
+  const selectedProject = projects.find((project) => project.id === projectId) ?? null;
+  const showConfigSource = selectedProject?.unpublished === true;
+  const publishedAvailable = selectedProject?.analysisVersionNo != null;
   const canSubmit = drafts.length > 0 && Boolean(projectId) && !isSubmitting;
 
   const resetLocal = useCallback(() => {
     setProjectId('');
+    setConfigSource('published');
     setLanguage('');
     setDrafts([]);
     setDragging(false);
@@ -158,6 +166,7 @@ export const UploadForm = memo(({
     try {
       await onSubmit({
         language: language.trim() || undefined,
+        configSource: showConfigSource ? configSource : 'published',
           items: drafts.map((row) => ({
           file: row.file,
           projectId,
@@ -173,7 +182,7 @@ export const UploadForm = memo(({
         'Не удалось загрузить файл. Проверьте формат (mp3/wav/ogg/m4a) и размер до 50 МБ.',
       ));
     }
-  }, [canSubmit, drafts, language, onOpenChange, onSubmit, projectId, resetLocal, t]);
+  }, [canSubmit, configSource, drafts, language, onOpenChange, onSubmit, projectId, resetLocal, showConfigSource, t]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -234,7 +243,12 @@ export const UploadForm = memo(({
                       value={projectId}
                       disabled={isSubmitting}
                       data-testid="upload-project"
-                      onChange={(e) => setProjectId(e.target.value)}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+                        const next = projects.find((project) => project.id === nextId);
+                        setProjectId(nextId);
+                        setConfigSource(next?.unpublished ? 'draft' : 'published');
+                      }}
                     >
                       <option value="">
                         {t('speechAnalytics.uploadProjectPlaceholder', 'Выбрать проект')}
@@ -244,6 +258,36 @@ export const UploadForm = memo(({
                       ))}
                     </Select>
                   </VStack>
+                  {showConfigSource ? (
+                    <VStack gap="4" max>
+                      <Label htmlFor="sa-upload-config-source">
+                        {t('speechAnalytics.uploadConfigSource', 'Правила разбора')}
+                      </Label>
+                      <Select
+                        id="sa-upload-config-source"
+                        value={publishedAvailable ? configSource : 'draft'}
+                        disabled={isSubmitting || !publishedAvailable}
+                        data-testid="upload-config-source"
+                        onChange={(e) => setConfigSource(e.target.value === 'draft' ? 'draft' : 'published')}
+                      >
+                        <option value="draft">{t('speechAnalytics.uploadUseDraft', 'Черновик')}</option>
+                        {publishedAvailable ? (
+                          <option value="published">{t('speechAnalytics.uploadUsePublished', 'Опубликованная версия')}</option>
+                        ) : null}
+                      </Select>
+                      <Text variant="muted">
+                        {publishedAvailable
+                          ? t(
+                            'speechAnalytics.uploadConfigSourceHint',
+                            'Черновик проверяет несохранённые правки только на этих файлах. Звонки с АТС остаются на опубликованной версии.',
+                          )
+                          : t(
+                            'speechAnalytics.uploadDraftOnlyHint',
+                            'Проект ещё не опубликован. Файл разберётся по черновику.',
+                          )}
+                      </Text>
+                    </VStack>
+                  ) : null}
                   <VStack gap="4" max>
                     <Label htmlFor="sa-upload-lang">{t('speechAnalytics.uploadLanguage', 'Язык')}</Label>
                     <Input

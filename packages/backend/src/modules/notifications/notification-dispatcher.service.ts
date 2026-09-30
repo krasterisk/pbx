@@ -11,6 +11,15 @@ import type {
   NotificationSendOptions,
   NotificationSendResult,
 } from './providers/notification-provider.interface';
+import { readNotificationDestinations } from '@krasterisk/shared';
+
+const DESTINATION_FIELD: Record<string, string> = {
+  telegram: 'chat_id',
+  email: 'to',
+  whatsapp: 'to',
+  max: 'user_id',
+  vk: 'peer_id',
+};
 
 /** Dialplan notify payload (DTO formalized in 06-09). */
 export interface NotifyDialplanBody {
@@ -60,29 +69,55 @@ export class NotificationDispatcherService {
           exten: body.exten ?? '',
           uniqueid: body.uniqueid ?? '',
         },
+        ...(body.subject ? { subject: body.subject } : {}),
         ...(body.attach ? { attach: body.attach } : {}),
       };
 
-      switch (integ.channel) {
-        case 'telegram':
-          return await this.telegram.send(integ, target, msg, options);
-        case 'email':
-          return await this.email.send(integ, target, msg, options);
-        case 'whatsapp':
-          return await this.whatsapp.send(integ, target, msg, options);
-        case 'webhook':
-          return await this.webhook.send(integ, target, msg, options);
-        case 'max':
-          return await this.max.send(integ, target, msg, options);
-        case 'vk':
-          return await this.vk.send(integ, target, msg, options);
-        default:
-          this.logger.warn(
-            `Unknown notification channel: ${String((integ as { channel?: string }).channel)}`,
-          );
+      if (target || integ.channel === 'webhook') {
+        return await this.sendChannel(integ, target, msg, options);
       }
+      const field = DESTINATION_FIELD[integ.channel];
+      const destinations = field ? readNotificationDestinations(integ.config, field) : [];
+      if (destinations.length <= 1) {
+        return await this.sendChannel(integ, destinations[0] ?? target, msg, options);
+      }
+      const results: NotificationSendResult[] = [];
+      for (const destination of destinations) {
+        const result = await this.sendChannel(integ, destination, msg, options);
+        if (result) results.push(result);
+      }
+      if (!results.length) return { success: false, error: 'notify_failed' };
+      if (results.some((row) => row.success)) return { success: true };
+      return results[0];
     } catch (e: any) {
       this.logger.error(`notify dispatch failed: ${e?.message ?? e}`);
+    }
+  }
+
+  private sendChannel(
+    integ: Awaited<ReturnType<NotificationsService['findByUidInternal']>>,
+    target: string | undefined,
+    msg: string,
+    options: NotificationSendOptions,
+  ): Promise<NotificationSendResult | void> {
+    switch (integ.channel) {
+      case 'telegram':
+        return this.telegram.send(integ, target, msg, options);
+      case 'email':
+        return this.email.send(integ, target, msg, options);
+      case 'whatsapp':
+        return this.whatsapp.send(integ, target, msg, options);
+      case 'webhook':
+        return this.webhook.send(integ, target, msg, options);
+      case 'max':
+        return this.max.send(integ, target, msg, options);
+      case 'vk':
+        return this.vk.send(integ, target, msg, options);
+      default:
+        this.logger.warn(
+          `Unknown notification channel: ${String((integ as { channel?: string }).channel)}`,
+        );
+        return Promise.resolve();
     }
   }
 }

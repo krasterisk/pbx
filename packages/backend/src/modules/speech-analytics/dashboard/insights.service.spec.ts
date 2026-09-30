@@ -1,6 +1,8 @@
+import { HttpException } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as saChargeInsights from '../charging/sa-charge-insights';
+import type { DashboardAggregate } from './dashboard.service';
 import {
   generateInsights,
   InsightsService,
@@ -100,11 +102,75 @@ function buildHttpService(opts?: {
       }))),
     });
 
+  const cacheRows = new Map<string, { payload: string; expires_at: Date }>();
+  const cache = {
+    findOne: jest.fn(async ({ where }: { where: { cache_key: string } }) => cacheRows.get(where.cache_key) ?? null),
+    update: jest.fn(async (
+      patch: { payload: string; expires_at: Date },
+      options: { where: { cache_key: string } },
+    ) => {
+      const current = cacheRows.get(options.where.cache_key);
+      if (!current) return [0];
+      cacheRows.set(options.where.cache_key, { ...current, ...patch });
+      return [1];
+    }),
+    create: jest.fn(async (row: { cache_key: string; payload: string; expires_at: Date }) => {
+      cacheRows.set(row.cache_key, row);
+      return row;
+    }),
+  };
   const service = new InsightsService(
     insightsRequests as never,
     priceRevisions as never,
+    cache as never,
   );
   return { service, insightsRequests, priceRevisions, patches, creates };
+}
+
+const INSIGHTS_PERIOD = {
+  from: '2026-08-31T21:00:00.000Z',
+  to: '2026-09-30T20:59:59.999Z',
+};
+
+function insightsAggregate(count: number): DashboardAggregate {
+  return {
+    conversationCount: count,
+    lowSttCount: 0,
+    costTotal: '10.00',
+    averageCost: '1.00',
+    averageDurationMs: 60_000,
+    currency: 'RUB',
+    successRate: 0.5,
+    averageScore: 8,
+    sentiment: { positive: 1, neutral: 1, negative: 1 },
+    metrics: [],
+    dynamics: [],
+    ranking: count >= 20 ? 'ok' : 'insufficient_sample',
+    operators: [],
+    topics: [],
+    calls: [],
+  };
+}
+
+function insightsHooks(count = 12, value = count) {
+  const callLlm = jest.fn(async () => ({
+    insights: [{
+      ...sampleInsight,
+      observation: `В выборке ${value} разговоров.`,
+      evidence: { metric: 'calls', value, operators: [], periodLabel: '2026-09-01 - 2026-09-30' },
+    }],
+    providerTokens: 4,
+  }));
+  return {
+    callLlm,
+    loadProject: async () => ({
+      name: 'Demo',
+      systemPrompt: null,
+      insightsFocus: '',
+      config: null,
+    }),
+    loadAggregate: async () => insightsAggregate(count),
+  };
 }
 
 describe('generateInsights (D-35, D-36, D-47)', () => {
@@ -160,7 +226,7 @@ describe('generateInsights (D-35, D-36, D-47)', () => {
       projectName: 'Demo',
       systemPrompt: 'Business context only',
       conversationCount: 12,
-      dashboardFacts: { avgScore: 75 },
+      dashboardFacts: { score: 82 },
       cacheKey: 'k-cache',
       currency: 'RUB',
     };
@@ -168,14 +234,14 @@ describe('generateInsights (D-35, D-36, D-47)', () => {
     const first = await generateInsights(input, deps);
     expect(first.status).toBe('ok');
     expect(first.fromCache).toBe(false);
-    expect(first.amount).toBe('0.40');
+    expect(first).not.toHaveProperty('amount');
+    expect(first).not.toHaveProperty('charged');
     expect(invokeCharge).toHaveBeenCalledTimes(1);
     expect(callLlm).toHaveBeenCalledTimes(1);
 
     const second = await generateInsights(input, deps);
     expect(second.status).toBe('ok');
     expect(second.fromCache).toBe(true);
-    expect(second.amount).toBe('0.40');
     expect(invokeCharge).toHaveBeenCalledTimes(1);
     expect(callLlm).toHaveBeenCalledTimes(1);
   });
@@ -192,6 +258,7 @@ describe('generateInsights (D-35, D-36, D-47)', () => {
       expect(args.skillText).toContain('strength');
       expect(args.modelId).toBe('fallback-call-analysis');
       expect(args.systemPrompt).toBe('Business context only');
+      expect(args.insightsFocus).toBe('');
       return { insights: [sampleInsight], providerTokens: 10 };
     });
 
@@ -202,7 +269,7 @@ describe('generateInsights (D-35, D-36, D-47)', () => {
         projectName: 'Demo',
         systemPrompt: 'Business context only',
         conversationCount: 15,
-        dashboardFacts: {},
+        dashboardFacts: { score: 82 },
         cacheKey: 'k-skill',
         currency: 'RUB',
       },
@@ -217,6 +284,38 @@ describe('generateInsights (D-35, D-36, D-47)', () => {
   it('never imports wallet debit helpers', () => {
     const src = fs.readFileSync(path.join(__dirname, 'insights.service.ts'), 'utf8');
     expect(src).not.toMatch(/settleShadow|BillingBalanceService/);
+    expect(src).toContain('точка списания');
+  });
+
+  it('does not charge when the card cites a number that is not in the facts', async () => {
+    const invokeCharge = jest.fn(async () => ({ amount: '0.40', currency: 'RUB', charged: false as const }));
+    const result = await generateInsights(
+      {
+        tenantUid: 1,
+        projectId: '33333333-3333-4333-8333-333333333333',
+        projectName: 'Demo',
+        systemPrompt: null,
+        conversationCount: 12,
+        dashboardFacts: { score: 82 },
+        cacheKey: 'k-foreign',
+        currency: 'RUB',
+      },
+      baseDeps({
+        invokeCharge,
+        callLlm: async () => ({
+          insights: [{
+            ...sampleInsight,
+            observation: 'Оценка стала 999',
+            evidence: { ...sampleInsight.evidence, value: 999 },
+          }],
+          providerTokens: 9,
+        }),
+      }),
+    );
+    expect(result.status).toBe('error');
+    expect(result.emptyReason).toBe('invalid_response');
+    expect(result.insights).toEqual([]);
+    expect(invokeCharge).not.toHaveBeenCalled();
   });
 });
 
@@ -225,26 +324,25 @@ describe('InsightsService.requestForTenant HTTP SA-CHARGE-INSIGHTS (G-18-05, D-4
     jest.restoreAllMocks();
   });
 
-  it('persists amount with charged=false via invokeSaChargeInsights when conversationCount >= 10', async () => {
+  it('persists amount with charged=false and hides it from the response', async () => {
     const invokeSpy = jest.spyOn(saChargeInsights, 'invokeSaChargeInsights');
     const { service, patches, creates, insightsRequests } = buildHttpService({
       rates: [{ unit: 'provider_tokens', rate: '0.01', currency: 'RUB', scale: 2 }],
     });
+    const hooks = insightsHooks(12);
 
     const result = await service.requestForTenant(
       { tenantUid: 11 },
-      {
-        projectId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        conversationCount: 12,
-        currency: 'RUB',
-        filterDigest: 'http-persist-ok',
-      },
+      { projectId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', ...INSIGHTS_PERIOD, currency: 'RUB' },
+      hooks,
     );
 
     expect(result.status).toBe('ok');
-    expect(result.charged).toBe(false);
-    expect(result.amount).toBeTruthy();
+    expect(result).not.toHaveProperty('amount');
+    expect(result).not.toHaveProperty('currency');
+    expect(result).not.toHaveProperty('charged');
     expect(result.fromCache).toBe(false);
+    expect(result.conversationCount).toBe(12);
     expect(invokeSpy).toHaveBeenCalledTimes(1);
     expect(creates.length + patches.length).toBeGreaterThanOrEqual(1);
     const persisted = patches[0]?.patch ?? creates[0];
@@ -266,23 +364,17 @@ describe('InsightsService.requestForTenant HTTP SA-CHARGE-INSIGHTS (G-18-05, D-4
   it('persists amount 0 with charged=false when depot rates are missing', async () => {
     const { service, patches, creates } = buildHttpService({
       rates: [],
-      priceRevisions: {
-        findAll: jest.fn(async () => []),
-      },
+      priceRevisions: { findAll: jest.fn(async () => []) },
     });
 
     const result = await service.requestForTenant(
       { tenantUid: 3 },
-      {
-        projectId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-        conversationCount: 10,
-        filterDigest: 'http-missing-rates',
-      },
+      { projectId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', ...INSIGHTS_PERIOD },
+      insightsHooks(10),
     );
 
     expect(result.status).toBe('ok');
-    expect(result.charged).toBe(false);
-    expect(result.amount).toBe('0');
+    expect(result).not.toHaveProperty('amount');
     const persisted = patches[0]?.patch ?? creates[0];
     expect(persisted).toEqual(expect.objectContaining({
       amount: '0',
@@ -293,42 +385,82 @@ describe('InsightsService.requestForTenant HTTP SA-CHARGE-INSIGHTS (G-18-05, D-4
   it('skips a second SA-CHARGE-INSIGHTS invoke on cache hit (refresh false)', async () => {
     const invokeSpy = jest.spyOn(saChargeInsights, 'invokeSaChargeInsights');
     const { service } = buildHttpService();
+    const hooks = insightsHooks(15);
     const body = {
       projectId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-      conversationCount: 15,
-      filterDigest: 'http-cache-key',
+      ...INSIGHTS_PERIOD,
       refresh: false as boolean | undefined,
     };
 
-    const first = await service.requestForTenant({ tenantUid: 7 }, body);
+    const first = await service.requestForTenant({ tenantUid: 7 }, body, hooks);
     expect(first.fromCache).toBe(false);
     expect(invokeSpy).toHaveBeenCalledTimes(1);
+    expect(hooks.callLlm).toHaveBeenCalledTimes(1);
 
-    const second = await service.requestForTenant({ tenantUid: 7 }, body);
+    const second = await service.requestForTenant({ tenantUid: 7 }, body, hooks);
     expect(second.fromCache).toBe(true);
-    expect(second.amount).toBe(first.amount);
     expect(invokeSpy).toHaveBeenCalledTimes(1);
+    expect(hooks.callLlm).toHaveBeenCalledTimes(1);
   });
 
   it('returns empty without charge invoke when below INSIGHTS_MIN_CONVERSATIONS', async () => {
     const invokeSpy = jest.spyOn(saChargeInsights, 'invokeSaChargeInsights');
     const { service, patches, creates } = buildHttpService();
+    const hooks = insightsHooks(INSIGHTS_MIN_CONVERSATIONS - 1);
 
     const result = await service.requestForTenant(
       { tenantUid: 1 },
-      {
-        projectId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-        conversationCount: INSIGHTS_MIN_CONVERSATIONS - 1,
-        filterDigest: 'http-below-min',
-      },
+      { projectId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', ...INSIGHTS_PERIOD },
+      hooks,
     );
 
     expect(result.status).toBe('empty');
     expect(result.emptyReason).toBe('below_min_conversations');
     expect(result.insights).toEqual([]);
+    expect(hooks.callLlm).not.toHaveBeenCalled();
     expect(invokeSpy).not.toHaveBeenCalled();
     expect(patches).toHaveLength(0);
     expect(creates).toHaveLength(0);
+  });
+
+  it('does not charge or cache a card that invents a number', async () => {
+    const invokeSpy = jest.spyOn(saChargeInsights, 'invokeSaChargeInsights');
+    const { service } = buildHttpService();
+    const hooks = insightsHooks(12, 99999);
+
+    await expect(service.requestForTenant(
+      { tenantUid: 9 },
+      { projectId: '99999999-9999-4999-8999-999999999999', ...INSIGHTS_PERIOD },
+      hooks,
+    )).rejects.toBeInstanceOf(HttpException);
+    expect(invokeSpy).not.toHaveBeenCalled();
+
+    hooks.callLlm.mockClear();
+    await expect(service.requestForTenant(
+      { tenantUid: 9 },
+      { projectId: '99999999-9999-4999-8999-999999999999', ...INSIGHTS_PERIOD },
+      hooks,
+    )).rejects.toBeInstanceOf(HttpException);
+    expect(hooks.callLlm).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls the model again when the project focus changes', async () => {
+    const { service } = buildHttpService();
+    const first = insightsHooks(12);
+    const second = insightsHooks(12);
+    second.loadProject = async () => ({
+      name: 'Demo',
+      systemPrompt: null,
+      insightsFocus: 'смотри возражения по записи',
+      config: null,
+    });
+    const body = { projectId: '12121212-1212-4121-8121-121212121212', ...INSIGHTS_PERIOD };
+
+    await service.requestForTenant({ tenantUid: 4 }, body, first);
+    await service.requestForTenant({ tenantUid: 4 }, body, second);
+    expect(first.callLlm).toHaveBeenCalledTimes(1);
+    expect(second.callLlm).toHaveBeenCalledTimes(1);
+    expect(second.callLlm.mock.calls[0][0].insightsFocus).toBe('смотри возражения по записи');
   });
 
   it('does not reference settleShadow or BillingBalanceService in the HTTP insights module', () => {
@@ -345,15 +477,12 @@ describe('InsightsService.requestForTenant HTTP SA-CHARGE-INSIGHTS (G-18-05, D-4
 
     const result = await service.requestForTenant(
       { tenantUid: 42 },
-      {
-        projectId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-        conversationCount: 11,
-        filterDigest: 'http-create-row',
-      },
+      { projectId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', ...INSIGHTS_PERIOD },
+      insightsHooks(11),
     );
 
     expect(result.status).toBe('ok');
-    expect(result.charged).toBe(false);
+    expect(result).not.toHaveProperty('charged');
     expect(creates).toHaveLength(1);
     expect(creates[0]).toEqual(expect.objectContaining({
       tenant_uid: 42,
@@ -369,11 +498,8 @@ describe('InsightsService.requestForTenant HTTP SA-CHARGE-INSIGHTS (G-18-05, D-4
 
     await service.requestForTenant(
       { tenantUid: 5 },
-      {
-        projectId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-        conversationCount: 10,
-        filterDigest: 'http-rates-query',
-      },
+      { projectId: 'ffffffff-ffff-4fff-8fff-ffffffffffff', ...INSIGHTS_PERIOD },
+      insightsHooks(10),
     );
 
     expect(priceRevisions!.findAll).toHaveBeenCalledWith(

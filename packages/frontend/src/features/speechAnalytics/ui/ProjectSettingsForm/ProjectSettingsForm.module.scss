@@ -65,9 +65,37 @@
   min-height: 0;
 }
 
+.fieldHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.fieldHead .promptExpand {
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 1.75rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.promptEditor {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  resize: none;
+}
+
 .promptField {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 8rem;
+}
+
+.insightsFocus {
+  flex: 0 0 auto;
 }
 
 .promptArea {
@@ -281,10 +309,23 @@
   color: var(--color-destructive);
 }
 
+.integrationLine {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.integrationLine label,
 .integrationsLink {
-  color: var(--color-primary);
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.integrationsLink {
+  color: inherit;
   text-decoration: underline;
-  width: fit-content;
+  text-underline-offset: 0.15em;
 }
 
 .group {

@@ -5,6 +5,8 @@ export interface ChannelFieldDescriptor {
   labelKey: string;
   hintKey: string;
   secret: boolean;
+  /** Recipient list: several chat ids, emails, phones, or URLs. */
+  multiple?: boolean;
 }
 
 export const NOTIFICATION_CHANNELS: NotificationChannel[] = [
@@ -29,6 +31,7 @@ export const CHANNEL_FIELDS: Record<NotificationChannel, ChannelFieldDescriptor[
       labelKey: 'notifications.fields.chat_id',
       hintKey: 'notifications.hints.chat_id',
       secret: false,
+      multiple: true,
     },
   ],
   email: [
@@ -37,6 +40,7 @@ export const CHANNEL_FIELDS: Record<NotificationChannel, ChannelFieldDescriptor[
       labelKey: 'notifications.fields.to',
       hintKey: 'notifications.hints.to',
       secret: false,
+      multiple: true,
     },
   ],
   whatsapp: [
@@ -52,6 +56,13 @@ export const CHANNEL_FIELDS: Record<NotificationChannel, ChannelFieldDescriptor[
       hintKey: 'notifications.hints.whatsapp_access_token',
       secret: true,
     },
+    {
+      key: 'to',
+      labelKey: 'notifications.fields.whatsapp_to',
+      hintKey: 'notifications.hints.whatsapp_to',
+      secret: false,
+      multiple: true,
+    },
   ],
   webhook: [
     {
@@ -59,6 +70,7 @@ export const CHANNEL_FIELDS: Record<NotificationChannel, ChannelFieldDescriptor[
       labelKey: 'notifications.fields.url',
       hintKey: 'notifications.hints.url',
       secret: false,
+      multiple: true,
     },
     {
       key: 'payload_template',
@@ -79,6 +91,7 @@ export const CHANNEL_FIELDS: Record<NotificationChannel, ChannelFieldDescriptor[
       labelKey: 'notifications.fields.user_id',
       hintKey: 'notifications.hints.user_id',
       secret: false,
+      multiple: true,
     },
   ],
   vk: [
@@ -93,6 +106,7 @@ export const CHANNEL_FIELDS: Record<NotificationChannel, ChannelFieldDescriptor[
       labelKey: 'notifications.fields.peer_id',
       hintKey: 'notifications.hints.peer_id',
       secret: false,
+      multiple: true,
     },
   ],
 };

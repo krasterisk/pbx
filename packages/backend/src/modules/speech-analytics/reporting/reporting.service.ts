@@ -6,9 +6,11 @@ import { ProductResourceAuthorization } from '../../integration-credentials/prod
 import type { TenantContext } from '../../integration-credentials/tenant-context';
 import type { AnalyticsFilterSpec } from '@krasterisk/shared';
 import { DomainError } from '../project-engine';
+import { drillDashboardCalls, type DashboardDrillSpec } from '../dashboard/dashboard-drill';
 import { SaProject, SaRecording } from '../speech-analytics.models';
+import { SaJournalService } from '../journal/journal.service';
 import {
-  assertBulkSize, assertSnapshotSize, dashboardRow, filterDigest, newId, neutralizeCsvCell,
+  assertBulkSize, assertSnapshotSize, filterDigest, newId, neutralizeCsvCell,
   parseCursor, reserveBudget, scheduleSlot, signCursor, validateFilterSpec,
 } from './reporting-engine';
 import { normalizeRouteMode, resolveCapturePolicy, type AnalyticsRouteMode } from './capture-policy';
@@ -35,6 +37,7 @@ export class SaReportingService {
     @InjectModel(SaBulkReanalysisItem) private readonly items: typeof SaBulkReanalysisItem,
     @InjectModel(SaTenantCapturePolicy) private readonly policies: typeof SaTenantCapturePolicy,
     @InjectModel(SaRecordingRelation) private readonly relations: typeof SaRecordingRelation,
+    private readonly journal: SaJournalService,
   ) {}
 
   private mapError(error: unknown): never {
@@ -58,10 +61,37 @@ export class SaReportingService {
         product: 'speech_analytics', action: 'analytics:read',
         resourceKind: 'project', resourceId: filter.projectIds[0],
       });
-      return dashboardRow({
-        eligible: 0, applicable: 0, scored: 0, unknown: 0, notApplicable: 0, unscorable: 0,
-        revision: 'none', filterDigest: filterDigest(filter),
+      const aggregate = await this.journal.dashboardAggregate(context, filter);
+      return {
+        ...aggregate,
+        calls: aggregate.calls ?? [],
+        operators: aggregate.operators ?? [],
+        topics: aggregate.topics ?? [],
+        scored: aggregate.conversationCount,
+        eligible: aggregate.conversationCount,
+        applicable: aggregate.conversationCount,
+        unknown: 0,
+        notApplicable: 0,
+        unscorable: aggregate.lowSttCount,
+        revision: 'live',
+        filterDigest: filterDigest(filter),
+        calculatedAt: new Date().toISOString(),
+      };
+    } catch (error) { this.mapError(error); }
+  }
+
+  async dashboardDrill(context: TenantContext, spec: AnalyticsFilterSpec, drill: DashboardDrillSpec) {
+    try {
+      const allowed = new Set((await this.projects.findAll({
+        where: { tenant_uid: context.tenantUid },
+      })).map(row => row.id));
+      const filter = validateFilterSpec(spec, allowed);
+      await this.resources.authorize(context, {
+        product: 'speech_analytics', action: 'analytics:read',
+        resourceKind: 'project', resourceId: filter.projectIds[0],
       });
+      const aggregate = await this.journal.dashboardAggregate(context, filter);
+      return { calls: drillDashboardCalls(aggregate.calls ?? [], drill) };
     } catch (error) { this.mapError(error); }
   }
 

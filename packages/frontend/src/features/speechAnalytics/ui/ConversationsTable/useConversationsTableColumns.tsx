@@ -41,19 +41,19 @@ export function useConversationsTableColumns(): ColumnDef<SaJournalRow, unknown>
       id: 'occurredAt',
       accessorKey: 'occurredAt',
       header: t('speechAnalytics.colOccurred', 'Дата'),
-      cell: ({ row }) => <Text>{formatJournalWhen(row.original.occurredAt)}</Text>,
+      cell: ({ row }) => <Text className={cls.when}>{formatJournalWhen(row.original.occurredAt)}</Text>,
     },
     {
       id: 'operatorName',
       accessorFn: (row) => row.operatorName ?? '',
       header: t('speechAnalytics.colName', 'Имя'),
-      cell: ({ row }) => <Text>{dash(row.original.operatorName)}</Text>,
+      cell: ({ row }) => <Text className={cls.name}>{dash(row.original.operatorName)}</Text>,
     },
     {
       id: 'callerPhone',
       accessorFn: (row) => row.callerPhone ?? '',
       header: t('speechAnalytics.colCaller', 'Номер'),
-      cell: ({ row }) => <Text>{dash(row.original.callerPhone)}</Text>,
+      cell: ({ row }) => <Text className={cls.phone}>{dash(row.original.callerPhone)}</Text>,
     },
     {
       id: 'sourceKind',
@@ -79,7 +79,7 @@ export function useConversationsTableColumns(): ColumnDef<SaJournalRow, unknown>
       id: 'durationMs',
       accessorFn: (row) => row.durationMs ?? 0,
       header: t('speechAnalytics.colDuration', 'Длительность'),
-      cell: ({ row }) => <Text>{formatJournalDuration(row.original.durationMs)}</Text>,
+      cell: ({ row }) => <Text className={cls.duration}>{formatJournalDuration(row.original.durationMs)}</Text>,
     },
     {
       id: 'latestAmount',
@@ -99,9 +99,9 @@ export function useConversationsTableColumns(): ColumnDef<SaJournalRow, unknown>
       header: t('speechAnalytics.colScore', 'Оценка'),
       cell: ({ row }) => (
         row.original.score != null ? (
-          <HStack gap="4" align="center">
+          <HStack gap="4" align="center" className={cls.scorePill}>
             <Star size={14} className={cls.csatStar} />
-            <Text>{String(row.original.score)}</Text>
+            <Text as="span">{String(row.original.score)}</Text>
           </HStack>
         ) : <Text>-</Text>
       ),
@@ -134,7 +134,17 @@ export function useConversationsTableColumns(): ColumnDef<SaJournalRow, unknown>
       accessorFn: (row) => (row.topics ?? []).join(', '),
       header: t('speechAnalytics.colTopics', 'Темы'),
       enableSorting: false,
-      cell: ({ row }) => <Text>{(row.original.topics ?? []).join(', ') || '-'}</Text>,
+      cell: ({ row }) => {
+        const topics = (row.original.topics ?? []).filter((topic) => topic.trim());
+        if (topics.length === 0) return <Text>-</Text>;
+        return (
+          <HStack gap="4" align="center" wrap="wrap" className={cls.topics}>
+            {topics.map((topic) => (
+              <Text key={topic} as="span" className={cls.topic}>{topic}</Text>
+            ))}
+          </HStack>
+        );
+      },
     },
     {
       id: 'success',

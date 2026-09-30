@@ -12,7 +12,7 @@ import {
 import { UserLevel } from '../../users/user.model';
 import { NotificationIntegration } from '../../notifications/notification-integration.model';
 import { NotificationDispatcherService } from '../../notifications/notification-dispatcher.service';
-import { aggregateDashboard } from '../dashboard/dashboard.service';
+import { aggregateDashboard, readDashboardMetricScores } from '../dashboard/dashboard.service';
 import { readJournalColumns } from '../journal/journal-row-view';
 import { SaAnalysisRun, SaProject, SaRecording, SaResult } from '../speech-analytics.models';
 import { dueDigestSchedules } from '../ops/speech-analytics-ops';
@@ -66,7 +66,7 @@ export class SaNoticeDeliveryService {
       ? digestDocument(notice, facts)
       : alertDocument(notice, facts, 'Проверка уведомления.');
     const recipients = await this.deliver(project.tenant_uid, config.digest.integrationUids ?? [], doc);
-    return { sent: true, recipients };
+    return { sent: true, recipients: recipients.sent, failed: recipients.failed };
   }
 
   private async runProject(project: SaProject, now: Date): Promise<void> {
@@ -150,7 +150,7 @@ export class SaNoticeDeliveryService {
       successRate: aggregate.successRate,
       costTotal: aggregate.costTotal,
       currency: aggregate.currency,
-      metrics: aggregate.customMetrics.map((metric) => ({ label: metric.label, avg: metric.avg })),
+      metrics: aggregate.metrics.map((metric) => ({ label: metric.label, avg: metric.avg })),
       topics: [...topics.entries()].map(([label, count]) => ({ label, count })),
       lowSttCount: aggregate.lowSttCount,
       lowSttPct: aggregate.conversationCount
@@ -192,18 +192,7 @@ export class SaNoticeDeliveryService {
         quality: result?.quality ?? null,
         projectName: project.name,
       });
-      const scores: Record<string, number> = {};
-      const raw = result?.metric_results;
-      const parsed = typeof raw === 'string' ? safeJson(raw) : raw;
-      if (Array.isArray(parsed)) {
-        for (const item of parsed) {
-          if (!item || typeof item !== 'object') continue;
-          const id = String((item as { id?: unknown }).id ?? '');
-          const value = (item as { value?: unknown }).value;
-          if (!id || id.startsWith('_') || ['csat', 'customer_sentiment', 'topics', 'success'].includes(id)) continue;
-          if (typeof value === 'number' && Number.isFinite(value)) scores[id] = value;
-        }
-      }
+      const scores = readDashboardMetricScores(result?.metric_results ?? null).scores;
       return {
         id: row.id,
         operatorExten: columns.operatorName,
@@ -215,8 +204,7 @@ export class SaNoticeDeliveryService {
         lowStt: columns.lowStt,
         success: columns.success,
         sentiment: columns.sentiment,
-        scaleScores: {},
-        customScores: scores,
+        metricScores: scores,
         dayLabel: columns.operatorName ?? row.id,
         overallScore: columns.score,
         topicLabels: columns.topics,
@@ -234,16 +222,21 @@ export class SaNoticeDeliveryService {
     tenantUid: number,
     uids: number[],
     doc: ReturnType<typeof digestDocument>,
-  ): Promise<number> {
-    if (!uids.length) throw new UnprocessableEntityException({ code: 'digest_recipient_required' });
+  ): Promise<{ sent: number; failed: number }> {
+    const unique = [...new Set(uids.filter((uid) => Number.isInteger(uid) && uid > 0))];
+    if (!unique.length) throw new UnprocessableEntityException({ code: 'digest_recipient_required' });
     const owned = await this.integrations.findAll({
-      where: { uid: { [Op.in]: uids }, user_uid: tenantUid },
+      where: { uid: { [Op.in]: unique }, user_uid: tenantUid },
     });
-    if (!owned.length) throw new UnprocessableEntityException({ code: 'digest_recipient_required' });
+    const byUid = new Map(owned.map((row) => [row.uid, row]));
+    const targets = unique.map((uid) => byUid.get(uid)).filter((row) => row != null);
+    if (!targets.length) throw new UnprocessableEntityException({ code: 'digest_recipient_required' });
     const message = renderNoticeText(doc);
     const html = renderNoticeHtml(doc);
     let sent = 0;
-    for (const row of owned) {
+    let failed = 0;
+    let firstError = 'notify_failed';
+    for (const row of targets) {
       const result = await this.notifications.dispatch({
         integration_uid: row.uid,
         subject: doc.title,
@@ -254,12 +247,16 @@ export class SaNoticeDeliveryService {
           contentType: 'text/html',
         },
       });
-      if (!result?.success) {
-        throw new UnprocessableEntityException({ code: result?.error || 'notify_failed' });
+      if (result?.success) {
+        sent += 1;
+        continue;
       }
-      sent += 1;
+      failed += 1;
+      firstError = result?.error || firstError;
+      this.logger.warn(`speech analytics notice failed integration=${row.uid}: ${result?.error ?? 'notify_failed'}`);
     }
-    return sent;
+    if (!sent) throw new UnprocessableEntityException({ code: firstError });
+    return { sent, failed };
   }
 
   private async stamp(
@@ -298,13 +295,5 @@ export class SaNoticeDeliveryService {
     } catch {
       return defaultSaProjectConfig();
     }
-  }
-}
-
-function safeJson(raw: string): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
   }
 }

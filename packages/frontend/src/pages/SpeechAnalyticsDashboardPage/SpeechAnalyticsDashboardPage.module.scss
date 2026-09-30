@@ -35,16 +35,611 @@
   display: grid;
   width: 100%;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 }
 
-.statCard,
-.sectionCard {
-  padding: 1rem;
+.chartsRow {
+  display: grid;
+  width: 100%;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+
+  .sectionCard {
+    min-height: 28rem;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+
+    .sectionCard {
+      min-height: 24rem;
+    }
+  }
+}
+
+.kpi {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 1.15rem 1.2rem;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
   background: var(--color-card);
+  color: inherit;
+  text-align: left;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-foreground) 5%, transparent);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-primary), transparent);
+    opacity: 0.5;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 12px 28px color-mix(in srgb, var(--color-primary) 16%, transparent),
+      0 1px 2px color-mix(in srgb, var(--color-foreground) 6%, transparent);
+
+    &::before {
+      opacity: 1;
+    }
+
+    .kpiIcon {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 28%, transparent);
+    }
+  }
+
+  @media (max-width: 768px) {
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+.kpiButton {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.kpiMain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.kpi .kpiTitle {
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.kpi .kpiValue {
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+  line-height: 1.15;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+}
+
+.kpiHint {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  opacity: 0.8;
+}
+
+.kpiIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpiSuccess {
+  border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+
+  &::before {
+    background: linear-gradient(90deg, var(--color-success), transparent);
+  }
+}
+
+.kpiWarning {
+  border-color: color-mix(in srgb, var(--color-warning) 50%, var(--color-border));
+
+  &::before {
+    background: linear-gradient(90deg, var(--color-warning), transparent);
+  }
+}
+
+.kpiError {
+  border-color: color-mix(in srgb, var(--color-destructive) 45%, var(--color-border));
+
+  &::before {
+    background: linear-gradient(90deg, var(--color-destructive), transparent);
+  }
+}
+
+.kpiPrimary {
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+}
+
+.toneGood,
+.metricBarValue.toneGood,
+.fieldValue.toneGood {
+  color: var(--color-success);
+}
+
+.toneMid,
+.metricBarValue.toneMid,
+.fieldValue.toneMid {
+  color: var(--color-warning);
+}
+
+.toneBad,
+.metricBarValue.toneBad,
+.fieldValue.toneBad {
+  color: var(--color-destructive);
+}
+
+.toneNeutral {
+  color: var(--color-foreground);
+}
+
+.projectPicker {
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.projectSelect {
+  width: 16rem;
+  max-width: 100%;
+}
+
+.projectName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.rankTable,
+.drillList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.rankHead,
+.rankRow {
+  appearance: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 5rem 4.5rem 4.5rem 4.5rem;
+  gap: 0.75rem;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+
+  @media (max-width: 768px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.rankHead {
+  cursor: default;
+  border-bottom: 1px solid var(--color-border);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+}
+
+.rankRow {
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.45rem;
+}
+
+.rankRow:hover {
+  color: inherit;
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.rankCell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.rankLabel {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .rankHead {
+    display: none;
+  }
+
+  .rankRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .rankCell {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  .rankLabel {
+    display: block;
+  }
+}
+
+.metricRow {
+  appearance: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.metricName,
+.drillMeta {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.metricName {
+  flex: 1;
+}
+
+.metricRow:hover {
+  color: var(--color-primary);
+}
+
+.metricBar {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.metricBar:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
+.metricBarHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+}
+
+.metricBarValue {
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.metricTrack {
+  display: block;
+  width: 100%;
+  height: 0.45rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-muted) 55%, transparent);
+}
+
+.metricFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.45s ease;
+}
+
+.metricFill.toneGood {
+  background: var(--color-success);
+}
+
+.metricFill.toneMid {
+  background: var(--color-warning);
+}
+
+.metricFill.toneBad {
+  background: var(--color-destructive);
+}
+
+.topicGrid {
+  display: grid;
+  width: 100%;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+}
+
+.topicCard {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
   min-width: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 70%),
+    transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.topicCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.topicHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.topicChevron {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.topicCount {
+  font-size: 1.45rem;
+  font-weight: 720;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sectionHint {
+  margin-top: -0.15rem;
+}
+
+.sheet {
+  max-width: 100%;
+  max-height: 100dvh;
+}
+
+@media (min-width: 769px) {
+  .sheet {
+    width: 40vw;
+  }
+}
+
+.sheetHeader {
+  flex-shrink: 0;
+  padding-right: 2rem;
+}
+
+.sheetBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 1rem;
+}
+
+.backBtn {
+  height: auto;
+  padding: 0;
+}
+
+.operatorStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.operatorStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 22%, transparent);
+}
+
+.operatorStatValue {
+  font-size: 1.35rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.fieldLabel {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.fieldValue {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.sheetMetric {
+  appearance: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.sheetMetric:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.drillCard {
+  appearance: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 0.75rem 1.25rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 16%, transparent);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.drillCard:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.drillField {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.drillNote {
+  grid-column: 1 / -1;
+}
+
+.drillPager {
+  padding-top: 0.35rem;
+}
+
+.scorePill {
+  width: fit-content;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  color: var(--color-foreground);
+}
+
+.scorePill.toneGood {
+  background: color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success);
+}
+
+.scorePill.toneMid {
+  background: color-mix(in srgb, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
+}
+
+.scorePill.toneBad {
+  background: color-mix(in srgb, var(--color-destructive) 16%, transparent);
+  color: var(--color-destructive);
+}
+
+.sectionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.15rem 1.2rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 5%, transparent), transparent 42%),
+    var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  min-width: 0;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-foreground) 4%, transparent);
 }
 
 .skeletonBlock {
@@ -62,16 +657,93 @@
 }
 
 .insightGrid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
 }
 
 .insightCard {
-  padding: 0.75rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1rem 1.15rem 1rem 1.25rem;
   cursor: pointer;
   min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--insight, var(--color-primary)) 38%, var(--color-border));
+  background:
+    linear-gradient(105deg, color-mix(in srgb, var(--insight, var(--color-primary)) 14%, transparent), transparent 42%),
+    var(--color-card);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 4px;
+    background: var(--insight, var(--color-primary));
+  }
+}
+
+.insightCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--insight, var(--color-primary)) 18%, transparent);
+}
+
+.insightStrength { --insight: var(--color-success); }
+.insightGap { --insight: var(--color-warning); }
+.insightOutlier { --insight: var(--color-destructive); }
+.insightTrend { --insight: var(--color-info); }
+.insightQuality { --insight: var(--color-primary); }
+
+.insightKind {
+  align-self: flex-start;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--insight, var(--color-primary)) 32%, transparent);
+  background: color-mix(in srgb, var(--insight, var(--color-primary)) 16%, transparent);
+  color: var(--insight, var(--color-primary));
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.insightMain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.insightColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 0.85rem 1.25rem;
+}
+
+.insightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.insightAdvice {
+  padding-left: 1rem;
+  border-left: 1px solid color-mix(in srgb, var(--insight, var(--color-border)) 35%, var(--color-border));
+}
+
+.insightCaption {
+  color: var(--color-muted-foreground);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .insightTitle {
@@ -84,11 +756,69 @@
   white-space: normal;
 }
 
+@media (max-width: 768px) {
+  .insightCard:hover {
+    transform: none;
+  }
+
+  .insightColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .insightAdvice {
+    padding-left: 0;
+    padding-top: 0.65rem;
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--insight, var(--color-border)) 35%, var(--color-border));
+  }
+}
+
 .chartWrap {
   width: 100%;
   min-width: 0;
-  height: 15rem;
-  overflow: hidden;
+  flex: 1;
+  height: 22rem;
+  min-height: 22rem;
+  overflow: visible;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legendItem {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-muted) 28%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.legendItem:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.legendSwatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  flex-shrink: 0;
 }
 
 .segmentBtn {

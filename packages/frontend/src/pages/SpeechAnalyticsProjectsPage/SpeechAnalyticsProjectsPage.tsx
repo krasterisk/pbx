@@ -42,6 +42,7 @@ import {
   useUpdateSaProjectDraftMutation,
   type SaProject,
 } from '@/features/speechAnalytics/api/speechAnalyticsApi';
+import { mergeAnalysisJobs, usePendingUploads } from '@/features/speechAnalytics/model/pendingUploads';
 import { AnalysisJobsPanel } from '@/features/speechAnalytics/ui/AnalysisJobsPanel/AnalysisJobsPanel';
 import cls from './SpeechAnalyticsProjectsPage.module.scss';
 
@@ -64,6 +65,7 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
   const isMobile = useIsMobile(768);
   const projectsQuery = useGetSaProjectsQuery();
   const journalQuery = useGetSaJournalQuery(undefined, { pollingInterval: 4000 });
+  const pendingJobs = usePendingUploads();
   const [createProject, createState] = useCreateSaProjectMutation();
   const [updateDraft] = useUpdateSaProjectDraftMutation();
   const [publishProject] = usePublishSaProjectMutation();
@@ -398,7 +400,7 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
       </Flex>
 
       <AnalysisJobsPanel
-        jobs={journalQuery.data?.analysisJobs ?? []}
+        jobs={mergeAnalysisJobs(journalQuery.data?.analysisJobs ?? [], pendingJobs)}
         progress={journalQuery.data?.uploadProgress ?? { done: 0, total: 0 }}
       />
 

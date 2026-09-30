@@ -30,6 +30,7 @@ import { WebhookQueueService } from '../routes/webhook-queue.service';
 import { configDigest, DomainError } from './project-engine';
 import { claimRecording, emptyIngestStores, metadataAllowlist, uploadChecksum } from './ingest-engine';
 import { SA_ANALYSIS_WORKER } from './hangup-analytics.port';
+import { releaseFinishedSpeechJobs } from './release-speech-jobs';
 import type { SaAnalysisWorker } from './jobs/sa-analysis.worker';
 import { runPipeline } from './pipeline';
 import {
@@ -459,6 +460,7 @@ export class SpeechAnalyticsService {
       await drop(`DELETE FROM sa_bulk_reanalysis_batches WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
       await drop(`DELETE FROM sa_budget_policies WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
       await drop(`DELETE FROM sa_insights_requests WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
+      await drop(`DELETE FROM sa_insights_cache WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
       await drop(`DELETE FROM ai_webhook_deliveries WHERE vpbx_user_uid = :tenantUid AND endpoint_id IN (SELECT id FROM ai_webhook_endpoints WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId)`);
       await drop(`DELETE FROM ai_webhook_endpoints WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId`);
       await drop(`DELETE FROM sa_project_version_metrics WHERE vpbx_user_uid = :tenantUid AND project_version_id IN (SELECT id FROM sa_project_versions WHERE vpbx_user_uid = :tenantUid AND project_id = :projectId)`);
@@ -511,7 +513,11 @@ export class SpeechAnalyticsService {
     if (!owned.length) {
       throw new UnprocessableEntityException({ code: 'digest_recipient_required' });
     }
-    for (const row of owned) {
+    const byUid = new Map(owned.map((row) => [row.uid, row]));
+    const targets = [...new Set(uids)].map((uid) => byUid.get(uid)).filter((row) => row != null);
+    let sent = 0;
+    let firstError = 'notify_failed';
+    for (const row of targets) {
       this.logger.log(`speech analytics notify integration=${row.uid} channel=${row.channel}`);
       const result = await this.notifications.dispatch({
         integration_uid: row.uid,
@@ -519,16 +525,19 @@ export class SpeechAnalyticsService {
         message,
         ...(attach ? { attach } : {}),
       });
-      if (!result?.success) {
-        this.logger.warn(
-          `speech analytics notify failed integration=${row.uid} error=${result?.error ?? 'no_result'}`,
-        );
-        throw new UnprocessableEntityException({
-          code: result?.error && result.error !== 'no_result' ? result.error : 'notify_failed',
-        });
+      if (result?.success) {
+        sent += 1;
+        continue;
       }
+      firstError = result?.error || firstError;
+      this.logger.warn(
+        `speech analytics notify failed integration=${row.uid} error=${result?.error ?? 'no_result'}`,
+      );
     }
-    return owned.length;
+    if (!sent) {
+      throw new UnprocessableEntityException({ code: firstError });
+    }
+    return sent;
   }
 
   async sendProjectDigest(context: TenantContext, projectId: string) {
@@ -701,20 +710,28 @@ export class SpeechAnalyticsService {
   async createRun(context: TenantContext, input: {
     projectId: string; assetId: string; externalCallId?: string; sourcePart?: string;
     metadata?: Record<string, unknown>; idempotencyKey: string;
+    configSource?: 'draft' | 'published';
   }) {
     try {
     const project = await this.assertScope(context, input.projectId, 'analytics:upload');
-    if (!project.active_version_id || project.status === 'archived') {
+    if (project.status === 'archived') {
       throw new ConflictException({ code: 'project_archived' });
     }
-    const published = await this.versions.findOne({
-      where: { id: project.active_version_id, tenant_uid: context.tenantUid },
-    });
+    const useDraft = input.configSource === 'draft';
+    const draft = this.parseConfig(project.draft_config);
     let publishedConfig: SaProjectConfigV1 | null = null;
-    if (published?.config) {
-      try { publishedConfig = JSON.parse(published.config) as SaProjectConfigV1; } catch { publishedConfig = null; }
+    if (project.active_version_id) {
+      const published = await this.versions.findOne({
+        where: { id: project.active_version_id, tenant_uid: context.tenantUid },
+      });
+      if (published?.config) {
+        try { publishedConfig = JSON.parse(published.config) as SaProjectConfigV1; } catch { publishedConfig = null; }
+      }
     }
-    await this.assertAnalysisProviders(context.tenantUid, publishedConfig);
+    if (!useDraft && !project.active_version_id) {
+      throw new ConflictException({ code: 'project_not_published' });
+    }
+    await this.assertAnalysisProviders(context.tenantUid, useDraft ? draft : publishedConfig);
     const asset = await this.assets.findOne({ where: { tenant_uid: context.tenantUid, id: input.assetId } });
     if (!asset) throw new NotFoundException({ code: 'resource_not_found' });
     if (asset.state !== 'ready') throw new ConflictException({ code: 'asset_not_ready' });
@@ -724,6 +741,25 @@ export class SpeechAnalyticsService {
       id: asset.id, tenantUid: context.tenantUid, state: asset.state, sha256: asset.sha256 ?? '',
     });
     const accepted = await this.sequelize.transaction(async (transaction) => {
+    let versionId = project.active_version_id;
+    if (useDraft) {
+      const sameAsPublished = Boolean(
+        project.active_version_id
+        && publishedConfig
+        && configDigest(draft) === configDigest(publishedConfig),
+      );
+      if (!sameAsPublished) {
+        const count = await this.versions.count({ where: { project_id: project.id }, transaction });
+        const snapshot = await this.versions.create({
+          id: randomUUID(), tenant_uid: context.tenantUid, project_id: project.id,
+          version_no: count + 1, config_digest: configDigest(draft), config: JSON.stringify(draft),
+          stt_revision_id: draft.sttRevisionId, llm_revision_id: draft.llmRevisionId,
+          created_by: this.userId(context), created_at: new Date(),
+        }, { transaction });
+        versionId = snapshot.id;
+      }
+    }
+    if (!versionId) throw new ConflictException({ code: 'project_not_published' });
     const recordingClaim = claimRecording({
       stores,
       tenantUid: context.tenantUid,
@@ -732,7 +768,7 @@ export class SpeechAnalyticsService {
         id: project.id, tenantUid: project.tenant_uid, name: project.name,
         status: project.status as 'draft' | 'active' | 'archived',
         draftRevision: project.draft_revision, draftConfig: defaultSaProjectConfig(),
-        activeVersionId: project.active_version_id, createdBy: project.created_by,
+        activeVersionId: versionId, createdBy: project.created_by,
       },
       externalCallId: input.externalCallId ?? randomUUID(),
       sourcePart: input.sourcePart ?? 'main',
@@ -777,6 +813,7 @@ export class SpeechAnalyticsService {
         return { status: 202, runId: existingRun.id, recordingId: recording.id,
           projectVersionId: existingRun.project_version_id, replay: true };
       }
+      await releaseFinishedSpeechJobs(context.tenantUid, this.runs, this.admission, transaction);
       const receipt = await this.admission.admit({
         tenantUid: context.tenantUid, principalId: context.principalId,
         product: 'speech_analytics', kind: 'analyze', resourceKind: 'project',
@@ -786,13 +823,13 @@ export class SpeechAnalyticsService {
       }, transaction);
       const run = await this.runs.create({
         id: randomUUID(), tenant_uid: context.tenantUid, recording_id: recording.id,
-        project_version_id: project.active_version_id, job_id: receipt.jobId, state: 'queued',
+        project_version_id: versionId, job_id: receipt.jobId, state: 'queued',
         transcript_id: null, result_id: null, parent_run_id: null, reason: null,
         created_at: new Date(), updated_at: new Date(),
       }, { transaction });
       return {
         status: 202, runId: run.id, recordingId: recording.id,
-        projectVersionId: project.active_version_id, replay: receipt.replay,
+        projectVersionId: versionId, replay: receipt.replay,
       };
     });
     if (accepted && !accepted.replay) {
@@ -912,6 +949,12 @@ export class SpeechAnalyticsService {
     run.reason = reason.slice(0, 64);
     run.updated_at = new Date();
     await run.save();
+    if (run.job_id) {
+      await this.admission.settle(tenantUid, run.job_id, 'failed').catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Could not close analysis job ${run.job_id}: ${message}`);
+      });
+    }
   }
 
   async getRun(context: TenantContext, runId: string, scope: 'analytics:read' | 'analytics:transcript' | 'analytics:audio') {

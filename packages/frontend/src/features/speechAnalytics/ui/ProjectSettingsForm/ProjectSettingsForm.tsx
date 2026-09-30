@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ChevronDown,
   ChevronRight,
+  Maximize2,
   Save,
   Trash2,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import {
   digestSchedules,
   normalizeProjectMetric,
   projectNotices,
+  resolveInsightsFocus,
   resolveProjectInsights,
   type SaAlertConfig,
   type SaCallTagDef,
@@ -191,6 +193,8 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [insightsFocus, setInsightsFocus] = useState('');
+  const [promptEditor, setPromptEditor] = useState<null | 'system' | 'focus'>(null);
   const [sttProviderUid, setSttProviderUid] = useState<number | null>(null);
   const [llmProviderUid, setLlmProviderUid] = useState<number | null>(null);
   const { data: speechModels } = useGetSaSpeechModelsQuery();
@@ -202,7 +206,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   const [alerts, setAlerts] = useState<SaAlertConfig>(defaultSaProjectConfig().alerts);
   const [notices, setNotices] = useState<SaNotice[]>([]);
   const [openNotices, setOpenNotices] = useState<Record<string, boolean>>({});
-  const [addingNotice, setAddingNotice] = useState(false);
+  const [addingIntegration, setAddingIntegration] = useState(false);
   const [budget, setBudget] = useState('');
   const [revision, setRevision] = useState(1);
   const [hydrated, setHydrated] = useState<string | null>(null);
@@ -211,7 +215,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   const [pendingTopic, setPendingTopic] = useState<number | null>(null);
   const [pendingMetric, setPendingMetric] = useState<number | null>(null);
   const [openMetrics, setOpenMetrics] = useState<Record<string, boolean>>({});
-  const [openInsights, setOpenInsights] = useState({ summary: false, csat: false, sentiment: false });
+  const [openInsights, setOpenInsights] = useState({ summary: false, csat: false, sentiment: false, success: false });
   const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
   const [openNotify, setOpenNotify] = useState({ where: false, when: false, what: false });
   const [aliasDraft, setAliasDraft] = useState<Record<string, string>>({});
@@ -222,6 +226,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
     setName(project.name);
     setDescription(cfg.description ?? '');
     setSystemPrompt(cfg.systemPrompt ?? '');
+    setInsightsFocus(resolveInsightsFocus(cfg));
     setSttProviderUid(cfg.sttProviderUid ?? null);
     setLlmProviderUid(cfg.llmProviderUid ?? null);
     setInsights(resolveProjectInsights(cfg));
@@ -256,6 +261,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
       ...(project?.draft_config ?? {}),
       description,
       systemPrompt,
+      insightsFocus,
       sttProviderUid,
       llmProviderUid,
       insights,
@@ -328,8 +334,13 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
       }).unwrap();
       setRevision(saved.draft_revision);
       setHydrated(`${projectId}:${saved.draft_revision}`);
-      await testNotice({ id: projectId, noticeId }).unwrap();
-      showNotice(t('speechAnalytics.settingsAlertSent', 'Сообщение отправлено'), 'success');
+      await testNotice({ id: projectId, noticeId }).unwrap().then((result) => {
+        if (result.failed) {
+          showNotice(t('speechAnalytics.settingsNoticePartial', 'Часть интеграций не приняла сообщение'), 'error');
+          return;
+        }
+        showNotice(t('speechAnalytics.settingsAlertSent', 'Сообщение отправлено'), 'success');
+      });
     } catch (error) {
       notifyToast(error, t('speechAnalytics.settingsAlertFailed', 'Не удалось отправить уведомление'));
     }
@@ -425,12 +436,46 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
             </VStack>
           </div>
           <VStack gap="4" max className={cls.promptField}>
-            <Label htmlFor="sa-settings-prompt">{t('speechAnalytics.settingsSystemPrompt', 'Системный промпт')}</Label>
+            <div className={cls.fieldHead}>
+              <Label htmlFor="sa-settings-prompt">{t('speechAnalytics.settingsSystemPrompt', 'Системный промпт')}</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cls.promptExpand}
+                aria-label={t('speechAnalytics.openPromptWindow', 'Открыть окно')}
+                onClick={() => setPromptEditor('system')}
+              >
+                <Maximize2 size={14} />
+              </Button>
+            </div>
             <Textarea
               id="sa-settings-prompt"
               className={`${cls.promptArea} min-h-0 h-full flex-1`}
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
+            />
+          </VStack>
+          <VStack gap="4" max className={cls.insightsFocus}>
+            <div className={cls.fieldHead}>
+              <Label htmlFor="sa-settings-insights-focus">{t('speechAnalytics.insightsFocusLabel', 'На что смотреть в инсайтах')}</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cls.promptExpand}
+                aria-label={t('speechAnalytics.openPromptWindow', 'Открыть окно')}
+                onClick={() => setPromptEditor('focus')}
+              >
+                <Maximize2 size={14} />
+              </Button>
+            </div>
+            <Text variant="muted" className={cls.hint}>{t('speechAnalytics.insightsFocusHint', 'Для кого совет в первую очередь, какие темы и метрики важны, чего рекомендовать нельзя. Пустое поле оставляет общие правила.')}</Text>
+            <Textarea
+              id="sa-settings-insights-focus"
+              rows={4}
+              value={insightsFocus}
+              onChange={(e) => setInsightsFocus(e.target.value)}
             />
           </VStack>
         </VStack>
@@ -505,7 +550,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
 
         <TabsContent value="metrics">
           <VStack gap="12" max>
-          <Text variant="muted" className={cls.hint}>{t('speechAnalytics.settingsInsightsHint', 'Саммари, удовлетворённость и тональность есть в каждом проекте. Ниже задаются шкала и правила, по которым модель их ставит.')}</Text>
+          <Text variant="muted" className={cls.hint}>{t('speechAnalytics.settingsInsightsHint', 'Саммари, удовлетворённость, тональность и успешность есть в каждом проекте. Ниже задаются шкала и правила, по которым модель их ставит.')}</Text>
           <Card className={`${cls.nested} ${cls.metricCard}`}>
             <VStack gap="8" max>
               <div className={cls.metricHeadRow}>
@@ -659,6 +704,49 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
               ) : null}
             </VStack>
           </Card>
+          <Card className={`${cls.nested} ${cls.metricCard}`}>
+            <VStack gap="8" max>
+              <div className={cls.metricHeadRow}>
+                <button
+                  type="button"
+                  className={cls.metricHead}
+                  aria-expanded={openInsights.success}
+                  onClick={() => setOpenInsights((current) => ({ ...current, success: !current.success }))}
+                >
+                  <span className={cls.metricHeadMain}>
+                    {openInsights.success ? <ChevronDown size={16} className={cls.metricChevron} aria-hidden /> : <ChevronRight size={16} className={cls.metricChevron} aria-hidden />}
+                    <span className={cls.itemTitle}>{t('speechAnalytics.insightSuccess', 'Успешность звонка')}</span>
+                  </span>
+                  {openInsights.success ? null : (
+                    <span className={cls.metricType}>{t('speechAnalytics.metricBoolean', 'Да / нет')}</span>
+                  )}
+                </button>
+                <Switch
+                  checked={insights.success.enabled}
+                  aria-label={t('speechAnalytics.insightEnabled', 'Включена')}
+                  onClick={(event) => event.stopPropagation()}
+                  onCheckedChange={(checked) => setInsights((current) => ({
+                    ...current,
+                    success: { ...current.success, enabled: checked },
+                  }))}
+                />
+              </div>
+              {openInsights.success ? (
+                <>
+                  <Label htmlFor="sa-success-instruction">{t('speechAnalytics.wizardLlmDescription', 'Описание для LLM')}</Label>
+                  <Textarea
+                    id="sa-success-instruction"
+                    rows={4}
+                    value={insights.success.instruction}
+                    onChange={(event) => setInsights((current) => ({
+                      ...current,
+                      success: { ...current.success, instruction: event.target.value },
+                    }))}
+                  />
+                </>
+              ) : null}
+            </VStack>
+          </Card>
           <Text variant="muted" className={cls.hint}>{t('speechAnalytics.settingsMetricsHint', 'Набор метрик проекта. Разбор смотрит на название, тип ответа и описание.')}</Text>
           {metrics.map((metric, index) => {
             const metricOpen = openMetrics[metric.id] === true;
@@ -806,28 +894,86 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
             </button>
             {openNotify.where ? (
             <>
-            <HStack gap="8" align="center">
-              <Label htmlFor="sa-settings-integration">
-                {t('speechAnalytics.settingsIntegration', 'Интеграция')}
-              </Label>
-              <Link to="/integrations" className={cls.integrationsLink}>
+            <HStack gap="8" align="center" className={cls.integrationLine}>
+              <Label>{t('speechAnalytics.settingsIntegration', 'Интеграция')}</Label>
+              <Link
+                to="/integrations"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cls.integrationsLink}
+              >
                 {t('speechAnalytics.settingsIntegrationSetup', 'настроить')}
               </Link>
             </HStack>
-            <Select
-              id="sa-settings-integration"
-              value={digest.integrationUids[0] != null ? String(digest.integrationUids[0]) : ''}
-              onChange={(e) => {
-                const integrationUids = e.target.value ? [Number(e.target.value)] : [];
-                setDigest((current) => ({ ...current, integrationUids }));
-                setAlerts((current) => ({ ...current, integrationUids }));
-              }}
+            <Text variant="muted" className={cls.hint}>
+              {t('speechAnalytics.settingsWhereHint', 'Можно выбрать несколько: например Telegram и почту. Сообщение уйдёт в каждую.')}
+            </Text>
+            {digest.integrationUids.map((uid) => {
+              const row = integrations.find((item) => item.uid === uid);
+              return (
+                <div key={uid} className={cls.metricHeadRow}>
+                  <span className={cls.metricHead}>
+                    <span className={cls.itemTitle}>{row?.name ?? String(uid)}</span>
+                    {row ? (
+                      <span className={cls.metricType}>
+                        {t(`speechAnalytics.integrationChannel.${row.channel}`, row.channel)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={`${cls.deleteBtn} text-destructive hover:text-destructive hover:bg-destructive/10`}
+                    aria-label={t('common.delete', 'Удалить')}
+                    onClick={() => {
+                      const integrationUids = digest.integrationUids.filter((item) => item !== uid);
+                      setDigest((current) => ({ ...current, integrationUids }));
+                      setAlerts((current) => ({ ...current, integrationUids }));
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              );
+            })}
+            {addingIntegration ? (
+              <Select
+                id="sa-settings-integration"
+                value=""
+                onChange={(event) => {
+                  const uid = Number(event.target.value);
+                  if (!Number.isInteger(uid) || uid <= 0 || digest.integrationUids.includes(uid)) {
+                    setAddingIntegration(false);
+                    return;
+                  }
+                  const integrationUids = [...digest.integrationUids, uid];
+                  setDigest((current) => ({ ...current, integrationUids }));
+                  setAlerts((current) => ({ ...current, integrationUids }));
+                  setAddingIntegration(false);
+                }}
+              >
+                <option value="">{t('speechAnalytics.settingsIntegrationPick', 'Выберите интеграцию')}</option>
+                {integrations
+                  .filter((row) => !digest.integrationUids.includes(row.uid))
+                  .map((row) => (
+                    <option key={row.uid} value={row.uid}>
+                      {`${row.name} · ${t(`speechAnalytics.integrationChannel.${row.channel}`, row.channel)}`}
+                    </option>
+                  ))}
+              </Select>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={addingIntegration || integrations.every((row) => digest.integrationUids.includes(row.uid))}
+              onClick={() => setAddingIntegration(true)}
             >
-              <option value="">{t('speechAnalytics.settingsIntegrationNone', 'Не выбрана')}</option>
-              {integrations.map((row) => (
-                <option key={row.uid} value={row.uid}>{row.name}</option>
-              ))}
-            </Select>
+              {t('speechAnalytics.settingsAddIntegration', 'Добавить интеграцию')}
+            </Button>
+            {integrations.length === 0 ? (
+              <Text variant="muted" className={cls.hint}>{t('speechAnalytics.settingsNoIntegrations', 'Нет доступных интеграций')}</Text>
+            ) : null}
             </>
             ) : null}
           </div>
@@ -1192,6 +1338,25 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
         </Button>
       </div>
 
+      <Dialog open={promptEditor != null} onOpenChange={(next) => { if (!next) setPromptEditor(null); }}>
+        <DialogContent size="large" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>
+              {promptEditor === 'focus'
+                ? t('speechAnalytics.insightsFocusLabel', 'На что смотреть в инсайтах')
+                : t('speechAnalytics.settingsSystemPrompt', 'Системный промпт')}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            className={cls.promptEditor}
+            value={promptEditor === 'focus' ? insightsFocus : systemPrompt}
+            onChange={(event) => {
+              if (promptEditor === 'focus') setInsightsFocus(event.target.value);
+              else setSystemPrompt(event.target.value);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
       <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
         <DialogContent>
           <DialogHeader>
