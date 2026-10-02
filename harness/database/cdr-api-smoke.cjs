@@ -38,7 +38,11 @@ async function main(input = process.env) {
   assert.equal(second.count, 4);
   assert.notEqual(first.rows[0].linkedid, second.rows[0].linkedid);
   const legs = await get('/db02-c-a/legs');
-  assert.deepEqual(legs.map(row => row.uniqueid), ['db02-c-a1', 'db02-c-a2', 'db02-c-a3']);
+  assert.deepEqual(legs.map(row => row.uniqueid), ['db02-c-a1', 'db02-c-a2', 'db02-c-a3', 'db02-c-transfer']);
+  const timeline = await get('/db02-c-a/timeline');
+  assert.equal(timeline.linkedid, 'db02-c-a');
+  assert.deepEqual(timeline.legs.map(row => row.uniqueid), legs.map(row => row.uniqueid));
+  assert.equal(new Set(timeline.legs.map(row => row.id)).size, 4);
   const stats = await get('/stats');
   assert.equal(stats.totalCalls, 4);
   assert.equal(stats.byDisposition.ANSWERED, 1);

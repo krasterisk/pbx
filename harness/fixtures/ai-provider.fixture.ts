@@ -65,4 +65,3 @@ export const test = base.extend<{ stubProvider: { uid: number } }>({
 });
 
 export { expect } from '@playwright/test';
-
