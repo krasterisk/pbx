@@ -39,8 +39,10 @@ async function main(input = process.env) {
   assert.equal(tenants.status, 200, JSON.stringify(tenants.data));
   assert.ok(tenants.data.count >= 2);
   assert.equal((await request('/cloud-admin/tenants', 'GET', tenantA.accessToken)).status, 403);
-  const seller = await request('/cloud-admin/settings/seller', 'GET', admin.accessToken);
+  const seller = await request('/cloud-admin/sellers', 'GET', admin.accessToken);
   assert.equal(seller.status, 200, JSON.stringify(seller.data));
+  assert.ok(seller.data.some(row => row.is_default));
+  assert.equal((await request('/cloud-admin/sellers', 'GET', tenantA.accessToken)).status, 403);
   const catalog = await request('/marketplace', 'GET', tenantA.accessToken);
   assert.equal(catalog.status, 200, JSON.stringify(catalog.data));
   assert.ok(catalog.data.length >= 2);
@@ -57,7 +59,7 @@ async function main(input = process.env) {
   assert.equal(bProviders.data.length, 1);
   const created = await request('/ai-agents/providers', 'POST', tenantA.accessToken, {
     name: 'CI created provider', kind: 'local', vendor: 'ci', endpoint: 'http://127.0.0.1:1',
-    auth_type: 'none', capabilities: ['llm'], pricing: {}, enabled: false,
+    auth_type: 'none', capabilities: ['llm'], enabled: false,
   });
   assert.equal(created.status, 201, JSON.stringify(created.data));
   const providerId = created.data.uid;

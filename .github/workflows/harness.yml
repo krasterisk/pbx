@@ -9,6 +9,11 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+# Hosted runners use the CPU binaries bundled with onnxruntime-node.
+# Avoid the optional CUDA/NuGet download (no GPU on these runners).
+env:
+  ONNXRUNTIME_NODE_INSTALL: 'skip'
+
 jobs:
   harness:
     name: Harness (API + Playwright Chromium)
