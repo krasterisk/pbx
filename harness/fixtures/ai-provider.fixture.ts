@@ -31,7 +31,6 @@ export const test = base.extend<{ stubProvider: { uid: number } }>({
         vendor: 'openai',
         endpoint: llmStub.url,
         capabilities: ['llm', 'tools'],
-        pricing: {},
         auth_type: 'none',
         enabled: true,
       }),
@@ -66,3 +65,4 @@ export const test = base.extend<{ stubProvider: { uid: number } }>({
 });
 
 export { expect } from '@playwright/test';
+
