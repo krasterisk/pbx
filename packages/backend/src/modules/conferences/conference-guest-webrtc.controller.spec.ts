@@ -1,6 +1,8 @@
 import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common';
 import { CallCenterWebrtcController } from '../callcenter/callcenter-webrtc.controller';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ConferenceRoomsController } from './conference-rooms.controller';
 import { ConferenceGuestTokenGuard } from './conference-guest-token.guard';
 import { ConferenceGuestWebrtcController } from './conference-guest-webrtc.controller';
 
@@ -58,6 +60,16 @@ describe('ConferenceGuestWebrtcController (16.1-03)', () => {
     expect(guest).toEqual(staff);
     expect(guest).not.toHaveProperty('password');
     expect(guest).not.toHaveProperty('sipId');
+  });
+
+  it('serves staff WebRTC config from the JWT-guarded conferences controller', () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, ConferenceRoomsController)).toContain(JwtAuthGuard);
+    expect(Reflect.getMetadata(PATH_METADATA, ConferenceRoomsController)).toBe('conferences');
+    expect(Reflect.getMetadata(PATH_METADATA, ConferenceRoomsController.prototype.getWebrtcConfig)).toBe('webrtc-config');
+    expect(Reflect.getMetadata(METHOD_METADATA, ConferenceRoomsController.prototype.getWebrtcConfig)).toBe(RequestMethod.GET);
+    expect(ConferenceRoomsController.prototype.getWebrtcConfig()).toEqual(
+      new ConferenceGuestWebrtcController().getConfig(),
+    );
   });
 
   it('rejects a missing token with 401 via ConferenceGuestTokenGuard', async () => {

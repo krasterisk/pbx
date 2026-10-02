@@ -8,6 +8,10 @@ import { enterSession, leaveSession } from '@/features/conferences/model/slice/c
 const dispatch = vi.fn();
 const leave = vi.fn(async () => undefined);
 const postTelemetry = vi.fn();
+const getConferenceWebrtcConfig = vi.fn((_arg?: unknown, _options?: unknown) => ({ data: { wssUrl: 'wss://pbx.example/ws', iceServers: [] } }));
+const getEndpointCredentials = vi.fn((_arg?: unknown, _options?: unknown) => ({
+  data: { sipId: 'ew101_1', username: 'ew101_1', password: 'secret', domain: 'pbx.example' },
+}));
 let conferenceRoomCalls = 0;
 let conferenceRoomArgs: Record<string, unknown> = {};
 
@@ -46,16 +50,11 @@ vi.mock('@/features/conferences/lib/useConferenceRoom', () => ({
 
 vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
   usePostConferenceTelemetryMutation: () => [postTelemetry],
-}));
-
-vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
-  useGetWebrtcConfigQuery: () => ({ data: { wssUrl: 'wss://pbx.example/ws', iceServers: [] } }),
+  useGetConferenceWebrtcConfigQuery: (arg?: unknown, options?: unknown) => getConferenceWebrtcConfig(arg, options),
 }));
 
 vi.mock('@/shared/api/endpoints/endpointApi', () => ({
-  useGetEndpointCredentialsQuery: () => ({
-    data: { sipId: 'ew101_1', username: 'ew101_1', password: 'secret', domain: 'pbx.example' },
-  }),
+  useGetEndpointCredentialsQuery: (arg?: unknown, options?: unknown) => getEndpointCredentials(arg, options),
 }));
 
 vi.mock('@/features/callcenter/lib/shiftSession', () => ({
@@ -111,6 +110,8 @@ describe('ConferenceSessionProvider (16.3-09 G-16.3-1)', () => {
     dispatch.mockClear();
     leave.mockClear();
     postTelemetry.mockClear();
+    getConferenceWebrtcConfig.mockClear();
+    getEndpointCredentials.mockClear();
     conferenceRoomCalls = 0;
     conferenceRoomArgs = {};
     vi.mocked(enterSession).mockClear();
@@ -125,6 +126,8 @@ describe('ConferenceSessionProvider (16.3-09 G-16.3-1)', () => {
       </ConferenceSessionProvider>,
     );
     expect(conferenceRoomCalls).toBe(1);
+    expect(getConferenceWebrtcConfig).toHaveBeenCalledWith(undefined, { skip: true });
+    expect(getEndpointCredentials).toHaveBeenCalledWith('ew101_1', { skip: true });
   });
 
   it('keeps sip fields off until startMedia, then stores them and dispatches enterSession', async () => {
@@ -140,6 +143,8 @@ describe('ConferenceSessionProvider (16.3-09 G-16.3-1)', () => {
     expect(conferenceRoomArgs.restoreSoftphone).toBe(restoreLiveSoftphone);
 
     await user.click(screen.getByRole('button', { name: 'start' }));
+    expect(getConferenceWebrtcConfig).toHaveBeenLastCalledWith(undefined, { skip: false });
+    expect(getEndpointCredentials).toHaveBeenLastCalledWith('ew101_1', { skip: false });
     expect(enterSession).toHaveBeenCalledWith(expect.objectContaining({
       roomUid: 7,
       number: '8001',

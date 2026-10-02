@@ -174,6 +174,11 @@ const conferenceRoomApi = rtkApi.injectEndpoints({
       query: () => '/conferences',
       providesTags: ['ConferenceRooms'],
     }),
+    getConferenceWebrtcConfig: build.query<ConferenceWebrtcConfig, void>({
+      query: () => '/conferences/webrtc-config',
+      transformResponse: (raw: { wssUrl?: string | null; iceServers?: RTCIceServer[] }) =>
+        pickGuestWebrtcConfig(raw),
+    }),
     getConferenceRoom: build.query<ConferenceRoom, number>({
       query: (uid) => `/conferences/${uid}`,
       providesTags: (_r, _e, uid) => [
@@ -390,6 +395,7 @@ export { conferenceRoomApi };
 
 export const {
   useGetConferenceRoomsQuery,
+  useGetConferenceWebrtcConfigQuery,
   useGetConferenceRoomQuery,
   useCreateConferenceRoomMutation,
   useUpdateConferenceRoomMutation,

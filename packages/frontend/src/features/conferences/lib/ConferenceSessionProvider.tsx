@@ -13,11 +13,11 @@ import {
   unregisterLiveSoftphone,
 } from '@/features/callcenter/lib/softphoneParkBridge';
 import { loadActiveShift } from '@/features/callcenter/lib/shiftSession';
-import { useGetWebrtcConfigQuery } from '@/shared/api/endpoints/callCenterApi';
 import { useGetEndpointCredentialsQuery } from '@/shared/api/endpoints/endpointApi';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import {
   usePostConferenceTelemetryMutation,
+  useGetConferenceWebrtcConfigQuery,
   type ConferenceRole,
 } from '@/shared/api/endpoints/conferenceRoomApi';
 
@@ -49,11 +49,11 @@ export function useConferenceSessionHost(): ConferenceSessionHost {
 
 export function ConferenceSessionProvider({ children }: { children: ReactNode }) {
   const dispatch = useAppDispatch();
-  const { data: rtc } = useGetWebrtcConfigQuery();
-  const shift = loadActiveShift();
-  const { data: creds } = useGetEndpointCredentialsQuery(shift?.sipId ?? '', { skip: !shift?.sipId });
-  const sip = creds?.webrtc ?? creds;
   const [media, setMedia] = useState<ConferenceStartMediaArgs | null>(null);
+  const { data: rtc } = useGetConferenceWebrtcConfigQuery(undefined, { skip: !media });
+  const shift = loadActiveShift();
+  const { data: creds } = useGetEndpointCredentialsQuery(shift?.sipId ?? '', { skip: !media || !shift?.sipId });
+  const sip = creds?.webrtc ?? creds;
   const [weakLink, setWeakLink] = useState(false);
   const [postTelemetry] = usePostConferenceTelemetryMutation();
   const active = Boolean(media && sip?.password && sip?.domain && rtc?.wssUrl);

@@ -20,6 +20,7 @@ import { ConferenceCapacityService } from './conference-capacity.service';
 import { ConferenceInviteService } from './conference-invite.service';
 import { ConferenceRoomsService } from './conference-rooms.service';
 import { ConferenceTelemetryService } from './conference-telemetry.service';
+import { getConferenceWebrtcConfig } from './conference-guest-webrtc.controller';
 import { CreateConferenceGuestTokenDto } from './dto/conference-guest-token.dto';
 import { ConferenceInviteDto } from './dto/conference-invite.dto';
 import { CreateConferenceRoomDto } from './dto/create-conference-room.dto';
@@ -35,6 +36,11 @@ export class ConferenceRoomsController {
     private readonly inviteService: ConferenceInviteService,
     private readonly telemetryService: ConferenceTelemetryService,
   ) {}
+
+  @Get('webrtc-config')
+  getWebrtcConfig() {
+    return getConferenceWebrtcConfig();
+  }
 
   @Get()
   findAll(@Req() req: Request & { user: any }) {
