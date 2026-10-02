@@ -38,8 +38,11 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @ApiOperation({ summary: 'Публичные параметры входа', description: 'Сообщает, открыта ли самостоятельная регистрация организации.' })
-  async publicConfig(): Promise<{ registrationEnabled: boolean }> {
-    return { registrationEnabled: await this.authService.isRegistrationEnabled() };
+  async publicConfig(): Promise<{ deploymentMode: 'box' | 'cloud' | 'opensource'; registrationEnabled: boolean }> {
+    return {
+      deploymentMode: this.authService.getDeploymentMode(),
+      registrationEnabled: await this.authService.isRegistrationEnabled(),
+    };
   }
 
   // ─── Register ────────────────────────────────────────────────────────────────

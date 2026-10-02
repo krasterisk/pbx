@@ -22,6 +22,6 @@ export class RegistrationPolicyController {
   @ApiOperation({ summary: 'Включить или выключить регистрацию организаций' })
   async update(@Body() dto: UpdateRegistrationPolicyDto): Promise<{ registrationEnabled: boolean }> {
     await this.settings.setRegistrationEnabled(dto.registrationEnabled);
-    return { registrationEnabled: dto.registrationEnabled };
+    return { registrationEnabled: await this.settings.isRegistrationEnabled() };
   }
 }

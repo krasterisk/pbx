@@ -52,6 +52,10 @@ export class AuthService {
     return this.cloudSettings.isRegistrationEnabled();
   }
 
+  getDeploymentMode(): 'box' | 'cloud' | 'opensource' {
+    return this.cloudSettings.getDeploymentMode();
+  }
+
   // ─── Token helpers ──────────────────────────────────────────────────────────
 
   private buildPayload(user: User): JwtPayloadUser {

@@ -4,7 +4,7 @@ import { RegisterPage } from './RegisterPage';
 
 const { navigate, authConfig } = vi.hoisted(() => ({
   navigate: vi.fn(),
-  authConfig: { registrationEnabled: true, isLoading: false, isError: false },
+  authConfig: { registrationEnabled: true, deploymentMode: 'cloud', isLoading: false, isError: false },
 }));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigate,
@@ -21,7 +21,7 @@ vi.mock('react-i18next', () => ({
 }));
 vi.mock('@/shared/api/endpoints/authApi', () => ({
   useGetAuthConfigQuery: () => ({
-    data: authConfig.isLoading ? undefined : { registrationEnabled: authConfig.registrationEnabled },
+    data: authConfig.isLoading ? undefined : { registrationEnabled: authConfig.registrationEnabled, deploymentMode: authConfig.deploymentMode },
     isLoading: authConfig.isLoading,
     isError: authConfig.isError,
   }),
@@ -31,10 +31,17 @@ describe('organization registration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authConfig.registrationEnabled = true;
+    authConfig.deploymentMode = 'cloud';
     authConfig.isLoading = false;
     authConfig.isError = false;
   });
   afterEach(() => vi.unstubAllGlobals());
+  it('redirects a direct signup visit in a box even when the flag is true', async () => {
+    authConfig.deploymentMode = 'box';
+    render(<RegisterPage />);
+    expect(screen.queryByLabelText('auth.loginPlaceholder')).not.toBeInTheDocument();
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/login', { replace: true }));
+  });
   function fill(password = 'test-password') {
     fireEvent.change(screen.getByLabelText('Организация'), { target: { value: 'Test Company' } });
     fireEvent.change(screen.getByLabelText('Имя администратора'), { target: { value: 'Test Owner' } });

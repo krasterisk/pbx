@@ -11,7 +11,7 @@
 export type DeploymentMode = 'cloud' | 'box';
 
 export const DEPLOYMENT_MODE: DeploymentMode =
-  (process.env.DEPLOYMENT_MODE as DeploymentMode) === 'cloud' ? 'cloud' : 'box';
+  process.env.DEPLOYMENT_MODE?.trim().toLowerCase() === 'cloud' ? 'cloud' : 'box';
 
 /** Returns true when running as a cloud/SaaS platform */
 export const isCloud = DEPLOYMENT_MODE === 'cloud';

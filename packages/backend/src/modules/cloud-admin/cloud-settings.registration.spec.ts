@@ -11,9 +11,17 @@ describe('CloudSettingsService registration policy', () => {
     return { service, settingModel, config };
   }
 
-  it('defaults to open outside CLOUD when the key is unset', async () => {
-    const { service } = fixture('BOX');
+  it('defaults to open in OPENSOURCE when the key is unset', async () => {
+    const { service } = fixture('OPENSOURCE');
     await expect(service.isRegistrationEnabled()).resolves.toBe(true);
+  });
+
+  it.each(['BOX', 'box', ' Box '])('blocks signup in %s even with an explicit open flag', async (mode) => {
+    const { service, settingModel } = fixture(mode);
+    settingModel.findOne.mockResolvedValue({ value: '1' });
+    await expect(service.isRegistrationEnabled()).resolves.toBe(false);
+    expect(service.getDeploymentMode()).toBe('box');
+    expect(settingModel.findOne).not.toHaveBeenCalled();
   });
 
   it('defaults to closed in CLOUD when the key is unset', async () => {
@@ -22,7 +30,7 @@ describe('CloudSettingsService registration policy', () => {
   });
 
   it('honors an explicit closed flag', async () => {
-    const { service, settingModel } = fixture('BOX');
+    const { service, settingModel } = fixture('CLOUD');
     settingModel.findOne.mockResolvedValue({ value: '0' });
     await expect(service.isRegistrationEnabled()).resolves.toBe(false);
   });

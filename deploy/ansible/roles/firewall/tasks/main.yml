@@ -5,8 +5,15 @@
     ufw allow 22/tcp
     ufw allow 80/tcp
     ufw allow 443/tcp
-    ufw allow 5060/udp
-    ufw allow 10000:20000/udp
+    ufw allow from {{ krasterisk_sip_allowed_ip }} to any port 5060 proto udp
+    ufw allow from {{ krasterisk_sip_allowed_ip }} to any port 10000:20000 proto udp
+    # Remove legacy world-open SIP/RTP rules (including their IPv6 counterparts).
+    if ufw status | grep -Eq '^5060/udp[[:space:]]+ALLOW IN[[:space:]]+Anywhere'; then
+      ufw --force delete allow 5060/udp
+    fi
+    if ufw status | grep -Eq '^10000:20000/udp[[:space:]]+ALLOW IN[[:space:]]+Anywhere'; then
+      ufw --force delete allow 10000:20000/udp
+    fi
     ufw allow 10050/tcp
     # Frontend container reaches the host-network backend.
     ufw allow from 172.16.0.0/12 to any port 5010 proto tcp
@@ -15,3 +22,13 @@
   args:
     executable: /bin/bash
   changed_when: true
+
+- name: Drop non-provider SIP and RTP before established UDP conntrack accepts them
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/before.rules
+    insertafter: '^-A ufw-before-input -i lo -j ACCEPT$'
+    marker: '# {mark} KRASTERISK SIP RTP ACCESS'
+    block: |
+      -A ufw-before-input -p udp ! -s {{ krasterisk_sip_allowed_ip }} --dport 5060 -j DROP
+      -A ufw-before-input -p udp ! -s {{ krasterisk_sip_allowed_ip }} -m multiport --dports 10000:20000 -j DROP
+  notify: Reload ufw

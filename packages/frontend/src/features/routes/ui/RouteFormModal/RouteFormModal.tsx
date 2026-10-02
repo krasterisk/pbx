@@ -20,6 +20,7 @@ import { useGetTenantSettingsQuery } from '@/entities/tenantSettings';
 import { RouteGeneralTab, decodeRecordMode } from './RouteGeneralTab';
 import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
 import { RouteActionsTab } from './RouteActionsTab';
+import { ensureActionIds } from '@/features/dialplan-apps/model/actionIds';
 import { mapStepErrors } from '@/features/dialplan-apps';
 import type { MappedStepErrors } from '@/features/dialplan-apps/model/stepErrors';
 import { RouteDirectoriesTab } from './RouteDirectoriesTab';
@@ -100,7 +101,7 @@ export const RouteFormModal = memo(() => {
       setContextUid(selectedRoute.context_uid);
       setExtensions(selectedRoute.extensions || []);
       setActive(!!selectedRoute.active);
-      setActions(selectedRoute.actions || []);
+      setActions(ensureActionIds(selectedRoute.actions || []));
       setRawDialplan(
         ensureCdrVpbxUserUidInDialplan(selectedRoute.raw_dialplan || '', vpbxUserUid),
       );
@@ -229,7 +230,9 @@ export const RouteFormModal = memo(() => {
         id: a.id,
         type: a.type,
         params: a.params,
-        condition: a.condition,
+        condition: a.condition && typeof a.condition === 'object' && !Array.isArray(a.condition)
+          ? a.condition
+          : {},
       }));
 
     const bindingsPayload = bindings.map((b, index) => ({
@@ -243,8 +246,11 @@ export const RouteFormModal = memo(() => {
     }));
 
     const nextActions = sanitizeActions(actions);
+    // IDs identify editor rows; adding one to a legacy action does not change the dialplan.
+    const dialplanActions = (list: IRouteAction[] | undefined) =>
+      sanitizeActions(list).map(({ type, params, condition }) => ({ type, params, condition }));
     const actionsChanged =
-      JSON.stringify(nextActions) !== JSON.stringify(sanitizeActions(selectedRoute?.actions));
+      JSON.stringify(dialplanActions(actions)) !== JSON.stringify(dialplanActions(selectedRoute?.actions));
 
     const data = {
       name, extensions, active: active ? 1 : 0,

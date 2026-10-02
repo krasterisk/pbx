@@ -393,7 +393,7 @@ function renderControl(
             id={id}
             label={label}
             source={field.optionsSource}
-            value={typeof raw === 'string' ? raw : ''}
+            value={raw == null ? '' : String(raw)}
             catalog={refs?.[field.optionsSource]}
             readOnly={readOnly}
             invalid={invalid}

@@ -25,6 +25,9 @@ export default defineConfig({
         include: ['@react-pdf/renderer'],
     },
     build: {
+        // Keep this generated config in sync with vite.config.ts until the build
+        // loads the TypeScript config explicitly.
+        minify: 'terser',
         rollupOptions: {
             input: {
                 main: resolve(configDirectory, 'index.html'),

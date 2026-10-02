@@ -103,21 +103,25 @@ export const useCdrTableColumns = ({
       ),
     },
     {
-      id: 'transfer',
-      header: '',
-      size: 48,
-      cell: ({ row }) =>
-        row.original.transid ? (
+      id: 'actions',
+      header: t('cdr.table.actions', 'Действия'),
+      size: 150,
+      cell: ({ row }) => (
           <Button
+            type="button"
             variant="ghost"
-            size="icon"
+            size="sm"
             className={cls.iconBtn}
-            onClick={() => onLegsClick?.(row.original)}
-            title={t('cdr.legs.title', 'История переводов')}
+            onClick={(event) => {
+              event.stopPropagation();
+              onLegsClick?.(row.original);
+            }}
+            title={t('cdr.legs.details', 'Детализация звонка')}
+            aria-label={t('cdr.legs.details', 'Детализация звонка')}
           >
-            <PhoneForwarded size={14} />
+            <PhoneForwarded size={14} /> {t('cdr.legs.details', 'Детализация звонка')}
           </Button>
-        ) : null,
+        ),
     },
   ], [
     t,

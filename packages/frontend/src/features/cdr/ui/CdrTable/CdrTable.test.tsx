@@ -67,6 +67,24 @@ function call(
 }
 
 describe('CdrTable journal voicemail icon (Surface L)', () => {
+  it('opens call details even when the CDR has no transfer id', () => {
+    const onLegsClick = vi.fn();
+    const row = call({ transid: null, legCount: 1 });
+    render(
+      <CdrTable
+        data={[row]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+        onLegsClick={onLegsClick}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Детализация звонка' }));
+    expect(onLegsClick).toHaveBeenCalledWith(row);
+  });
+
   it('keeps RecordingButton for conversation and adds a Voicemail details icon', () => {
     const onVoicemailClick = vi.fn();
     render(

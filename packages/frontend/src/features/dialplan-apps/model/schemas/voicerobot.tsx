@@ -16,8 +16,15 @@ export function buildVoiceRobotSchema(t: TFn): FieldSchema[] {
   ];
 }
 
-export function summarizeVoiceRobot(params: Record<string, unknown>, t: TFn): string {
+export function summarizeVoiceRobot(
+  params: Record<string, unknown>,
+  t: TFn,
+  refs?: Record<string, unknown>,
+): string {
   const uid = String(params.robot_uid ?? '').trim();
+  const catalog = refs?.voiceRobots as { items?: Array<{ value: string; label: string }> } | undefined;
+  const name = catalog?.items?.find((item) => item.value === uid)?.label;
+  if (name) return name;
   return uid
     ? t('routes.chain.voicerobot.summary', 'Робот #{{uid}}').replace('{{uid}}', uid)
     : t('routes.chain.voicerobot.summaryEmpty', 'Голосовой робот: не выбран');

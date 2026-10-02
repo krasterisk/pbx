@@ -19,13 +19,18 @@ export class CloudSettingsService {
     return parent?.code === 'ER_NO_SUCH_TABLE' || parent?.errno === 1146;
   }
 
-  /** Unset key follows deployment mode: open on BOX, closed on CLOUD. */
+  getDeploymentMode(): 'box' | 'cloud' | 'opensource' {
+    const mode = (this.config?.get<string>('DEPLOYMENT_MODE') ?? 'BOX').trim().toLowerCase();
+    return mode === 'cloud' || mode === 'opensource' ? mode : 'box';
+  }
+
+  /** Public signup is available only to explicitly enabled cloud installs or opensource. */
   private registrationDefault(): boolean {
-    const mode = (this.config?.get<string>('DEPLOYMENT_MODE') ?? 'BOX').toUpperCase();
-    return mode !== 'CLOUD';
+    return this.getDeploymentMode() === 'opensource';
   }
 
   async isRegistrationEnabled(): Promise<boolean> {
+    if (this.getDeploymentMode() === 'box') return false;
     let raw: string | null;
     try {
       raw = await this.get(REGISTRATION_ENABLED_KEY);

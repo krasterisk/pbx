@@ -1,4 +1,5 @@
 import type { ActionType, IRouteAction } from '@krasterisk/shared';
+import { createActionId } from './actionIds';
 import { pasteStep } from './clipboard';
 
 export const REMOVED_STACK_LIMIT = 20;
@@ -30,7 +31,7 @@ export type EditorAction =
   | { type: 'move'; from: number; to: number }
   | { type: 'select'; id: string | null };
 
-const defaultMakeId = (): string => crypto.randomUUID();
+const defaultMakeId = createActionId;
 
 export function createEditorState(actions: ChainAction[] = []): EditorState {
   return {

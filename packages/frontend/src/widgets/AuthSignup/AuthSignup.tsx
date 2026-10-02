@@ -11,17 +11,17 @@ export function AuthSignup() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { data, isLoading: isConfigLoading, isError } = useGetAuthConfigQuery();
-  const registrationEnabled = data?.registrationEnabled === true;
+  const registrationEnabled = data?.deploymentMode !== 'box' && data?.registrationEnabled === true;
   const [form, setForm] = useState({ companyName: '', name: '', login: '', email: '', password: '' });
   const [confirm, setConfirm] = useState('');
   const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isConfigLoading && (isError || data?.registrationEnabled === false)) {
+    if (!isConfigLoading && (isError || data?.deploymentMode === 'box' || data?.registrationEnabled === false)) {
       navigate('/login', { replace: true });
     }
-  }, [data?.registrationEnabled, isConfigLoading, isError, navigate]);
+  }, [data?.deploymentMode, data?.registrationEnabled, isConfigLoading, isError, navigate]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();

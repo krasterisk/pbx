@@ -41,6 +41,8 @@ import { Flex, VStack } from '@/shared/ui/Stack';
 import { selectCurrentUser } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { copyStep, hasStep } from '../../model/clipboard';
+import { createActionId } from '../../model/actionIds';
+import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
 import { ChainLabelsProvider, collectChainLabelNames } from '../../model/chainLabels';
 import {
   editorReducer,
@@ -178,7 +180,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   density = 'comfortable',
   maxSteps,
   host = 'route',
-  makeId = () => crypto.randomUUID(),
+  makeId = createActionId,
   stepErrors,
   previewPatterns,
   showTemplateActions = false,
@@ -199,6 +201,11 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const templateActionsEnabled = showTemplateActions && host === 'route' && !readOnly;
 
   const resolvedAllowed = allowedTypes ?? typesForHost(host);
+  const hasVoiceRobot = actions.some((action) => action.type === 'voicerobot');
+  const { data: voiceRobots = [] } = useGetVoiceRobotsQuery(undefined, { skip: !hasVoiceRobot });
+  const rowRefs = useMemo(() => ({
+    voiceRobots: { items: voiceRobots.map((robot) => ({ value: String(robot.uid), label: robot.name })) },
+  }), [voiceRobots]);
   const atLimit = maxSteps != null && actions.length >= maxSteps;
   const terminalIndex = firstAlwaysTerminalIndex(actions);
   const unreachableCount =
@@ -413,6 +420,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
                   <SortableStepRow
                     id={action.id}
                     action={action}
+                    refs={rowRefs}
                     index={idx}
                     density={density}
                     readOnly={readOnly}

@@ -27,6 +27,9 @@ export default defineConfig({
     include: ['@react-pdf/renderer'],
   },
   build: {
+    // The default esbuild minifier produces a bundle that Vite's import analysis
+    // cannot parse with the current dependency graph. Terser builds it reliably.
+    minify: 'terser',
     rollupOptions: {
       input: {
         main: resolve(configDirectory, 'index.html'),

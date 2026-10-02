@@ -107,6 +107,18 @@ const ALL_KINDS: FieldKind[] = [
 ];
 
 describe('SchemaFields', () => {
+  it('selects an imported voice robot whose uid is stored as a number', () => {
+    render(
+      <SchemaFields
+        schema={[{ key: 'robot_uid', kind: 'select', labelKey: 'Голосовой робот', optionsSource: 'voiceRobots' }]}
+        params={{ robot_uid: 1 }}
+        onChange={vi.fn()}
+        refs={{ voiceRobots: { items: [{ value: '1', label: 'Командор' }], isLoading: false } }}
+      />,
+    );
+    expect(screen.getByRole('combobox', { name: 'Голосовой робот' })).toHaveValue('1');
+  });
+
   it.each(ALL_KINDS)('renders an accessible control for kind %s', (kind) => {
     render(
       <SchemaFields

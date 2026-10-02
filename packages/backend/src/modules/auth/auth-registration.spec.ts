@@ -1,14 +1,14 @@
 import { AuthService } from './auth.service';
 
 describe('AuthService registration postcommit behavior', () => {
-  function fixture(mode = 'BOX') {
+  function fixture(mode = 'OPENSOURCE') {
     const users = { findByLogin: jest.fn().mockResolvedValue(null) };
     const config = { get: jest.fn((key, fallback) => key === 'DEPLOYMENT_MODE' ? mode : fallback) };
     const logger = { logAction: jest.fn().mockRejectedValue(new Error('audit unavailable')) };
     const mailer = { sendActivationMail: jest.fn().mockRejectedValue(new Error('mail unavailable')) };
     const registration = { create: jest.fn().mockResolvedValue({ uniqueid: 71 }) };
     const cloudSettings = {
-      isRegistrationEnabled: jest.fn().mockResolvedValue(mode !== 'CLOUD'),
+      isRegistrationEnabled: jest.fn().mockResolvedValue(mode === 'OPENSOURCE'),
     };
     const service = new AuthService(users as any, {} as any, config as any,
       logger as any, mailer as any, {} as any, registration as any, cloudSettings as any);

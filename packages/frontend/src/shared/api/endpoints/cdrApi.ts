@@ -43,6 +43,39 @@ export interface ICdrListResponse {
   count: number;
 }
 
+export interface ICdrLeg {
+  id: number;
+  uniqueid: string;
+  linkedid: string;
+  calldate: string;
+  srcDisplay: string;
+  dstDisplay: string;
+  dst: string;
+  disposition: string;
+  lastapp: string;
+  duration: number;
+  billsec: number;
+  record: string | null;
+}
+
+export interface ICdrEvent {
+  id: number;
+  eventtype: string;
+  eventtime: string;
+  uniqueid: string;
+  exten: string;
+  channame: string;
+  peer: string;
+  appname: string;
+  appdata: string;
+  extra: string | null;
+}
+
+export interface ICdrTimeline {
+  legs: ICdrLeg[];
+  events: ICdrEvent[];
+}
+
 export interface ICdrStats {
   totalCalls: number;
   asr: number;
@@ -105,6 +138,9 @@ const cdrApi = rtkApi.injectEndpoints({
     getCdrLegs: build.query<unknown[], string>({
       query: (linkedid) => `/reports/cdr/${encodeURIComponent(linkedid)}/legs`,
     }),
+    getCdrTimeline: build.query<ICdrTimeline, string>({
+      query: (linkedid) => `/reports/cdr/${encodeURIComponent(linkedid)}/timeline`,
+    }),
     getCdrRecording: build.query<ICdrRecordingInfo, string>({
       async queryFn(uniqueid, api, extraOptions) {
         const result = await cdrAuthBaseQuery(
@@ -138,6 +174,7 @@ export const {
   useGetCdrByDispositionQuery,
   useGetCdrHeatmapQuery,
   useGetCdrLegsQuery,
+  useGetCdrTimelineQuery,
   useGetCdrRecordingQuery,
   useLazyGetCdrRecordingQuery,
   useLazyExportCdrQuery,

@@ -1,4 +1,5 @@
 krasterisk_public_ip: 185.177.216.132
+krasterisk_sip_allowed_ip: 109.226.233.92
 krasterisk_public_url: "http://{{ krasterisk_public_ip }}"
 krasterisk_src: /opt/krasterisk/src
 krasterisk_env_file: /opt/krasterisk/env/production.env

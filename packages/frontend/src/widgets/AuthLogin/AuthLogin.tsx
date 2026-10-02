@@ -18,7 +18,7 @@ export function AuthLogin() {
   const navigate = useNavigate();
   const { isLoading, error } = useAppSelector((s) => s.auth);
   const { data } = useGetAuthConfigQuery();
-  const registrationEnabled = data?.registrationEnabled === true;
+  const registrationEnabled = data?.deploymentMode !== 'box' && data?.registrationEnabled === true;
   const [form, setForm] = useState({ login: '', password: '' });
 
   const submit = async (event: FormEvent) => {
@@ -38,15 +38,13 @@ export function AuthLogin() {
   };
 
   return (
-    <AuthScreen
-      title={t('auth.title')}
-      description={t('auth.companyLoginHint')}
-    >
+    <AuthScreen title={t('auth.title')}>
       <VStack as="form" className={cls.form} gap="16" onSubmit={submit}>
-        <VStack gap="8">
+        <VStack gap="8" className={cls.fieldGroup}>
           <Label htmlFor="login-name">{t('auth.loginPlaceholder')}</Label>
           <Input
             id="login-name"
+            className={cls.field}
             autoComplete="username"
             required
             value={form.login}
@@ -57,10 +55,11 @@ export function AuthLogin() {
             disabled={isLoading}
           />
         </VStack>
-        <VStack gap="8">
+        <VStack gap="8" className={cls.fieldGroup}>
           <Label htmlFor="login-password">{t('auth.passwordPlaceholder')}</Label>
           <PasswordInput
             id="login-password"
+            className={cls.field}
             autoComplete="current-password"
             required
             value={form.password}

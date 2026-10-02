@@ -1,7 +1,11 @@
 import { rtkApi } from '@/shared/api/rtkApi';
 
-export interface AuthConfig {
+export interface RegistrationPolicy {
   registrationEnabled: boolean;
+}
+
+export interface AuthConfig extends RegistrationPolicy {
+  deploymentMode: 'box' | 'cloud' | 'opensource';
 }
 
 export const authApi = rtkApi.injectEndpoints({
@@ -11,11 +15,11 @@ export const authApi = rtkApi.injectEndpoints({
       query: () => '/auth/config',
       providesTags: ['AuthConfig'],
     }),
-    getRegistrationPolicy: build.query<AuthConfig, void>({
+    getRegistrationPolicy: build.query<RegistrationPolicy, void>({
       query: () => '/cloud-admin/registration-policy',
       providesTags: ['AuthConfig'],
     }),
-    updateRegistrationPolicy: build.mutation<AuthConfig, AuthConfig>({
+    updateRegistrationPolicy: build.mutation<RegistrationPolicy, RegistrationPolicy>({
       query: (body) => ({
         url: '/cloud-admin/registration-policy',
         method: 'PUT',
@@ -35,7 +39,9 @@ export const authApi = rtkApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled;
           dispatch(authApi.util.updateQueryData('getRegistrationPolicy', undefined, () => data));
-          dispatch(authApi.util.updateQueryData('getAuthConfig', undefined, () => data));
+          dispatch(authApi.util.updateQueryData('getAuthConfig', undefined, (draft) => {
+            draft.registrationEnabled = data.registrationEnabled;
+          }));
         } catch {
           patchPolicy.undo();
           patchPublic.undo();

@@ -1,0 +1,13 @@
+/var/log/asterisk/messages {
+    daily
+    maxsize 100M
+    rotate 14
+    compress
+    missingok
+    notifempty
+    create 0640 asterisk asterisk
+    sharedscripts
+    postrotate
+        /usr/sbin/asterisk -rx 'logger reload' >/dev/null 2>&1 || true
+    endscript
+}

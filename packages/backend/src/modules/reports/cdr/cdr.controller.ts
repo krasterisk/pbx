@@ -148,4 +148,10 @@ export class CdrController {
     const { tenantId, userId } = this.viewer(req);
     return this.cdrService.findLegs(tenantId, linkedid, userId);
   }
+
+  @Get(':linkedid/timeline')
+  findTimeline(@Request() req: any, @Param('linkedid') linkedid: string) {
+    const { tenantId, userId } = this.viewer(req);
+    return this.cdrService.findTimeline(tenantId, linkedid, userId);
+  }
 }

@@ -274,8 +274,8 @@ export class CdrService {
     // NULL is always last and uniqueid resolves equal timestamps on both DBs.
     return `WITH ranked AS (
       SELECT c.*,
-        ROW_NUMBER() OVER (PARTITION BY c.linkedid ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate, c.uniqueid) AS rn_first,
-        ROW_NUMBER() OVER (PARTITION BY c.linkedid ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate DESC, c.uniqueid DESC) AS rn_last
+        ROW_NUMBER() OVER (PARTITION BY c.linkedid ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate, c.id) AS rn_first,
+        ROW_NUMBER() OVER (PARTITION BY c.linkedid ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate DESC, c.id DESC) AS rn_last
       FROM cdr c WHERE ${where}
     )`;
   }
@@ -631,13 +631,12 @@ export class CdrService {
     await this.ensureCallVisible(vpbxUserUid, linkedid, viewerUserId);
     const tenant = tenantLegFilter(vpbxUserUid);
     const sql = `
-      SELECT calldate, usrc, src, clid, dst, channel, dstchannel, disposition,
+      SELECT id, linkedid, calldate, usrc, src, clid, dst, channel, dstchannel, disposition,
              duration, billsec, uniqueid, transid, record, dcontext, lastapp
       FROM cdr c
       WHERE ${tenant.sql}
-        AND c.lastapp <> 'Transferred Call'
         AND (c.linkedid = :linkedid OR c.uniqueid = :linkedid OR c.transid = :linkedid)
-      ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate ASC, c.uniqueid ASC
+      ORDER BY CASE WHEN c.calldate IS NULL THEN 1 ELSE 0 END, c.calldate ASC, c.id ASC
     `;
     const rows = await this.sequelize.query(sql, {
       replacements: { ...tenant.replacements, linkedid },
@@ -656,6 +655,25 @@ export class CdrService {
         row.dst,
       answered: isAnswered(row.disposition, row.dstchannel),
     }));
+  }
+
+  async findTimeline(vpbxUserUid: number, linkedid: string, viewerUserId?: number) {
+    const legs = await this.findLegs(vpbxUserUid, linkedid, viewerUserId);
+    const tenant = tenantLegFilter(vpbxUserUid);
+    const events = await this.sequelize.query(`
+      SELECT e.id, e.eventtype, e.eventtime, e.uniqueid, e.linkedid,
+             e.exten, e.context, e.channame, e.peer, e.appname, e.appdata, e.extra
+      FROM cel e
+      WHERE e.linkedid = :linkedid
+        AND EXISTS (
+          SELECT 1 FROM cdr c WHERE ${tenant.sql} AND c.linkedid = e.linkedid
+        )
+      ORDER BY e.eventtime ASC, e.id ASC
+    `, {
+      replacements: { ...tenant.replacements, linkedid },
+      type: QueryTypes.SELECT,
+    });
+    return { legs, events };
   }
 
   async getStats(vpbxUserUid: number, filters: CdrFilters, viewerUserId?: number) {

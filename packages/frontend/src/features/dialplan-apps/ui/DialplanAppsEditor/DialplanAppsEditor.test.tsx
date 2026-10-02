@@ -64,7 +64,7 @@ vi.mock('@/shared/api/endpoints/sttEnginesApi', () => ({
 }));
 
 vi.mock('@/shared/api/endpoints/voiceRobotsApi', () => ({
-  useGetVoiceRobotsQuery: () => ({ data: [], isLoading: false }),
+  useGetVoiceRobotsQuery: () => ({ data: [{ uid: 1, name: 'Командор' }], isLoading: false }),
 }));
 vi.mock('@/shared/api/endpoints/aiVoiceRobotsApi', () => ({
   useGetAiVoiceRobotsQuery: vi.fn(() => ({ data: [], isLoading: false })),
@@ -122,6 +122,22 @@ function Harness(props: React.ComponentProps<typeof DialplanAppsEditor>) {
 describe('DialplanAppsEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('shows the catalog name for a voice robot action', () => {
+    render(<Harness actions={[step('robot', 'voicerobot', { params: { robot_uid: 1 } })]} onChange={vi.fn()} />);
+    expect(screen.getByTestId('step-row-summary')).toHaveTextContent('Командор');
+  });
+
+  it('adds an action when crypto.randomUUID is unavailable on HTTP', () => {
+    vi.stubGlobal('crypto', undefined);
+    try {
+      render(<Harness actions={[step('robot', 'voicerobot', { params: { robot_uid: 1 } })]} onChange={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: /добавить действие/i }));
+      expect(screen.getAllByTestId('step-row')).toHaveLength(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('disables add at maxSteps and shows n / max', () => {
@@ -219,10 +235,9 @@ describe('DialplanAppsEditor', () => {
     expect(next).toEqual({ x: 0, y: 8, scaleX: 1, scaleY: 1 });
   });
 
-  it('does not generate step ids with Date.now', () => {
+  it('uses the shared step ID generator', () => {
     const src = readFileSync(join(specDir, 'DialplanAppsEditor.tsx'), 'utf8');
-    expect(src).not.toMatch(/Date\.now\s*\(/);
-    expect(src).toMatch(/crypto\.randomUUID/);
+    expect(src).toMatch(/makeId = createActionId/);
   });
 
   it('locks the drag axis without an extra dnd-kit package', () => {

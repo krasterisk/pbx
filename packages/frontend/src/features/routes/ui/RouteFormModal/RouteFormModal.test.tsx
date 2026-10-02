@@ -90,7 +90,7 @@ const selectedRoute = {
   ],
 };
 
-function renderModal() {
+function renderModal(route: Record<string, unknown> = selectedRoute) {
   const store = configureStore({
     reducer: {
       routes: routesReducer,
@@ -100,7 +100,7 @@ function renderModal() {
       routes: {
         isModalOpen: true,
         modalMode: 'edit' as const,
-        selectedRoute: selectedRoute as never,
+        selectedRoute: route as never,
         selectedContextUids: [],
         editorMode: 'raw' as const,
       },
@@ -130,6 +130,24 @@ describe('RouteFormModal raw_dialplan payload (D-16)', () => {
     });
     const arg = updateRoute.mock.calls[0][0] as { data: { raw_dialplan?: string } };
     expect(arg.data.raw_dialplan).toEqual(loaded);
+  });
+
+  it('saves an imported action without id or condition as a valid route action', async () => {
+    renderModal({
+      ...selectedRoute,
+      actions: [{ type: 'voicerobot', params: { robot_uid: 1 } }],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateRoute).toHaveBeenCalled());
+    const { data } = updateRoute.mock.calls[0][0] as {
+      data: { actions: Array<{ id: string; condition: Record<string, unknown> }>; raw_dialplan: string };
+    };
+    expect(data.actions).toHaveLength(1);
+    expect(data.actions[0].id).toEqual(expect.any(String));
+    expect(data.actions[0].condition).toEqual({});
+    expect(data.raw_dialplan).toEqual(ensureCdrVpbxUserUidInDialplan(RAW, 7));
   });
 
   it('saves directory_uid, key_source, and field UIDs without phonebook properties', async () => {

@@ -26,11 +26,7 @@ for (const name of fs.readdirSync(path.join(root, 'src', 'database'))) {
 
 copy(path.join(root, 'src', 'skills'), path.join(root, 'dist', 'skills'));
 
-try {
-  copy(
-    path.join(root, 'src', 'modules', 'voice-robots', 'proto'),
-    path.join(root, 'dist', 'modules', 'voice-robots', 'proto'),
-  );
-} catch (error) {
-  console.warn(`Proto copy skipped: ${error.message}`);
-}
+copy(
+  path.join(root, 'vendor', 'yandex-cloudapi'),
+  path.join(root, 'dist', 'modules', 'voice-robots', 'proto', 'cloudapi'),
+);

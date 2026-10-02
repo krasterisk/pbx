@@ -119,6 +119,14 @@
         {
           "id": "0029-sa-insights-cache.sql",
           "artifact": "0029-sa-insights-cache.sql"
+        },
+        {
+          "id": "0030-box-hub-layout.sql",
+          "artifact": "0030-box-hub-layout.sql"
+        },
+        {
+          "id": "0031-cdr-chain.sql",
+          "artifact": "0031-cdr-chain.sql"
         }
       ],
       "profiles": {
@@ -446,6 +454,14 @@
         {
           "id": "0029-sa-insights-cache.sql",
           "artifact": "postgres/0029-sa-insights-cache.sql"
+        },
+        {
+          "id": "0030-box-hub-layout.sql",
+          "artifact": "postgres/0030-box-hub-layout.sql"
+        },
+        {
+          "id": "0031-cdr-chain.sql",
+          "artifact": "postgres/0031-cdr-chain.sql"
         }
       ],
       "profiles": {

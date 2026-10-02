@@ -6,6 +6,10 @@ import { Table, Column, Model, DataType, PrimaryKey } from 'sequelize-typescript
  */
 @Table({ tableName: 'cdr', timestamps: false, freezeTableName: true })
 export class Cdr extends Model {
+  @PrimaryKey
+  @Column({ type: DataType.BIGINT, autoIncrement: true })
+  declare id: number;
+
   @Column({ type: DataType.STRING(80), allowNull: true })
   declare calldate: string;
 
@@ -45,7 +49,6 @@ export class Cdr extends Model {
   @Column({ type: DataType.STRING(45), allowNull: false, defaultValue: '' })
   declare disposition: string;
 
-  @PrimaryKey
   @Column({ type: DataType.STRING(80), allowNull: false })
   declare uniqueid: string;
 

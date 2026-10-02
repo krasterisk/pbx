@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 
-const authConfig = vi.hoisted(() => ({ registrationEnabled: true }));
+const authConfig = vi.hoisted(() => ({ registrationEnabled: true, deploymentMode: 'cloud' }));
 const navigate = vi.hoisted(() => vi.fn());
 
 vi.mock('react-i18next', () => ({
@@ -23,7 +23,7 @@ vi.mock('react-router-dom', () => ({
 
 vi.mock('@/shared/api/endpoints/authApi', () => ({
   useGetAuthConfigQuery: () => ({
-    data: { registrationEnabled: authConfig.registrationEnabled },
+    data: { ...authConfig },
     isLoading: false,
     isError: false,
   }),
@@ -45,6 +45,10 @@ function renderLogin() {
 }
 
 describe('AuthLogin', () => {
+  beforeEach(() => {
+    authConfig.registrationEnabled = true;
+    authConfig.deploymentMode = 'cloud';
+  });
   it('offers organization signup when registration is enabled', () => {
     authConfig.registrationEnabled = true;
     renderLogin();
@@ -58,5 +62,18 @@ describe('AuthLogin', () => {
     renderLogin();
     expect(screen.queryByRole('link', { name: 'Sign up' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('auth.passwordPlaceholder')).toBeInTheDocument();
+  });
+
+  it('offers login only in a box, even if the signup flag is true', () => {
+    authConfig.deploymentMode = 'box';
+    renderLogin();
+    expect(screen.queryByRole('link', { name: 'Sign up' })).not.toBeInTheDocument();
+  });
+
+  it('places branding inside the card and omits the organization hint', () => {
+    renderLogin();
+    expect(within(screen.getByRole('region', { name: 'auth.title' })).getByText('AI PBX Krasterisk')).toBeInTheDocument();
+    expect(screen.queryByText('auth.companyLoginHint')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('banner')).getAllByRole('button')).toHaveLength(2);
   });
 });
