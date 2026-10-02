@@ -1,0 +1,142 @@
+---
+- name: Check whether this Asterisk build is already installed
+  ansible.builtin.command: asterisk -V
+  register: asterisk_version
+  changed_when: false
+  failed_when: false
+
+- name: Check the required extended modules on disk
+  ansible.builtin.stat:
+    path: "/usr/lib/asterisk/modules/{{ item }}.so"
+  loop:
+    - app_amd
+    - app_waitforcond
+    - app_waitforring
+    - app_waitforsilence
+  register: asterisk_required_modules
+
+- name: Build Asterisk from the certified tarball
+  ansible.builtin.shell: |
+    set -euo pipefail
+    test -f "{{ asterisk_tarball }}"
+    rm -rf "{{ asterisk_src }}"
+    tar -xzf "{{ asterisk_tarball }}" -C /usr/local/src
+    cd "{{ asterisk_src }}"
+    test -f apps/app_amd.c
+    test -f apps/app_waitforcond.c
+    test -f apps/app_waitforring.c
+    test -f apps/app_waitforsilence.c
+    ./configure --with-pjproject-bundled --with-jansson-bundled --with-srtp
+    make menuselect.makeopts
+    ENABLE=()
+    while IFS= read -r module; do
+      [[ -z "$module" ]] && continue
+      ENABLE+=(--enable "$module")
+    done < "{{ krasterisk_src }}/deploy/asterisk/menuselect.enable"
+    menuselect/menuselect "${ENABLE[@]}" menuselect.makeopts
+    make -j"$(nproc)"
+    make install
+    ldconfig
+  args:
+    executable: /bin/bash
+  when: >
+    asterisk_version.rc != 0
+    or asterisk_version_needle not in (asterisk_version.stdout | default(''))
+    or (asterisk_required_modules.results | selectattr('stat.exists') | list | length) != 4
+
+- name: Create the asterisk system user
+  ansible.builtin.user:
+    name: asterisk
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create Asterisk runtime directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: asterisk
+    group: asterisk
+    mode: "0750"
+  loop:
+    - /etc/asterisk
+    - /etc/asterisk/krasterisk
+    - /etc/asterisk/krasterisk/groups
+    - /etc/asterisk/krasterisk/routes
+    - /etc/asterisk/krasterisk/phonebooks
+    - /etc/asterisk/krasterisk/subroutines
+    - /etc/asterisk/krasterisk/ivrs
+    - /var/lib/asterisk
+    - /var/log/asterisk
+    - /var/spool/asterisk
+    - /var/run/asterisk
+    - /var/lib/asterisk/moh
+    - /var/lib/asterisk/sounds
+    - /usr/records
+
+- name: Install static Asterisk configs
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../asterisk/{{ item }}"
+    dest: "/etc/asterisk/{{ item }}"
+    owner: asterisk
+    group: asterisk
+    mode: "0640"
+  loop:
+    - asterisk.conf
+    - modules.conf
+    - pjsip.conf
+    - sorcery.conf
+    - extconfig.conf
+    - extensions.conf
+    - rtp.conf
+    - http.conf
+    - cdr.conf
+    - cel.conf
+    - cdr_adaptive_odbc.conf
+    - cel_odbc.conf
+    - logger.conf
+    - musiconhold.conf
+    - amd.conf
+    - confbridge.conf
+    - queues.conf
+
+- name: Keep the dialplan include glob from being empty
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../asterisk/placeholder.conf"
+    dest: "/etc/asterisk/krasterisk/{{ item }}/placeholder.conf"
+    owner: asterisk
+    group: asterisk
+    mode: "0640"
+  loop:
+    - groups
+    - routes
+    - phonebooks
+    - subroutines
+    - ivrs
+
+- name: Install the systemd unit
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../asterisk/asterisk.service"
+    dest: /etc/systemd/system/asterisk.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Require the four extended modules to be installed
+  ansible.builtin.stat:
+    path: "/usr/lib/asterisk/modules/{{ item }}.so"
+  loop:
+    - app_amd
+    - app_waitforcond
+    - app_waitforring
+    - app_waitforsilence
+  register: asterisk_built_modules
+
+- name: Fail if a required module was not built
+  ansible.builtin.fail:
+    msg: "{{ item.item }}.so was not installed"
+  when: not item.stat.exists
+  loop: "{{ asterisk_built_modules.results }}"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true

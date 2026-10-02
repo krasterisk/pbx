@@ -4,7 +4,7 @@ import {
 } from 'sequelize-typescript';
 import { HubModulePage } from './hub-module-page.model';
 
-export type HubModuleKind = 'base' | 'market';
+export type HubModuleKind = 'base' | 'market' | 'off';
 
 @Table({
   tableName: 'hub_modules',
@@ -30,7 +30,7 @@ export class HubModule extends Model {
 
   @AllowNull(false)
   @Default('base')
-  @Column(DataType.ENUM('base', 'market'))
+  @Column(DataType.ENUM('base', 'market', 'off'))
   declare kind: HubModuleKind;
 
   @Default(0)

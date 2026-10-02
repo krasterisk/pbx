@@ -1,0 +1,46 @@
+---
+- name: Install host packages
+  ansible.builtin.apt:
+    update_cache: true
+    name:
+      - bison
+      - build-essential
+      - ca-certificates
+      - flex
+      - curl
+      - ffmpeg
+      - git
+      - libcurl4-openssl-dev
+      - libedit-dev
+      - libjansson-dev
+      - libncurses-dev
+      - libopus-dev
+      - libspeex-dev
+      - libspeexdsp-dev
+      - libsqlite3-dev
+      - libssl-dev
+      - libsrtp2-dev
+      - libunbound-dev
+      - libxml2-dev
+      - odbc-postgresql
+      - openssl
+      - pkg-config
+      - python3
+      - rsync
+      - unixodbc
+      - unixodbc-dev
+      - uuid-dev
+      - ufw
+    state: present
+
+- name: Create runtime directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /opt/krasterisk
+    - /opt/krasterisk/env
+    - /opt/krasterisk/secrets
+    - /usr/records
+    - /var/lib/krasterisk

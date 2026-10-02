@@ -18,17 +18,19 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
   let service: ModulesRegistryService;
   let hubFindAll: jest.Mock;
   let tenantFindAll: jest.Mock;
+  let tenantFindByPk: jest.Mock;
   let configGet: jest.Mock;
 
   beforeEach(() => {
     hubFindAll = jest.fn();
     tenantFindAll = jest.fn();
+    tenantFindByPk = jest.fn().mockResolvedValue(null);
     configGet = jest.fn().mockReturnValue('CLOUD');
 
     service = new ModulesRegistryService(
       { findAll: jest.fn().mockResolvedValue([]) } as any,
       { findAll: tenantFindAll, findOne: jest.fn(), upsert: jest.fn(), update: jest.fn(), bulkCreate: jest.fn() } as any,
-      { findOne: jest.fn(), findByPk: jest.fn().mockResolvedValue(null) } as any,
+      { findOne: jest.fn(), findByPk: tenantFindByPk } as any,
       { get: configGet } as unknown as ConfigService,
       { findAll: hubFindAll, findOne: jest.fn(), create: jest.fn(), upsert: jest.fn() } as any,
       { findAll: jest.fn(), destroy: jest.fn(), bulkCreate: jest.fn() } as any,
@@ -48,6 +50,16 @@ describe('ModulesRegistryService licenseStatus (08-02)', () => {
     const core = catalog.find((m) => m.code === 'core');
     expect(cc?.licenseStatus).toBe('locked');
     expect(core?.licenseStatus).toBe('active');
+    expect(cc?.ownModels).toBe(false);
+  });
+
+  it('copies sa_own_models onto catalog rows without a speech-analytics call', async () => {
+    hubFindAll.mockResolvedValue([mockHub({ code: 'core', kind: 'base' })]);
+    tenantFindAll.mockResolvedValue([]);
+    tenantFindByPk.mockResolvedValue({ vpbx_user_uid: 4, sa_own_models: true });
+
+    const catalog = await service.getHubCatalogForTenant(4);
+    expect(catalog[0]?.ownModels).toBe(true);
   });
 
   it('maps active|trial → active and inactive → disabled', async () => {

@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Body, Req, HttpCode, HttpStatus,
+  Controller, Get, Post, Body, Req, HttpCode, HttpStatus,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -32,15 +32,25 @@ export class AuthController {
     return this.authService.login(dto.login, dto.password, ip, ua);
   }
 
+  // ─── Public auth policy ──────────────────────────────────────────────────────
+  @Get('config')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Публичные параметры входа', description: 'Сообщает, открыта ли самостоятельная регистрация организации.' })
+  async publicConfig(): Promise<{ registrationEnabled: boolean }> {
+    return { registrationEnabled: await this.authService.isRegistrationEnabled() };
+  }
+
   // ─── Register ────────────────────────────────────────────────────────────────
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 3_600_000 } }) // 5 registrations per hour
-  @ApiOperation({ summary: 'Регистрация (только BOX/OPENSOURCE режим)', description: 'В CLOUD-режиме заблокировано. Провизионирование через /cloud-admin/tenants.' })
+  @ApiOperation({ summary: 'Регистрация организации', description: 'Доступна, когда в глобальных настройках платформы включена возможность регистрации. Иначе только вход.' })
   @ApiResponse({ status: 201, type: MessageResponse })
   @ApiConflictResponse({ description: 'Пользователь с таким логином уже существует' })
-  @ApiForbiddenResponse({ description: 'Регистрация отключена (CLOUD mode)' })
+  @ApiForbiddenResponse({ description: 'Регистрация отключена в глобальных настройках' })
   async register(@Body() dto: RegisterDto): Promise<MessageResponse> {
     return this.authService.register(dto.login, dto.password, dto.name, dto.email, dto.companyName);
   }

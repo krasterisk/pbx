@@ -17,12 +17,14 @@ import { requireJwtSecret } from './jwt-secret';
 import { TenantRegistrationService } from './tenant-registration.service';
 import { User } from '../users/user.model';
 import { Tenant } from '../cloud-admin/tenant.model';
+import { CloudSetting } from '../cloud-admin/cloud-setting.model';
+import { CloudSettingsService } from '../cloud-admin/cloud-settings.service';
 import { Context } from '../contexts/context.model';
 import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module';
 
 @Module({
   imports: [
-    SequelizeModule.forFeature([UserSession, User, Tenant, Context]),
+    SequelizeModule.forFeature([UserSession, User, Tenant, Context, CloudSetting]),
     TenantIdentityModule,
     UsersModule,
     LoggerModule,
@@ -50,7 +52,7 @@ import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module'
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TenantRegistrationService, JwtStrategy, JwtAuthGuard, RolesGuard, SuperAdminGuard],
+  providers: [AuthService, TenantRegistrationService, CloudSettingsService, JwtStrategy, JwtAuthGuard, RolesGuard, SuperAdminGuard],
   exports: [AuthService, JwtAuthGuard, RolesGuard, SuperAdminGuard],
 })
 export class AuthModule {}

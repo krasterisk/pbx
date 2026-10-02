@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Delete, Param, ParseIntPipe, UseGuards, Req, ForbiddenException,
+  Controller, Get, Post, Patch, Put, Delete, Param, ParseIntPipe, UseGuards, Req, ForbiddenException,
   BadRequestException, NotFoundException, Body,
 } from '@nestjs/common';
 import {
@@ -16,6 +16,7 @@ import { ModuleAccessGuard } from './module-access.guard';
 import { RequiresModule } from './requires-module.decorator';
 import { isAiProductCode } from './product-access-policy';
 import { SkuCatalogService } from '../product-access/sku-catalog.service';
+import { ReorderHubModulesDto, SetTenantHubVisibilityDto } from './dto/hub-module.dto';
 
 export class GrantHubModuleDto {
   @IsIn(['open', 'trial'])
@@ -195,6 +196,27 @@ export class TenantHubEntitlementsController {
   async hubCatalog(@Param('tenantId', ParseIntPipe) tenantId: number) {
     await this.tenantsService.findOne(tenantId);
     return this.modulesService.getHubCatalogForTenant(tenantId);
+  }
+
+  @Patch('hub-modules/reorder')
+  @ApiOperation({ summary: 'Reorder Hub modules for a selected tenant' })
+  async reorderHub(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Body() body: ReorderHubModulesDto,
+  ) {
+    await this.tenantsService.findOne(tenantId);
+    return this.modulesService.reorderTenantHubModules(tenantId, body.codes);
+  }
+
+  @Put('hub-modules/:code/visibility')
+  @ApiOperation({ summary: 'Show or hide a Hub module for a selected tenant' })
+  async visibility(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Param('code') code: string,
+    @Body() body: SetTenantHubVisibilityDto,
+  ) {
+    await this.tenantsService.findOne(tenantId);
+    return this.modulesService.setTenantHubVisibility(tenantId, code, body.visible);
   }
 
   @Post('hub-modules/:code/enable')

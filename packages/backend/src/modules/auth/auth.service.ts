@@ -15,6 +15,7 @@ import { UserSession } from './user-session.model';
 import { User, UserLevel } from '../users/user.model';
 import type { AuthTokenResponse, AuthUserPayload } from './dto/auth-response.dto';
 import { TenantRegistrationService } from './tenant-registration.service';
+import { CloudSettingsService } from '../cloud-admin/cloud-settings.service';
 
 /** Number of bcrypt salt rounds — 12 is the industry standard (2024) */
 const BCRYPT_ROUNDS = 12;
@@ -44,7 +45,12 @@ export class AuthService {
     private readonly mailerService: MailerService,
     @InjectModel(UserSession) private readonly sessionModel: typeof UserSession,
     private readonly registration: TenantRegistrationService,
+    private readonly cloudSettings: CloudSettingsService,
   ) {}
+
+  isRegistrationEnabled(): Promise<boolean> {
+    return this.cloudSettings.isRegistrationEnabled();
+  }
 
   // ─── Token helpers ──────────────────────────────────────────────────────────
 
@@ -183,10 +189,9 @@ export class AuthService {
     }
   }
 
-  /** POST /auth/register — only available in BOX/OPENSOURCE mode */
+  /** POST /auth/register — gated by platform setting auth.registration_enabled */
   async register(login: string, password: string, name: string, email?: string, companyName?: string): Promise<{ success: boolean; message: string; requiresActivation: boolean }> {
-    const deploymentMode = this.configService.get<string>('DEPLOYMENT_MODE', 'BOX').toUpperCase();
-    if (deploymentMode === 'CLOUD') {
+    if (!(await this.cloudSettings.isRegistrationEnabled())) {
       throw new ForbiddenException('Self-registration is disabled. Contact your administrator.');
     }
 

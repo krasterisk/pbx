@@ -18,6 +18,7 @@ import { CloudSetting } from '../modules/cloud-admin/cloud-setting.model';
 import { BillingSeller } from '../modules/cloud-admin/billing-seller.model';
 import { HubModule } from '../modules/cloud-admin/models/hub-module.model';
 import { HubModulePage } from '../modules/cloud-admin/models/hub-module-page.model';
+import { TenantHubLayout } from '../modules/cloud-admin/models/tenant-hub-layout.model';
 import { ActionLog } from '../modules/logger/action-log.model';
 import { Role } from '../modules/roles/role.model';
 import { CcAiProvider } from '../modules/ai-connectivity/ai-provider.model';
@@ -89,7 +90,7 @@ export class StandaloneAiCoreModule {
               ...resolveDatabaseConfig(process.env),
               models: [
                 User, UserSession, Tenant, TenantModule, ModuleRegistry,
-                CloudSetting, BillingSeller, HubModule, HubModulePage, ActionLog, Role, CcAiProvider,
+                CloudSetting, BillingSeller, HubModule, HubModulePage, TenantHubLayout, ActionLog, Role, CcAiProvider,
                 IntegrationPrincipal, IntegrationCredential, IntegrationGrant,
                 IntegrationAudit, IntegrationCommand, IntegrationAuthLimit,
                 ProductActivation, LocalLicenseDocument, LocalLicenseBinding,

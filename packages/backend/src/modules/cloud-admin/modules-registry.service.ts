@@ -6,8 +6,9 @@ import { ConfigService } from '@nestjs/config';
 import { ModuleRegistry } from './module-registry.model';
 import { TenantModule } from './tenant-module.model';
 import { Tenant } from './tenant.model';
-import { HubModule } from './models/hub-module.model';
+import { HubModule, type HubModuleKind } from './models/hub-module.model';
 import { HubModulePage } from './models/hub-module-page.model';
+import { TenantHubLayout } from './models/tenant-hub-layout.model';
 import { HUB_MODULES_SEED } from './hub-modules.seed';
 import {
   AI_PRODUCT_MODULE_CODES, isAiProductCode,
@@ -87,7 +88,7 @@ export type LicenseStatus = 'active' | 'locked' | 'disabled';
 export interface HubCatalogItem {
   code: string;
   name: string;
-  kind: 'base' | 'market';
+  kind: HubModuleKind;
   sort_order: number;
   requires_cloud: boolean;
   licenseStatus: LicenseStatus;
@@ -95,6 +96,10 @@ export interface HubCatalogItem {
   displayPrice: number;
   billingPeriod: string;
   billingIntervalCount: number;
+  /** False when this cabinet hid the module. Global `off` is a separate kind. */
+  tenantVisible: boolean;
+  /** Cabinet may connect its own speech models. Same value on every row. */
+  ownModels: boolean;
   pages: Array<{ page_code: string; path: string | null; sort_order: number }>;
 }
 
@@ -156,10 +161,36 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     @InjectModel(HubModule) private readonly hubModuleModel: typeof HubModule,
     @InjectModel(HubModulePage) private readonly hubPageModel: typeof HubModulePage,
     private readonly productAccess: ProductAccessService,
+    @InjectModel(TenantHubLayout) private readonly layoutModel?: typeof TenantHubLayout,
   ) {}
+
+  /** Adds kind `off` and the per-cabinet layout table on databases created before them. */
+  private async ensureHubLayoutSchema(): Promise<void> {
+    const sequelize = this.hubModuleModel?.sequelize;
+    if (!sequelize?.query) return;
+    try {
+      await sequelize.query(
+        "ALTER TABLE hub_modules MODIFY COLUMN kind ENUM('base','market','off') NOT NULL DEFAULT 'base'",
+      );
+      await sequelize.query(
+        `CREATE TABLE IF NOT EXISTS tenant_hub_layout (
+          id INT NOT NULL AUTO_INCREMENT,
+          tenant_id INT NOT NULL,
+          hub_code VARCHAR(64) NOT NULL,
+          sort_order INT NOT NULL DEFAULT 0,
+          visible TINYINT(1) NOT NULL DEFAULT 1,
+          PRIMARY KEY (id),
+          UNIQUE KEY uq_tenant_hub_layout (tenant_id, hub_code)
+        )`,
+      );
+    } catch (error) {
+      this.logger.warn(`Hub layout schema: ${(error as Error).message}`);
+    }
+  }
 
   /** On startup — upsert module catalog from code definition */
   async onApplicationBootstrap(): Promise<void> {
+    await this.ensureHubLayoutSchema();
     for (const mod of MODULES_SEED) {
       // Publication is operator-managed after first insert. Explicitly supply
       // the new-product default; the DB model defaults to published for legacy.
@@ -293,10 +324,11 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
    * Compute licenseStatus server-side — never accept client-supplied status (T-08-05).
    */
   computeLicenseStatus(
-    hub: { code: string; kind: 'base' | 'market'; requires_cloud: boolean },
+    hub: { code: string; kind: HubModuleKind; requires_cloud: boolean },
     tenantRows: TenantModule[],
     deploymentMode: string,
   ): LicenseStatus {
+    if (hub.kind === 'off') return 'disabled';
     const mode = deploymentMode.toUpperCase();
     const now = new Date();
     const rowByCode = new Map(tenantRows.map((row) => [row.module_code, row]));
@@ -369,9 +401,14 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
     const tenantRows = bound
       ? await this.tenantModuleModel.findAll({ where: { tenant_id: tenantId } })
       : [];
+    const layouts = bound && this.layoutModel?.findAll
+      ? await this.layoutModel.findAll({ where: { tenant_id: tenantId } })
+      : [];
+    const layoutByCode = new Map(layouts.map((row) => [row.hub_code, row]));
     const tenant = bound
-      ? await this.tenantModel.findByPk(tenantId, { attributes: ['vpbx_user_uid'] })
+      ? await this.tenantModel.findByPk(tenantId, { attributes: ['vpbx_user_uid', 'sa_own_models'] })
       : null;
+    const ownModels = tenant?.sa_own_models === true;
     const aiStatus = new Map<string, { licenseStatus: LicenseStatus; accessUntil: string | null }>();
     if (tenant && Number.isSafeInteger(tenant.vpbx_user_uid) && tenant.vpbx_user_uid >= 0) {
       for (const code of AI_PRODUCT_MODULE_CODES) {
@@ -394,12 +431,14 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
       const pages = ((hub as any).pages ?? []) as HubModulePage[];
       const listPrice = hubListPriceFromRegistry(hub.code, registryByCode);
       const ai = isAiProductCode(hub.code) ? aiStatus.get(hub.code) : undefined;
+      const layout = layoutByCode.get(hub.code);
       return {
         code: hub.code,
         name: hub.name,
         kind: hub.kind,
-        sort_order: hub.sort_order,
+        sort_order: layout?.sort_order ?? hub.sort_order,
         requires_cloud: !!hub.requires_cloud,
+        tenantVisible: layout ? !!layout.visible : true,
         licenseStatus: ai?.licenseStatus ?? this.computeLicenseStatus(
           { code: hub.code, kind: hub.kind, requires_cloud: !!hub.requires_cloud },
           tenantRows,
@@ -409,6 +448,7 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
         displayPrice: listPrice.displayPrice,
         billingPeriod: listPrice.billingPeriod,
         billingIntervalCount: listPrice.billingIntervalCount,
+        ownModels,
         pages: pages
           .slice()
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -426,29 +466,16 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
   async listHubModules(): Promise<HubModule[]> {
     return this.hubModuleModel.findAll({
       include: [{ model: HubModulePage, as: 'pages' }],
-      order: [['sort_order', 'ASC']],
+      order: [
+        ['sort_order', 'ASC'],
+        [{ model: HubModulePage, as: 'pages' }, 'sort_order', 'ASC'],
+      ],
     });
-  }
-
-  async createHubModule(dto: {
-    code: string;
-    name: string;
-    kind: 'base' | 'market';
-    sort_order?: number;
-    requires_cloud?: boolean;
-  }): Promise<HubModule> {
-    return this.hubModuleModel.create({
-      code: dto.code,
-      name: dto.name,
-      kind: dto.kind,
-      sort_order: dto.sort_order ?? 100,
-      requires_cloud: dto.requires_cloud ?? false,
-    } as any);
   }
 
   async updateHubModule(
     code: string,
-    dto: Partial<{ name: string; kind: 'base' | 'market'; sort_order: number; requires_cloud: boolean }>,
+    dto: Partial<{ name: string; kind: HubModuleKind; sort_order: number; requires_cloud: boolean }>,
   ): Promise<HubModule | null> {
     const row = await this.hubModuleModel.findOne({ where: { code } });
     if (!row) return null;
@@ -464,6 +491,43 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
       );
     }
     return { success: true };
+  }
+
+  async reorderTenantHubModules(tenantId: number, codes: string[]): Promise<{ success: boolean }> {
+    if (!this.layoutModel) return { success: true };
+    for (let i = 0; i < codes.length; i++) {
+      const sort_order = (i + 1) * 10;
+      const [row] = await this.layoutModel.findOrCreate({
+        where: { tenant_id: tenantId, hub_code: codes[i] },
+        defaults: { tenant_id: tenantId, hub_code: codes[i], sort_order, visible: true } as any,
+      });
+      if (row.sort_order !== sort_order) await row.update({ sort_order });
+    }
+    return { success: true };
+  }
+
+  async setTenantHubVisibility(
+    tenantId: number,
+    code: string,
+    visible: boolean,
+  ): Promise<{ success: boolean; visible: boolean }> {
+    const hub = await this.hubModuleModel.findOne({ where: { code } });
+    if (!hub) throw new BadRequestException(`Unknown hub module: ${code}`);
+    if (hub.kind === 'off') {
+      throw new BadRequestException(`Hub module is off: ${code}`);
+    }
+    if (!this.layoutModel) return { success: true, visible };
+    const [row] = await this.layoutModel.findOrCreate({
+      where: { tenant_id: tenantId, hub_code: code },
+      defaults: {
+        tenant_id: tenantId,
+        hub_code: code,
+        sort_order: hub.sort_order,
+        visible,
+      } as any,
+    });
+    await row.update({ visible });
+    return { success: true, visible };
   }
 
   async replaceHubModulePages(

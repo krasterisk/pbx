@@ -969,6 +969,15 @@ export class SpeechAnalyticsService {
     const transcript = scope === 'analytics:transcript' && run.transcript_id
       ? await this.transcripts.findOne({ where: { tenant_uid: context.tenantUid, id: run.transcript_id } })
       : null;
+    if (scope === 'analytics:transcript') {
+      const segments = transcript
+        ? await this.segments.findAll({
+          where: { tenant_uid: context.tenantUid, transcript_id: transcript.id },
+          order: [['ordinal', 'ASC']],
+        })
+        : [];
+      return { run, recording, result, transcript, segments };
+    }
     return { run, recording, result, transcript };
   }
 

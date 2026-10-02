@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, Post, Put, Patch, Delete,
+  Body, Controller, Get, Param, Put, Patch, Delete,
   UseGuards, NotFoundException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -7,7 +7,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SuperAdminGuard } from '../auth/superadmin.guard';
 import { ModulesRegistryService } from './modules-registry.service';
 import {
-  CreateHubModuleDto,
   UpdateHubModuleDto,
   ReplaceHubModulePagesDto,
   ReorderHubModulesDto,
@@ -28,12 +27,6 @@ export class HubModulesController {
   @ApiOperation({ summary: 'List Hub modules with page membership' })
   list() {
     return this.modulesService.listHubModules();
-  }
-
-  @Post()
-  @ApiOperation({ summary: 'Create Hub module' })
-  create(@Body() dto: CreateHubModuleDto) {
-    return this.modulesService.createHubModule(dto);
   }
 
   @Patch('reorder')

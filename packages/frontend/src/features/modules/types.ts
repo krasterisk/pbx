@@ -15,7 +15,7 @@ export interface ModulePageDef {
 
 export interface ModuleDef {
   code: string;
-  kind: 'base' | 'market';
+  kind: 'base' | 'market' | 'off';
   navVariant: 'tabs' | 'sidebar';
   pages: ModulePageDef[];
   /** i18n key for Hub tile / chip label */
@@ -31,4 +31,6 @@ export interface HubModuleRow extends ModuleDef {
   displayPrice?: number;
   billingPeriod?: string;
   billingIntervalCount?: number;
+  /** When false, this cabinet does not show the module. Omitted means visible. */
+  tenantVisible?: boolean;
 }

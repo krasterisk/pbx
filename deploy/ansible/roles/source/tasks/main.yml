@@ -1,0 +1,40 @@
+---
+- name: Sync the checkout from the control machine
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../../"
+    dest: "{{ krasterisk_src }}/"
+    delete: false
+    rsync_opts:
+      - "--exclude=.git"
+      - "--exclude=node_modules"
+      - "--exclude=**/node_modules"
+      - "--exclude=**/dist"
+      - "--exclude=**/.planning"
+      - "--exclude=android"
+      - "--exclude=ios"
+  when: krasterisk_source == 'sync'
+
+- name: Clone the git ref
+  ansible.builtin.git:
+    repo: "{{ krasterisk_git_repo }}"
+    dest: "{{ krasterisk_src }}"
+    version: "{{ krasterisk_git_ref }}"
+    update: true
+  when: krasterisk_source == 'git'
+
+- name: Require a checkout already on the server
+  ansible.builtin.stat:
+    path: "{{ krasterisk_src }}/package.json"
+  register: krasterisk_package
+  when: krasterisk_source == 'local'
+
+- name: Strip CR from deploy files copied from Windows
+  ansible.builtin.shell: |
+    find "{{ krasterisk_src }}/deploy" -type f \( -name '*.sh' -o -name '*.conf' -o -name '*.enable' -o -name '*.yml' -o -name '*.mjs' -o -name '*.cfg' \) -print0 \
+      | xargs -0 sed -i 's/\r$//'
+  changed_when: false
+
+- name: Fail when the local checkout is missing
+  ansible.builtin.fail:
+    msg: "{{ krasterisk_src }}/package.json is missing. Sync the repo before site.yml."
+  when: krasterisk_source == 'local' and not krasterisk_package.stat.exists

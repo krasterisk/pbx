@@ -7,23 +7,18 @@ import {
 import {
   useGetTenantBalanceQuery,
   useGetTenantTransactionsQuery,
-  useGetTenantHubCatalogQuery,
   useDepositBalanceMutation,
   useImpersonateTenantMutation,
-  useEnableTenantHubModuleMutation,
-  useDisableTenantHubModuleMutation,
-  useGrantTenantHubModuleMutation,
   useGetSellersQuery,
   useUpdateTenantMutation,
-  type IHubCatalogItem,
 } from '@/shared/api/endpoints/cloudAdminApi';
-import { Button, Text, Switch, Select, Label } from '@/shared/ui';
+import { Button, Text, Select, Label } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { tenantsPageActions } from '../../model/slice/tenantsPageSlice';
 import { TenantStatusBadge } from '../TenantStatusBadge';
+import { TenantHubModulesEditor } from '../TenantHubModulesEditor/TenantHubModulesEditor';
 import { rememberImpersonation, persistImpersonatedUser } from '@/features/auth/lib/impersonationSession';
-import { toast } from 'react-toastify';
 import cls from './TenantDrawer.module.scss';
 
 type DrawerTab = 'info' | 'billing' | 'modules';
@@ -45,20 +40,15 @@ export const TenantDrawer = memo(() => {
 
   const [tab, setTab] = useState<DrawerTab>('info');
   const [depositAmount, setDepositAmount] = useState('');
-  const [trialDaysByCode, setTrialDaysByCode] = useState<Record<string, string>>({});
 
   const tenantId = selectedTenant?.id ?? 0;
 
   const { data: balance, isLoading: balanceLoading } = useGetTenantBalanceQuery(tenantId, { skip: !isOpen || tab !== 'billing' });
   const { data: txData, isLoading: txLoading }       = useGetTenantTransactionsQuery({ tenantId, limit: 20 }, { skip: !isOpen || tab !== 'billing' });
-  const { data: modules, isLoading: modulesLoading } = useGetTenantHubCatalogQuery(tenantId, { skip: !isOpen || tab !== 'modules' });
   const { data: sellers = [] } = useGetSellersQuery(undefined, { skip: !isOpen });
 
   const [deposit, { isLoading: depositing }] = useDepositBalanceMutation();
   const [impersonate, { isLoading: impersonating }] = useImpersonateTenantMutation();
-  const [enableHubModule, { isLoading: enablingHub }] = useEnableTenantHubModuleMutation();
-  const [disableHubModule, { isLoading: disablingHub }] = useDisableTenantHubModuleMutation();
-  const [grantHubModule, { isLoading: grantingHub }] = useGrantTenantHubModuleMutation();
   const [updateTenant, { isLoading: updatingSeller }] = useUpdateTenantMutation();
 
   useEffect(() => {
@@ -84,41 +74,6 @@ export const TenantDrawer = memo(() => {
       window.location.href = '/';
     } catch (e) {
       console.error('Impersonate failed:', e);
-    }
-  };
-
-  const handleHubToggle = async (item: IHubCatalogItem, nextOn: boolean) => {
-    if (item.kind === 'base') return;
-    if (!nextOn) {
-      const ok = window.confirm(
-        t('cloudAdmin.drawer.disableConfirm', 'Disable this module for {{name}}?', { name: selectedTenant?.name ?? '' }),
-      );
-      if (!ok) return;
-      try {
-        await disableHubModule({ tenantId, code: item.code }).unwrap();
-      } catch (e) {
-        toast.error(hubModuleErrorMessage(e, t));
-      }
-      return;
-    }
-    try {
-      await enableHubModule({ tenantId, code: item.code }).unwrap();
-    } catch (e) {
-      toast.error(hubModuleErrorMessage(e, t));
-    }
-  };
-
-  const handleGrant = async (item: IHubCatalogItem, access: 'open' | 'trial') => {
-    const rawDays = Number(trialDaysByCode[item.code] ?? '14');
-    try {
-      await grantHubModule({
-        tenantId,
-        code: item.code,
-        access,
-        trialDays: access === 'trial' ? rawDays : undefined,
-      }).unwrap();
-    } catch (e) {
-      toast.error(hubModuleErrorMessage(e, t));
     }
   };
 
@@ -347,93 +302,12 @@ export const TenantDrawer = memo(() => {
             </VStack>
           )}
 
-          {/* ── Tab: Modules ──────────────────────────── */}
           {tab === 'modules' && (
-            <VStack gap="8">
-              <Text variant="muted">
-                {t('cloudAdmin.drawer.modulesFor', 'Modules for {{name}}', { name: selectedTenant.name })}
-              </Text>
-              {modulesLoading ? (
-                <HStack justify="center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></HStack>
-              ) : (
-                <>
-                  {(modules ?? []).length === 0 && (
-                    <Text variant="muted">{t('common.noData', 'Нет данных')}</Text>
-                  )}
-                  {[...(modules ?? [])]
-                    .sort((a, b) => a.sort_order - b.sort_order)
-                    .map((mod) => {
-                      const locked = mod.licenseStatus === 'locked';
-                      const active = mod.licenseStatus === 'active';
-                      const until = mod.accessUntil
-                        ? new Date(mod.accessUntil).toLocaleDateString('ru-RU')
-                        : null;
-                      return (
-                        <div key={mod.code} className={cls.moduleRow} data-testid={`platform-tenant-module-${mod.code}`}>
-                          <VStack gap="2" className="flex-1 min-w-0">
-                            <Text variant="small" className="font-semibold">{mod.name}</Text>
-                            <Text variant="xs">
-                              {t(`cloudAdmin.drawer.licenseStatus.${mod.licenseStatus}`, mod.licenseStatus)}
-                              {until ? ` · ${t('cloudAdmin.drawer.accessUntil', 'до {{date}}', { date: until })}` : ''}
-                            </Text>
-                            {locked && (
-                              <Text variant="xs" className={cls.aiLockedHint}>
-                                {t(
-                                  'cloudAdmin.drawer.grantHint',
-                                  'Открыть без срока или выдать триал на указанное число дней.',
-                                )}
-                              </Text>
-                            )}
-                          </VStack>
-                          {locked ? (
-                            <HStack gap="4" align="center">
-                              <input
-                                className={cls.trialDays}
-                                type="number"
-                                min={1}
-                                max={365}
-                                aria-label={t('cloudAdmin.drawer.trialDays', 'Дней триала')}
-                                data-testid={`platform-tenant-trial-days-${mod.code}`}
-                                value={trialDaysByCode[mod.code] ?? '14'}
-                                onChange={(event) => setTrialDaysByCode((prev) => ({
-                                  ...prev,
-                                  [mod.code]: event.target.value,
-                                }))}
-                              />
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                data-testid={`platform-tenant-trial-${mod.code}`}
-                                disabled={grantingHub}
-                                onClick={() => void handleGrant(mod, 'trial')}
-                              >
-                                {t('cloudAdmin.drawer.trial', 'Триал')}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                data-testid={`platform-tenant-grant-${mod.code}`}
-                                disabled={grantingHub}
-                                onClick={() => void handleGrant(mod, 'open')}
-                              >
-                                {t('cloudAdmin.drawer.openAccess', 'Открыть')}
-                              </Button>
-                            </HStack>
-                          ) : (
-                            <Switch
-                              checked={active}
-                              disabled={mod.kind === 'base' || enablingHub || disablingHub}
-                              onCheckedChange={(checked) => void handleHubToggle(mod, checked)}
-                              aria-label={`${mod.name} ${selectedTenant.name}`}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                </>
-              )}
-            </VStack>
+            <TenantHubModulesEditor
+              tenantId={tenantId}
+              tenantName={selectedTenant.name}
+              enabled={tab === 'modules'}
+            />
           )}
         </div>
       </aside>
@@ -442,24 +316,6 @@ export const TenantDrawer = memo(() => {
 });
 
 TenantDrawer.displayName = 'TenantDrawer';
-
-function hubModuleErrorMessage(
-  err: unknown,
-  t: (key: string, fallback?: string) => string,
-): string {
-  const data = (err as { data?: { code?: string; product?: string } })?.data
-    ?? (err as { error?: { data?: { code?: string } } })?.error?.data;
-  const code = data?.code;
-  if (code === 'sku_not_found' || code === 'trial_days_invalid' || code === 'grant_invalid') {
-    return t(`cloudAdmin.drawer.grantError.${code}`, code);
-  }
-  if (code === 'license_invalid' || code === 'license_expired'
-    || code === 'not_entitled' || code === 'product_disabled'
-    || code === 'entitlement_expired') {
-    return t(`aiProducts.access.reasons.${code}`, code);
-  }
-  return t('common.error', 'Ошибка');
-}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function Row({ label, value }: { label: string; value: string }) {

@@ -53,7 +53,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const chatSeed = useAppSelector((s) => s.aiChat.seedMessage);
   const ccAgent = useAppSelector(selectMyAgent);
   const level = user?.level as UserLevel | undefined;
-  const { active } = useHubModules();
+  const { active, marketplace } = useHubModules();
   useModuleLicenseGate();
 
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
@@ -70,8 +70,9 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     }
   });
 
+  const navModules = useMemo(() => [...active, ...marketplace], [active, marketplace]);
   const isHub = location.pathname === '/modules' || location.pathname.startsWith('/modules/');
-  const currentModule = isHub ? undefined : findModuleByPath(location.pathname);
+  const currentModule = isHub ? undefined : findModuleByPath(location.pathname, navModules);
   const hubRow = currentModule
     ? active.find((m) => m.code === currentModule.code)
     : undefined;

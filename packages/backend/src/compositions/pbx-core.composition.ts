@@ -117,6 +117,7 @@ import { CloudSetting } from '../modules/cloud-admin/cloud-setting.model';
 import { BillingSeller } from '../modules/cloud-admin/billing-seller.model';
 import { HubModule } from '../modules/cloud-admin/models/hub-module.model';
 import { HubModulePage } from '../modules/cloud-admin/models/hub-module-page.model';
+import { TenantHubLayout } from '../modules/cloud-admin/models/tenant-hub-layout.model';
 import { RoleStartDefault, TenantRoleStart } from '../modules/cloud-admin/models/role-start.model';
 import { DeviceToken } from '../modules/cloud-admin/models/device-token.model';
 import { BillingBalance } from '../modules/cloud-admin/billing/models/billing-balance.model';
@@ -244,7 +245,7 @@ export const PBX_CORE_MODELS = [
   ConferenceMeetingParticipant, AcBase, AcBaseField, AcContact, AcContactPhone,
   AcImportProfile, AcImportRun, AcCampaign, AcSchedule, AcDnc, AcTask, AcAttempt,
   AcDailyCampaignStats, AcChannelReservation, Tenant, BillingSeller, ModuleRegistry, TenantModule, CloudSetting,
-  HubModule, HubModulePage, RoleStartDefault, TenantRoleStart, DeviceToken,
+  HubModule, HubModulePage, TenantHubLayout, RoleStartDefault, TenantRoleStart, DeviceToken,
   BillingBalance, BillingTransaction, ProductActivation, LocalLicenseDocument,
   LocalLicenseBinding, IntegrationPrincipal, IntegrationCredential, IntegrationGrant,
   IntegrationAudit, IntegrationCommand, IntegrationAuthLimit,

@@ -1,35 +1,120 @@
-.list {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  overflow: hidden;
+.page {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.row {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border);
+.loader {
+  width: 100%;
+  padding: 4rem 0;
+}
 
-  &:last-child {
-    border-bottom: none;
+.header {
+  padding: 0 0.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
-.rowHeader {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+.iconBadge {
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.card {
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-foreground) 5%, transparent);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-card));
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-foreground) 10%, transparent);
+  }
+}
+
+.cardHead,
+.list {
   width: 100%;
 }
 
+.fieldGrow {
+  min-width: 12rem;
+  flex: 1 1 16rem;
+}
+
+.addBtnIcon {
+  margin-right: 0.5rem;
+}
+
+.saveBtn {
+  align-self: flex-start;
+}
+
+.toggleWrap {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.toggle {
+  height: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+
+  &:hover {
+    background: transparent;
+  }
+}
+
+.chevron {
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
 .moduleName {
-  font-size: 16px;
   font-weight: 600;
-  flex: 1;
-  min-width: 120px;
+}
+
+.pageLabel {
+  min-width: 0;
+}
+
+.actions {
+  flex-shrink: 0;
+}
+
+.kindField {
+  width: 9.5rem;
+  flex-shrink: 0;
 }
 
 .badgeBase {
@@ -39,43 +124,55 @@
 }
 
 .badgeMarket {
-  background: color-mix(in srgb, var(--color-warning, #fbbf24) 12%, transparent);
-  color: var(--color-warning, #fbbf24);
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent);
+  color: var(--color-warning, #f59e0b);
   border-color: transparent;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
+.badgeOff {
+  background: color-mix(in srgb, var(--color-muted-foreground) 16%, transparent);
+  color: var(--color-muted-foreground);
+  border-color: transparent;
 }
 
 .membership {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   width: 100%;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--color-border);
 }
 
-.addForm {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-end;
-  padding: 12px 0;
+.pageRow {
   width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 140px;
+.dragHandle {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-muted-foreground);
+  cursor: grab;
+  touch-action: none;
+
+  &:hover {
+    background: transparent;
+    color: var(--color-foreground);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
 }
 
-.label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted-foreground, var(--color-text-muted));
+.cardDragging,
+.pageRowDragging {
+  position: relative;
+  z-index: var(--z-index-dropdown);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-foreground) 12%, transparent);
 }

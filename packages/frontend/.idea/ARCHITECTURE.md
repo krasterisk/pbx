@@ -127,6 +127,7 @@ krasterisk_v4/
   - Полный канон страницы + таблицы: см. «Паттерн страницы списка и таблицы» ниже (в т.ч. **§4.2** массовое выделение, **§4.2.1** кросс-страничный select / баннер «Выбрать все N», **§4.2.2** Dialog preview, **§4.2.3** CSV).
 - **Cross-page table selection (MUST):** В CRUD-`DataTable` с client-side пагинацией header checkbox выбирает **только текущую страницу**; выбор отдельных строк **сохраняется** между страницами; при «вся страница» и `filteredCount > pageSize` — баннер `renderBanner` («Выбрать все N» / «Снять»). Массовые действия и CSV работают по полному `rowSelection`. Bulk confirm — Dialog с коротким preview (лимит 8), не `window.confirm` со всеми именами. Эталон: `features/endpoints/ui/EndpointsTable`. Детали — «Паттерн страницы списка и таблицы» §4.2–4.2.3.
 - **Сворачиваемая карточка (MUST):** Повторяющиеся сущности в модалке (метрика, тема, файл загрузки) — карточка, **свёрнутая по умолчанию**. Ховер на всю карточку, не на текст. Канон — «Паттерн сворачиваемой карточки» ниже. Эталоны: `ProjectSettingsForm` (метрики, темы), `UploadForm` (файлы).
+- **Продуктовая страница (MUST):** Дашборд, список сущностей и страница ключей собираются одним каркасом: шапка с бейджем, пустое состояние, секция-карточка, ховер на весь элемент. Канон — «Паттерн продуктовой страницы» ниже. Эталоны: `SpeechAnalyticsDashboardPage`, `SpeechAnalyticsProjectsPage`, `AiConnectionsPage`.
 - **Focus ring inset (MUST):** обводка фокуса у полей ввода **обязана** рисоваться **внутри** рамки (`ring-inset`). Контейнеры модалок (`DialogContent size="large"` → `overflow: hidden`) и тело со скроллом (`.scrollBody` / `.formBody` → `overflow-y: auto`) **обрезают** внешний ring / `box-shadow` - слева/сверху «пропадает» половина выделения.
   - Tailwind: `focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-transparent` (для обёрток вроде `TagInput` - `focus-within:…`).
   - Запрещено: `focus:ring-1` / `focus-within:ring-1` без `ring-inset`, внешний `box-shadow: 0 0 0 2px` на контроле внутри скролла.
@@ -1259,6 +1260,193 @@ Tailwind на полосе табов в JSX **не использовать**. 
 ```
 
 - **Инпуты и текстовые поля:** Строго компоненты `<Input>`, `<Select>`, `<Label>` из `@/shared/ui`. Запрет на использование сырой HTML разметки `<input>`, `<select>` в слое `features`.
+
+### Паттерн продуктовой страницы (MUST)
+
+Эталоны: `pages/SpeechAnalyticsDashboardPage`, `pages/SpeechAnalyticsProjectsPage`, `pages/AiConnectionsPage`.
+
+Новая страница продукта (сводка, список, ключи, документация API) собирается из блоков ниже. Стили только в SCSS-модуле страницы, цвета только через `var(--color-*)` и `color-mix(in srgb, …)`. Hex и `rgba()` в модуле страницы не использовать.
+
+#### 1. Каркас
+
+```tsx
+<VStack gap="24" max className={cls.page} data-testid="…">
+  {/* шапка */}
+  {/* пусто / ошибка / контент */}
+</VStack>
+```
+
+```scss
+.page {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+```
+
+Дашборд с несколькими секциями использует `gap="32"`. У списка, где таблица должна занять остаток высоты, к `.page` добавляют `min-height: 0`.
+
+#### 2. Шапка
+
+Слева бейдж и заголовок, справа одно главное действие или контекст страницы (селект проекта). На `≤640px` шапка становится колонкой, кнопка создания на всю ширину.
+
+| Зона | Поведение |
+|------|-----------|
+| Ряд | `Flex justify="between" align="center"`, `flex-wrap`, `gap: 1rem` |
+| Бейдж | Lucide `size={24}` в `Flex`. Квадрат: `padding: 0.625rem`, `border-radius: var(--radius-xl)`, фон `color-mix(in srgb, var(--color-primary) 10%, transparent)`, цвет `var(--color-primary)` |
+| Заголовок | `Text variant="h1" as="h1"` + градиент текста 135° от `var(--color-foreground)` к 70% прозрачности |
+| Подзаголовок | `Text variant="muted"` сразу под заголовком, `VStack gap="4"` |
+| Действие | Одна primary-кнопка. Та же кнопка переиспользуется в пустом состоянии, не второй независимый CTA |
+
+```scss
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+```
+
+Контекстный селект в шапке (проект дашборда) шириной `16rem`, `max-width: 100%`. Один проект показывают текстом, без селекта.
+
+#### 3. Пусто, загрузка, ошибка
+
+| Состояние | Состав |
+|-----------|--------|
+| Пустой список, кнопка уже в шапке | `VStack gap="12"`: `Text variant="h2"` + `Text variant="muted"` + та же кнопка. Выравнивание по левому краю. `data-testid` вида `*-empty` |
+| Пусто и кнопки в шапке нет | Та же тройка, по центру, на панели: пунктир `color-mix(in srgb, var(--color-primary) 38%, var(--color-border))`, `border-radius: var(--radius-xl)`, радиальный wash сверху. Эталон: ключи на `AiConnectionsPage` |
+| Нечего показать, действия нет | Только заголовок и muted-текст. Эталон: пустой период дашборда |
+| Ошибка запроса | Текст + `Button variant="outline"` «Повторить», вызывает `refetch` |
+| Загрузка списка | `Flex` по центру, `min-height: 6rem`, `Loader2 size={24}` с вращением |
+| Загрузка сетки | `Skeleton` в тех же ячейках, что и готовые карточки, чтобы сетка не прыгала |
+
+Пока идёт первая загрузка, пустое состояние не показывают.
+
+#### 4. Список и таблица
+
+Эталон: `SpeechAnalyticsProjectsPage`.
+
+| Слой | Поведение |
+|------|-----------|
+| Широкий экран | `Card` → `CardHeader` с тулбаром → `CardContent` с `padding: 0` → обёртка `overflow-x: auto; min-width: 0` → `DataTable` |
+| Тулбар | Слева иконка `size={20}` цветом primary и счётчик (`1.125rem`, `font-weight: 600`). Справа поиск и массовое действие. Поиск: иконка абсолютно слева, поле `height: 2.25rem`, `padding-left: 2.5rem`, ширина `16rem` |
+| Слот массового действия | Кнопка удаления остаётся в потоке и при нуле выбранных прячется через `visibility: hidden` + `pointer-events: none` + `aria-hidden`. Место не схлопывается |
+| Телефон `≤640px` | Тулбар колонкой на всю ширину. Таблица заменяется карточками строки: `border`, `border-radius: var(--radius-md)`, `padding: 0.75rem 1rem`. Атрибуты `data-hybrid="mobile-card"` и `data-hybrid="overflow-x-auto"` |
+| Действия строки | `TableRowActions` (см. канон выше) |
+| Подтверждение удаления | `Dialog`, не `window.confirm` |
+| Крупное создание и редактирование | `DialogContent size="large"` |
+
+Выделение страницы и «выбрать все N» остаётся каноном cross-page selection. Эталон баннера: `TableSelectionBanner` на проектах.
+
+#### 5. Секция и KPI
+
+Секция дашборда — карточка с лёгким вертикальным wash и фиксированной минимальной высотой в ряду графиков, чтобы соседние блоки не прыгали.
+
+```scss
+.sectionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.15rem 1.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 5%, transparent), transparent 42%),
+    var(--color-card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-foreground) 4%, transparent);
+  min-width: 0;
+}
+```
+
+Сетка KPI: 3 колонки, на `≤1024px` две, на `≤640px` одна, `gap: 1rem`. Ряд графиков: 2 колонки, на `≤768px` одна; карточка ряда не ниже `28rem` / `24rem` на узком экране.
+
+KPI:
+
+- Верхняя кромка `3px`, градиент тона в прозрачность. В покое `opacity: 0.5`, при hover `1`.
+- Подпись: `0.75rem`, `font-weight: 600`, uppercase, `letter-spacing: 0.04em`, цвет muted.
+- Число: `clamp(1.4rem, 2.2vw, 2rem)`, `font-weight: 700`, `font-variant-numeric: tabular-nums`.
+- Иконка справа в боксе `3rem`, `border-radius: var(--radius-lg)`, фон `color-mix(… primary 14%)`.
+- Тон задаёт рамку: success / warning / destructive через `color-mix` 45–50% с `var(--color-border)`.
+- Hover: `translateY(-2px)` и тень `0 12px 28px` primary 16%. На `≤768px` сдвиг **выключен**.
+
+Шкала оценки везде одна: `good` → `--color-success`, `mid` → `--color-warning`, `bad` → `--color-destructive`, `neutral` → `--color-foreground`. Пилюля оценки: `border-radius: 999px`, фон `color-mix` 16–20% того же тона.
+
+Кликабельная строка рейтинга подсвечивает **всю** строку: фон `color-mix(primary 8%)` и `box-shadow: inset 3px 0 0 var(--color-primary)`. На `≤768px` шапка таблицы скрыта, строка становится карточкой, подпись поля (`rankLabel`) видна.
+
+#### 6. Карточка с цветной кромкой
+
+Для сущности с типом (инсайт, ключ) цвет живёт в `--insight` на модификаторе, не в отдельной заливке всей карточки.
+
+| Тип | Токен |
+|-----|--------|
+| strength / успех | `--color-success` |
+| gap / предупреждение | `--color-warning` |
+| outlier / ошибка | `--color-destructive` |
+| trend | `--color-info` |
+| quality / обычный | `--color-primary` |
+
+```scss
+.railCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--insight, var(--color-primary)) 38%, var(--color-border));
+  background:
+    linear-gradient(105deg, color-mix(in srgb, var(--insight, var(--color-primary)) 14%, transparent), transparent 42%),
+    var(--color-card);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 4px;
+    background: var(--insight, var(--color-primary));
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--insight, var(--color-primary)) 18%, transparent);
+  }
+}
+```
+
+На `≤768px` `transform` у hover убирают. Подпись типа — пилюля `0.72rem` / `700` цветом `--insight`. Длинный текст внутри: `overflow-wrap: anywhere`. Две колонки «что видно / что сделать» на узком экране складываются в одну, разделитель переезжает с левой границы на верхнюю.
+
+Токен API использует ту же кромку слева (`3px`, primary) и hover-тень, без типового `--insight`.
+
+#### 7. Ховер на весь элемент
+
+Кликабельная карточка, строка метода API, бар метрики и легенда графика подсвечиваются целиком.
+
+- Фон hover: `color-mix(in srgb, var(--color-primary) 7–10%, var(--color-card))`.
+- Рамка: `color-mix(in srgb, var(--color-primary) 45–50%, var(--color-border))`.
+- Тень: `0 8px 22px` … `0 14px 32px` primary 12–16%.
+- Переход `0.16s ease`.
+- Область клика совпадает с подсветкой: растянутый hit-target (`Flex` с `role="button"` на всю строку или карточка целиком). `Button variant="ghost"`, который сжимается по тексту, для такой строки не использовать: подсветка остаётся только на буквах.
+- Кнопка копирования или удаления стоит **вне** toggle, клик по ней не раскрывает строку (`stopPropagation`, если обработчик на родителе).
+
+Документация API: внешняя панель с тем же wash, что у секции (`padding: 1.25rem`, `radius-xl`). Метод — карточка `p-0`. Бейдж `POST` — primary, `GET` — success. Путь — моноширинный `0.82rem` с `ellipsis`. Раскрытый пример — `pre` в колодце `color-mix(background 72%, muted)`.
+
+#### 8. График и боковой разбор
+
+- График Recharts в блоке фиксированной высоты `22rem`, `min-width: 0`, `overflow: visible`.
+- Легенда — ряд пилюль, клик по пилюле фильтрует так же, как клик по сектору. Подписи секторов переводятся, сырой ключ данных в tooltip не показывают.
+- Разбор записи открывается боковой панелью: на `≥769px` ширина `40vw`, тело скроллится, шапка `flex-shrink: 0`.
+
+**Запрещено на этих страницах:**
+
+- Ховер только у текста внутри широкой строки или карточки.
+- `translateY` на hover при `max-width: 768px`.
+- Пустое состояние одновременно с первой загрузкой.
+- Вторая, отличающаяся кнопка создания в пустом блоке.
+- `window.confirm` для удаления ключа, проекта или записи.
 
 ### Паттерн копирования (Copy/Duplicate Modal)
 

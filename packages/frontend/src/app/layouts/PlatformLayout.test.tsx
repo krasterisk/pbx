@@ -55,6 +55,7 @@ describe('PlatformLayout (NAV-06 / 006-B)', () => {
     expect(screen.getByTestId('platform-layout')).toBeInTheDocument();
     expect(screen.getByTestId('platform-console-chrome')).toBeInTheDocument();
     expect(screen.getByText('platform console')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'auth.profile' })).toBeInTheDocument();
     expect(screen.getByTestId('tenants-child')).toBeInTheDocument();
   });
 

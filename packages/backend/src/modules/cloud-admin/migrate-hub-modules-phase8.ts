@@ -45,7 +45,7 @@ async function main() {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     code: { type: DataTypes.STRING(64), allowNull: false, unique: true },
     name: { type: DataTypes.STRING(128), allowNull: false },
-    kind: { type: DataTypes.ENUM('base', 'market'), allowNull: false, defaultValue: 'base' },
+    kind: { type: DataTypes.ENUM('base', 'market', 'off'), allowNull: false, defaultValue: 'base' },
     sort_order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     requires_cloud: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   }, { ifNotExists: true } as any);
@@ -147,14 +147,11 @@ async function main() {
       );
     } else {
       await sequelize.query(
-        `UPDATE hub_modules SET name = :name, kind = :kind, sort_order = :sort_order,
-         requires_cloud = :requires_cloud WHERE code = :code`,
+        `UPDATE hub_modules SET name = :name, requires_cloud = :requires_cloud WHERE code = :code`,
         {
           replacements: {
             code: mod.code,
             name: mod.name,
-            kind: mod.kind,
-            sort_order: mod.sort_order,
             requires_cloud: mod.requires_cloud ? 1 : 0,
           },
         },
@@ -190,14 +187,13 @@ async function main() {
       );
     } else {
       await sequelize.query(
-        `UPDATE hub_module_pages SET path = :path, sort_order = :sort_order
+        `UPDATE hub_module_pages SET path = :path
          WHERE hub_code = :hub_code AND page_code = :page_code`,
         {
           replacements: {
             hub_code: page.hub_code,
             page_code: page.page_code,
             path: page.path,
-            sort_order: page.sort_order,
           },
         },
       );

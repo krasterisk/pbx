@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -18,7 +18,8 @@ export function useModuleLicenseGate() {
   const navigate = useNavigate();
   const user = useAppSelector((s) => s.auth.user);
   const level = user?.level as UserLevel | undefined;
-  const { active, marketplace, isLoading } = useHubModules();
+  const { active, marketplace, isLoading, suppressedCodes = [] } = useHubModules();
+  const navModules = useMemo(() => [...active, ...marketplace], [active, marketplace]);
   const lastToastKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -29,7 +30,13 @@ export function useModuleLicenseGate() {
     // AI robots landing shows locked/expired itself; connections stay gated.
     if (pathname === '/ai-robots') return;
 
-    const mod = findModuleByPath(pathname);
+    const baselineOwner = findModuleByPath(pathname);
+    if (baselineOwner && suppressedCodes.includes(baselineOwner.code)) {
+      if (pathname !== '/') navigate('/', { replace: true });
+      return;
+    }
+
+    const mod = findModuleByPath(pathname, navModules);
     if (!mod) return;
 
     const row =
@@ -62,6 +69,8 @@ export function useModuleLicenseGate() {
     level,
     location.pathname,
     navigate,
+    navModules,
+    suppressedCodes,
     t,
   ]);
 }

@@ -3,27 +3,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreateHubModuleDto {
-  @IsString()
-  @MaxLength(64)
-  code: string;
-
-  @IsString()
-  @MaxLength(128)
-  name: string;
-
-  @IsIn(['base', 'market'])
-  kind: 'base' | 'market';
-
-  @IsOptional()
-  @IsNumber()
-  sort_order?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  requires_cloud?: boolean;
-}
-
 export class UpdateHubModuleDto {
   @IsOptional()
   @IsString()
@@ -31,8 +10,8 @@ export class UpdateHubModuleDto {
   name?: string;
 
   @IsOptional()
-  @IsIn(['base', 'market'])
-  kind?: 'base' | 'market';
+  @IsIn(['base', 'market', 'off'])
+  kind?: 'base' | 'market' | 'off';
 
   @IsOptional()
   @IsNumber()
@@ -69,4 +48,9 @@ export class ReorderHubModulesDto {
   @IsArray()
   @IsString({ each: true })
   codes: string[];
+}
+
+export class SetTenantHubVisibilityDto {
+  @IsBoolean()
+  visible: boolean;
 }

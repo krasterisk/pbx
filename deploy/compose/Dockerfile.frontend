@@ -1,0 +1,23 @@
+FROM node:22-bookworm AS build
+WORKDIR /src
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/backend/package.json packages/backend/package.json
+COPY packages/frontend/package.json packages/frontend/package.json
+COPY harness/package.json harness/package.json
+RUN npm pkg delete scripts.prepare -w @krasterisk/shared && npm ci --ignore-scripts
+COPY packages/shared packages/shared
+COPY packages/frontend packages/frontend
+COPY tsconfig.base.json tsconfig.base.json
+ENV NODE_OPTIONS=--max-old-space-size=4096
+# Same-origin /api via the frontend nginx. Do not bake a developer .env.local URL.
+ENV VITE_API_URL=/api
+# The workspace script is `tsc -b && vite build`. This tree does not pass tsc -b,
+# so the box image ships the Vite bundle the browser actually runs.
+RUN npm run build -w @krasterisk/shared \
+ && npm exec -w @krasterisk/frontend -- vite build
+
+FROM nginx:1.27-alpine
+COPY deploy/compose/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /src/packages/frontend/dist /usr/share/nginx/html
+EXPOSE 80

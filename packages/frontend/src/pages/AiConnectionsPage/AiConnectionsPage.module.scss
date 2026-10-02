@@ -1,0 +1,220 @@
+.page {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.header {
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.iconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.title {
+  background: linear-gradient(
+    135deg,
+    var(--color-foreground),
+    color-mix(in srgb, var(--color-foreground) 70%, transparent)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.keyCard {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 42%),
+    var(--color-card);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-foreground) 5%, transparent);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    background: linear-gradient(
+      180deg,
+      var(--color-primary),
+      color-mix(in srgb, var(--color-primary) 20%, transparent)
+    );
+  }
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+    box-shadow: 0 14px 32px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    transform: translateY(-1px);
+  }
+}
+
+.badge {
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badgeActive {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+}
+
+.badgeDisabled {
+  color: var(--color-muted-foreground);
+  background: color-mix(in srgb, var(--color-muted) 70%, transparent);
+}
+
+.createRow {
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.emptyPanel {
+  width: 100%;
+  padding: 3.5rem 1.5rem;
+  align-items: center;
+  text-align: center;
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 38%, var(--color-border));
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(ellipse at top, color-mix(in srgb, var(--color-primary) 14%, transparent), transparent 62%),
+    var(--color-card);
+}
+
+.labelInput {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.docs {
+  width: 100%;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 7.5rem),
+    var(--color-card);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-foreground) 5%, transparent);
+}
+
+.docsNoteIcon {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--color-muted-foreground);
+}
+
+.baseBar {
+  width: 100%;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-muted) 55%, transparent);
+}
+
+.baseLabel {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.docEntry {
+  width: 100%;
+  overflow: hidden;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--color-background) 55%, var(--color-card));
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+
+  &:hover,
+  &:focus-within {
+    border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card));
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+}
+
+.docEntryOpen {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-card));
+}
+
+.docHeader {
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.15rem;
+}
+
+.docHit {
+  min-width: 0;
+  flex: 1;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: -2px;
+  }
+}
+
+.docTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.method {
+  flex-shrink: 0;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.methodPost {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  color: var(--color-primary);
+}
+
+.methodGet {
+  background: color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success);
+}
+
+.path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code {
+  margin: 0 0.75rem 0.75rem;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-background) 72%, var(--color-muted));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}

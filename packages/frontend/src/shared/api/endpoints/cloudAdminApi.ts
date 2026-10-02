@@ -23,7 +23,7 @@ export type BillingPeriod = 'hour' | 'day' | 'week' | 'month' | 'year' | 'custom
 export interface IHubCatalogItem {
   code: string;
   name: string;
-  kind: 'base' | 'market';
+  kind: 'base' | 'market' | 'off';
   sort_order: number;
   requires_cloud: boolean;
   licenseStatus: HubLicenseStatus;
@@ -31,6 +31,9 @@ export interface IHubCatalogItem {
   displayPrice?: number;
   billingPeriod?: string;
   billingIntervalCount?: number;
+  tenantVisible?: boolean;
+  /** Cabinet may connect its own speech models. Omitted by older catalogs. */
+  ownModels?: boolean;
   pages: Array<{ page_code: string; path: string | null; sort_order: number }>;
 }
 
@@ -54,7 +57,7 @@ export interface IPlatformHubPage {
 export interface IPlatformHubModule {
   code: string;
   name: string;
-  kind: 'base' | 'market';
+  kind: 'base' | 'market' | 'off';
   sort_order: number;
   requires_cloud: boolean;
   pages?: IPlatformHubPage[];
@@ -246,6 +249,41 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
         }
       },
       invalidatesTags: (_r, _e, { tenantId }) => [{ type: 'Tenants', id: `hub-${tenantId}` }],
+    }),
+
+    reorderTenantHubModules: builder.mutation<{ success: boolean }, { tenantId: number; codes: string[] }>({
+      query: ({ tenantId, codes }) => ({
+        url: `/cloud-admin/tenants/${tenantId}/hub-modules/reorder`,
+        method: 'PATCH',
+        body: { codes },
+      }),
+      invalidatesTags: (_r, _e, { tenantId }) => [
+        { type: 'Tenants', id: `hub-${tenantId}` },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
+    }),
+
+    setTenantHubVisibility: builder.mutation<unknown, { tenantId: number; code: string; visible: boolean }>({
+      query: ({ tenantId, code, visible }) => ({
+        url: `/cloud-admin/tenants/${tenantId}/hub-modules/${code}/visibility`,
+        method: 'PUT',
+        body: { visible },
+      }),
+      async onQueryStarted({ tenantId, code, visible }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(cloudAdminApi.util.updateQueryData('getTenantHubCatalog', tenantId, (draft) => {
+          const item = draft.find((row) => row.code === code);
+          if (item) item.tenantVisible = visible;
+        }));
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: (_r, _e, { tenantId }) => [
+        { type: 'Tenants', id: `hub-${tenantId}` },
+        { type: 'Tenants', id: 'HUB-CATALOG' },
+      ],
     }),
 
     grantTenantHubModule: builder.mutation<
@@ -498,20 +536,9 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
       providesTags: [{ type: 'Tenants', id: 'PLATFORM-HUB' }],
     }),
 
-    createPlatformHubModule: builder.mutation<
-      IPlatformHubModule,
-      { code: string; name: string; kind: 'base' | 'market'; sort_order?: number; requires_cloud?: boolean }
-    >({
-      query: (body) => ({ url: '/cloud-admin/hub-modules', method: 'POST', body }),
-      invalidatesTags: [
-        { type: 'Tenants', id: 'PLATFORM-HUB' },
-        { type: 'Tenants', id: 'HUB-CATALOG' },
-      ],
-    }),
-
     updatePlatformHubModule: builder.mutation<
       IPlatformHubModule,
-      { code: string; data: Partial<{ name: string; kind: 'base' | 'market'; sort_order: number; requires_cloud: boolean }> }
+      { code: string; data: Partial<{ name: string; kind: 'base' | 'market' | 'off'; sort_order: number; requires_cloud: boolean }> }
     >({
       query: ({ code, data }) => ({
         url: `/cloud-admin/hub-modules/${code}`,
@@ -656,6 +683,8 @@ export const {
   useEnableTenantHubModuleMutation,
   useDisableTenantHubModuleMutation,
   useGrantTenantHubModuleMutation,
+  useReorderTenantHubModulesMutation,
+  useSetTenantHubVisibilityMutation,
   useEntitleTenantAiProductMutation,
   useEntitleCurrentAiProductMutation,
   useActivateModuleMutation,
@@ -676,7 +705,6 @@ export const {
   useGetPlatformRoleStartDefaultsQuery,
   useUpdatePlatformRoleStartDefaultsMutation,
   useGetPlatformHubModulesQuery,
-  useCreatePlatformHubModuleMutation,
   useUpdatePlatformHubModuleMutation,
   useReorderPlatformHubModulesMutation,
   useReplacePlatformHubModulePagesMutation,

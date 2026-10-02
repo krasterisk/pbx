@@ -1,0 +1,17 @@
+---
+- name: Allow the box ports and keep Zabbix
+  ansible.builtin.shell: |
+    set -euo pipefail
+    ufw allow 22/tcp
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    ufw allow 5060/udp
+    ufw allow 10000:20000/udp
+    ufw allow 10050/tcp
+    # Frontend container reaches the host-network backend.
+    ufw allow from 172.16.0.0/12 to any port 5010 proto tcp
+    ufw default deny incoming
+    ufw --force enable
+  args:
+    executable: /bin/bash
+  changed_when: true

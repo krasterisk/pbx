@@ -57,6 +57,9 @@ function insightKindLabel(type: string, translate: (key: string, fallback: strin
 
 type KpiVariant = 'primary' | 'success' | 'warning' | 'error';
 
+/** Cards always shown, plus the superadmin STT card. */
+const DASHBOARD_KPI_COUNT = 6;
+
 function KpiBadge({
   title,
   value,
@@ -202,6 +205,12 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
     return t('speechAnalytics.sentimentNeutral', 'Нейтральное');
   }, [t]);
 
+  const successSliceLabel = useCallback((name: 'yes' | 'no') => (
+    name === 'yes'
+      ? t('speechAnalytics.successYes', 'Успешные')
+      : t('speechAnalytics.successNo', 'Без успеха')
+  ), [t]);
+
   const onGetInsights = useCallback(async () => {
     if (!projectId || belowMinInsights) return;
     setInsightsError(false);
@@ -309,7 +318,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
 
       {projectsQuery.isLoading || (Boolean(projectId) && dashboardQuery.isLoading) ? (
         <div className={cls.statGrid} data-testid="dashboard-skeleton">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: DASHBOARD_KPI_COUNT + (isSuperAdmin ? 1 : 0) }).map((_, i) => (
             <Card key={i} className={cls.kpi}>
               <Skeleton className={cls.skeletonBlock} />
             </Card>
@@ -581,25 +590,24 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
                     onClick={(entry) => {
                       const name = (entry as { name?: 'yes' | 'no' }).name;
                       if (name !== 'yes' && name !== 'no') return;
-                      const title = name === 'yes'
-                        ? t('speechAnalytics.successYes', 'Успешные')
-                        : t('speechAnalytics.successNo', 'Без успеха');
-                      openList(title, { type: 'success', success: name === 'yes' });
+                      openList(successSliceLabel(name), { type: 'success', success: name === 'yes' });
                     }}
                   >
                     {successData.map((slice) => (
                       <Cell key={slice.name} fill={slice.name === 'yes' ? '#22c55e' : '#64748b'} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value, _name, item) => {
+                    const key = (item?.payload as { name?: 'yes' | 'no' } | undefined)?.name;
+                    return [value, key === 'yes' || key === 'no' ? successSliceLabel(key) : ''];
+                  }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
             <ul className={cls.legend}>
               {successData.map((slice) => {
-                const title = slice.name === 'yes'
-                  ? t('speechAnalytics.successYes', 'Успешные')
-                  : t('speechAnalytics.successNo', 'Без успеха');
+                const title = successSliceLabel(slice.name);
                 return (
                   <li key={slice.name}>
                     <button

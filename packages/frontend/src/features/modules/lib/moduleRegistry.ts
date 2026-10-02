@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { UserLevel } from '@krasterisk/shared';
 import type { HubModuleRow, LicenseStatus, ModuleDef, ModulePageDef } from '../types';
+import { applyCatalogNav, sortModulesByCatalogOrder } from './catalogNavOrder';
 import { sortByFavorites } from './favorites';
 
 /** Minimal catalog shape for license merge (matches IHubCatalogItem). */
@@ -44,9 +45,13 @@ export interface HubCatalogLicenseItem {
   code: string;
   licenseStatus: LicenseStatus;
   name?: string;
+  sort_order?: number;
   displayPrice?: number;
   billingPeriod?: string;
   billingIntervalCount?: number;
+  pages?: Array<{ page_code: string; path?: string | null; sort_order?: number }>;
+  kind?: 'base' | 'market' | 'off';
+  tenantVisible?: boolean;
 }
 
 const ADMIN_PLUS: UserLevel[] = [UserLevel.ADMIN, UserLevel.SUPERADMIN];
@@ -415,24 +420,36 @@ export function licenseStatusFromCatalog(
   catalog: HubCatalogLicenseItem[] | undefined,
   module: ModuleDef,
 ): LicenseStatus {
+  if (module.kind === 'off') return 'disabled';
   const hit = catalog?.find((c) => c.code === module.code);
   if (hit) return hit.licenseStatus;
   // Client must not invent active for market modules when catalog absent
   return module.kind === 'base' ? 'active' : 'locked';
 }
 
-/** Merge BASELINE_MODULES with RTK hub catalog → Hub rows. */
+export function isHubModuleShown(row: { kind: string; tenantVisible?: boolean }): boolean {
+  return row.kind !== 'off' && row.tenantVisible !== false;
+}
+
+/**
+ * Merge BASELINE_MODULES with RTK hub catalog → Hub rows.
+ * Catalog sort_order drives Hub module order and navbar page order.
+ */
 export function mergeModulesWithCatalog(
   modules: ModuleDef[],
   catalog: HubCatalogLicenseItem[] | undefined,
   favoriteCodes: string[] = [],
 ): HubModuleRow[] {
   const favSet = new Set(favoriteCodes);
-  return modules.map((mod) => {
+  const ordered = sortModulesByCatalogOrder(applyCatalogNav(modules, catalog), catalog);
+  return ordered.map((mod) => {
     const cat = catalog?.find((c) => c.code === mod.code);
+    const kind = cat?.kind ?? mod.kind;
     return {
       ...mod,
-      licenseStatus: licenseStatusFromCatalog(catalog, mod),
+      kind,
+      tenantVisible: cat ? cat.tenantVisible !== false : true,
+      licenseStatus: licenseStatusFromCatalog(catalog, { ...mod, kind }),
       favorite: favSet.has(mod.code),
       catalogName: cat?.name,
       displayPrice: cat?.displayPrice,

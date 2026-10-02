@@ -680,6 +680,26 @@ const speechAnalyticsApi = rtkApi.injectEndpoints({
       query: (body) => ({ url: '/speech-analytics/speech-models', method: 'PUT', body }),
       invalidatesTags: [{ type: 'SpeechAnalytics', id: 'SPEECH_MODELS' }],
     }),
+    getSaApiTokens: builder.query<Array<{
+      id: string;
+      label: string;
+      status: string;
+      projectId: string | null;
+      generation: number | null;
+      createdAt: string;
+    }>, void>({
+      query: () => '/speech-analytics/api-tokens',
+      providesTags: [{ type: 'SpeechAnalytics', id: 'API_TOKENS' }],
+    }),
+    createSaApiToken: builder.mutation<{
+      principalId: string;
+      projectId: string;
+      token: string | null;
+      replay: boolean;
+    }, { label: string; projectId: string; operationId: string }>({
+      query: (body) => ({ url: '/speech-analytics/api-tokens', method: 'POST', body }),
+      invalidatesTags: [{ type: 'SpeechAnalytics', id: 'API_TOKENS' }],
+    }),
   }),
 });
 
@@ -707,6 +727,8 @@ export const {
   useRequestSaInsightsMutation,
   useGetSaSpeechModelsQuery,
   useSaveSaSpeechModelsMutation,
+  useGetSaApiTokensQuery,
+  useCreateSaApiTokenMutation,
   useGetSaCapturePolicyQuery,
   useSetSaCapturePolicyMutation,
   useGetSaModuleSettingsQuery,

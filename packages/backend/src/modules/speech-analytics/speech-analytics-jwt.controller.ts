@@ -8,8 +8,9 @@ import { SpeechAnalyticsService, assertUuid } from './speech-analytics.service';
 import { SaMetricsService } from './metrics/metrics.service';
 import { SaReportingService } from './reporting/reporting.service';
 import { SaJournalService } from './journal/journal.service';
-import type { JournalExcelHeaderLabels } from './journal/excel-export';
 import { InsightsService } from './dashboard/insights.service';
+import type { JournalExcelHeaderLabels } from './journal/excel-export';
+import { IntegrationCredentialsService } from '../integration-credentials/integration-credentials.service';
 import { SaNoticeDeliveryService } from './notices/notice-delivery.service';
 import type { AnalyticsFilterSpec } from '@krasterisk/shared';
 import type { SaProjectConfigV1 } from '@krasterisk/shared';
@@ -53,9 +54,33 @@ export class SpeechAnalyticsJwtController {
     private readonly reporting: SaReportingService,
     private readonly journal: SaJournalService,
     private readonly insights: InsightsService,
+    private readonly credentials: IntegrationCredentialsService,
     private readonly notices: SaNoticeDeliveryService,
     private readonly products: ProductAccessService,
   ) {}
+
+  @Get('api-tokens')
+  apiTokens(@Req() request: Authed) {
+    return this.credentials.listSpeechAnalyticsKeys(request.tenantContext);
+  }
+
+  @Post('api-tokens')
+  @HttpCode(201)
+  createApiToken(@Req() request: Authed, @Body() body: {
+    label?: string;
+    projectId?: string;
+    operationId?: string;
+  }) {
+    if (!body.projectId || !body.operationId || !body.label?.trim()) {
+      throw new HttpException({ code: 'integration_create_invalid' }, 400);
+    }
+    assertUuid(body.projectId);
+    return this.credentials.issueSpeechAnalyticsToken(request.tenantContext, {
+      label: body.label.trim(),
+      projectId: body.projectId,
+      operationId: body.operationId,
+    });
+  }
 
   @Get('journal')
   listJournal(@Req() request: Authed) {

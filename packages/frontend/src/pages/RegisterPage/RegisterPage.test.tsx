@@ -2,13 +2,38 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { RegisterPage } from './RegisterPage';
 
-const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
-vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }) }));
-vi.mock('@/widgets/AuthFrame/AuthFrame', () => ({ AuthFrame: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
+const { navigate, authConfig } = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  authConfig: { registrationEnabled: true, isLoading: false, isError: false },
+}));
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => navigate,
+  Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+    <a href={to} className={className}>{children}</a>
+  ),
+}));
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: string | { year?: number }) =>
+      typeof options === 'string' ? options : key,
+    i18n: { language: 'ru', changeLanguage: vi.fn() },
+  }),
+}));
+vi.mock('@/shared/api/endpoints/authApi', () => ({
+  useGetAuthConfigQuery: () => ({
+    data: authConfig.isLoading ? undefined : { registrationEnabled: authConfig.registrationEnabled },
+    isLoading: authConfig.isLoading,
+    isError: authConfig.isError,
+  }),
+}));
 
 describe('organization registration', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authConfig.registrationEnabled = true;
+    authConfig.isLoading = false;
+    authConfig.isError = false;
+  });
   afterEach(() => vi.unstubAllGlobals());
   function fill(password = 'test-password') {
     fireEvent.change(screen.getByLabelText('Организация'), { target: { value: 'Test Company' } });
@@ -30,6 +55,12 @@ describe('organization registration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Пароли не совпадают');
     expect(fetch).not.toHaveBeenCalled();
+  });
+  it('sends visitors to login when organization signup is closed', async () => {
+    authConfig.registrationEnabled = false;
+    render(<RegisterPage />);
+    expect(screen.queryByLabelText('Организация')).not.toBeInTheDocument();
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/login', { replace: true }));
   });
   it('routes email registrations to activation and shows server validation errors', async () => {
     const fetch = vi.fn().mockResolvedValueOnce({ ok: false, json: async () => ({ message: ['Login exists'] }) })

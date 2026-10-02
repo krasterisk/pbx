@@ -1,0 +1,10 @@
+---
+- name: Prepare the customer host and build Asterisk
+  hosts: telephony
+  become: true
+  roles:
+    - common
+    - source
+    - docker_host
+    - firewall
+    - asterisk

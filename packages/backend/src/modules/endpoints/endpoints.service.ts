@@ -20,6 +20,7 @@ import {
   companionIdOf,
   primaryIdOf,
 } from './endpoint-ids.util';
+import { buildEndpointContext, stripEndpointContext } from './endpoint-context-name';
 
 /** NAT profile presets that auto-configure multiple PJSIP parameters */
 const NAT_PROFILES: Record<string, Partial<PsEndpoint>> = {
@@ -83,24 +84,6 @@ export class EndpointsService {
     private loggerService: LoggerService,
     @Inject(REDIS_CLIENT) private readonly redis: any,
   ) {}
-
-  /** Build default context name for a tenant */
-  private buildDefaultContext(_vpbxUserUid: number): string {
-    return 'from-internal';
-  }
-
-  /**
-   * Build context with tenant ID suffix.
-   * e.g. context='sip-out', tenantId=0 → 'sip-out0'
-   * Falls back to default context if context is null/undefined.
-   */
-  private buildContext(context: string | undefined | null, vpbxUserUid: number): string {
-    const base = context || this.buildDefaultContext(vpbxUserUid);
-    const suffix = String(vpbxUserUid);
-    // If context already ends with the tenant ID, don't duplicate
-    if (base.endsWith(suffix)) return base;
-    return `${base}${suffix}`;
-  }
 
   /** Generate a cryptographically secure random password */
   private generatePassword(length = 16): string {
@@ -332,19 +315,6 @@ export class EndpointsService {
     return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
   }
 
-  /**
-   * Strip tenant ID suffix from context for display.
-   * e.g. 'sip-out0' with tenantId=0 → 'sip-out'
-   */
-  private stripContext(context: string | null, vpbxUserUid: number): string {
-    if (!context) return '';
-    const suffix = String(vpbxUserUid);
-    if (context.endsWith(suffix)) {
-      return context.slice(0, -suffix.length);
-    }
-    return context;
-  }
-
   private async persistJob(job: BulkJob): Promise<void> {
     this.activeJobs.set(job.id, job);
     await this.redis.set(
@@ -444,7 +414,7 @@ export class EndpointsService {
         return {
           ...epJson,
           webrtc_enabled: !!webrtcId,
-          context: this.stripContext(epJson.context, vpbxUserUid),
+          context: stripEndpointContext(epJson.context, vpbxUserUid),
           extension: extractExtension(ep.id),
           sipUsername: ep.id,
           authType: auth?.auth_type || 'userpass',
@@ -490,7 +460,7 @@ export class EndpointsService {
       endpoint: {
         ...epJson,
         webrtc_enabled: !!companion,
-        context: this.stripContext(epJson.context, vpbxUserUid),
+        context: stripEndpointContext(epJson.context, vpbxUserUid),
       },
       auth: auth ? { ...auth.toJSON(), password: '********' } : null,
       aor: aor?.toJSON() || null,
@@ -558,7 +528,7 @@ export class EndpointsService {
     const exists = await this.endpointModel.findByPk(sipId);
     if (exists) throw new ConflictException(`Extension ${dto.extension} already exists`);
 
-    const context = this.buildContext(dto.context, vpbxUserUid);
+    const context = buildEndpointContext(dto.context, vpbxUserUid);
     const natSettings = this.resolvePrimaryNatProfile(dto.natProfile);
     const callerid = dto.displayName
       ? `"${dto.displayName}" <${dto.extension}>`
@@ -782,7 +752,7 @@ export class EndpointsService {
   }
 
   private async processBulkChunk(chunk: number[], dto: BulkCreateEndpointDto, vpbxUserUid: number, createdDest: string[], skippedDest: string[]) {
-    const context = this.buildContext(dto.context, vpbxUserUid);
+    const context = buildEndpointContext(dto.context, vpbxUserUid);
     const natSettings = this.resolvePrimaryNatProfile(dto.natProfile);
     const webrtcEnabled = dto.webrtcEnabled === true;
     const allow = dto.codecs || 'ulaw,alaw,g722';
@@ -891,7 +861,7 @@ export class EndpointsService {
 
       if (epPatch) {
         if (epPatch.context) {
-          epPatch.context = this.buildContext(epPatch.context, vpbxUserUid);
+          epPatch.context = buildEndpointContext(epPatch.context, vpbxUserUid);
         }
         // Never put WebRTC media profile on the primary via raw patch
         if ((epPatch as any).webrtc === 'yes') {

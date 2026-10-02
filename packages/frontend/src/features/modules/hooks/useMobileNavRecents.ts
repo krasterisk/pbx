@@ -21,7 +21,9 @@ export function useMobileNavRecents(activeModules: HubModuleRow[]): {
   const location = useLocation();
   const [state, setState] = useState<MobileNavState>(() => readMobileNavState());
 
-  const moduleCode = findModuleByPath(location.pathname)?.code;
+  const moduleCode =
+    findModuleByPath(location.pathname, activeModules)?.code
+    ?? findModuleByPath(location.pathname)?.code;
   const center = resolveCenterCode(location.pathname, moduleCode);
 
   useEffect(() => {

@@ -9,6 +9,7 @@ import {
 } from '@/features/cloud-admin/ui/AiChatSettingsCard/AiChatSettingsCard';
 import { GlobalModelsPanel } from '@/features/cloud-admin/ui/GlobalModelsPanel/GlobalModelsPanel';
 import { SpeechAnalyticsModelsCard } from '@/features/cloud-admin/ui/SpeechAnalyticsModelsCard/SpeechAnalyticsModelsCard';
+import { RegistrationPolicyCard } from '@/features/cloud-admin/ui/RegistrationPolicyCard/RegistrationPolicyCard';
 import { Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import cls from './PlatformPages.module.scss';
@@ -94,6 +95,7 @@ export const PlatformTenantsPage = () => {
       {tab === 'usage' && <AgentUsageCard />}
       {tab === 'settings' && (
         <VStack gap="20" max>
+          <RegistrationPolicyCard />
           <AiChatSettingsCard />
           <SpeechAnalyticsModelsCard />
         </VStack>

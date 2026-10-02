@@ -1,0 +1,18 @@
+krasterisk_public_ip: 185.177.216.132
+krasterisk_public_url: "http://{{ krasterisk_public_ip }}"
+krasterisk_src: /opt/krasterisk/src
+krasterisk_env_file: /opt/krasterisk/env/production.env
+krasterisk_source: sync
+krasterisk_git_repo: ""
+krasterisk_git_ref: main
+krasterisk_require_robot: true
+krasterisk_robot_bundle: /opt/krasterisk/secrets/komandor.bundle.json
+db_name: krasterisk
+db_user: krasterisk
+ari_user: krasterisk
+ami_login: krasterisk
+ari_app_name: krasterisk_voicerobots
+admin_login: admin
+asterisk_tarball: /usr/local/src/asterisk-certified-22.8-cert4.tar.gz
+asterisk_src: /usr/local/src/asterisk-certified-22.8-cert4
+asterisk_version_needle: certified-22.8-cert4

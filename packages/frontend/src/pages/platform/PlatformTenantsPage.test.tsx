@@ -30,6 +30,10 @@ vi.mock('@/features/cloud-admin/ui/SpeechAnalyticsModelsCard/SpeechAnalyticsMode
   SpeechAnalyticsModelsCard: () => <div data-testid="speech-analytics-models">speech</div>,
 }));
 
+vi.mock('@/features/cloud-admin/ui/RegistrationPolicyCard/RegistrationPolicyCard', () => ({
+  RegistrationPolicyCard: () => <div data-testid="registration-policy">registration</div>,
+}));
+
 import { PlatformTenantsPage } from './PlatformTenantsPage';
 
 describe('PlatformTenantsPage', () => {
@@ -56,6 +60,7 @@ describe('PlatformTenantsPage', () => {
     expect(screen.getByTestId('agent-usage')).toBeInTheDocument();
     expect(screen.queryByTestId('sellers-table')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('platform-settings-tab'));
+    expect(screen.getByTestId('registration-policy')).toBeInTheDocument();
     expect(screen.getByTestId('ai-chat-settings')).toBeInTheDocument();
     expect(screen.getByTestId('speech-analytics-models')).toBeInTheDocument();
     expect(screen.queryByTestId('agent-usage')).not.toBeInTheDocument();

@@ -1,0 +1,48 @@
+name: krasterisk
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  backend:
+    image: krasterisk-backend:${KRASTERISK_IMAGE_TAG}
+    network_mode: host
+    env_file:
+      - /opt/krasterisk/env/production.env
+    volumes:
+      - /usr/records:/usr/records
+      - /opt/krasterisk/secrets:/secrets:ro
+      - /opt/krasterisk/src/deploy/robots:/deploy/robots:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: krasterisk-frontend:${KRASTERISK_IMAGE_TAG}
+    ports:
+      - "80:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /usr/records:/usr/records:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

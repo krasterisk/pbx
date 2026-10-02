@@ -256,6 +256,53 @@ export class IntegrationCredentialsService {
     return items;
   }
 
+  /** All speech-analytics keys, including revoked ones, with the bound project. */
+  async listSpeechAnalyticsKeys(context: TenantContext): Promise<Array<{
+    id: string;
+    label: string;
+    status: string;
+    projectId: string | null;
+    generation: number | null;
+    createdAt: Date;
+  }>> {
+    await this.tokenIssuerActor(context);
+    const principals = await this.principals.findAll({
+      where: { tenant_uid: context.tenantUid, product: 'speech_analytics' },
+      attributes: ['id', 'label', 'status', 'created_at'],
+      order: [['created_at', 'DESC']],
+      limit: 200,
+    });
+    const items: Array<{
+      id: string; label: string; status: string; projectId: string | null;
+      generation: number | null; createdAt: Date;
+    }> = [];
+    for (const principal of principals) {
+      const grant = await this.grants.findOne({
+        where: {
+          tenant_uid: context.tenantUid,
+          principal_id: principal.id,
+          resource_kind: 'project',
+          scope: 'analytics:upload',
+        },
+        attributes: ['resource_id'],
+      });
+      const current = await this.credentials.findOne({
+        where: { tenant_uid: context.tenantUid, principal_id: principal.id },
+        attributes: ['generation'],
+        order: [['generation', 'DESC']],
+      });
+      items.push({
+        id: principal.id,
+        label: principal.label,
+        status: principal.status,
+        projectId: grant?.resource_id ?? null,
+        generation: current?.generation ?? null,
+        createdAt: principal.created_at,
+      });
+    }
+    return items;
+  }
+
   /** Bound project for an authenticated SA integration principal (D-32). */
   async resolveSpeechAnalyticsProjectId(context: TenantContext): Promise<string> {
     if (context.principalKind !== 'integration') {
@@ -481,6 +528,27 @@ export class IntegrationCredentialsService {
         updated_at: now }, { transaction });
       await this.audit(transaction, context, principalId, 'revoke', {}, now);
       return true;
+    });
+  }
+
+  /** Remove the principal, its keys, grants and audit. The secret stops working. */
+  async remove(context: TenantContext, principalId: string): Promise<void> {
+    await this.adminActor(context);
+    if (!UUID.test(principalId)) throw new BadRequestException({ code: 'integration_id_invalid' });
+    await this.sequelize.transaction(async (transaction) => {
+      const principal = await this.principals.findOne({
+        where: { id: principalId, tenant_uid: context.tenantUid },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!principal) throw new NotFoundException({ code: 'integration_not_found' });
+      const where = { tenant_uid: context.tenantUid, principal_id: principalId };
+      await this.commands.destroy({ where, transaction });
+      await this.audits.destroy({ where, transaction });
+      await this.grants.destroy({ where, transaction });
+      await this.credentials.update({ predecessor_id: null }, { where, transaction });
+      await this.credentials.destroy({ where, transaction });
+      await principal.destroy({ transaction });
     });
   }
 

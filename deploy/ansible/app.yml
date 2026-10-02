@@ -1,0 +1,7 @@
+---
+- name: Build and start the Krasterisk box
+  hosts: telephony
+  become: true
+  roles:
+    - source
+    - app

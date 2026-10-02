@@ -73,7 +73,13 @@ export const store = configureStore({
     [rtkApi.reducerPath]: rtkApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(rtkApi.middleware).concat(resetApiOnLogout),
+    getDefaultMiddleware({
+      // RTK Query cache is large and several screens poll it. The dev-only
+      // invariant walks the whole tree on every dispatch and logs once it
+      // exceeds 32ms. Production builds do not include these checks.
+      serializableCheck: false,
+      immutableCheck: false,
+    }).concat(rtkApi.middleware).concat(resetApiOnLogout),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

@@ -1,0 +1,17 @@
+# Optional overrides. Encrypt with ansible-vault and save as vault.yml
+# next to this file. If production.env already exists on the server,
+# the playbook does not regenerate it.
+#
+# krasterisk_source: git
+# krasterisk_git_repo: git@example.com:krasterisk/krasterisk_v4.git
+# krasterisk_git_ref: v4.6.4
+# admin_login: admin
+# inbound DID and trunk are appended to production.env by the operator,
+# not stored here:
+#   INBOUND_DID=
+#   TRUNK_HOST=
+#   TRUNK_PORT=5060
+#   TRUNK_MODE=ip
+#   TRUNK_USERNAME=
+#   TRUNK_PASSWORD=
+#   TRUNK_MATCH=

@@ -2,7 +2,8 @@ import { NavLink, Navigate, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Building2, LayoutGrid, MapPin, MessagesSquare, CircleDollarSign } from 'lucide-react';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
-import { VStack } from '@/shared/ui/Stack';
+import { HStack, VStack } from '@/shared/ui/Stack';
+import { UserBlock } from '@/widgets/UserBlock';
 import cls from './PlatformLayout.module.scss';
 
 const PLATFORM_NAV = [
@@ -28,12 +29,15 @@ export const PlatformLayout = () => {
   return (
     <div className={cls.root} data-testid="platform-layout">
       <div className={cls.inner}>
-        <div className={cls.consoleChrome} data-testid="platform-console-chrome">
-          <span>{t('platform.consoleBanner', 'You are in the')}</span>
-          <strong className={cls.consoleEmphasis}>
-            {t('platform.consoleEmphasis', 'platform console')}
-          </strong>
-        </div>
+        <HStack justify="between" align="center" max className={cls.topbar}>
+          <div className={cls.consoleChrome} data-testid="platform-console-chrome">
+            <span>{t('platform.consoleBanner', 'You are in the')}</span>
+            <strong className={cls.consoleEmphasis}>
+              {t('platform.consoleEmphasis', 'platform console')}
+            </strong>
+          </div>
+          <UserBlock />
+        </HStack>
 
         <nav className={cls.nav} aria-label={t('platform.navAria', 'Platform console')}>
           {PLATFORM_NAV.map(({ to, labelKey, icon: Icon }) => (

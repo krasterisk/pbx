@@ -41,6 +41,8 @@ vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
   useEnableTenantHubModuleMutation: () => [enableHub, { isLoading: false }],
   useDisableTenantHubModuleMutation: () => [disableHub, { isLoading: false }],
   useGrantTenantHubModuleMutation: () => [grantHub, { isLoading: false }],
+  useReorderTenantHubModulesMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ success: true }) })), { isLoading: false }],
+  useSetTenantHubVisibilityMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ success: true }) })), { isLoading: false }],
   useGetSellersQuery: () => ({
     data: [{ id: 1, name: 'Default Seller', isDefault: true }],
     isLoading: false,

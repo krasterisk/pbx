@@ -1,0 +1,144 @@
+---
+- name: Create the box environment file
+  ansible.builtin.command: >
+    /bin/bash {{ krasterisk_src }}/deploy/scripts/render-env.sh
+    {{ krasterisk_env_file }}
+  environment:
+    PUBLIC_IP: "{{ krasterisk_public_ip }}"
+    PUBLIC_URL: "{{ krasterisk_public_url }}"
+    DB_NAME: "{{ db_name }}"
+    DB_USER: "{{ db_user }}"
+    ARI_USER: "{{ ari_user }}"
+    AMI_LOGIN: "{{ ami_login }}"
+    ARI_APP_NAME: "{{ ari_app_name }}"
+    ADMIN_LOGIN: "{{ admin_login }}"
+  changed_when: true
+
+- name: Point Compose at the environment file
+  ansible.builtin.file:
+    src: "{{ krasterisk_env_file }}"
+    dest: "{{ item }}"
+    state: link
+    force: true
+  loop:
+    - "{{ krasterisk_src }}/.env"
+    - "{{ krasterisk_src }}/deploy/compose/.env"
+
+- name: Resolve the image tag
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if git -C "{{ krasterisk_src }}" rev-parse --short HEAD >/dev/null 2>&1; then
+      git -C "{{ krasterisk_src }}" rev-parse --short HEAD
+    else
+      sha256sum "{{ krasterisk_src }}/package.json" | cut -c1-12
+    fi
+  args:
+    executable: /bin/bash
+  register: krasterisk_image_tag
+  changed_when: false
+
+- name: Remember the image tag
+  ansible.builtin.copy:
+    dest: /opt/krasterisk/env/image-tag
+    content: "{{ krasterisk_image_tag.stdout }}\n"
+    mode: "0644"
+
+- name: Build application images
+  ansible.builtin.command: >
+    docker build
+    -f {{ krasterisk_src }}/deploy/compose/{{ item.file }}
+    -t {{ item.image }}:{{ krasterisk_image_tag.stdout }}
+    {{ krasterisk_src }}
+  loop:
+    - { file: Dockerfile.backend, image: krasterisk-backend }
+    - { file: Dockerfile.frontend, image: krasterisk-frontend }
+  args:
+    chdir: "{{ krasterisk_src }}"
+  environment:
+    DOCKER_BUILDKIT: "0"
+  changed_when: true
+
+- name: Start PostgreSQL
+  ansible.builtin.command: /bin/bash {{ krasterisk_src }}/deploy/scripts/compose.sh up -d postgres
+
+- name: Wait until PostgreSQL accepts connections
+  ansible.builtin.command: /bin/bash {{ krasterisk_src }}/deploy/scripts/compose.sh exec -T postgres pg_isready -U {{ db_user }} -d {{ db_name }}
+  register: pg_ready
+  retries: 30
+  delay: 2
+  until: pg_ready.rc == 0
+  changed_when: false
+
+- name: Apply schema migrations
+  ansible.builtin.command: >
+    /bin/bash {{ krasterisk_src }}/deploy/scripts/compose.sh
+    run --rm --no-deps backend node database/run-migrations.cjs
+
+- name: Render AMI, ARI and ODBC configs
+  ansible.builtin.command: /bin/bash {{ krasterisk_src }}/deploy/asterisk/render-runtime-conf.sh {{ krasterisk_env_file }}
+  no_log: true
+
+- name: Own Asterisk config tree
+  ansible.builtin.file:
+    path: /etc/asterisk
+    state: directory
+    owner: asterisk
+    group: asterisk
+    recurse: true
+
+- name: Start Asterisk
+  ansible.builtin.systemd:
+    name: asterisk
+    enabled: true
+    state: restarted
+    daemon_reload: true
+
+- name: Wait until Asterisk answers AMI
+  ansible.builtin.command: asterisk -rx "core show version"
+  register: asterisk_up
+  retries: 20
+  delay: 2
+  until: asterisk_up.rc == 0 and asterisk_version_needle in asterisk_up.stdout
+  changed_when: false
+
+- name: Require the robot bundle
+  ansible.builtin.stat:
+    path: "{{ krasterisk_robot_bundle }}"
+  register: robot_bundle
+
+- name: Fail when the robot bundle is missing
+  ansible.builtin.fail:
+    msg: "Put the Komandor bundle at {{ krasterisk_robot_bundle }} before app.yml."
+  when: krasterisk_require_robot | bool and not robot_bundle.stat.exists
+
+- name: Start backend and frontend
+  ansible.builtin.command: /bin/bash {{ krasterisk_src }}/deploy/scripts/compose.sh up -d backend frontend
+
+- name: Wait for the backend health endpoint
+  ansible.builtin.uri:
+    url: http://127.0.0.1:5010/api/health
+    status_code: 200
+  register: backend_health
+  retries: 30
+  delay: 5
+  until: backend_health.status == 200
+
+- name: Import the Komandor robot
+  ansible.builtin.command: >
+    /bin/bash {{ krasterisk_src }}/deploy/scripts/compose.sh
+    exec -T backend node /deploy/robots/import-voice-robot.mjs /secrets/komandor.bundle.json
+  when: robot_bundle.stat.exists
+
+- name: Seed the box admin, route 901 and queue 614
+  ansible.builtin.command: >
+    /bin/bash {{ krasterisk_src }}/deploy/scripts/compose.sh
+    exec -T backend node /deploy/robots/seed-box.mjs
+
+- name: Reload PJSIP and queues from realtime
+  ansible.builtin.command: asterisk -rx "{{ item }}"
+  loop:
+    - module reload res_pjsip.so
+    - module reload res_pjsip_outbound_registration.so
+    - module reload res_pjsip_endpoint_identifier_ip.so
+    - queue reload all
+  changed_when: false

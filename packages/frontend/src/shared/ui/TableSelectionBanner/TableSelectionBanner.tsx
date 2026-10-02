@@ -18,32 +18,44 @@ export interface TableSelectionBannerProps<TData> {
 
 function TableSelectionBannerInner<TData>({
   table,
+  pageSize: pageSizeProp,
+  allMatchingSelected,
   selectedCount,
   onSelectAllMatching,
+  onClear,
 }: TableSelectionBannerProps<TData>) {
   const { t } = useTranslation();
   const filteredCount = table.getFilteredRowModel().rows.length;
+  const pageRows = table.getRowModel().rows;
+  const pageCount = pageRows.length;
+  const pageSize = table.getState().pagination.pageSize || pageSizeProp || 50;
+  const allPageSelected = pageCount > 0 && pageRows.every((row) => row.getIsSelected());
+  // Gmail (§4.2.1): the bar exists only after the whole page is selected
+  // and more rows sit on other pages. A single checkbox must not insert a row.
+  const show = allPageSelected && filteredCount > pageSize && selectedCount > 0;
 
-  if (selectedCount <= 0) return null;
+  if (!show) return null;
 
   return (
-    <Flex
-      align="center"
-      justify="center"
-      className={cls.banner}
-      max
-      data-testid="table-selection-banner"
-    >
-      <HStack gap="12" align="center" wrap="wrap" justify="center">
-        <Text variant="muted">
-          {t('common.selectionBannerCount', { count: selectedCount })}
-        </Text>
-        {filteredCount > selectedCount ? (
-          <Button variant="link" className={cls.link} onClick={onSelectAllMatching}>
-            {t('common.selectionBannerSelectAll', { total: filteredCount })}
-          </Button>
-        ) : null}
-      </HStack>
+    <Flex className={cls.slot} max data-testid="table-selection-banner">
+      <Flex align="center" justify="center" className={cls.banner} max>
+        <HStack gap="12" align="center" wrap="wrap" justify="center">
+          <Text variant="muted">
+            {allMatchingSelected
+              ? t('common.selectionBannerAll', { total: filteredCount })
+              : t('common.selectionBannerPage', { pageCount })}
+          </Text>
+          {allMatchingSelected ? (
+            <Button type="button" variant="link" className={cls.link} onClick={onClear}>
+              {t('common.selectionBannerClear')}
+            </Button>
+          ) : (
+            <Button type="button" variant="link" className={cls.link} onClick={onSelectAllMatching}>
+              {t('common.selectionBannerSelectAll', { total: filteredCount })}
+            </Button>
+          )}
+        </HStack>
+      </Flex>
     </Flex>
   );
 }

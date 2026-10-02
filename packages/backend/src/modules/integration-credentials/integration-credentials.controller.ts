@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Header, HttpCode, HttpStatus, Param,
+  Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param,
   Post, Put, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -95,5 +95,14 @@ export class IntegrationCredentialsController {
   async revoke(@Req() request: AuthenticatedRequest, @Param('id') id: string): Promise<void> {
     await this.limiter.consumeManagement(request.tenantContext);
     await this.credentials.disable(request.tenantContext, id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete an integration principal and its keys' })
+  @ApiResponse({ status: 204, description: 'Principal removed' })
+  async remove(@Req() request: AuthenticatedRequest, @Param('id') id: string): Promise<void> {
+    await this.limiter.consumeManagement(request.tenantContext);
+    await this.credentials.remove(request.tenantContext, id);
   }
 }

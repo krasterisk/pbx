@@ -51,7 +51,7 @@ export class LoggerService {
         : '📝';
 
       const tgMessage = `<code>${emoji} ${action}</code>\n<b>User:</b> ${userId}\n<b>Tenant:</b> ${vpbxUserUid}\n<b>Entity:</b> ${entityType} (ID: ${entityId || 'N/A'})\n<b>Status:</b> ${status}\n<b>Details:</b> ${details || '-'}`;
-      await this.telegramService.sendMessage(tgMessage, { parse_mode: 'HTML' });
+      void this.telegramService.sendMessage(tgMessage, { parse_mode: 'HTML' });
     } catch (e) {
       console.error('Failed to log action:', e);
     }

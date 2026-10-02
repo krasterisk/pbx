@@ -51,6 +51,10 @@ const integrationsApi = rtkApi.injectEndpoints({
       query: (id) => ({ url: `/v1/integrations/${id}/revoke`, method: 'POST' }),
       invalidatesTags: [{ type: 'AiIntegrations', id: 'LIST' }],
     }),
+    deleteIntegration: builder.mutation<void, string>({
+      query: (id) => ({ url: `/v1/integrations/${id}`, method: 'DELETE' }),
+      invalidatesTags: [{ type: 'AiIntegrations', id: 'LIST' }],
+    }),
     setProductActivation: builder.mutation<{ product: AiProductCode; enabled: boolean; revision: number }, {
       code: AiProductCode; enabled: boolean;
     }>({
@@ -87,5 +91,6 @@ export const {
   useCreateIntegrationMutation,
   useRotateIntegrationMutation,
   useRevokeIntegrationMutation,
+  useDeleteIntegrationMutation,
   useSetProductActivationMutation,
 } = integrationsApi;

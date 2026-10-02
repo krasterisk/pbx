@@ -3,7 +3,7 @@
  * Additive layer over page-level MODULES_SEED — do not remove registry rows.
  */
 
-export type HubModuleKind = 'base' | 'market';
+export type HubModuleKind = 'base' | 'market' | 'off';
 
 export interface HubModuleSeed {
   code: string;

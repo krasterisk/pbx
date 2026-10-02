@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/dist-*
+**/.git
+**/.planning
+**/android
+**/ios
+**/.idea
+**/coverage
+**/*.log
+**/.env.local
+**/.env.*.local
+agent-transcripts
+.cursor

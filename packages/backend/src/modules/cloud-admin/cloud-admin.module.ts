@@ -9,6 +9,7 @@ import { ModuleRegistry } from './module-registry.model';
 import { TenantModule } from './tenant-module.model';
 import { HubModule } from './models/hub-module.model';
 import { HubModulePage } from './models/hub-module-page.model';
+import { TenantHubLayout } from './models/tenant-hub-layout.model';
 import { RoleStartDefault, TenantRoleStart } from './models/role-start.model';
 import { DeviceToken } from './models/device-token.model';
 import { User } from '../users/user.model';
@@ -44,12 +45,13 @@ import { ProductAccessModule } from '../product-access/product-access.module';
 import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module';
 import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { GlobalProvidersController } from './global-providers.controller';
+import { RegistrationPolicyController } from './registration-policy.controller';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([
       Tenant, BillingSeller, ModuleRegistry, TenantModule, User, CloudSetting,
-      HubModule, HubModulePage,
+      HubModule, HubModulePage, TenantHubLayout,
       RoleStartDefault, TenantRoleStart,
       DeviceToken,
     ]),
@@ -99,6 +101,7 @@ import { GlobalProvidersController } from './global-providers.controller';
     BillingSellersController,
     PlatformPricesController,
     GlobalProvidersController,
+    RegistrationPolicyController,
   ],
   exports: [
     TenantsService,

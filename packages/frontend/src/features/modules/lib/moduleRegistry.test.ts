@@ -8,6 +8,7 @@ import {
   findModuleByPath,
   getBaselineModule,
   mergeModulesWithCatalog,
+  isHubModuleShown,
   partitionModulesByLicense,
 } from './moduleRegistry';
 import { mapTenantStatusToLicenseStatus } from './licenseStatus';
@@ -174,6 +175,40 @@ describe('hub merge + favorites (NAV-02)', () => {
     expect(next).toEqual(['apps']);
     expect(loadFavoriteCodes()).toEqual(['apps']);
     expect(toggleFavoriteCode('apps', next)).toEqual([]);
+  });
+
+  it('orders navbar pages from catalog sort_order and moves membership', () => {
+    const rows = mergeModulesWithCatalog(BASELINE_MODULES, [
+      {
+        code: 'core',
+        licenseStatus: 'active',
+        sort_order: 5,
+        pages: [
+          { page_code: 'trunks', path: '/trunks', sort_order: 10 },
+          { page_code: 'endpoints', path: '/endpoints', sort_order: 20 },
+          { page_code: 'queues', path: '/queues', sort_order: 30 },
+        ],
+      },
+    ]);
+    const coreIds = rows.find((row) => row.code === 'core')?.pages.map((page) => page.id);
+    expect(coreIds?.slice(0, 3)).toEqual(['trunks', 'endpoints', 'queues']);
+    expect(coreIds).toContain('route-templates');
+    expect(coreIds).not.toContain('contexts');
+    expect(rows.find((row) => row.code === 'apps')?.pages.some((page) => page.id === 'queues')).toBe(false);
+    expect(findModuleByPath('/queues', rows)?.code).toBe('core');
+    expect(rows[0]?.code).toBe('core');
+  });
+
+  it('hides a module that the catalog turned off or the cabinet hid', () => {
+    const rows = mergeModulesWithCatalog(BASELINE_MODULES, [
+      { code: 'core', licenseStatus: 'active', kind: 'off' },
+      { code: 'apps', licenseStatus: 'active', tenantVisible: false },
+    ]);
+    const core = rows.find((row) => row.code === 'core');
+    const apps = rows.find((row) => row.code === 'apps');
+    expect(isHubModuleShown(core!)).toBe(false);
+    expect(isHubModuleShown(apps!)).toBe(false);
+    expect(isHubModuleShown(rows.find((row) => row.code === 'system')!)).toBe(true);
   });
 
   it('findModuleByPath resolves longest match and ignores Hub route', () => {

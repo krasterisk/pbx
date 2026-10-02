@@ -17,6 +17,7 @@ export const HUB_PAGE_OPTIONS: MultiSelectOption[] = [
   { value: 'voice_robot', label: 'voice_robot (/voice-robots)' },
   { value: 'call_groups', label: 'call_groups (/call-groups)' },
   { value: 'integrations', label: 'integrations (/integrations)' },
+  { value: 'conferences', label: 'conferences (/conferences)' },
   { value: 'users_roles', label: 'users_roles (/users)' },
   { value: 'roles', label: 'roles (/roles)' },
   { value: 'numbers', label: 'numbers (/numbers)' },
@@ -40,6 +41,18 @@ export const HUB_PAGE_OPTIONS: MultiSelectOption[] = [
   { value: 'voice_robot_cdr', label: 'voice_robot_cdr (/reports/voice-robot-cdr)' },
   { value: 'ai_providers', label: 'ai_providers (/ai-providers)' },
   { value: 'ai_agents', label: 'ai_agents (/ai-agents)' },
+  { value: 'speech_analytics_conversations', label: 'speech_analytics_conversations (/speech-analytics/conversations)' },
+  { value: 'speech_analytics_projects', label: 'speech_analytics_projects (/speech-analytics/projects)' },
+  { value: 'speech_analytics_dashboard', label: 'speech_analytics_dashboard (/speech-analytics/dashboard)' },
+  { value: 'speech_analytics_connections', label: 'speech_analytics_connections (/speech-analytics/connections)' },
+  { value: 'ai_voice_robots_landing', label: 'ai_voice_robots_landing (/ai-robots)' },
+  { value: 'ai_voice_robots_studio', label: 'ai_voice_robots_studio (/ai-robots/studio)' },
+  { value: 'ai_voice_robots_sessions', label: 'ai_voice_robots_sessions (/ai-robots/sessions)' },
+  { value: 'ai_voice_robots_preview', label: 'ai_voice_robots_preview (/ai-robots/preview)' },
+  { value: 'ai_voice_robots_sip', label: 'ai_voice_robots_sip (/ai-robots/sip)' },
+  { value: 'ai_voice_robots_tools', label: 'ai_voice_robots_tools (/ai-robots/tools)' },
+  { value: 'ai_voice_robots_knowledge', label: 'ai_voice_robots_knowledge (/ai-robots/knowledge)' },
+  { value: 'ai_voice_robots_connections', label: 'ai_voice_robots_connections (/ai-robots/connections)' },
 ];
 
 const PATH_BY_PAGE: Record<string, string> = Object.fromEntries(
