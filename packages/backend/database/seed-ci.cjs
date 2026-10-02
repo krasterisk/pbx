@@ -64,11 +64,13 @@ async function seed(input = process.env) {
     for (const id of users.slice(1)) {
       await db.query('UPDATE users SET vpbx_user_uid = $1 WHERE uniqueid = $2', [id, id]);
     }
+    const [seller] = await db.query('SELECT id FROM billing_sellers WHERE is_default = $1 ORDER BY id LIMIT 1', [true]);
+    if (!seller) throw new Error('Default billing seller is missing from migrated CI database');
     for (const [index, name, slug] of [[1, 'CI Tenant A', 'ci-tenant-a'], [2, 'CI Tenant B', 'ci-tenant-b']]) {
       const id = users[index];
       await db.query(
-        `INSERT INTO tenants (uid, name, slug, owner_user_id, vpbx_user_uid, status, created_by, created_at, updated_at) VALUES (${params(9)})`,
-        [`00000000-0000-4000-8000-00000000000${index}`, name, slug, id, id, 'active', users[0], now, now],
+        `INSERT INTO tenants (uid, name, slug, owner_user_id, vpbx_user_uid, status, created_by, created_at, updated_at, seller_id) VALUES (${params(10)})`,
+        [`00000000-0000-4000-8000-00000000000${index}`, name, slug, id, id, 'active', users[0], now, now, seller.id],
       );
     }
     for (const id of users) {
@@ -76,8 +78,8 @@ async function seed(input = process.env) {
       await db.query('UPDATE users SET role = $1 WHERE uniqueid = $2', [db.insertId(rows), id]);
     }
     for (const id of users.slice(1)) {
-      await db.query(`INSERT INTO cc_ai_providers (name, kind, vendor, endpoint, auth_type, capabilities, pricing, enabled, vpbx_user_uid) VALUES (${params(9)})`,
-        ['CI offline provider', 'local', 'ci', 'http://127.0.0.1:1', 'none', JSON.stringify(['llm']), JSON.stringify({}), false, id]);
+      await db.query(`INSERT INTO cc_ai_providers (name, kind, vendor, endpoint, auth_type, capabilities, enabled, vpbx_user_uid) VALUES (${params(8)})`,
+        ['CI offline provider', 'local', 'ci', 'http://127.0.0.1:1', 'none', JSON.stringify(['llm']), false, id]);
     }
     await db.query('COMMIT');
     return { platformAdminId: users[0], tenantIds: users.slice(1) };
