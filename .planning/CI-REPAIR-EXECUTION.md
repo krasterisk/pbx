@@ -7,8 +7,8 @@
 - Owned paths: files with reproduced diagnostics in packages/backend, packages/frontend, packages/shared, harness/database; this evidence document. Workflow edits only when an actual CI setup failure is demonstrated.
 - Exclusions: unrelated feature work, production data/config, historical initiative state.
 - Acceptance: required local commands pass and triggered Actions pass; preserve coverage and security checks.
-- Status: in_progress. Actions quality fails at lint; e2e fails at build; Database contracts fails at DB unit tests. Local reproduction running.
-- Next action: correct stale DB migration lists, missing Sequelize model/mock dependencies, frontend project mocks, and lint/type errors. Record commands/results here.
+- Status: automated-tests-passed; CI repair complete. Implementation and workflow changes pushed to main; all required gates pass.
+- Next action: none for CI repair. Production deployment is outside this task.
 
 ## Evidence, first repair
 
@@ -37,3 +37,14 @@
 - 3a5e21c2: quality and e2e green; harness green with 25 API/realtime and 33 browser passes, but missed-call test required a retry. Trace proves ERR_NETWORK_CHANGED across Vite source imports with a blank page. Harness now serves the already-built frontend via preview (existing API/WebSocket proxy inherited); no test skips or network-error suppression added. Next action: verify the built-artifact harness run.
 
 - Built-artifact run 270eea98 removed the module network-change failure; fast responsive reloads exposed HTTP 429 on /tenant-settings and /marketplace/hub-catalog (traces), preventing the module guard from rendering the bases page. CI harness now sets the existing THROTTLE_LIMIT=300 on its disposable backend. The limiter remains finite and explicit auth decorator limits remain unchanged; production config/code are unchanged. Next action: verify this final harness run and all triggered checks.
+
+## Final acceptance (2026-10-02)
+
+- Verified code/workflow commit: 0d8051f5 (main). Subsequent evidence update is documentation only.
+- [quality](https://github.com/krasterisk/pbx/actions/runs/37025978467): pass — lint, shared/backend/frontend tests, complete build. Shared 65 tests, backend 3529 tests (372 suites), frontend 1581 tests. Existing skipped backend tests and lint warnings remain; no new skips.
+- [harness](https://github.com/krasterisk/pbx/actions/runs/37025978523): pass — 25 API/realtime/stub tests and 33 browser tests, zero failed/flaky browser cases. Browser run 51.1s; existing tests requiring external Asterisk/live LLM stay skipped.
+- [e2e](https://github.com/krasterisk/pbx/actions/runs/37025978463): pass.
+- [Database contracts](https://github.com/krasterisk/pbx/actions/runs/37022168167): pass on both MySQL and PostgreSQL — 51 DB unit, 8 schema inventory, 16 real contracts per engine, plus AppModule core/CDR/CC/robot golden. Database/backend paths are unchanged since that verified revision.
+- Local required checks: lint, backend/frontend tests and full build passed; final AI stream/timeline regressions (15) and LLM stub tests (9) passed. Local frontend TypeScript and targeted backend lint/build passed after the final implementation fixes.
+- Review: own diff review and CI integration evidence; no independent reviewer claimed. Runtime migrations/baseline checks remain enabled; no implementation/test changes follow this acceptance.
+- Handoff: coordinator /root, codex-direct, this scoped plan complete. No unfinished writers or pending gates; all changes pushed. Test logs retained in Documents/Codex/actions-<run-id>.log. Production deployment is not part of CI repair.
