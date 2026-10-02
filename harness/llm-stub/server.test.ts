@@ -217,6 +217,28 @@ describe('llm stub', () => {
     }
   });
 
+  it('keeps control requests out of the scripted turn cursor and returns JSON for stream:false', async () => {
+    handle = await startLlmStub();
+    handle.useScenario('plan-ivr');
+    const mode = await postCompletions(handle.url, {
+      stream: false, messages: [{ role: 'system', content: 'Determine the turn mode' }],
+    });
+    expect(mode.headers.get('content-type')).toMatch(/application\/json/);
+    const modeBody = await mode.json();
+    expect(JSON.parse(modeBody.choices[0].message.content).mode).toBe('configure');
+    const brief = await postCompletions(handle.url, {
+      stream: false, messages: [{ role: 'system', content: 'Extract a PBX setup brief.' }],
+    });
+    expect((await brief.json()).choices[0].message.content).toBe('');
+    const plan = await postCompletions(handle.url, {
+      stream: false, messages: [{ role: 'user', content: 'Create the reception' }],
+    });
+    const call = (await plan.json()).choices[0].message.tool_calls[0];
+    expect(call.function.name).toBe('propose_plan');
+    const args = JSON.parse(call.function.arguments);
+    expect(args.steps[2].args.menu_items).toHaveLength(4);
+  });
+
   it('answers the health probe', async () => {
     handle = await startLlmStub();
 

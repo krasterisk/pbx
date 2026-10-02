@@ -129,6 +129,17 @@ describe('useAgentTurn', () => {
     expect(store.getState().aiChat).not.toHaveProperty('messages');
   });
 
+  it('preserves event types and UTF-8 when an SSE event spans network chunks', async () => {
+    const bytes = encodeSse(FIXTURE_TURN);
+    mockFetchStream(Array.from(bytes, (byte) => new Uint8Array([byte])));
+    const store = makeStore();
+    const { result } = renderHook(() => useAgentTurn({ threadUid: 7 }), { wrapper: wrapperFor(store) });
+    await act(async () => { result.current.send('test'); });
+    await waitFor(() => { expect(result.current.outcome).toBe('done'); });
+    expect(selectTimeline(store, 7).map((row) => row.kind)).toEqual(['user', 'step', 'assistant']);
+    expect(selectTimeline(store, 7)[0]).toMatchObject(FIXTURE_TURN[1].data);
+  });
+
   it('accumulates the assistant bubble under one id', async () => {
     mockFetchStream([encodeSse(FIXTURE_TURN)]);
     const store = makeStore();

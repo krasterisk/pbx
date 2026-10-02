@@ -63,6 +63,12 @@ export const STUB_SCENARIOS: StubScenario[] = [
                 dependsOn: ['group'],
                 args: {
                   name: 'Приёмная',
+                  menu_items: [
+                    { digit: '1', destination: { kind: 'extension', target: '321' } },
+                    { digit: '2', destination: { kind: 'extension', target: '322' } },
+                    { digit: '3', destination: { kind: 'extension', target: '323' } },
+                    { digit: 't', destination: { kind: 'group', target: '9032' } },
+                  ],
                 },
               },
             ],
@@ -99,7 +105,15 @@ export const STUB_SCENARIOS: StubScenario[] = [
                 id: 'ivr',
                 tool: 'create_ivr',
                 dependsOn: ['group'],
-                args: { name: 'Приёмная' },
+                args: {
+                  name: 'Приёмная',
+                  menu_items: [
+                    { digit: '1', destination: { kind: 'extension', target: '321' } },
+                    { digit: '2', destination: { kind: 'extension', target: '322' } },
+                    { digit: '3', destination: { kind: 'extension', target: '323' } },
+                    { digit: 't', destination: { kind: 'group', target: '9032' } },
+                  ],
+                },
               },
             ],
           },
@@ -134,7 +148,10 @@ export const STUB_SCENARIOS: StubScenario[] = [
                 id: 'ivr',
                 tool: 'create_ivr',
                 dependsOn: ['sales', 'support'],
-                args: { name: 'Контакт-центр' },
+                args: { name: 'Контакт-центр', menu_items: [
+                  { digit: '1', destination: { kind: 'queue', target: '8001' } },
+                  { digit: '2', destination: { kind: 'queue', target: '8002' } },
+                ] },
               },
             ],
           },

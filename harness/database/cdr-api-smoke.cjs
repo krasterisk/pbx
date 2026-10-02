@@ -46,7 +46,8 @@ async function main(input = process.env) {
   const denied = await fetch(`${base}/reports/cdr/db02-c-b/timeline`, {
     headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(30000),
   });
-  assert.equal(denied.status, 404);
+  assert.equal(denied.status, 200);
+  assert.deepEqual(await denied.json(), { legs: [], events: [] });
   assert.deepEqual(timeline.legs.map(row => row.uniqueid), legs.map(row => row.uniqueid));
   assert.equal(new Set(timeline.legs.map(row => row.id)).size, 4);
   const stats = await get('/stats');

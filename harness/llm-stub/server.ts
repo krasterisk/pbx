@@ -81,8 +81,23 @@ async function handleRequest(
     if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {
       const body = await readJson(req);
       state.recorded.push(recordRequest(body));
+      const system = state.recorded.at(-1)?.messages.find((message) => message.role === 'system')?.content ?? '';
+      // Control requests are separate from the scripted tool/chat sequence.
+      // The setup extractor is intentionally left empty to exercise the tool fallback.
+      if (body.stream === false && /turn mode/i.test(system)) {
+        writeCompletion(res, { text: JSON.stringify({
+          mode: state.scenario.id.startsWith('plan-') ? 'configure' : 'read',
+          domain: null, missing: [],
+        }) });
+        return;
+      }
+      if (body.stream === false && /Extract a PBX setup brief/i.test(system)) {
+        writeCompletion(res, { text: '' });
+        return;
+      }
       const turn = nextTurn(state);
-      writeSse(res, turn);
+      if (body.stream === false) writeCompletion(res, turn);
+      else writeSse(res, turn);
       return;
     }
 
@@ -103,6 +118,20 @@ function nextTurn(state: { scenario: StubScenario; cursor: number }): StubTurn {
   const turn = turns[state.cursor] ?? turns[turns.length - 1] ?? { text: '' };
   state.cursor += 1;
   return turn;
+}
+
+function writeCompletion(res: ServerResponse, turn: StubTurn): void {
+  writeJson(res, 200, {
+    choices: [{ index: 0, message: {
+      role: 'assistant', content: turn.text ?? '',
+      ...(turn.reasoning ? { reasoning_content: turn.reasoning } : {}),
+      ...(turn.toolCalls?.length ? { tool_calls: turn.toolCalls.map((call, index) => ({
+        id: call.id ?? `call_${index + 1}`, type: 'function',
+        function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+      })) } : {}),
+    }, finish_reason: turn.toolCalls?.length ? 'tool_calls' : 'stop' }],
+    usage: { prompt_tokens: 10, completion_tokens: 5 },
+  });
 }
 
 function writeSse(res: ServerResponse, turn: StubTurn): void {

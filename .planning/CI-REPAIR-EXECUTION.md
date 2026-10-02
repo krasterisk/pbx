@@ -24,3 +24,10 @@
 - E2E passed on 82b3fa8a. Harness API/realtime: 24 passed, 3 existing skipped; browser tests blocked by removed pricing in shared provider fixture.
 - Owned scope extended to harness/fixtures for the reproduced provider DTO mismatch; CI workflow env uses bundled ONNX CPU binaries to avoid optional CUDA download timeouts.
 - Current next action: finish latest Actions, fix remaining runtime/browser failures, then record final evidence.
+
+## Runtime/browser regression fixes
+
+- PostgreSQL full core/CDR/CC/robot runtime passed on 6efd8cf8. MySQL timeline 500 fixed by binding both linkedid predicates instead of comparing CDR/CEL columns with different collations; transfer CEL fixtures now checked. Tenant isolation endpoint contract is 200 with empty legs/events.
+- Harness traces showed control classification requests consuming scripted LLM turns and temporary SSE steps duplicated after persisted proposal reload. Stub supports nonstream JSON/control calls without consuming the scenario; menu drafts carry real destinations. Frontend merge replaces temporary steps before a persisted proposal, preserving later live continuation; SSE event state survives network chunk boundaries.
+- Target frontend regression tests: 15 passed; stub tests: 9 passed; backend build and targeted lint passed. Latest CI pending.
+- Owned scope extended to harness/llm-stub for the reproduced request protocol mismatch. Next action: inspect latest Actions and repair any remaining browser failures; keep production unchanged.
