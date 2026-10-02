@@ -33,3 +33,5 @@
 - Owned scope extended to harness/llm-stub for the reproduced request protocol mismatch. Next action: inspect latest Actions and repair any remaining browser failures; keep production unchanged.
 
 - f3d81a34: Database contracts and e2e passed; quality full frontend passed (build finishing). Harness: 31 browser passes, one stale subscriber detail expectation and one retry in missed-call badge locator. Updated the detail expectation and use the accessible button name with explicit lazy-page readiness. Next action: verify final harness rerun.
+
+- 3a5e21c2: quality and e2e green; harness green with 25 API/realtime and 33 browser passes, but missed-call test required a retry. Trace proves ERR_NETWORK_CHANGED across Vite source imports with a blank page. Harness now serves the already-built frontend via preview (existing API/WebSocket proxy inherited); no test skips or network-error suppression added. Next action: verify the built-artifact harness run.
