@@ -31,3 +31,5 @@
 - Harness traces showed control classification requests consuming scripted LLM turns and temporary SSE steps duplicated after persisted proposal reload. Stub supports nonstream JSON/control calls without consuming the scenario; menu drafts carry real destinations. Frontend merge replaces temporary steps before a persisted proposal, preserving later live continuation; SSE event state survives network chunk boundaries.
 - Target frontend regression tests: 15 passed; stub tests: 9 passed; backend build and targeted lint passed. Latest CI pending.
 - Owned scope extended to harness/llm-stub for the reproduced request protocol mismatch. Next action: inspect latest Actions and repair any remaining browser failures; keep production unchanged.
+
+- f3d81a34: Database contracts and e2e passed; quality full frontend passed (build finishing). Harness: 31 browser passes, one stale subscriber detail expectation and one retry in missed-call badge locator. Updated the detail expectation and use the accessible button name with explicit lazy-page readiness. Next action: verify final harness rerun.

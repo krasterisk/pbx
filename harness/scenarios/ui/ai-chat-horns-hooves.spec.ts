@@ -61,7 +61,7 @@ test('horns-and-hooves IVR shows useful steps once and one plan card', async ({
   if (await subscribers.count()) {
     await subscribers.first().getByRole('button').click();
     await expect(subscribers.first().getByTestId('ai-agent-step-detail')).toHaveText(
-      /Абоненты:|Абонентов с такими номерами нет|Subscribers:|No subscribers/i,
+      /Абоненты:|Абонентов нет:|Абонентов с такими номерами нет|Subscribers:|No subscribers/i,
     );
   }
 

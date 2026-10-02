@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/auth.fixture';
-import { assertAgentShellVisible } from '../../assertions/ui';
+import { assertAgentShellVisible, MISSED_BTN } from '../../assertions/ui';
 
 /**
  * CC agent happy path (D-03):
@@ -18,7 +18,8 @@ test.describe('Agent panel — happy path', () => {
 
   test('clicking the missed-calls badge opens the dropdown', async ({ authenticatedPage: page }) => {
     await page.goto('/callcenter/agent');
-    const missedBtn = page.locator('button[title*="Missed"], button[title*="Пропущ"]').first();
+    const missedBtn = page.getByRole('button', { name: MISSED_BTN });
+    await expect(missedBtn).toBeVisible({ timeout: 20_000 });
     await missedBtn.click();
     await expect(page.getByText(/No missed calls|Пропущенных нет/i)).toBeVisible({ timeout: 5000 });
   });
