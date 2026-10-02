@@ -104,6 +104,10 @@ async function main(dialect) {
     const voiceRobots = await voiceRobotGolden(input);
     console.log(`${dialect}: scripted-robot golden pass`);
     return { dialect, schemaVersion: loadMigrations(dialect).at(-1).id, core, cdr, callcenter, voiceRobots };
+  } catch (error) {
+    const safeLog = appLog.split(password).join('[redacted]').split(seedPassword).join('[redacted]');
+    console.error(`${dialect}: backend diagnostics:\n${safeLog.slice(-8000)}`);
+    throw error;
   } finally {
     if (app && app.exitCode === null) {
       app.kill('SIGTERM');

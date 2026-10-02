@@ -660,13 +660,15 @@ export class CdrService {
   async findTimeline(vpbxUserUid: number, linkedid: string, viewerUserId?: number) {
     const legs = await this.findLegs(vpbxUserUid, linkedid, viewerUserId);
     const tenant = tenantLegFilter(vpbxUserUid);
+    // Filter both tables by the bound call ID: legacy CDR and CEL columns may
+    // use different MySQL collations, so comparing the columns directly fails.
     const events = await this.sequelize.query(`
       SELECT e.id, e.eventtype, e.eventtime, e.uniqueid, e.linkedid,
              e.exten, e.context, e.channame, e.peer, e.appname, e.appdata, e.extra
       FROM cel e
       WHERE e.linkedid = :linkedid
         AND EXISTS (
-          SELECT 1 FROM cdr c WHERE ${tenant.sql} AND c.linkedid = e.linkedid
+          SELECT 1 FROM cdr c WHERE ${tenant.sql} AND c.linkedid = :linkedid
         )
       ORDER BY e.eventtime ASC, e.id ASC
     `, {

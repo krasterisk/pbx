@@ -31,8 +31,17 @@ async function main(input = process.env) {
     const existing = await query("SELECT uniqueid FROM cdr WHERE uniqueid = $1", ['db02-c-a1']);
     if (existing.length) throw new Error('CDR golden fixture already installed');
     for (const leg of legs) await query(`INSERT INTO cdr (${columns}) VALUES (${binds})`, leg);
+    const events = [
+      ['CHAN_START', '2026-09-18 10:00:00', 'db02-c-a1', 'db02-c-a', ''],
+      ['BLINDTRANSFER', '2026-09-18 10:00:06', 'db02-c-a3', 'db02-c-a', '{"extension":"203"}'],
+      ['HANGUP', '2026-09-18 10:00:35', 'db02-c-a3', 'db02-c-a', ''],
+      ['HANGUP', '2026-09-18 10:01:05', 'db02-c-b', 'db02-c-b', ''],
+    ];
+    for (const event of events) {
+      await query('INSERT INTO cel (eventtype, eventtime, uniqueid, linkedid, extra) VALUES ($1, $2, $3, $4, $5)', event);
+    }
     await query('COMMIT');
-    return { inserted: legs.length };
+    return { inserted: legs.length, events: events.length };
   } catch (error) {
     await query('ROLLBACK');
     throw error;

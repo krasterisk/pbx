@@ -41,7 +41,12 @@ async function main(input = process.env) {
   assert.deepEqual(legs.map(row => row.uniqueid), ['db02-c-a1', 'db02-c-a2', 'db02-c-a3', 'db02-c-transfer']);
   const timeline = await get('/db02-c-a/timeline');
   assert.ok(timeline.legs.every(row => row.linkedid === 'db02-c-a'));
-  assert.ok(Array.isArray(timeline.events));
+  assert.deepEqual(timeline.events.map(row => row.eventtype), ['CHAN_START', 'BLINDTRANSFER', 'HANGUP']);
+  assert.ok(timeline.events.every(row => row.linkedid === 'db02-c-a'));
+  const denied = await fetch(`${base}/reports/cdr/db02-c-b/timeline`, {
+    headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(30000),
+  });
+  assert.equal(denied.status, 404);
   assert.deepEqual(timeline.legs.map(row => row.uniqueid), legs.map(row => row.uniqueid));
   assert.equal(new Set(timeline.legs.map(row => row.id)).size, 4);
   const stats = await get('/stats');
@@ -86,4 +91,3 @@ if (require.main === module) {
   main().then(result => console.log(JSON.stringify(result))).catch(error => { console.error(error.stack); process.exitCode = 1; });
 }
 module.exports = { main };
-
