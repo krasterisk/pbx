@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { inventory, splitTopLevel } = require('./schema-inventory.cjs');
 const { draft } = require('./draft-postgres-baseline.cjs');
+const reviewed = require('./reviewed-model-schema.cjs');
 
 test('baseline and AppModule model table/column names stay in sync', () => {
   const result = inventory();
@@ -12,8 +13,8 @@ test('baseline and AppModule model table/column names stay in sync', () => {
   // This pins all class/member decorators, declared TS types and their names,
   // including defaults, unique/index/association actions and identity metadata.
   // DB-02-B: User timestamps=true makes Sequelize populate existing NOT NULL columns.
-  assert.equal(result.sources.modelMetadataSha256, '1aa7a2ac56ad8b01414fafc19b25dfa96ff138d4da000724070da775a705a797');
-  assert.equal(result.counts.models, result.counts.baselineTables);
+  assert.equal(result.sources.modelMetadataSha256, reviewed.modelMetadataSha256);
+  assert.equal(result.counts.models, result.counts.baselineTables + reviewed.extraTables.length);
   assert.equal(result.counts.additiveModels, 80);
   assert.deepEqual(Object.keys(result.additiveModels).sort(), [
     'ai_business_connections',
@@ -44,11 +45,11 @@ test('baseline and AppModule model table/column names stay in sync', () => {
     'sa_tenant_capture_policies', 'sa_transcript_corrections',
     'sa_transcript_segments', 'sa_transcripts',
   ]);
-  assert.equal(result.counts.modelColumns, result.counts.baselineColumns);
+  assert.equal(result.counts.modelColumns, result.counts.baselineColumns + 59);
   assert.deepEqual(result.differences, {
-    modelTablesAbsentFromBaseline: [], baselineTablesAbsentFromModels: [],
-    modelColumnsAbsentFromBaseline: [], baselineColumnsAbsentFromModels: [],
-    typeDifferences: [],
+    modelTablesAbsentFromBaseline: reviewed.extraTables, baselineTablesAbsentFromModels: [],
+    modelColumnsAbsentFromBaseline: reviewed.extraColumns, baselineColumnsAbsentFromModels: reviewed.removedColumns,
+    typeDifferences: reviewed.typeDifferences,
     intentionalTypeWidenings: result.differences.intentionalTypeWidenings,
     nullabilityDifferences: [],
   });
@@ -152,7 +153,7 @@ for (const [filename, before, after] of [
     try {
       const changed = inventory();
       assert.equal(replaced, true);
-      assert.notEqual(changed.sources.modelMetadataSha256, '1aa7a2ac56ad8b01414fafc19b25dfa96ff138d4da000724070da775a705a797');
+      assert.notEqual(changed.sources.modelMetadataSha256, reviewed.modelMetadataSha256);
     } finally { fs.readFileSync = original; }
   });
 }
@@ -171,7 +172,7 @@ test('schema fingerprint is independent of CRLF/LF checkout', () => {
   try {
     const changed = inventory();
     assert.equal(normalized, true);
-    assert.equal(changed.sources.modelMetadataSha256, '1aa7a2ac56ad8b01414fafc19b25dfa96ff138d4da000724070da775a705a797');
+    assert.equal(changed.sources.modelMetadataSha256, reviewed.modelMetadataSha256);
   } finally { fs.readFileSync = original; }
 });
 

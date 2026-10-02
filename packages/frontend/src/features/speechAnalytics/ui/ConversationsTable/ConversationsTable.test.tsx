@@ -5,7 +5,7 @@ import type { SaJournalRow } from '../../api/speechAnalyticsApi';
 import { ConversationsTable } from './ConversationsTable';
 
 const { exportJournalExcelMock, downloadBlobMock } = vi.hoisted(() => ({
-  exportJournalExcelMock: vi.fn(() => ({ unwrap: () => Promise.resolve(new Blob(['xlsx'])) })),
+  exportJournalExcelMock: vi.fn((_payload: { ids: string[]; locale: string; timeZone: string; headers: Record<string, string> }) => ({ unwrap: () => Promise.resolve(new Blob(['xlsx'])) })),
   downloadBlobMock: vi.fn(),
 }));
 

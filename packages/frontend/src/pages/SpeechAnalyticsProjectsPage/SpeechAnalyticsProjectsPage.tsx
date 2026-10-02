@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createColumnHelper, type ColumnDef, type Table } from '@tanstack/react-table';
@@ -50,7 +51,7 @@ const columnHelper = createColumnHelper<SaProject>();
 const PAGE_SIZE = 25;
 
 function projectStatusLabel(
-  t: (key: string, defaultValue?: string) => string,
+  t: TFunction,
   status: string,
 ): string {
   if (status === 'draft') return t('speechAnalytics.projectStatusDraft', 'Черновик');

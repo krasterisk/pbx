@@ -149,7 +149,7 @@ export async function postInsightsChat(input: {
         ? error.response.data
         : JSON.stringify(error.response?.data ?? '');
       const body = raw.replace(/\s+/g, ' ').slice(0, 400);
-      throw new Error(`insights chat status=${status} model=${String(input.body.model ?? input.model)} body=${body}`);
+      throw new Error(`insights chat status=${status} model=${String(input.body.model ?? input.model)} body=${body}`, { cause: error });
     }
     throw error;
   }

@@ -1,4 +1,4 @@
-import { FormEventHandler, forwardRef, HTMLAttributes, ReactNode } from 'react';
+import { forwardRef, HTMLAttributes, ReactNode } from 'react';
 import { classNames, Mods } from '@/shared/lib/classNames/classNames';
 import cls from './Flex.module.scss';
 
@@ -44,7 +44,7 @@ const gapClasses: Record<FlexGap, string> = {
   '32': cls.gap32,
 };
 
-export interface FlexProps extends HTMLAttributes<HTMLDivElement> {
+export interface FlexProps extends HTMLAttributes<HTMLElement> {
   className?: string;
   children?: ReactNode;
   justify?: FlexJustify;
@@ -55,7 +55,6 @@ export interface FlexProps extends HTMLAttributes<HTMLDivElement> {
   max?: boolean;
   /** Semantic element. Layout stays on the Stack primitive. */
   as?: FlexTag;
-  onSubmit?: FormEventHandler<HTMLFormElement>;
 }
 
 export const Flex = forwardRef<HTMLDivElement, FlexProps>((props, ref) => {

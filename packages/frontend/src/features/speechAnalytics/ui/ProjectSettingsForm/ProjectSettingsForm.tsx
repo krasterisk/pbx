@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { memo, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -62,7 +63,7 @@ const WEEKDAY_NAME_FALLBACK: Record<number, string> = {
   7: 'Воскресенье',
 };
 
-function scheduleTitle(t: (key: string, fallback?: string) => string, slot: SaDigestSchedule): string {
+function scheduleTitle(t: TFunction, slot: SaDigestSchedule): string {
   const when = slot.schedule === 'daily'
     ? t('speechAnalytics.settingsDigestDaily', 'Каждый день')
     : slot.schedule === 'weekly'
@@ -207,6 +208,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
   const [notices, setNotices] = useState<SaNotice[]>([]);
   const [openNotices, setOpenNotices] = useState<Record<string, boolean>>({});
   const [addingIntegration, setAddingIntegration] = useState(false);
+  const [addingNotice, setAddingNotice] = useState(false);
   const [budget, setBudget] = useState('');
   const [revision, setRevision] = useState(1);
   const [hydrated, setHydrated] = useState<string | null>(null);
@@ -584,7 +586,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                     value={insights.summary.instruction}
                     onChange={(event) => setInsights((current) => ({
                       ...current,
-                      summary: { instruction: event.target.value },
+                      summary: { ...current.summary, instruction: event.target.value },
                     }))}
                   />
                 </>

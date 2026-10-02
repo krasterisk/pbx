@@ -189,6 +189,7 @@ describe('ModuleShell (A+C hybrid)', () => {
       active: [coreRow, appsRow],
       marketplace: [],
       isLoading: false,
+      suppressedCodes: [],
       favoriteCodes: [],
       toggleFavorite: vi.fn(),
       isFavorite: () => false,

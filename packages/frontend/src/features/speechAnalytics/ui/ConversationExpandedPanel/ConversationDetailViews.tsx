@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -46,7 +47,7 @@ export interface MetricOverrideRow {
   note: string;
 }
 
-function labelOf(t: (key: string, fallback?: string) => string, id: string): string {
+function labelOf(t: TFunction, id: string): string {
   const pair = METRIC_LABELS[id];
   return pair ? t(pair[0], pair[1]) : id;
 }
@@ -69,7 +70,7 @@ function formatTurnTs(ms: number): string | null {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function speakerLabel(t: (key: string, fallback?: string) => string, speaker: string): string {
+function speakerLabel(t: TFunction, speaker: string): string {
   if (speaker === 'operator') return t('speechAnalytics.speakerOperator', 'Оператор');
   if (speaker === 'customer') return t('speechAnalytics.speakerCustomer', 'Клиент');
   return speaker;
@@ -90,7 +91,7 @@ function readOverrides(metrics: ConversationMetricResult[]): MetricOverrideRow[]
   });
 }
 
-function sentimentLabel(t: (key: string, fallback?: string) => string, value: unknown): string {
+function sentimentLabel(t: TFunction, value: unknown): string {
   const raw = String(value ?? '').toLowerCase();
   if (raw === 'positive') return t('speechAnalytics.sentimentPositive', 'Позитивное');
   if (raw === 'negative') return t('speechAnalytics.sentimentNegative', 'Негативное');

@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -36,7 +37,7 @@ import cls from './TenantHubModulesEditor.module.scss';
 
 function hubModuleErrorMessage(
   err: unknown,
-  t: (key: string, fallback?: string) => string,
+  t: TFunction,
 ): string {
   const data = (err as { data?: { code?: string } })?.data
     ?? (err as { error?: { data?: { code?: string } } })?.error?.data;

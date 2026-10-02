@@ -6,7 +6,7 @@ describe('journalScoreScale', () => {
   it('stays on 1-5 when every project uses the default scale', () => {
     expect(journalScoreScale([
       { draft_config: null },
-      { draft_config: { insights: { csat: { enabled: true, min: 1, max: 5, lowLabel: '', highLabel: '', instruction: '' }, summary: { enabled: true, instruction: '' }, sentiment: { enabled: true, instruction: '', values: [] } } } },
+      { draft_config: { insights: { success: { enabled: true, instruction: '' }, csat: { enabled: true, min: 1, max: 5, lowLabel: '', highLabel: '', instruction: '' }, summary: { enabled: true, instruction: '' }, sentiment: { enabled: true, instruction: '', values: [] } } } },
     ])).toEqual({ min: 1, max: 5 });
   });
 
@@ -16,6 +16,7 @@ describe('journalScoreScale', () => {
       {
         draft_config: {
           insights: {
+            success: { enabled: true, instruction: '' },
             csat: { enabled: true, min: 1, max: 10, lowLabel: '', highLabel: '', instruction: '' },
             summary: { enabled: true, instruction: '' },
             sentiment: { enabled: true, instruction: '', values: [] },
@@ -30,6 +31,7 @@ describe('journalScoreScale', () => {
       {
         draft_config: {
           insights: {
+            success: { enabled: true, instruction: '' },
             csat: { enabled: false, min: 0, max: 10, lowLabel: '', highLabel: '', instruction: '' },
             summary: { enabled: true, instruction: '' },
             sentiment: { enabled: true, instruction: '', values: [] },

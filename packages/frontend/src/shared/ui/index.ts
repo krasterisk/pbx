@@ -62,3 +62,6 @@ export { RecordingButton } from './RecordingButton';
 export type { RecordingButtonProps } from './RecordingButton';
 export { FileImportButton } from './FileImportButton';
 export type { FileImportButtonProps } from './FileImportButton';
+
+export { WebhookAuthConfig } from './WebhookAuthConfig/WebhookAuthConfig';
+export type { AuthMode, WebhookHeader } from './WebhookAuthConfig/WebhookAuthConfig';

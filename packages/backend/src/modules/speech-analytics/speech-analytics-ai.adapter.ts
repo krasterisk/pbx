@@ -20,6 +20,7 @@ import { redactSecrets } from '../ai-platform/ai-secret-redaction';
 import { UserLevel } from '../users/user.model';
 import type { TenantContext } from '../integration-credentials/tenant-context';
 import { ModuleSettingsService } from './module-settings.service';
+import type { SaProject, SaProjectVersion } from './speech-analytics.models';
 import {
   stampChanged,
   type EditorProjectState,
@@ -330,8 +331,8 @@ export class SpeechAnalyticsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
 /** Factory: SaAiProjectsPort over SaProject / SaProjectVersion (Nest DI). */
 export function createSaAiProjectsPort(
-  projects: { findOne: Function },
-  versions: { findAll: Function; count: Function; create: Function; findOne: Function },
+  projects: typeof SaProject,
+  versions: typeof SaProjectVersion,
 ): SaAiProjectsPort {
   const parse = (raw: string): SaProjectConfigV1 => {
     try {

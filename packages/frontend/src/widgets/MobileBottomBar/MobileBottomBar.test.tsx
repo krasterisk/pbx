@@ -93,6 +93,7 @@ describe('MobileBottomBar recents + catalog', () => {
       active: [coreRow, appsRow, systemRow, callcenterRow],
       marketplace: [lockedAi],
       isLoading: false,
+      suppressedCodes: [],
       favoriteCodes: [],
       toggleFavorite: vi.fn(),
       isFavorite: () => false,

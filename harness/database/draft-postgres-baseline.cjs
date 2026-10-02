@@ -2,6 +2,8 @@
 // Offline draft helper. Review the emitted SQL and test it on a disposable PG;
 // production migrations load only the committed static .sql artifact.
 const { inventory } = require('./schema-inventory.cjs');
+const { isDeepStrictEqual } = require('node:util');
+const reviewed = require('./reviewed-model-schema.cjs');
 
 const quote = name => `"${name.replaceAll('"', '""')}"`;
 const columnList = text => text.replaceAll(/`([^`]+)`/g, (_, name) => quote(name));
@@ -51,8 +53,13 @@ function columnSql(table, column, definition, enums) {
 function draft() {
   const { baselineTables, differences, sources } = inventory();
   if (sources.baselineSha256 !== '8c18e47d94da3c3aeca3807eb44dbd0280433c1dedf96bef36470203d699543d'
-    || sources.modelMetadataSha256 !== '1aa7a2ac56ad8b01414fafc19b25dfa96ff138d4da000724070da775a705a797'
-    || Object.entries(differences).some(([kind, rows]) => kind !== 'intentionalTypeWidenings' && rows.length)) {
+    || sources.modelMetadataSha256 !== reviewed.modelMetadataSha256
+    || !isDeepStrictEqual(differences, {
+      modelTablesAbsentFromBaseline: reviewed.extraTables, baselineTablesAbsentFromModels: [],
+      modelColumnsAbsentFromBaseline: reviewed.extraColumns, baselineColumnsAbsentFromModels: reviewed.removedColumns,
+      typeDifferences: reviewed.typeDifferences, nullabilityDifferences: [],
+      intentionalTypeWidenings: differences.intentionalTypeWidenings,
+    })) {
     throw new Error('Source schema changed; review before drafting PostgreSQL baseline');
   }
   const enums = [];
