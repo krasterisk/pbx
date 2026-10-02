@@ -40,7 +40,8 @@ async function main(input = process.env) {
   const legs = await get('/db02-c-a/legs');
   assert.deepEqual(legs.map(row => row.uniqueid), ['db02-c-a1', 'db02-c-a2', 'db02-c-a3', 'db02-c-transfer']);
   const timeline = await get('/db02-c-a/timeline');
-  assert.equal(timeline.linkedid, 'db02-c-a');
+  assert.ok(timeline.legs.every(row => row.linkedid === 'db02-c-a'));
+  assert.ok(Array.isArray(timeline.events));
   assert.deepEqual(timeline.legs.map(row => row.uniqueid), legs.map(row => row.uniqueid));
   assert.equal(new Set(timeline.legs.map(row => row.id)).size, 4);
   const stats = await get('/stats');
@@ -85,3 +86,4 @@ if (require.main === module) {
   main().then(result => console.log(JSON.stringify(result))).catch(error => { console.error(error.stack); process.exitCode = 1; });
 }
 module.exports = { main };
+
