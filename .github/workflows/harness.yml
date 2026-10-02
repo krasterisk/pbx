@@ -77,6 +77,9 @@ jobs:
           DB_NAME: krasterisk_ci
           JWT_SECRET: ci-test-secret-for-isolated-harness-only-32chars
           CC_AI_KEY_SECRET: ci-test-ai-secret
+          # Responsive cases reload both screens at many widths from one CI IP.
+          # Keep a finite read/API limit; auth endpoint decorators retain their limits.
+          THROTTLE_LIMIT: '300'
         run: |
           npm run dev:backend &
           npx wait-on -t 60000 http://localhost:5010/api/health
