@@ -36,3 +36,11 @@ Both [e2e](https://github.com/krasterisk/pbx/actions/runs/37085591228) and [harn
 Local verification: both Playwright configs successfully discover the 3 operator/agent scenarios; staged diff whitespace check passes. Real rerun acceptance pending after commit/push. Unrelated dirty backend migration/main.ts excluded.
 
 First rerun fba9ac8a: [e2e](https://github.com/krasterisk/pbx/actions/runs/37086307229) now correctly excludes AiChat but finds no legacy idle hint. Source confirms current AgentStatusBar renders the enabled Start shift/Начать смену button before login; the old hint key is unused. Update idle smoke to require this actionable control (including enabled state) or a real active agent status, still scoped to the workspace/status bar. A standalone TypeScript check reports pre-existing worker-fixture scope declarations in unchanged e2e/harness auth fixtures; Playwright discovery compiles the scenarios successfully.
+
+Final acceptance: verified code commit `ea4d790c`, pushed to origin/main.
+
+- [e2e](https://github.com/krasterisk/pbx/actions/runs/37086927612): PASS, 3 browser scenarios.
+- [harness](https://github.com/krasterisk/pbx/actions/runs/37086927614): PASS, 25 API/realtime/stub tests and 33 browser scenarios. Existing 3 external realtime skips/1 live-LLM browser skip unchanged; no failed/flaky cases.
+- [quality](https://github.com/krasterisk/pbx/actions/runs/37086927604): PASS, lint, shared 65, backend 3529, frontend 1591 tests and full build. Existing backend skips/lint warnings unchanged.
+
+W4 accepted; no pending CI gates. Final evidence update is documentation only and does not change tested code. Remote logs remain in ignored `.tmp-ci-<run-id>.log` files. Diagnostic script and generated e2e report removed. Other writers' backend changes remain untouched and uncommitted by this task.
