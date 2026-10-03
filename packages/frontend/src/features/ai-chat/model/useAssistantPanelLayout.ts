@@ -67,7 +67,10 @@ export function useAssistantPanelLayout(sheet: boolean) {
         persist(applyResize(layoutRef.current, edge, 0, delta, viewportWidth()));
     }, [persist]);
 
-    const setWidth = useCallback((dockWidth: number) => persist({ ...layoutRef.current, dockWidth }), [persist]);
+    const setWidth = useCallback((dockWidth: number) => {
+        persist({ ...layoutRef.current, dockWidth });
+        return layoutRef.current.dockWidth;
+    }, [persist]);
     const cancelResize = useCallback(() => {
         resizeCleanupRef.current?.();
         resizeCleanupRef.current = null;

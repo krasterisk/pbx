@@ -63,6 +63,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const agentTriggerRef = useRef<HTMLButtonElement>(null);
   const shortcutMod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
   const agentShortcutHint = t('aiChat.shortcutHint', { mod: shortcutMod });
+  const searchShortcutHint = `${t('commandPalette.placeholder')} (${shortcutMod}+K)`;
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSE_KEY) === '1';
@@ -256,7 +257,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="icon"
             id="shell-agent-trigger"
             ref={agentTriggerRef}
             className={agentOpen && !agentMinimized ? cls.agentTriggerActive : undefined}
@@ -266,22 +267,23 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
             title={agentShortcutHint}
           >
             <Sparkles size={16} aria-hidden />
-            <span className={cls.cmdHint}>{agentShortcutHint}</span>
           </Button>
         </Tooltip>
 
         {!isMobile && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            id="shell-cmdk-trigger"
-            onClick={() => setPaletteOpen(true)}
-            aria-label={t('commandPalette.placeholder')}
-          >
-            <Search size={16} aria-hidden />
-            <span className={cls.cmdHint}>⌘K</span>
-          </Button>
+          <Tooltip content={searchShortcutHint}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              id="shell-cmdk-trigger"
+              onClick={() => setPaletteOpen(true)}
+              aria-label={t('commandPalette.placeholder')}
+              title={searchShortcutHint}
+            >
+              <Search size={16} aria-hidden />
+            </Button>
+          </Tooltip>
         )}
 
         <Button

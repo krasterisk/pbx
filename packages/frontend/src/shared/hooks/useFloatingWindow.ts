@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Keyb
 
 type Point = { x: number; y: number };
 type Geometry = Point & { height: number; launcher: Point };
-type Gesture = 'move' | 'launcher' | 'resize';
+type Gesture = 'move' | 'launcher' | 'resize' | 'resize-left';
 const MARGIN = 16;
 const LAUNCHER_SIZE = 60;
 
@@ -46,7 +46,7 @@ function readGeometry(key: string, width: number, minViewportWidth: number): Geo
 }
 
 /** Non-modal window geometry; presentation and business state belong to the caller. */
-export function useFloatingWindow(width: number, onWidthChange: (width: number) => void, storageKey: string, minViewportWidth = 0) {
+export function useFloatingWindow(width: number, onWidthChange: (width: number) => number | void, storageKey: string, minViewportWidth = 0) {
     const [geometry, setGeometry] = useState(() => readGeometry(storageKey, width, minViewportWidth));
     const [dragging, setDragging] = useState(false);
     const current = useRef(geometry);
@@ -99,6 +99,11 @@ export function useFloatingWindow(width: number, onWidthChange: (width: number) 
             setDragging(true);
             if (kind === 'launcher') {
                 update({ ...origin, launcher: fitPoint({ x: origin.launcher.x + dx, y: origin.launcher.y + dy }, LAUNCHER_SIZE, LAUNCHER_SIZE) });
+            } else if (kind === 'resize-left') {
+                const right = origin.x + startWidth;
+                const requestedWidth = limit(startWidth - dx, 360, right - MARGIN);
+                const nextWidth = onWidthChange(requestedWidth) ?? requestedWidth;
+                update({ ...origin, x: right - nextWidth });
             } else if (kind === 'resize') {
                 const nextWidth = limit(startWidth + dx, 360, window.innerWidth - origin.x - MARGIN);
                 onWidthChange(nextWidth);
@@ -144,6 +149,12 @@ export function useFloatingWindow(width: number, onWidthChange: (width: number) 
         const origin = current.current;
         if (kind === 'launcher') {
             update({ ...origin, launcher: fitPoint({ x: origin.launcher.x + delta.x, y: origin.launcher.y + delta.y }, LAUNCHER_SIZE, LAUNCHER_SIZE) }, true);
+        } else if (kind === 'resize-left') {
+            if (!delta.x) return;
+            const right = origin.x + widthRef.current;
+            const requestedWidth = limit(widthRef.current - delta.x, 360, right - MARGIN);
+            const nextWidth = onWidthChange(requestedWidth) ?? requestedWidth;
+            update({ ...origin, x: right - nextWidth }, true);
         } else if (kind === 'resize') {
             const nextWidth = limit(widthRef.current + delta.x, 360, window.innerWidth - origin.x - MARGIN);
             onWidthChange(nextWidth);

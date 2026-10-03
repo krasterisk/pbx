@@ -70,6 +70,8 @@
 
 .moveHandle { cursor: grab; touch-action: none; flex-shrink: 0; width: 28px; }
 .moveHandle:active { cursor: grabbing; }
+.headerMovable { cursor: grab; touch-action: none; user-select: none; }
+.headerMovable:active { cursor: grabbing; }
 
 .resizeCorner {
     position: absolute;

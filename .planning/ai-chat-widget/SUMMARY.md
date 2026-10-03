@@ -44,3 +44,11 @@ Final acceptance: verified code commit `ea4d790c`, pushed to origin/main.
 - [quality](https://github.com/krasterisk/pbx/actions/runs/37086927604): PASS, lint, shared 65, backend 3529, frontend 1591 tests and full build. Existing backend skips/lint warnings unchanged.
 
 W4 accepted; no pending CI gates. Final evidence update is documentation only and does not change tested code. Remote logs remain in ignored `.tmp-ci-<run-id>.log` files. Diagnostic script and generated e2e report removed. Other writers' backend changes remain untouched and uncommitted by this task.
+# Follow-up W5/W6 — drag/resize and topbar, 2026-10-03
+
+- Fixed left edge resize to preserve the right edge while updating x and width together; keyboard arrows use the same anchor. Width setter returns its actual clamped value to shared geometry.
+- Entire free desktop header can start dragging; action buttons excluded; existing accessible keyboard grip retained. Mobile/workspace headers remain fixed.
+- Topbar chat/search are icon buttons. Shortcuts retained in hover tooltips; search now uses Ctrl or Command according to platform. Removed obsolete badge styles.
+- Local authenticated browser: header title moved window; left edge moved 238→138 while right stayed 698; topbar visually checked. [Screenshot](drag-topbar.png). No live LLM requests made.
+- Targeted: 3 files/79 tests PASS. Full frontend: 299 files/1593 tests PASS, exit 0. Backend: 372 suites/3529 tests PASS (existing 11 skipped). Lint PASS (existing 116 backend/87 frontend warnings). Final frontend TS PASS. Initial sandbox esbuild access failure rerun escalated; full runner ignores CLI maxWorkers, so restarted with VITEST_MAX_WORKERS=2. One synthetic resize event initially omitted isPrimary; corrected to match browser pointer semantics, regression passes. Logs retained locally in ignored .tmp-drag-*.log.
+- Only assigned UI/evidence paths belong to this commit. Unrelated backend migrations/main.ts left unchanged. All local gates passed; user authorized commit/push to main. Remote CI has not yet been checked for this follow-up.

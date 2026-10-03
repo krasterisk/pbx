@@ -13,3 +13,9 @@ Acceptance: mouse/touch and keyboard move; drag does not activate launcher; geom
 ## Follow-up r2 — CI repair, 2026-10-03
 
 W4: user reported failing e2e/harness after 1377a1c7. Both logs resolve operator idle assertions to hidden AiChat `Ready` text. Scope: e2e/tests/operator-happy-path.spec.ts, harness/scenarios/ui/agent-smoke.spec.ts, harness/assertions/ui.ts; this initiative evidence. Constrain assertions to cc-agent workspace/status bar, retain idle/active requirements, list tests/type-check and push; accept after both real CI workflows pass. Preserve unrelated dirty backend migrations/main.ts. No production code or workflow setup change planned.
+
+## Follow-up r3 — header drag, 2026-10-03
+
+W5: User reports widget cannot be dragged. Browser reproduction: dedicated grip works, title/header does not. Extend drag initiation to free header surface in desktop dock; exclude interactive buttons, retain keyboard grip, mobile/workspace behavior. Owner `/root`, no delegated writers. Scope: AssistantPanel header/styles/tests and initiative evidence. Acceptance: actual browser drag by title, grip, launcher; action buttons do not initiate movement; targeted and mandatory repository checks. Commit/push remains authorized from original assignment.
+
+W5 clarification: user meant left resize edge moves the right side. Move left resize into shared floating geometry, anchor right edge for pointer/keyboard resizing and honor caller width clamps. Also W6: remove visible hotkey badges from chat/search topbar buttons, retain icons and platform-specific shortcuts in hover tooltips. Additional scope: shared floating hook, layout width setter and ModuleShell UI/styles.

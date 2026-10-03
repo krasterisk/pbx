@@ -212,19 +212,6 @@
   min-width: 8px;
 }
 
-.cmdHint {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted-foreground);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 2px 6px;
-
-  @media (max-width: 767px) {
-    display: none;
-  }
-}
-
 .agentTriggerActive {
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   color: var(--color-primary);

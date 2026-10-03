@@ -351,11 +351,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
                         tabIndex={0}
                         data-testid="ai-agent-resize-dock"
                         className={`${cls.resizeHandle} ${cls.resizeDock}`}
-                        onPointerDown={(event) => {
-                            event.preventDefault();
-                            startResize('dock', event.clientX);
-                        }}
-                        onKeyDown={onResizeKey('dock')}
+                        {...floating.controls('resize-left')}
                     >
                         {null}
                     </Flex>

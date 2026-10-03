@@ -1,3 +1,4 @@
+import type { PointerEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot, X, Trash2, Maximize2, Minimize2, ClipboardList, Grip, Minus, History } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
@@ -15,7 +16,7 @@ interface Props {
     showThreadsToggle: boolean;
     threadsOpen: boolean;
     onToggleThreads: () => void;
-    moveControls: Pick<ButtonProps, 'onPointerDown' | 'onKeyDown'>;
+    moveControls: Pick<ButtonProps, 'onKeyDown'> & { onPointerDown: PointerEventHandler<HTMLElement> };
     onTogglePlans: () => void;
     onClear: () => void;
     onToggleMode: () => void;
@@ -28,10 +29,14 @@ export function AssistantPanelHeader({ sheet, isDock, isStreaming, effectiveMode
     const { t } = useTranslation();
     return (
         <HStack
-            className={cls.header}
+            className={`${cls.header} ${!sheet && isDock ? cls.headerMovable : ''}`}
             gap="8"
             align="center"
             data-testid="ai-agent-header"
+            onPointerDown={(event) => {
+                if (sheet || !isDock || (event.target as Element).closest('button')) return;
+                moveControls.onPointerDown(event);
+            }}
         >
             {!sheet && isDock && (
                 <Button variant="ghost" size="icon" className={cls.moveHandle}

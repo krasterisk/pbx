@@ -412,12 +412,17 @@ describe('AssistantPanel', () => {
 
   it('lets the user drag the dock edge and remembers the width', () => {
     render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
-    fireEvent.pointerDown(screen.getByTestId('ai-agent-resize-dock'), { clientX: 500 });
-    fireEvent.pointerMove(window, { clientX: 420 });
-    fireEvent.pointerUp(window);
+    const initialX = parseFloat(screen.getByTestId('ai-agent-panel').style.getPropertyValue('--floating-x'));
+    fireEvent.pointerDown(screen.getByTestId('ai-agent-resize-dock'), { button: 0, isPrimary: true, pointerId: 1, clientX: 500, clientY: 200 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 420, clientY: 200 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
     const panel = screen.getByTestId('ai-agent-panel');
     expect(panel.style.getPropertyValue('--ai-agent-panel-width')).toBe('848px');
     expect(JSON.parse(localStorage.getItem('assistant-panel-layout') ?? '{}').dockWidth).toBe(848);
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(`${initialX - 80}px`);
+    fireEvent.keyDown(screen.getByTestId('ai-agent-resize-dock'), { key: 'ArrowRight' });
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(`${initialX - 64}px`);
+    expect(panel.style.getPropertyValue('--ai-agent-panel-width')).toBe('832px');
   });
 
   it('hides resize handles on the mobile sheet', () => {
@@ -441,6 +446,37 @@ describe('AssistantPanel', () => {
     expect(screen.getByTestId('ai-agent-panel')).not.toHaveAttribute('inert');
     expect(screen.getByRole('textbox')).toBe(input);
     expect(input.value).toBe('My unfinished question');
+  });
+
+  it('drags by the header title and saves the new position', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const panel = screen.getByTestId('ai-agent-panel');
+    const x = parseFloat(panel.style.getPropertyValue('--floating-x'));
+    const y = parseFloat(panel.style.getPropertyValue('--floating-y'));
+    const title = screen.getByTestId('ai-agent-header').querySelector('span')!;
+    fireEvent.pointerDown(title, { button: 0, isPrimary: true, pointerId: 1, clientX: 600, clientY: 100 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 500, clientY: 120 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(`${x - 100}px`);
+    expect(panel.style.getPropertyValue('--floating-y')).toBe(`${y + 20}px`);
+    expect(JSON.parse(localStorage.getItem('assistant-widget-geometry')!).x).toBe(x - 100);
+  });
+
+  it('does not drag from header action icons or from the mobile header', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const panel = screen.getByTestId('ai-agent-panel');
+    const position = panel.style.getPropertyValue('--floating-x');
+    const action = screen.getByRole('button', { name: 'aiChat.clearChat' });
+    fireEvent.pointerDown(action.querySelector('svg')!, { button: 0, isPrimary: true, pointerId: 1, clientX: 600, clientY: 100 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 500, clientY: 120 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(position);
+    mockViewport(390);
+    fireEvent.resize(window);
+    fireEvent.pointerDown(screen.getByTestId('ai-agent-header'), { button: 0, isPrimary: true, pointerId: 2, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 50, clientY: 120 });
+    fireEvent.pointerUp(window, { pointerId: 2 });
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(position);
   });
 
   it('moves the window by keyboard and restores its saved geometry', () => {
