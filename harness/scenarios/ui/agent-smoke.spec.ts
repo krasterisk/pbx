@@ -26,8 +26,10 @@ test.describe('Agent panel — happy path', () => {
 
   test('idle state shows "Click Start" when not logged in', async ({ authenticatedPage: page }) => {
     await page.goto('/callcenter/agent');
-    const idleHint = page.getByText(/Click "Start"|нажмите "Старт"|Waiting for incoming|Ожидание входящего/i).first();
-    const status = page.getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове/i).first();
-    await expect(idleHint.or(status)).toBeVisible();
+    const workspace = page.getByTestId(/^cc-agent-(desktop|phone)$/);
+    await expect(workspace).toBeVisible();
+    const idleHint = workspace.getByText(/Click "Start"|нажмите "Старт"|Waiting for incoming|Ожидание входящего/i).first();
+    const status = workspace.getByTestId('agent-status-bar').getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове/i).first();
+    await expect(idleHint.or(status).first()).toBeVisible();
   });
 });

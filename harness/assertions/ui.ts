@@ -9,7 +9,9 @@ export const KPI_FREE = /free|свободны/i;
 
 /** Assert agent workspace shell: status bar, missed badge, queue KPI labels. */
 export async function assertAgentShellVisible(page: Page): Promise<void> {
-  await expect(page.getByText(STATUS_REGEX).first()).toBeVisible();
+  const workspace = page.getByTestId(/^cc-agent-(desktop|phone)$/);
+  await expect(workspace).toBeVisible();
+  await expect(workspace.getByTestId('agent-status-bar').getByText(STATUS_REGEX).first()).toBeVisible();
 
   const missed = page.getByRole('button', { name: MISSED_BTN });
   await expect(missed.or(page.locator('button[title*="Missed"], button[title*="Пропущ"]'))).toBeVisible();

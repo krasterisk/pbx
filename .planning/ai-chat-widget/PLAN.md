@@ -9,3 +9,7 @@ User assignment: refactor AiChat into a draggable, minimizable widget following 
 Owned paths: frontend shared floating geometry, AssistantPanel, ai-chat panel layout, ModuleShell integration, RU/EN locales; this directory and registry entry only. Backend, voice initiatives, API contracts and root STATE excluded.
 
 Acceptance: mouse/touch and keyboard move; drag does not activate launcher; geometry stays reachable after viewport resize; minimize preserves draft and stream; hidden panel inert; restore/maximize work; mandatory checks recorded honestly. Visual/live evidence recorded separately from unit evidence.
+
+## Follow-up r2 — CI repair, 2026-10-03
+
+W4: user reported failing e2e/harness after 1377a1c7. Both logs resolve operator idle assertions to hidden AiChat `Ready` text. Scope: e2e/tests/operator-happy-path.spec.ts, harness/scenarios/ui/agent-smoke.spec.ts, harness/assertions/ui.ts; this initiative evidence. Constrain assertions to cc-agent workspace/status bar, retain idle/active requirements, list tests/type-check and push; accept after both real CI workflows pass. Preserve unrelated dirty backend migrations/main.ts. No production code or workflow setup change planned.

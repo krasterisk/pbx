@@ -28,3 +28,9 @@ Browser evidence: [desktop](desktop.png), [mobile](mobile.png), [minimized](mini
 ## Handoff
 
 Assignment accepted: code implemented; targeted tests/type/lint/backend/full frontend and local UI passed. Full frontend command output remains `.tmp-widget-frontend.log` (ignored). No outstanding implementation gates in this UI scope. Next action: user review of the widget in the application. Do not rerun unrelated voice/autodial initiatives or change root STATE. API behavior unchanged. No other writers assigned.
+
+## CI follow-up — W4, 2026-10-03
+
+Both [e2e](https://github.com/krasterisk/pbx/actions/runs/37085591228) and [harness](https://github.com/krasterisk/pbx/actions/runs/37085591192) on 1377a1c7 fail only the operator idle-state assertion: the page-wide union resolves to hidden `ai-agent-header-status` Ready. Harness otherwise passed 32 browser scenarios; quality passed. Scope operator state locators to `cc-agent-desktop`/`cc-agent-phone` and `agent-status-bar`; preserve idle/active alternatives and visibility requirements. No skips, timeout increases or production/UI changes.
+
+Local verification: both Playwright configs successfully discover the 3 operator/agent scenarios; staged diff whitespace check passes. Real rerun acceptance pending after commit/push. Unrelated dirty backend migration/main.ts excluded.

@@ -14,9 +14,11 @@ import { test, expect } from '../fixtures/auth.fixture';
 test.describe('Operator panel — happy path', () => {
   test('renders the operator workspace with status bar and queue monitor', async ({ authenticatedPage: page }) => {
     await page.goto('/operator');
+    const workspace = page.getByTestId(/^cc-agent-(desktop|phone)$/);
+    await expect(workspace).toBeVisible();
 
     // Status bar is visible (looking for either Russian or English label)
-    const status = page.getByText(/Offline|Ready|In Call|Paused|Wrap-up|Готов|В вызове|Пауза/i).first();
+    const status = workspace.getByTestId('agent-status-bar').getByText(/Offline|Ready|In Call|Paused|Wrap-up|Готов|В вызове|Пауза/i).first();
     await expect(status).toBeVisible();
 
     // Missed calls badge (rendered next to the connection indicator)
@@ -38,10 +40,12 @@ test.describe('Operator panel — happy path', () => {
 
   test('idle state shows "Click Start" when not logged in', async ({ authenticatedPage: page }) => {
     await page.goto('/operator');
+    const workspace = page.getByTestId(/^cc-agent-(desktop|phone)$/);
+    await expect(workspace).toBeVisible();
     // Either we're logged in (status != OFFLINE), or we see the idle hint.
-    const idleHint = page.getByText(/Click "Start"|нажмите "Старт"|Waiting for incoming|Ожидание входящего/i).first();
-    const status = page.getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове/i).first();
+    const idleHint = workspace.getByText(/Click "Start"|нажмите "Старт"|Waiting for incoming|Ожидание входящего/i).first();
+    const status = workspace.getByTestId('agent-status-bar').getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове/i).first();
     // At least one of them is visible.
-    await expect(idleHint.or(status)).toBeVisible();
+    await expect(idleHint.or(status).first()).toBeVisible();
   });
 });
