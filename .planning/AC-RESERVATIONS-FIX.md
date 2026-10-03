@@ -1,6 +1,6 @@
 # ac_channel_reservations production repair
 
-Coordinator: Codex /root; mode codex-direct; status in_progress.
+Coordinator: Codex /root; mode codex-direct; status released; required gates passed.
 Baseline: server f4e998e5; local e715eefa. Existing dirty 0031 migration and main.ts are outside scope.
 Owned paths: new 0032 migrations, migration manifest/tests, AutodialCampaignsService startup hook, reservation DB contracts, this document.
 Plan R1: diagnose MySQL-only startup DDL (confirmed). R2: versioned dual-engine migration plus remove runtime DDL. R3: unit/lint/backend/frontend gates and real PG migration/hold constraints. R4: apply migration, release corrected backend, verify pacer logs and health.
@@ -15,4 +15,7 @@ Next action: run gates and isolated DB contract, then production backup/migrate/
 - Backup /opt/krasterisk/backups/pre-acres-20261003T035106Z/database.dump.
 - Compatible rollback image: krasterisk-backend:f4e998e5-acres-schema (old service plus new manifest). A previous image with a 0031 manifest cannot restart against the 0032 journal; use the compatible rollback image.
 - Production health/auth, AMI/ARI passed; missing-table and startup-DDL errors absent after restart.
-- Full frontend suite pending. Next action: finish frontend gate, commit/push only owned files and preserve dirty 0031/main.ts.
+- Full frontend suite: 299 files, 1593 tests passed (exit 0).
+- Code committed/pushed to krasterisk/pbx main: 2a920d48.
+- GitHub Actions on 2a920d48: quality 37094755027, Database contracts 37094755052, e2e 37094755035, harness 37094755155 — all success.
+- R1-R4 complete; production runtime pacer errors zero. Existing dirty 0031/main.ts preserved. Next action: none for this scoped repair.
