@@ -3,7 +3,7 @@ import { test, expect } from '../fixtures/auth.fixture';
 /**
  * CC-1e happy path:
  *   1. Operator opens the workspace, sees the status bar.
- *   2. Without an active call, the call panel shows the "waiting" / "not logged in" idle state.
+ *   2. Before a shift, the status bar offers Start shift; during a shift it shows the agent state.
  *   3. Queue Monitor renders KPI counters and the heading row.
  *   4. The Missed Calls badge is present in the top-right corner.
  *
@@ -38,14 +38,14 @@ test.describe('Operator panel — happy path', () => {
     await expect(page.getByText(/No missed calls|Пропущенных нет/i)).toBeVisible({ timeout: 5000 });
   });
 
-  test('idle state shows "Click Start" when not logged in', async ({ authenticatedPage: page }) => {
+  test('idle state offers Start shift when not logged in', async ({ authenticatedPage: page }) => {
     await page.goto('/operator');
     const workspace = page.getByTestId(/^cc-agent-(desktop|phone)$/);
     await expect(workspace).toBeVisible();
-    // Either we're logged in (status != OFFLINE), or we see the idle hint.
-    const idleHint = workspace.getByText(/Click "Start"|нажмите "Старт"|Waiting for incoming|Ожидание входящего/i).first();
-    const status = workspace.getByTestId('agent-status-bar').getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове/i).first();
-    // At least one of them is visible.
-    await expect(idleHint.or(status).first()).toBeVisible();
+    const statusBar = workspace.getByTestId('agent-status-bar');
+    const startShift = statusBar.getByRole('button', { name: /^(Start shift|Начать смену)$/i });
+    const activeStatus = statusBar.getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове|Пауза/i).first();
+    await expect(startShift.or(activeStatus).first()).toBeVisible();
+    if (await startShift.isVisible()) await expect(startShift).toBeEnabled();
   });
 });

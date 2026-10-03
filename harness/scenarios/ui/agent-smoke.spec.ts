@@ -24,12 +24,14 @@ test.describe('Agent panel — happy path', () => {
     await expect(page.getByText(/No missed calls|Пропущенных нет/i)).toBeVisible({ timeout: 5000 });
   });
 
-  test('idle state shows "Click Start" when not logged in', async ({ authenticatedPage: page }) => {
+  test('idle state offers Start shift when not logged in', async ({ authenticatedPage: page }) => {
     await page.goto('/callcenter/agent');
     const workspace = page.getByTestId(/^cc-agent-(desktop|phone)$/);
     await expect(workspace).toBeVisible();
-    const idleHint = workspace.getByText(/Click "Start"|нажмите "Старт"|Waiting for incoming|Ожидание входящего/i).first();
-    const status = workspace.getByTestId('agent-status-bar').getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове/i).first();
-    await expect(idleHint.or(status).first()).toBeVisible();
+    const statusBar = workspace.getByTestId('agent-status-bar');
+    const startShift = statusBar.getByRole('button', { name: /^(Start shift|Начать смену)$/i });
+    const activeStatus = statusBar.getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове|Пауза/i).first();
+    await expect(startShift.or(activeStatus).first()).toBeVisible();
+    if (await startShift.isVisible()) await expect(startShift).toBeEnabled();
   });
 });
