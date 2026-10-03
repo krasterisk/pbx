@@ -127,6 +127,10 @@
         {
           "id": "0031-cdr-chain.sql",
           "artifact": "0031-cdr-chain.sql"
+        },
+        {
+          "id": "0032-autodial-channel-reservations.sql",
+          "artifact": "0032-autodial-channel-reservations.sql"
         }
       ],
       "profiles": {
@@ -462,6 +466,10 @@
         {
           "id": "0031-cdr-chain.sql",
           "artifact": "postgres/0031-cdr-chain.sql"
+        },
+        {
+          "id": "0032-autodial-channel-reservations.sql",
+          "artifact": "postgres/0032-autodial-channel-reservations.sql"
         }
       ],
       "profiles": {

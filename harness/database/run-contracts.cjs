@@ -81,6 +81,42 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       const adapter = await connectAdapter(config);
       try { return await fn(adapter); } finally { await adapter.close(); }
     };
+    await t.test('autodial reservation migration upgrades legacy columns and enforces holds', async () => {
+      const config = await fresh();
+      const baseline = fixture('0001-autodial-fixture.sql', 'CREATE TABLE ac_campaigns (uid INTEGER PRIMARY KEY, revision INTEGER NOT NULL); INSERT INTO ac_campaigns VALUES (1, 7)');
+      const migration = loadMigrations(dialect).find(item => item.id === '0032-autodial-channel-reservations.sql');
+      const migrations = [baseline, migration];
+      await runMigrations({ config, migrations });
+      await withConnection(config, async adapter => {
+        const rows = await adapter.query('SELECT applied_revision, apply_error, pacer_owner, pacer_heartbeat_at FROM ac_campaigns');
+        assert.equal(rows[0].applied_revision, 7);
+        assert.equal(rows[0].pacer_owner, null);
+        // Reapplying SQL models adoption of a legacy startup-created schema.
+        await adapter.query(migration.sql);
+      });
+      const orm = new Sequelize(config.database, config.username, config.password, {
+        dialect, host: config.host, port: config.port, logging: false,
+      });
+      try {
+        const Hold = orm.define('Hold', {
+          uid: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+          user_uid: { type: DataTypes.INTEGER, field: 'vpbx_user_uid' },
+          campaign_uid: DataTypes.INTEGER, task_uid: DataTypes.INTEGER,
+          trunk_id: DataTypes.STRING(128), owner: DataTypes.STRING(64),
+          expires_at: DataTypes.DATE, created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+        }, { tableName: 'ac_channel_reservations', timestamps: false });
+        const hold = { user_uid: 11, campaign_uid: 1, task_uid: 101, trunk_id: 'test-trunk', owner: 'worker-a', expires_at: new Date(Date.now() + 30000) };
+        const first = await Hold.create(hold);
+        assert.ok(first.uid > 0);
+        await assert.rejects(Hold.create({ ...hold, owner: 'worker-b' }), error => error.name === 'SequelizeUniqueConstraintError');
+        await Hold.create({ ...hold, user_uid: 12, task_uid: 102, expires_at: new Date(Date.now() - 1000) });
+        assert.equal(await Hold.count({ where: { user_uid: 11 } }), 1);
+        assert.equal(await Hold.destroy({ where: { expires_at: { [require('sequelize').Op.lt]: new Date() } } }), 1);
+        assert.equal(await Hold.count(), 1);
+        assert.deepEqual((await runMigrations({ config, migrations })).newlyApplied, []);
+        assert.equal(await Hold.count(), 1);
+      } finally { await orm.close(); }
+    });
     for (const standaloneProfile of ['analytics-api', 'robot-api']) {
     await t.test(`${standaloneProfile} installs neutral tables only and binds schema identity`, async () => {
       const config = await fresh();

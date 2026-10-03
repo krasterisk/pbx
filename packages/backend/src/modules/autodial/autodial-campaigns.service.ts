@@ -4,7 +4,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnModuleInit,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/sequelize";
@@ -73,7 +72,7 @@ function isSupportedTimeZone(timeZone: string): boolean {
 }
 
 @Injectable()
-export class AutodialCampaignsService implements OnModuleInit {
+export class AutodialCampaignsService {
   private readonly logger = new Logger(AutodialCampaignsService.name);
 
   constructor(
@@ -91,60 +90,6 @@ export class AutodialCampaignsService implements OnModuleInit {
     private readonly directoriesService: DirectoriesService,
     private readonly dialplanService: AutodialDialplanService,
   ) {}
-
-  async onModuleInit(): Promise<void> {
-    await this.ensureCampaignColumn(
-      'applied_revision',
-      'ALTER TABLE `ac_campaigns` ADD COLUMN `applied_revision` INT NULL',
-    );
-    await this.ensureCampaignColumn(
-      'apply_error',
-      'ALTER TABLE `ac_campaigns` ADD COLUMN `apply_error` VARCHAR(255) NULL',
-    );
-    await this.ensureCampaignColumn(
-      'pacer_owner',
-      'ALTER TABLE `ac_campaigns` ADD COLUMN `pacer_owner` VARCHAR(64) NULL',
-    );
-    await this.ensureCampaignColumn(
-      'pacer_heartbeat_at',
-      'ALTER TABLE `ac_campaigns` ADD COLUMN `pacer_heartbeat_at` DATETIME NULL',
-    );
-    try {
-      await this.sequelize.query(
-        "UPDATE `ac_campaigns` SET `applied_revision` = `revision` WHERE `applied_revision` IS NULL",
-      );
-    } catch (err) {
-      this.logger.warn(`applied_revision backfill: ${(err as Error).message}`);
-    }
-    try {
-      await this.sequelize.query(`CREATE TABLE IF NOT EXISTS \`ac_channel_reservations\` (
-        \`uid\` INT NOT NULL AUTO_INCREMENT,
-        \`vpbx_user_uid\` INT NOT NULL,
-        \`campaign_uid\` INT NOT NULL,
-        \`task_uid\` INT NOT NULL,
-        \`trunk_id\` VARCHAR(128) NOT NULL,
-        \`owner\` VARCHAR(64) NOT NULL,
-        \`expires_at\` DATETIME NOT NULL,
-        \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (\`uid\`),
-        UNIQUE KEY \`uq_ac_res_task\` (\`task_uid\`),
-        KEY \`idx_ac_res_trunk\` (\`vpbx_user_uid\`, \`trunk_id\`, \`expires_at\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
-    } catch (err) {
-      this.logger.warn(`ac_channel_reservations ensure: ${(err as Error).message}`);
-    }
-  }
-
-  private async ensureCampaignColumn(label: string, sql: string): Promise<void> {
-    try {
-      await this.sequelize.query(sql);
-    } catch (err) {
-      const msg = String((err as Error).message ?? err);
-      if (!msg.includes("Duplicate column")) {
-        this.logger.warn(`${label} column ensure: ${msg}`);
-      }
-    }
-  }
 
   async findAll(userUid: number): Promise<IAutodialCampaign[]> {
     const rows = await this.campaignModel.findAll({

@@ -11,3 +11,5 @@
 
 | ci-repair | [EXECUTION](CI-REPAIR-EXECUTION.md) | Scoped test/lint/CI repair |
 | ai-chat-widget | [EXECUTION](ai-chat-widget/EXECUTION.md) | [Scoped UI plan](ai-chat-widget/PLAN.md) |
+
+| ac-reservations-fix | [EXECUTION/PLAN](AC-RESERVATIONS-FIX.md) | Scoped production schema repair |
