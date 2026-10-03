@@ -294,7 +294,9 @@ describe('AssistantPanel', () => {
     missingThreadUid = null;
     sessionStorage.clear();
     localStorage.removeItem('assistant-panel-layout');
+    localStorage.removeItem('assistant-widget-geometry');
     mockViewport(1280);
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 });
     Element.prototype.scrollIntoView = vi.fn();
     aiChatState.isStreaming = false;
     aiChatState.turnOutcome = 'idle';
@@ -404,7 +406,7 @@ describe('AssistantPanel', () => {
       join(process.cwd(), 'src/widgets/AssistantPanel/AssistantPanel.module.scss'),
       'utf8',
     );
-    expect(scss).toMatch(/\.resizeHandle[\s\S]*z-index:\s*[1-9]/);
+    expect(scss).toMatch(/\.resizeHandle[\s\S]*z-index:\s*var\(--z-index-dropdown\)/);
     expect(scss).toMatch(/\.resizeDock[\s\S]*grid-area:\s*1\s*\/\s*1\s*\/\s*-1\s*\/\s*1/);
   });
 
@@ -422,6 +424,130 @@ describe('AssistantPanel', () => {
     mockViewport(600);
     render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     expect(screen.queryByTestId('ai-agent-resize-dock')).toBeNull();
+  });
+
+  it('minimizes without losing the draft or aborting a streaming turn', () => {
+    const { rerender } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const input = screen.getByRole('textbox') as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: 'My unfinished question' } });
+    turnApi.isStreaming = true;
+    rerender(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.minimizeWidget' }));
+    expect(turnApi.abort).not.toHaveBeenCalled();
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('inert');
+    expect(screen.getByTestId('ai-agent-launcher')).toHaveFocus();
+    expect(screen.getByTestId('ai-agent-launcher')).toHaveTextContent('aiChat.progress.working');
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.restoreWidget' }));
+    expect(screen.getByTestId('ai-agent-panel')).not.toHaveAttribute('inert');
+    expect(screen.getByRole('textbox')).toBe(input);
+    expect(input.value).toBe('My unfinished question');
+  });
+
+  it('moves the window by keyboard and restores its saved geometry', () => {
+    const { unmount } = render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const panel = screen.getByTestId('ai-agent-panel');
+    const initial = parseFloat(panel.style.getPropertyValue('--floating-x'));
+    fireEvent.keyDown(screen.getByTestId('ai-agent-move'), { key: 'ArrowLeft' });
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(`${initial - 16}px`);
+    unmount();
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    expect(screen.getByTestId('ai-agent-panel').style.getPropertyValue('--floating-x')).toBe(`${initial - 16}px`);
+  });
+
+  it('drags the launcher to an edge without activating it', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.minimizeWidget' }));
+    const launcher = screen.getByTestId('ai-agent-launcher');
+    fireEvent.pointerDown(launcher, { button: 0, isPrimary: true, pointerId: 1, clientX: 1200, clientY: 600 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 120, clientY: 300 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
+    fireEvent.click(launcher, { detail: 1 });
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-minimized', 'true');
+    expect(launcher.style.getPropertyValue('--launcher-x')).toBe('16px');
+    fireEvent.click(launcher, { detail: 0 });
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'true');
+  });
+
+  it('opens a closed widget from its floating button', () => {
+    const onOpen = vi.fn();
+    render(<AssistantPanel open={false} {...dockProps} onClose={vi.fn()} onOpen={onOpen} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.openWidget' }));
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('inert');
+  });
+
+  it('resizes height by keyboard and ignores corrupt stored geometry', () => {
+    localStorage.setItem('assistant-widget-geometry', '{"x":null}');
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const panel = screen.getByTestId('ai-agent-panel');
+    const initial = parseFloat(panel.style.getPropertyValue('--floating-height'));
+    fireEvent.keyDown(screen.getByTestId('ai-agent-resize-corner'), { key: 'ArrowUp' });
+    expect(panel.style.getPropertyValue('--floating-height')).toBe(`${initial - 16}px`);
+    expect(panel.getAttribute('style')).not.toContain('NaN');
+  });
+
+  it('keeps the window and launcher reachable when the viewport shrinks', () => {
+    localStorage.setItem('assistant-widget-geometry', JSON.stringify({
+      x: 480, y: 100, height: 640, launcher: { x: 1200, y: 660 },
+    }));
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    mockViewport(800);
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 500 });
+    fireEvent.resize(window);
+    const panel = screen.getByTestId('ai-agent-panel');
+    expect(parseFloat(panel.style.getPropertyValue('--floating-x')) +
+      parseFloat(panel.style.getPropertyValue('--ai-agent-panel-width'))).toBeLessThanOrEqual(784);
+    expect(parseFloat(panel.style.getPropertyValue('--floating-y')) +
+      parseFloat(panel.style.getPropertyValue('--floating-height'))).toBeLessThanOrEqual(484);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.minimizeWidget' }));
+    const launcher = screen.getByTestId('ai-agent-launcher');
+    expect(parseFloat(launcher.style.getPropertyValue('--launcher-x'))).toBeLessThanOrEqual(724);
+    expect(parseFloat(launcher.style.getPropertyValue('--launcher-y'))).toBeLessThanOrEqual(424);
+  });
+
+  it('stops moving on pointer cancellation and ignores other pointers', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const panel = screen.getByTestId('ai-agent-panel');
+    const grip = screen.getByTestId('ai-agent-move');
+    const originalX = panel.style.getPropertyValue('--floating-x');
+    fireEvent.pointerDown(grip, { button: 0, isPrimary: true, pointerId: 1, clientX: 500, clientY: 100 });
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 400, clientY: 100 });
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(originalX);
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 400, clientY: 100 });
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(`${parseFloat(originalX) - 100}px`);
+    fireEvent.pointerCancel(window, { pointerId: 1 });
+    const stoppedX = panel.style.getPropertyValue('--floating-x');
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 300, clientY: 100 });
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(stoppedX);
+    expect(panel).toHaveAttribute('data-dragging', 'false');
+  });
+
+  it('makes conversation history accessible in a compact widget', () => {
+    mockViewport(600);
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.threadsHeading' }));
+    expect(screen.getByRole('option', { name: /Yesterday's call/ })).toBeInTheDocument();
+    selectStoredThread();
+    expect(document.getElementById('ai-agent-thread-overlay')).toBeNull();
+    expect(screen.getByText('Stored user message from yesterday')).toBeInTheDocument();
+  });
+
+  it('preserves desktop window dimensions during a mobile viewport visit', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    const panel = screen.getByTestId('ai-agent-panel');
+    const initialWidth = panel.style.getPropertyValue('--ai-agent-panel-width');
+    const initialHeight = panel.style.getPropertyValue('--floating-height');
+    const initialX = panel.style.getPropertyValue('--floating-x');
+    mockViewport(390);
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 500 });
+    fireEvent.resize(window);
+    expect(screen.queryByRole('button', { name: 'aiChat.expand' })).toBeNull();
+    mockViewport(1280);
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 });
+    fireEvent.resize(window);
+    expect(panel.style.getPropertyValue('--ai-agent-panel-width')).toBe(initialWidth);
+    expect(panel.style.getPropertyValue('--floating-height')).toBe(initialHeight);
+    expect(panel.style.getPropertyValue('--floating-x')).toBe(initialX);
   });
 
   it('paints the agent on its own surface instead of the platform card token', () => {
@@ -584,7 +710,7 @@ describe('AssistantPanel', () => {
       'utf8',
     );
     expect(scss).toMatch(/max-width:\s*767px[\s\S]*width:\s*100vw/);
-    expect(scss).toMatch(/max-width:\s*767px[\s\S]*left:\s*0/);
+    expect(scss).toMatch(/max-width:\s*767px[\s\S]*inset:\s*0/);
   });
 
   it('lays header, body, composer and footer out as separate grid rows', () => {

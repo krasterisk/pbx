@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, X, Send, Trash2, RotateCcw, ArrowDown, ArrowLeft, Maximize2, Minimize2, ClipboardList } from 'lucide-react';
+import { X, Send, RotateCcw, ArrowDown, ArrowLeft, MoveDiagonal2 } from 'lucide-react';
 import { Button, Text, Textarea } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
@@ -18,6 +18,9 @@ import { ThreadList } from '@/features/ai-chat/ui/ThreadList';
 import { PlanRail } from '@/features/ai-chat/ui/PlanRail';
 import { useAgentTurn } from '@/features/ai-chat/model/useAgentTurn';
 import { useAssistantPanelLayout, type AssistantPanelResizeEdge } from '@/features/ai-chat/model/useAssistantPanelLayout';
+import { useFloatingWindow } from '@/shared/hooks/useFloatingWindow';
+import { AssistantPanelHeader } from './AssistantPanelHeader';
+import { AssistantWidgetLauncher } from './AssistantWidgetLauncher';
 import cls from './AssistantPanel.module.scss';
 
 export type AssistantPanelMode = 'dock' | 'workspace';
@@ -75,9 +78,13 @@ export interface AssistantPanelProps {
     mode: AssistantPanelMode;
     onModeChange: (mode: AssistantPanelMode) => void;
     onClose: () => void;
+    onOpen?: () => void;
+    minimized?: boolean;
+    onMinimizedChange?: (minimized: boolean) => void;
 }
 
-export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantPanelProps) => {
+export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
+    minimized: controlledMinimized, onMinimizedChange }: AssistantPanelProps) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const seedMessage = useAppSelector((s) => s.aiChat.seedMessage);
@@ -87,10 +94,25 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
     const isDock = effectiveMode === 'dock';
     const isBelowTablet = useIsMobile(768);
     const isBelowWide = useIsMobile(1024);
-    const showRail = !isBelowWide;
+    const [threadsOpen, setThreadsOpen] = useState(false);
     const canPinPlanRail = !isDock;
     const sheet = isBelowTablet;
-    const { cssVars, startResize, nudge } = useAssistantPanelLayout(sheet);
+    const { layout, cssVars, startResize, nudge, setWidth, cancelResize } = useAssistantPanelLayout(sheet);
+    const showRail = !isBelowWide && (!isDock || layout.dockWidth >= 700);
+
+    const floating = useFloatingWindow(layout.dockWidth, setWidth, 'assistant-widget-geometry', 768);
+    const { cancelGesture } = floating;
+    const [localMinimized, setLocalMinimized] = useState(false);
+    const minimized = controlledMinimized ?? localMinimized;
+    const setMinimized = useCallback((value: boolean) => {
+        setLocalMinimized(value);
+        onMinimizedChange?.(value);
+    }, [onMinimizedChange]);
+    const visible = open && !minimized;
+    useEffect(() => { if (!open || seedMessage) setMinimized(false); }, [open, seedMessage, setMinimized]);
+    useEffect(() => {
+        if (!visible || !isDock || sheet) { cancelGesture(); cancelResize(); }
+    }, [visible, isDock, sheet, cancelGesture, cancelResize]);
 
     const onResizeKey = (edge: AssistantPanelResizeEdge) => (event: KeyboardEvent) => {
         if (event.key === 'ArrowLeft') {
@@ -205,13 +227,17 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
     }, [detail?.timeline, outcome, following]);
 
     useEffect(() => {
-        if (!open) return;
+        if (!visible) return;
         const panel = panelRef.current;
         if (!panel) return;
 
         const onKeyDown = (event: globalThis.KeyboardEvent) => {
             if (event.key !== 'Escape') return;
             event.preventDefault();
+            if (threadsOpen) {
+                setThreadsOpen(false);
+                return;
+            }
             if (isDock && plansOpen) {
                 setPlansOpen(false);
                 return;
@@ -225,7 +251,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
 
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [open, isDock, onClose, onModeChange, plansOpen]);
+    }, [visible, isDock, onClose, onModeChange, plansOpen, threadsOpen]);
 
     useEffect(() => {
         setPlansOpen(!isDock);
@@ -306,12 +332,16 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                 role="dialog"
                 aria-label={t('aiChat.title')}
                 data-testid="ai-agent-panel"
-                data-open={open ? 'true' : 'false'}
+                data-open={visible ? 'true' : 'false'}
+                data-minimized={minimized ? 'true' : 'false'}
+                data-dragging={floating.dragging ? 'true' : 'false'}
+                inert={!visible}
+                aria-hidden={!visible}
                 data-mode={effectiveMode}
                 data-sheet={isBelowTablet ? 'true' : 'false'}
                 data-surface="agent"
-                className={`${cls.panel} ${isDock ? cls.panelDock : cls.panelWorkspace} ${open ? cls.panelOpen : ''}`}
-                style={cssVars as CSSProperties}
+                className={`${cls.panel} ${isDock ? cls.panelDock : cls.panelWorkspace} ${visible ? cls.panelOpen : ''}`}
+                style={{ ...cssVars, ...floating.style } as CSSProperties}
             >
                 {!sheet && isDock && (
                     <Flex
@@ -330,77 +360,18 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                         {null}
                     </Flex>
                 )}
-                <HStack
-                    className={cls.header}
-                    gap="8"
-                    align="center"
-                    data-testid="ai-agent-header"
-                >
-                    <VStack className={cls.avatar} align="center" justify="center">
-                        <Bot size={18} aria-hidden />
-                    </VStack>
-                    <VStack className={cls.headerInfo} gap="0" align="start">
-                        <Text as="span" className={cls.headerTitle}>{t('aiChat.title')}</Text>
-                        <Text
-                            as="span"
-                            className={`${cls.headerStatus} ${isStreaming ? cls.headerStatusBusy : ''}`}
-                            data-testid="ai-agent-header-status"
-                        >
-                            {isStreaming ? t('aiChat.progress.working') : t('aiChat.ready')}
-                        </Text>
-                    </VStack>
-
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`${cls.planToggle} ${plansOpen ? cls.planToggleActive : ''}`}
-                        onClick={() => setPlansOpen((visible) => !visible)}
-                        title={plansOpen
-                            ? (isDock ? t('aiChat.backToChat') : t('aiChat.hidePlans'))
-                            : t('aiChat.openPlans')}
-                        aria-label={t('aiChat.openPlans')}
-                        aria-expanded={plansOpen}
-                        aria-pressed={plansOpen}
-                        aria-controls={isDock ? 'ai-agent-plan-overlay' : 'ai-agent-plan-column'}
-                        data-active={plansOpen ? 'true' : 'false'}
-                    >
-                        <ClipboardList size={16} aria-hidden />
-                        {pendingPlanCount > 0 && (
-                            <Text as="span" className={cls.planBadge}>{pendingPlanCount}</Text>
-                        )}
-                    </Button>
-
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleClearChat}
-                        title={t('aiChat.clearChat')}
-                        aria-label={t('aiChat.clearChat')}
-                    >
-                        <Trash2 size={14} />
-                    </Button>
-
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onModeChange(effectiveMode === 'workspace' ? 'dock' : 'workspace')}
-                        title={effectiveMode === 'workspace' ? t('aiChat.collapse') : t('aiChat.expand')}
-                        aria-label={effectiveMode === 'workspace' ? t('aiChat.collapse') : t('aiChat.expand')}
-                    >
-                        {effectiveMode === 'workspace' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                    </Button>
-
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onClose}
-                        title={t('aiChat.closePanel')}
-                        aria-label={t('aiChat.closePanel')}
-                    >
-                        <X size={16} />
-                    </Button>
-                </HStack>
-
+                <AssistantPanelHeader
+                    sheet={sheet} isDock={isDock} isStreaming={isStreaming}
+                    effectiveMode={effectiveMode} plansOpen={plansOpen} pendingPlanCount={pendingPlanCount}
+                    showThreadsToggle={!showRail} threadsOpen={threadsOpen}
+                    onToggleThreads={() => { setThreadsOpen((value) => !value); setPlansOpen(false); }}
+                    moveControls={floating.controls('move')}
+                    onTogglePlans={() => { setPlansOpen((visible) => !visible); setThreadsOpen(false); }}
+                    onClear={handleClearChat}
+                    onToggleMode={() => onModeChange(isDock ? 'workspace' : 'dock')}
+                    onMinimize={() => { floating.cancelGesture(); setMinimized(true); }}
+                    onClose={onClose}
+                />
                 <HStack
                     className={`${cls.body} ${showRail ? cls.bodyWithRail : ''} ${showPlanRail ? cls.bodyWithPlan : ''}`}
                     align="stretch"
@@ -574,6 +545,19 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                     )}
                 </HStack>
 
+                {!showRail && threadsOpen && (
+                    <VStack id="ai-agent-thread-overlay" className={cls.planOverlay}
+                        gap="8" align="stretch" aria-label={t('aiChat.threadsHeading')}>
+                        <Button variant="ghost" size="sm" onClick={() => setThreadsOpen(false)}
+                            aria-label={t('aiChat.backToChat')}>
+                            <ArrowLeft size={14} aria-hidden />{t('aiChat.backToChat')}
+                        </Button>
+                        <ThreadList selectedUid={selectedThreadUid} skip={!open}
+                            onSelect={(selection) => { handleSelectThread(selection); setThreadsOpen(false); }}
+                            onDeleted={handleDeletedThread} />
+                    </VStack>
+                )}
+
                 {isDock && plansOpen && (
                     <VStack
                         id="ai-agent-plan-overlay"
@@ -657,7 +641,25 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose }: AssistantP
                 >
                     <Text as="p" className={cls.disclaimer}>{t('aiChat.disclaimer')}</Text>
                 </VStack>
+                {!sheet && isDock && (
+                    <Button variant="ghost" size="icon" className={cls.resizeCorner}
+                        title={t('aiChat.resizeWidget')} aria-label={t('aiChat.resizeWidget')}
+                        data-testid="ai-agent-resize-corner" {...floating.controls('resize')}>
+                        <MoveDiagonal2 size={14} aria-hidden />
+                    </Button>
+                )}
             </Flex>
+            {!visible && (open || onOpen) && (
+                <AssistantWidgetLauncher
+                    style={floating.style} controls={floating.controls('launcher')}
+                    busy={isStreaming} pendingCount={pendingPlanCount} minimized={open && minimized}
+                    onActivate={(keyboard) => floating.activateLauncher(() => {
+                        setMinimized(false);
+                        if (!open) onOpen?.();
+                        requestAnimationFrame(() => textareaRef.current?.focus());
+                    }, keyboard)}
+                />
+            )}
         </>
     );
 };

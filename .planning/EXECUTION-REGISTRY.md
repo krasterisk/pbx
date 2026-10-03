@@ -10,3 +10,4 @@
 Введён 2026-09-18. Существующие production/autodial/GSD tasks автоматически не переносились и не объявлены свободными. Перед записью в общие файлы сверять dirty baseline и writers. Если у другой инициативы уже есть registry/state, добавить ссылку на него, а не копировать все статусы.
 
 | ci-repair | [EXECUTION](CI-REPAIR-EXECUTION.md) | Scoped test/lint/CI repair |
+| ai-chat-widget | [EXECUTION](ai-chat-widget/EXECUTION.md) | [Scoped UI plan](ai-chat-widget/PLAN.md) |

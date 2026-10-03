@@ -59,6 +59,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [agentMinimized, setAgentMinimized] = useState(false);
   const agentTriggerRef = useRef<HTMLButtonElement>(null);
   const shortcutMod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
   const agentShortcutHint = t('aiChat.shortcutHint', { mod: shortcutMod });
@@ -161,14 +162,15 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
       if (e.key.toLowerCase() !== 'j') return;
       if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return;
       e.preventDefault();
-      setAgentOpen((open) => !open);
+      setAgentOpen((open) => agentMinimized || !open);
+      setAgentMinimized(false);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [agentMinimized]);
 
   useEffect(() => {
-    if (chatSeed) setAgentOpen(true);
+    if (chatSeed) { setAgentOpen(true); setAgentMinimized(false); }
   }, [chatSeed]);
 
   const closeAgent = useCallback(() => {
@@ -257,10 +259,10 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
             size="sm"
             id="shell-agent-trigger"
             ref={agentTriggerRef}
-            className={agentOpen ? cls.agentTriggerActive : undefined}
-            onClick={() => setAgentOpen((open) => !open)}
+            className={agentOpen && !agentMinimized ? cls.agentTriggerActive : undefined}
+            onClick={() => { setAgentOpen((open) => agentMinimized || !open); setAgentMinimized(false); }}
             aria-label={t('aiChat.openAssistant')}
-            aria-pressed={agentOpen}
+            aria-pressed={agentOpen && !agentMinimized}
             title={agentShortcutHint}
           >
             <Sparkles size={16} aria-hidden />
@@ -330,9 +332,12 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
 
       <AssistantPanel
         open={agentOpen}
+        minimized={agentMinimized}
+        onMinimizedChange={setAgentMinimized}
         mode={panelMode}
         onModeChange={handlePanelModeChange}
         onClose={closeAgent}
+        onOpen={() => setAgentOpen(true)}
       />
     </div>
     </ConferenceSessionProvider>

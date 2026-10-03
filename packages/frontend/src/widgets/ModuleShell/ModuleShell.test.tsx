@@ -406,6 +406,20 @@ describe('ModuleShell (A+C hybrid)', () => {
     expect(trigger).toHaveFocus();
   });
 
+  it('restores a minimized widget from the shell trigger and shortcut', () => {
+    render(<MemoryRouter initialEntries={['/endpoints']}><ModuleShell /></MemoryRouter>);
+    const trigger = document.getElementById('shell-agent-trigger')!;
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.minimizeWidget' }));
+    expect(trigger).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(trigger);
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'aiChat.minimizeWidget' }));
+    fireEvent.keyDown(window, { key: 'j', ctrlKey: true, shiftKey: true });
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'true');
+    expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-minimized', 'false');
+  });
+
   it('mounts offline banner', () => {
     Object.defineProperty(navigator, 'onLine', {
       configurable: true,
