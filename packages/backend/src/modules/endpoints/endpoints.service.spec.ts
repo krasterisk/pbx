@@ -4,6 +4,8 @@ import { EndpointsService, NAT_ENDPOINT_DEFAULTS, WEBRTC_ENDPOINT_DEFAULTS } fro
 function makeService() {
   const created: Record<string, unknown>[] = [];
   const endpointModel = {
+    findOne: jest.fn(),
+    update: jest.fn().mockResolvedValue([1]),
     create: jest.fn().mockImplementation(async (row: Record<string, unknown>) => {
       created.push(row);
       return row;
@@ -13,14 +15,17 @@ function makeService() {
     findAll: jest.fn().mockResolvedValue([]),
   };
   const authModel = {
+    findAll: jest.fn().mockResolvedValue([]),
     create: jest.fn().mockResolvedValue({}),
     destroy: jest.fn().mockResolvedValue(1),
   };
   const aorModel = {
+    findAll: jest.fn().mockResolvedValue([]),
     create: jest.fn().mockResolvedValue({}),
     destroy: jest.fn().mockResolvedValue(1),
   };
   const contactModel = {
+    findAll: jest.fn().mockResolvedValue([]),
     destroy: jest.fn().mockResolvedValue(1),
   };
   const service = new EndpointsService(
@@ -28,10 +33,11 @@ function makeService() {
     authModel as any,
     aorModel as any,
     contactModel as any,
-    {} as any,
+    { transaction: async (callback: (t: object) => Promise<unknown>) => callback({}) } as any,
     {} as any,
     {} as any,
     {},
+    { sync: jest.fn().mockResolvedValue(true) } as any,
   );
   return { service, endpointModel, authModel, aorModel, contactModel, created };
 }
@@ -84,6 +90,38 @@ describe('EndpointsService ephemeral guest API (16.1-01)', () => {
     expect(aorModel.destroy).toHaveBeenCalledWith({ where: { id: 'gstdeadbeef' } });
     expect(remove).not.toHaveBeenCalled();
     remove.mockRestore();
+  });
+});
+
+describe('Subscriber API ownership and BLF policy', () => {
+  it('hides trunks, guests and companions in the subscriber list', async () => {
+    const { service, endpointModel } = makeService();
+    endpointModel.findAll.mockResolvedValue(['e201_0', 'ew201_0', 't_komandor_0', 'gst123', 'e201_7'].map((id) => ({
+      id, toJSON: () => ({ id, allow_subscribe: 'yes' }),
+    })));
+    expect((await service.findAll(0)).map((r) => r.id)).toEqual(['e201_0']);
+  });
+
+  it('cannot read, edit, delete or disclose credentials of a trunk via subscriber API', async () => {
+    const { service, endpointModel } = makeService();
+    await expect(service.findOne('t_komandor_0', 0)).rejects.toThrow('Not a primary subscriber');
+    await expect(service.update('t_komandor_0', {}, 0)).rejects.toThrow('Not a primary subscriber');
+    await expect(service.remove('t_komandor_0', 0)).rejects.toThrow('Not a primary subscriber');
+    await expect(service.getCredentials('t_komandor_0', 0)).rejects.toThrow('Not a subscriber');
+    expect(endpointModel.destroy).not.toHaveBeenCalled();
+  });
+
+  it('overrides foreign subscription context and ownership changes while disabling BLF', async () => {
+    const { service, endpointModel } = makeService();
+    endpointModel.findOne.mockResolvedValue({ id: 'e201_42', allow_subscribe: 'yes' });
+    jest.spyOn(service, 'findOne').mockResolvedValue({} as any);
+    await service.update('e201_42', { endpoint: {
+      blf_enabled: false, subscribe_context: 'krsk-blf-7', tenantid: '7', id: 't_komandor_42',
+    } }, 42);
+    expect(endpointModel.update).toHaveBeenCalledWith(
+      { allow_subscribe: 'no', subscribe_context: 'krsk-blf-42' },
+      expect.objectContaining({ where: { id: 'e201_42' } }),
+    );
   });
 });
 

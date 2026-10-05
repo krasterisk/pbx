@@ -1,5 +1,9 @@
 app_amd
 app_system
+res_pjsip_exten_state
+res_pjsip_pidf_body_generator
+res_pjsip_xpidf_body_generator
+res_pjsip_dialog_info_body_generator
 app_waitforcond
 app_waitforring
 app_waitforsilence

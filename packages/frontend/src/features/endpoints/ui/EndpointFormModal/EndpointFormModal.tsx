@@ -102,6 +102,7 @@ export const EndpointFormModal = () => {
   const [natProfile, setNatProfile] = useState<PrimaryNatProfileId>('nat');
   /** Opt-in WebRTC companion - default off */
   const [webrtcEnabled, setWebrtcEnabled] = useState(false);
+  const [blfEnabled, setBlfEnabled] = useState(false);
   
   // Call Groups
   const [namedCallGroup, setNamedCallGroup] = useState<string[]>([]);
@@ -139,6 +140,7 @@ export const EndpointFormModal = () => {
       });
       setNatProfile(detected === 'webrtc' ? 'nat' : detected);
       setWebrtcEnabled(!!selected.webrtc_enabled);
+      setBlfEnabled(selected.blf_enabled ?? ['yes', 'true', 'on'].includes(String(selected.allow_subscribe)));
       
       setNamedCallGroup((selected.named_call_group || '').split(',').filter(Boolean));
       setNamedPickupGroup((selected.named_pickup_group || '').split(',').filter(Boolean));
@@ -167,6 +169,7 @@ export const EndpointFormModal = () => {
       setCodecs(['ulaw', 'alaw', 'g722']);
       setNatProfile('nat');
       setWebrtcEnabled(false);
+      setBlfEnabled(false);
       setNamedCallGroup([]);
       setNamedPickupGroup([]);
       setProvisionEnabled(false);
@@ -186,7 +189,7 @@ export const EndpointFormModal = () => {
   const handleSubmit = async () => {
     try {
       if (mode === 'create') {
-        await createEndpoint({
+        const saved = await createEndpoint({
           extension,
           password,
           displayName: displayName || undefined,
@@ -196,6 +199,7 @@ export const EndpointFormModal = () => {
           codecs: codecs.join(','),
           natProfile,
           webrtcEnabled,
+          blfEnabled,
           namedCallGroup: namedCallGroup.join(','),
           namedPickupGroup: namedPickupGroup.join(','),
           provisionEnabled,
@@ -208,11 +212,12 @@ export const EndpointFormModal = () => {
             ...advancedState,
           },
         }).unwrap();
+        if (saved.blf_applied === false) alert(t('endpoints.blfPending'));
       } else if (selected) {
         // Update API takes raw PJSIP columns (no natProfile). Apply the selected
         // profile patch after advancedState so profile fields always win.
         const natPatch = buildNatProfilePatch(natProfile);
-        await updateEndpoint({
+        const saved = await updateEndpoint({
           sipId: selected.id,
           data: {
             endpoint: {
@@ -232,10 +237,12 @@ export const EndpointFormModal = () => {
               deny: deny || null,
               ...advancedState,
               ...natPatch,
+              blf_enabled: blfEnabled,
             },
             ...(password ? { auth: { password } } : {}),
           },
         }).unwrap();
+        if (saved.blf_applied === false) alert(t('endpoints.blfPending'));
       }
       handleClose();
     } catch (e: any) {
@@ -494,6 +501,13 @@ export const EndpointFormModal = () => {
 
             <TabsContent value="calls">
               <VStack gap="16">
+                <VStack gap="4">
+                  <HStack gap="8" align="center">
+                    <Checkbox id="ep-blf" checked={blfEnabled} onChange={(event) => setBlfEnabled(event.target.checked)} />
+                    <Label htmlFor="ep-blf">{t('endpoints.blfEnabled', 'BLF и подписки на статусы')}</Label>
+                  </HStack>
+                  <span className="text-xs text-muted-foreground">{t('endpoints.blfDescription')}</span>
+                </VStack>
                 <VStack gap="4">
                   <HStack gap="4" align="center">
                     <span className="text-sm font-medium text-muted-foreground">{t('endpoints.namedCallGroup')}</span>

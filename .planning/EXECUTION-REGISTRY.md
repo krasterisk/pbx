@@ -17,3 +17,4 @@
 | trunk-status-fix | [EXECUTION/PLAN](TRUNK-STATUS-FIX.md) | Trunk reachability UI |
 
 | dialplan-callerid-name | [EXECUTION/PLAN](DIALPLAN-CALLERID-NAME.md) | Trunk labels and CallerID name |
+| blf-support | [EXECUTION/PLAN](BLF-SUPPORT.md) | Optional tenant-isolated BLF and presence |

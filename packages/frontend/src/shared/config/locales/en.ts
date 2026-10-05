@@ -253,6 +253,9 @@ export const en = {
 
   // Endpoints (PJSIP Endpoints)
   endpoints: {
+    blfEnabled: 'BLF and presence subscriptions',
+    blfDescription: 'Allow this phone to monitor extensions in its organization. Set an extension number on the phone’s BLF key. SIP and WebRTC devices contribute idle, ringing, in-use and unavailable states.',
+    blfPending: 'Endpoint saved. BLF has not yet been applied to Asterisk; the system will retry automatically.',
     title: "Endpoints",
     subtitle: "Internal numbers and devices",
     addEndpoint: "Add Endpoint",

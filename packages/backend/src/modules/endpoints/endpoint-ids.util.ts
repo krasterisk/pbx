@@ -21,6 +21,12 @@ export function isWebrtcCompanion(sipId: string): boolean {
   return /^ew.+_\d+$/.test(sipId);
 }
 
+/** Only desk-phone subscriber IDs belong in the subscriber CRUD/list API. */
+export function isPrimarySubscriber(sipId: string, tenant: number): boolean {
+  const match = sipId.match(PRIMARY_ID_RE);
+  return !!match && match[2] === String(tenant);
+}
+
 /** Extract user-facing extension: e110_0 / ew110_0 → "110" */
 export function extractExtension(sipId: string): string {
   const match = sipId.match(SIP_ID_RE);

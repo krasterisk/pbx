@@ -17,6 +17,8 @@ import { EndpointsAiAdapter } from './endpoints-ai.adapter';
 import { ContextsModule } from '../contexts/contexts.module';
 import { LoggerModule } from '../logger/logger.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { AmiModule } from '../ami/ami.module';
+import { BlfService } from './blf.service';
 
 @Module({
   imports: [
@@ -27,8 +29,9 @@ import { AiPlatformModule } from '../ai-platform/ai-platform.module';
     ContextsModule,
     LoggerModule,
     AiPlatformModule,
+    AmiModule,
   ],
-  providers: [EndpointsService, PickupGroupsService, ProvisionTemplatesService, EndpointsAiAdapter],
+  providers: [EndpointsService, BlfService, PickupGroupsService, ProvisionTemplatesService, EndpointsAiAdapter],
   controllers: [EndpointsController, PickupGroupsController, ProvisionTemplatesController, ProvisionController],
   exports: [EndpointsService],
 })

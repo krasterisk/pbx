@@ -34,6 +34,11 @@ export class CreateEndpointDto {
   @IsBoolean()
   webrtcEnabled?: boolean;
 
+  /** Opt-in permission to subscribe to this tenant's BLF/presence hints. */
+  @IsOptional()
+  @IsBoolean()
+  blfEnabled?: boolean;
+
   // Advanced PBX Features
   @IsOptional()
   @IsString()

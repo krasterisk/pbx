@@ -10,6 +10,10 @@
     path: "/usr/lib/asterisk/modules/{{ item }}.so"
   loop:
     - app_system
+    - res_pjsip_exten_state
+    - res_pjsip_pidf_body_generator
+    - res_pjsip_xpidf_body_generator
+    - res_pjsip_dialog_info_body_generator
     - app_amd
     - app_waitforcond
     - app_waitforring
@@ -43,7 +47,7 @@
   when: >
     asterisk_version.rc != 0
     or asterisk_version_needle not in (asterisk_version.stdout | default(''))
-    or (asterisk_required_modules.results | selectattr('stat.exists') | list | length) != 5
+    or (asterisk_required_modules.results | selectattr('stat.exists') | list | length) != 9
 
 - name: Create the asterisk system user
   ansible.builtin.user:

@@ -22,12 +22,15 @@ export interface IEndpointListItem {
   tenantid: string;
   authType: string;
   webrtc_enabled?: boolean;
+  blf_enabled?: boolean;
+  blf_applied?: boolean;
   webrtc?: IEndpointWebrtcStatus | null;
   // All other ps_endpoint fields are also present
   [key: string]: any;
 }
 
 export interface IEndpointDetail {
+  blf_applied?: boolean;
   endpoint: Record<string, any>;
   auth: Record<string, any> | null;
   aor: Record<string, any> | null;
@@ -67,6 +70,7 @@ export interface ICreateEndpoint {
   codecs?: string;
   natProfile?: string;
   webrtcEnabled?: boolean;
+  blfEnabled?: boolean;
   department?: string;
   namedCallGroup?: string;
   namedPickupGroup?: string;

@@ -17,10 +17,13 @@ import {
   buildWebrtcSipId,
   extractExtension,
   isWebrtcCompanion,
+  isPrimarySubscriber,
   companionIdOf,
   primaryIdOf,
 } from './endpoint-ids.util';
 import { buildEndpointContext, stripEndpointContext } from './endpoint-context-name';
+import { BlfService } from './blf.service';
+import { blfSettings, subscriptionsEnabled } from './blf-policy';
 
 /** NAT profile presets that auto-configure multiple PJSIP parameters */
 const NAT_PROFILES: Record<string, Partial<PsEndpoint>> = {
@@ -83,6 +86,7 @@ export class EndpointsService {
     private contextsService: ContextsService,
     private loggerService: LoggerService,
     @Inject(REDIS_CLIENT) private readonly redis: any,
+    private readonly blf: BlfService,
   ) {}
 
   /** Generate a cryptographically secure random password */
@@ -224,6 +228,7 @@ export class EndpointsService {
       department?: string | null;
       language?: string | null;
       allow?: string | null;
+      allow_subscribe?: string | null;
     },
     transaction: Transaction,
   ): Promise<string> {
@@ -265,6 +270,7 @@ export class EndpointsService {
         language: primary.language || 'ru',
         department: primary.department || '',
         ...(NAT_PROFILES.webrtc as any),
+        ...blfSettings(primary.allow_subscribe, vpbxUserUid),
       },
       { transaction },
     );
@@ -350,7 +356,7 @@ export class EndpointsService {
       where: { tenantid: String(vpbxUserUid) },
     });
 
-    const primaryEndpoints = endpoints.filter((e) => !isWebrtcCompanion(e.id));
+    const primaryEndpoints = endpoints.filter((e) => isPrimarySubscriber(e.id, vpbxUserUid));
     const companionByPrimary = new Map<string, string>();
     for (const ep of endpoints) {
       if (!isWebrtcCompanion(ep.id)) continue;
@@ -414,6 +420,7 @@ export class EndpointsService {
         return {
           ...epJson,
           webrtc_enabled: !!webrtcId,
+          blf_enabled: subscriptionsEnabled(epJson.allow_subscribe),
           context: stripEndpointContext(epJson.context, vpbxUserUid),
           extension: extractExtension(ep.id),
           sipUsername: ep.id,
@@ -429,6 +436,7 @@ export class EndpointsService {
    * Get a single endpoint with full details (including AoR and Auth)
    */
   async findOne(sipId: string, vpbxUserUid: number) {
+    if (!isPrimarySubscriber(sipId, vpbxUserUid)) throw new BadRequestException('Not a primary subscriber endpoint');
     if (isWebrtcCompanion(sipId)) {
       throw new BadRequestException('Edit the primary endpoint; WebRTC companion is managed automatically');
     }
@@ -460,6 +468,7 @@ export class EndpointsService {
       endpoint: {
         ...epJson,
         webrtc_enabled: !!companion,
+        blf_enabled: subscriptionsEnabled(epJson.allow_subscribe),
         context: stripEndpointContext(epJson.context, vpbxUserUid),
       },
       auth: auth ? { ...auth.toJSON(), password: '********' } : null,
@@ -476,6 +485,9 @@ export class EndpointsService {
    * For primary with WebRTC companion — also returns webrtc credentials.
    */
   async getCredentials(sipId: string, vpbxUserUid: number) {
+    if (!isPrimarySubscriber(sipId, vpbxUserUid) && !(isWebrtcCompanion(sipId) && sipId.endsWith(`_${vpbxUserUid}`))) {
+      throw new BadRequestException('Not a subscriber endpoint');
+    }
     const endpoint = await this.endpointModel.findOne({
       where: { id: sipId, tenantid: String(vpbxUserUid) },
     });
@@ -558,10 +570,6 @@ export class EndpointsService {
 
       const endpoint = await this.endpointModel.create(
         {
-          id: sipId,
-          tenantid: String(vpbxUserUid),
-          auth: sipId,
-          aors: sipId,
           context,
           callerid,
           disallow: 'all',
@@ -578,6 +586,12 @@ export class EndpointsService {
           pv_vars: dto.pvVars || '',
           ...(natSettings as any),
           ...(dto.advanced || {}),
+          ...blfSettings(dto.blfEnabled ?? dto.advanced?.allow_subscribe ?? false, vpbxUserUid),
+          // Advanced columns cannot redirect the generated endpoint's ownership.
+          id: sipId,
+          tenantid: String(vpbxUserUid),
+          auth: sipId,
+          aors: sipId,
         },
         { transaction: t },
       );
@@ -586,7 +600,8 @@ export class EndpointsService {
         await this.createCompanionTriple(
           vpbxUserUid,
           dto.extension,
-          { context, callerid, department: dto.department || '', language: 'ru', allow },
+          { context, callerid, department: dto.department || '', language: 'ru', allow,
+            allow_subscribe: endpoint.allow_subscribe },
           t,
         );
       }
@@ -607,6 +622,8 @@ export class EndpointsService {
 
     return {
       ...result.toJSON(),
+      blf_applied: await this.blf.sync(vpbxUserUid),
+      blf_enabled: subscriptionsEnabled(result.allow_subscribe),
       extension: dto.extension,
       sipUsername: sipId,
       webrtc_enabled: webrtcEnabled,
@@ -802,6 +819,7 @@ export class EndpointsService {
             language: 'ru',
             department: dto.department || '',
             ...(natSettings as any),
+            ...blfSettings(false, vpbxUserUid),
           },
           { transaction: t },
         );
@@ -818,6 +836,7 @@ export class EndpointsService {
         createdDest.push(extension);
       }
     });
+    await this.blf.sync(vpbxUserUid);
   }
 
   /**
@@ -827,13 +846,14 @@ export class EndpointsService {
   async update(
     sipId: string,
     data: {
-      endpoint?: Partial<PsEndpoint> & { webrtc_enabled?: boolean };
+      endpoint?: Partial<PsEndpoint> & { webrtc_enabled?: boolean; blf_enabled?: boolean };
       auth?: Partial<PsAuth>;
       aor?: Partial<PsAor>;
     },
     vpbxUserUid: number,
     userId?: number,
   ) {
+    if (!isPrimarySubscriber(sipId, vpbxUserUid)) throw new BadRequestException('Not a primary subscriber endpoint');
     if (isWebrtcCompanion(sipId)) {
       throw new BadRequestException('Edit the primary endpoint; WebRTC companion is managed automatically');
     }
@@ -860,6 +880,17 @@ export class EndpointsService {
       }
 
       if (epPatch) {
+        if (epPatch.blf_enabled !== undefined && typeof epPatch.blf_enabled !== 'boolean') {
+          throw new BadRequestException('blf_enabled must be a boolean');
+        }
+        const policy = blfSettings(epPatch.blf_enabled ?? epPatch.allow_subscribe ?? existing.allow_subscribe, vpbxUserUid);
+        delete epPatch.blf_enabled;
+        Object.assign(epPatch, policy);
+        // Identity and ownership cannot be changed by a raw PJSIP patch.
+        delete epPatch.id;
+        delete epPatch.tenantid;
+        delete epPatch.auth;
+        delete epPatch.aors;
         if (epPatch.context) {
           epPatch.context = buildEndpointContext(epPatch.context, vpbxUserUid);
         }
@@ -900,6 +931,7 @@ export class EndpointsService {
             department: refreshed?.department ?? existing.department,
             language: refreshed?.language ?? existing.language,
             allow: refreshed?.allow ?? existing.allow,
+            allow_subscribe: refreshed?.allow_subscribe ?? existing.allow_subscribe,
           },
           t,
         );
@@ -913,6 +945,8 @@ export class EndpointsService {
         if (epPatch?.department !== undefined) sync.department = epPatch.department;
         if (epPatch?.language !== undefined) sync.language = epPatch.language;
         if (epPatch?.allow !== undefined) sync.allow = epPatch.allow;
+        if (epPatch?.allow_subscribe !== undefined) sync.allow_subscribe = epPatch.allow_subscribe;
+        if (epPatch?.subscribe_context !== undefined) sync.subscribe_context = epPatch.subscribe_context;
         if (Object.keys(sync).length) {
           await this.endpointModel.update(sync as any, {
             where: { id: webrtcId },
@@ -933,13 +967,15 @@ export class EndpointsService {
       );
     }
 
-    return this.findOne(sipId, vpbxUserUid);
+    const blf_applied = await this.blf.sync(vpbxUserUid);
+    return { ...await this.findOne(sipId, vpbxUserUid), blf_applied };
   }
 
   /**
    * Delete an endpoint (removes primary + WebRTC companion if present)
    */
   async remove(sipId: string, vpbxUserUid: number, userId?: number) {
+    if (!isPrimarySubscriber(sipId, vpbxUserUid)) throw new BadRequestException('Not a primary subscriber endpoint');
     if (isWebrtcCompanion(sipId)) {
       throw new BadRequestException('Delete the primary endpoint; WebRTC companion is removed with it');
     }
@@ -957,6 +993,7 @@ export class EndpointsService {
       }
       await this.destroyEndpointTriple(sipId, t);
     });
+    await this.blf.sync(vpbxUserUid);
 
     if (userId) {
       await this.loggerService.logAction(
@@ -974,7 +1011,7 @@ export class EndpointsService {
    * Bulk-delete multiple endpoints atomically (includes WebRTC companions)
    */
   async bulkRemove(sipIds: string[], vpbxUserUid: number, userId?: number) {
-    const primaryIds = sipIds.filter((id) => !isWebrtcCompanion(id));
+    const primaryIds = sipIds.filter((id) => isPrimarySubscriber(id, vpbxUserUid));
     const endpoints = await this.endpointModel.findAll({
       where: { id: { [Op.in]: primaryIds }, tenantid: String(vpbxUserUid) },
     });
@@ -1006,6 +1043,7 @@ export class EndpointsService {
       );
     }
 
+    await this.blf.sync(vpbxUserUid);
     return { deleted: validIds.length, ids: validIds };
   }
 

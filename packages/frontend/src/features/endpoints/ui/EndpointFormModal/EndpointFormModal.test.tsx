@@ -17,6 +17,8 @@ vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 
 const mockDispatch = vi.fn();
 let mockState: Partial<RootState>;
+const mockCreate = vi.fn(() => ({ unwrap: () => Promise.resolve({ blf_applied: true }) }));
+const mockUpdate = vi.fn(() => ({ unwrap: () => Promise.resolve({ blf_applied: true }) }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -31,8 +33,8 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
 }));
 
 vi.mock('@/shared/api/endpoints/endpointApi', () => ({
-  useCreateEndpointMutation: () => [vi.fn(), { isLoading: false }],
-  useUpdateEndpointMutation: () => [vi.fn(), { isLoading: false }],
+  useCreateEndpointMutation: () => [mockCreate, { isLoading: false }],
+  useUpdateEndpointMutation: () => [mockUpdate, { isLoading: false }],
 }));
 
 vi.mock('@/shared/api/endpoints/contextApi', () => ({
@@ -92,6 +94,34 @@ function renderModal() {
 describe('EndpointFormModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('defaults BLF off and submits explicit opt-in when creating a phone', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await user.type(screen.getByLabelText('endpoints.extension'), '203');
+    await user.selectOptions(screen.getByLabelText('endpoints.context'), 'from-internal');
+    await user.click(screen.getByTestId('endpoint-tab-calls'));
+    const blf = screen.getByRole('checkbox', { name: 'BLF и подписки на статусы' });
+    expect(blf).not.toBeChecked();
+    await user.click(blf);
+    await user.click(screen.getByTestId('endpoint-save'));
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ extension: '203', blfEnabled: true }));
+  });
+
+  it('loads existing subscription permission and submits explicit disable on update', async () => {
+    const user = userEvent.setup();
+    renderModal().unmount();
+    mockState.endpointsPage = { ...mockState.endpointsPage!, modalMode: 'edit', selectedEndpoint: {
+      id: 'e201_42', extension: '201', callerid: '"201" <201>', allow_subscribe: 'yes', context: 'from-internal',
+    } } as any;
+    render(<EndpointFormModal />);
+    await user.click(screen.getByTestId('endpoint-tab-calls'));
+    const blf = screen.getByRole('checkbox', { name: 'BLF и подписки на статусы' });
+    expect(blf).toBeChecked();
+    await user.click(blf);
+    await user.click(screen.getByTestId('endpoint-save'));
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ sipId: 'e201_42', data: expect.objectContaining({ endpoint: expect.objectContaining({ blf_enabled: false }) }) }));
   });
 
   it('uses the large desktop dialog and keeps a vertical-only form scroll', () => {
