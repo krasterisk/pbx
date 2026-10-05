@@ -441,7 +441,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Return()');
       expect(dp).not.toContain('Hangup');
       expect(dp).toContain('Set(TC_LIST=trunkA|trunkB)');
-      expect(dp).toContain('Dial(PJSIP/${TC_TRUNK_ID}/${EXTEN},${TC_TIMEOUT},tT)');
+      expect(dp).toContain('Dial(PJSIP/${EXTEN}@${TC_TRUNK_ID},${TC_TIMEOUT},tT)');
       expect(dp).toContain('79001112233');
       expect(dp).toContain('directory-lookup');
       expect(dp).toContain('key=${URIENCODE(${KRSK_ORIG_CALLER_NUM})}');
@@ -507,7 +507,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Dial(PJSIP/out1/${EXTEN},60,tT)');
+      expect(dp).toBe('Dial(PJSIP/${EXTEN}@out1,60,tT)');
     });
 
     it('totrunk dest route_pattern dials ${EXTEN}', () => {
@@ -519,7 +519,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Dial(PJSIP/out1/${EXTEN},60,tT)');
+      expect(dp).toBe('Dial(PJSIP/${EXTEN}@out1,60,tT)');
     });
 
     it('totrunk single mode emits static CallerID if provided', () => {
@@ -531,7 +531,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Set(CALLERID(num)=79001234567)\nsame => n,Dial(PJSIP/out1/${EXTEN},60,tT)');
+      expect(dp).toBe('Set(CALLERID(num)=79001234567)\nsame => n,Dial(PJSIP/${EXTEN}@out1,60,tT)');
     });
 
     it('totrunk single mode emits directory CallerID lookup keyed by original caller', () => {
@@ -565,7 +565,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         expect(dp).toContain('directory_uid=42');
         expect(dp).toContain('key=${URIENCODE(${KRSK_ORIG_CALLER_NUM})}');
         expect(dp).toContain('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
-        expect(dp).toContain('Dial(PJSIP/out1/${EXTEN},60,tT)');
+        expect(dp).toContain('Dial(PJSIP/${EXTEN}@out1,60,tT)');
         expect(dp).not.toContain('phonebook-lookup');
         expect(dp).not.toContain('PB_RAW');
         const curls = [...dp.matchAll(/\$\{CURL\(([^)]*)\)\}/g)].map((m) => m[1]);
@@ -608,7 +608,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
 
       expect(dp).toContain('RAND');
       expect(dp).toContain('Set(TC_LIST=trunkA|trunkB)');
-      expect(dp).toContain('Dial(PJSIP/${TC_TRUNK_ID}/${EXTEN},${TC_TIMEOUT},tT)');
+      expect(dp).toContain('Dial(PJSIP/${EXTEN}@${TC_TRUNK_ID},${TC_TIMEOUT},tT)');
     });
 
     it('totrunk trunks list with pool CID uses AstDB without requiring trunkMode', () => {
@@ -635,7 +635,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Set(CID_POOL=79001112233|79004445566)');
       expect(dp).toContain('DB(${CID_DBKEY}/last)');
       expect(dp).toContain('RAND(1,2)');
-      expect(dp).toContain('Dial(PJSIP/out1/${EXTEN},60,tT)');
+      expect(dp).toContain('Dial(PJSIP/${EXTEN}@out1,60,tT)');
       expect(dp).not.toContain('Set(TC_LIST=');
     });
 
@@ -675,7 +675,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Dial(PJSIP/out1/${EXTEN},60,tT)');
+      expect(dp).toBe('Dial(PJSIP/${EXTEN}@out1,60,tT)');
     });
 
     /**
@@ -691,7 +691,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toBe(
-        'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Dial(PJSIP/out1/${EXTEN},60,tT))',
+        'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Dial(PJSIP/${EXTEN}@out1,60,tT))',
       );
     });
 
@@ -711,9 +711,9 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       );
       expect(dp).toBe(
         [
-          'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?ExecIf($["${DIALTO}" != ""]?Dial(PJSIP/out1/${DIALTO},15,tT)))',
+          'ExecIf($["${DIALSTATUS}" = "NOANSWER"]?ExecIf($["${DIALTO}" != ""]?Dial(PJSIP/${DIALTO}@out1,15,tT)))',
           'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return()))',
-          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Dial(PJSIP/out1/${EXTEN},60,tT))',
+          'same => n,ExecIf($["${DIALSTATUS}" = "NOANSWER"]?Dial(PJSIP/${EXTEN}@out1,60,tT))',
         ].join('\n'),
       );
     });
@@ -1717,7 +1717,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('Set(KRSK_DIAL_SRC=79001234567)');
       expect(dp).toContain('Set(KRSK_DIAL_NUM=${KRSK_DIAL_NUM:1})');
       expect(dp).toContain('Set(KRSK_DIAL_NUM=8${KRSK_DIAL_NUM})');
-      expect(dp).toContain('ExecIf($["${KRSK_DIAL_OK}" = "1"]?Dial(PJSIP/out1/${KRSK_DIAL_NUM},60,tT))');
+      expect(dp).toContain('ExecIf($["${KRSK_DIAL_OK}" = "1"]?Dial(PJSIP/${KRSK_DIAL_NUM}@out1,60,tT))');
     });
 
     it('totrunk directory dest looks up before Dial', () => {
@@ -1746,7 +1746,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toContain('directory_uid=3');
       expect(dp).toContain('BASE64_DECODE');
       expect(dp).not.toContain('PB_');
-      expect(dp).toMatch(/Dial\(PJSIP\/out1\/\$\{KRSK_DL_[A-Z0-9]+_F17\},60,tT\)/);
+      expect(dp).toMatch(/Dial\(PJSIP\/\$\{KRSK_DL_[A-Z0-9]+_F17\}@out1,60,tT\)/);
     });
 
     it('totrunk rewrite reject leaves Dial gated', () => {
@@ -1770,7 +1770,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toContain('NoOp(Invalid rewritten dest)');
-      expect(dp).toContain('ExecIf($["${KRSK_DIAL_OK}" = "1"]?Dial(PJSIP/out1/${KRSK_DIAL_NUM}');
+      expect(dp).toContain('ExecIf($["${KRSK_DIAL_OK}" = "1"]?Dial(PJSIP/${KRSK_DIAL_NUM}@out1');
     });
 
     it('multiline + time group never produces ?same =>', () => {

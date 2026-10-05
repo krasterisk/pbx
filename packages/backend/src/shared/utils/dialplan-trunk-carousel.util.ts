@@ -232,7 +232,7 @@ function emitSingleTrunk(entry: ITrunkCarouselItem, ctx: BuildTrunkCarouselCtx):
     apps.push(...compiled.lines);
   }
   apps.push(...emitCallerIdApply({ ...entry, trunkId }, groups, ctx));
-  apps.push(`Dial(PJSIP/${trunkId}/${dest},${timeout},${opts})`);
+  apps.push(`Dial(PJSIP/${dest}@${trunkId},${timeout},${opts})`);
   apps.push('Return()');
   return joinDialplan(apps[0], apps.slice(1).map((app) => `n,${app}`));
 }
@@ -246,7 +246,7 @@ export function buildTrunkCarousel(
   ctx: BuildTrunkCarouselCtx = {},
 ): string {
   const entries = (Array.isArray(trunks) ? trunks : []).map(asEntry)
-    .map((item) => ({ ...item, trunkId: sanitizeListField(item.trunkId) }))
+    .map((item) => ({ ...item, trunkId: sanitizeListField(item.trunkId).replace(/^PJSIP\//, '') }))
     .filter((item) => item.trunkId);
   if (!entries.length) {
     return 'NoOp(Empty trunk carousel)';
@@ -333,7 +333,7 @@ export function buildTrunkCarousel(
     'n,Set(DB(${CID_DBKEY}/i)=${CID_I})',
     'n,Set(CALLERID(num)=${CUT(CID_POOL,|,${CID_I})})',
     'n,Set(DB(${CID_DBKEY}/last)=${CALLERID(num)})',
-    `n(tc_dial),Dial(PJSIP/\${TC_TRUNK_ID}/${dest},\${TC_TIMEOUT},${opts})`,
+    `n(tc_dial),Dial(PJSIP/${dest}@\${TC_TRUNK_ID},\${TC_TIMEOUT},${opts})`,
     'n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
     'n,Set(TC_I=$[${TC_I} + 1])',
     'n,ExecIf($[${TC_I} > ${TC_N}]?Set(TC_I=1))',

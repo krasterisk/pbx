@@ -240,6 +240,9 @@ export class AsteriskDialplanUtils {
 
         const dest = compiled.destExpr || '${EXTEN}';
         const trunk = this.sanitizeDialplanInput(params.trunk) || '';
+        const trunkTarget = (number: string) => trunk.startsWith('PJSIP/') || !trunk.includes('/')
+          ? `PJSIP/${number}@${trunk.replace(/^PJSIP\//, '')}`
+          : `${trunk}/${number}`;
         const timeout = parseInt(params.timeout, 10) || 60;
         const dialLines: string[] = [];
         const callerId = params.callerId;
@@ -280,13 +283,13 @@ export class AsteriskDialplanUtils {
         const callerName = this.sanitizeDialplanInput(params.callerIdName);
         if (callerName) dialLines.push(`Set(CALLERID(name)=${callerName})`);
         if (wh.custom?.url) {
-          dialLines.push(`ExecIf($["\${DIALTO}" != ""]?Dial(${trunk}/\${DIALTO},15,${dialOpts}))`);
+          dialLines.push(`ExecIf($["\${DIALTO}" != ""]?Dial(${trunkTarget('${DIALTO}')},15,${dialOpts}))`);
           dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
         }
         dialLines.push(gateSkip(
           destLookup.skip,
           destLookup.canExecuteExpr,
-          wrapIfRewriteOk(compiled.usedRewrite, `Dial(${trunk}/${dest},${timeout},${dialOpts})`),
+          wrapIfRewriteOk(compiled.usedRewrite, `Dial(${trunkTarget(dest)},${timeout},${dialOpts})`),
         ));
         dp = [...prelude, ...compiled.lines, ...dialLines].join('\nsame => n,');
         break;

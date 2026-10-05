@@ -112,7 +112,7 @@ describe('buildTrunkCarousel (D-36)', () => {
 
   it('one trunk emits its name and no unreachable cycle branch', () => {
     const dp = buildTrunkCarousel([staticItem('solo')], { mode: 'random_then_failover' });
-    expect(dp).toContain('PJSIP/solo');
+    expect(dp).toContain('@solo');
     expect(dp).toContain('Dial(');
     expect(dp).not.toMatch(/GotoIf\(\$\["\$\{TC_TRIED\}"/);
     expect(dp).not.toMatch(/\bn\(t2\)/);
@@ -160,7 +160,7 @@ describe('buildTrunkCarousel (D-36)', () => {
       { options: 'tT', dest: '${EXTEN}' },
     );
     expect(dp).toContain('Set(TC_LIST=t_alpha_100|t_beta_100)');
-    expect(dp).toContain('Dial(PJSIP/${TC_TRUNK_ID}/${EXTEN},${TC_TIMEOUT},tT)');
+    expect(dp).toContain('Dial(PJSIP/${EXTEN}@${TC_TRUNK_ID},${TC_TIMEOUT},tT)');
     expect(dp).not.toContain('PJSIP/t_alpha_100');
   });
 });
@@ -220,7 +220,7 @@ describe('buildTrunkCarousel directory CallerID', () => {
     const dp = buildTrunkCarousel(trunks, DIR_CTX);
     const restoreIdx = dp.indexOf('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
     const applyIdx = dp.indexOf('Set(CALLERID(num)=${${TC_VV}})');
-    const dialIdx = dp.indexOf('Dial(PJSIP/${TC_TRUNK_ID}/');
+    const dialIdx = dp.indexOf('Dial(PJSIP/${EXTEN}@${TC_TRUNK_ID}');
     expect(restoreIdx).toBeGreaterThan(-1);
     expect(dp.indexOf('n(tc_try)')).toBeGreaterThan(-1);
     expect(restoreIdx).toBeGreaterThan(dp.indexOf('n(tc_try)'));
@@ -262,7 +262,7 @@ describe('buildTrunkCarousel pool CallerID', () => {
       [poolItem('solo', ['7900', '7901'], 'random')],
       { ...DIR_CTX, mode: 'random_then_failover' },
     );
-    expect(dp).toContain('PJSIP/solo');
+    expect(dp).toContain('@solo');
     expect(dp).toContain('Set(CID_POOL=7900|7901)');
     expect(dp).toContain('DB(${CID_DBKEY}/last)');
     expect(dp).toContain('RAND(1,2)');
@@ -323,5 +323,16 @@ describe('CallerID names per trunk', () => {
   it('removes dialplan/list delimiters from direct compiler input', () => {
     const dp = buildTrunkCarousel([{ ...staticItem('t1'), callerIdName: 'Sales|;\n${X}' }]);
     expect(dp).toContain('Set(CALLERID(name)=SalesX)');
+  });
+});
+
+describe('PJSIP trunk request user regression', () => {
+  it('dials 10003 through komandor contact using user@endpoint syntax', () => {
+    const dp = buildTrunkCarousel([staticItem('t_komandor_0')], { dest: '10003' });
+    expect(dp).toContain('Dial(PJSIP/10003@t_komandor_0,60,tT)');
+    expect(dp).not.toContain('PJSIP/t_komandor_0/10003');
+  });
+  it('handles legacy PJSIP-prefixed IDs in canonical lists', () => {
+    expect(buildTrunkCarousel([staticItem('PJSIP/t_komandor_0')], { dest: '10003' })).toContain('Dial(PJSIP/10003@t_komandor_0,60,tT)');
   });
 });
