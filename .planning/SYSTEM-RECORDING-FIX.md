@@ -1,0 +1,8 @@
+# Recording System module repair — 2026-10-05
+
+Scope: deploy/asterisk/modules.conf, menuselect.enable, Ansible Asterisk required-module probes. Coordinator /root, codex-direct; application baseline bb4a0a2f / main 81d19a01. Dirty main.ts/0031 SQL excluded.
+Cause: route 614 recording runs System(mkdir -p ...) before MixMonitor/Dial, but box autoload=no profile omitted app_system.so. Binary was installed; application unregistered.
+Approval: initial automatic review rejected enabling shell execution from dialplan. User explicitly approved loading app_system.so through question reply. Runtime change then performed.
+Result released/live-verified: added app_system.so to /etc/asterisk/modules.conf, loaded module dynamically; no Asterisk restart. System registered/Running. Local AMI test channel executed actual System(mkdir -p /usr/records/0/calls/20261005); resulting directory owned asterisk:asterisk. Test extension removed. No call to remote operator initiated; full robot transfer/answer/media not claimed.
+Source prevention: explicit app_system menuselect enable; two required module checks include it; rebuild predicate updated to five required modules. YAML parse/module probe consistency PASS; git diff --check PASS. Backend/frontend application code unchanged; its full suites/lint/build and CI passed for bb4a0a2f in DIALPLAN-CALLERID-NAME.md. No new application suite run required for deploy-only config change.
+Backup: /etc/asterisk/modules.conf.before-system-20261005. MixMonitor loaded and /usr/bin/ffmpeg executable confirmed. No implementation/runtime repair remaining; next user acceptance: repeat robot transfer to 614.

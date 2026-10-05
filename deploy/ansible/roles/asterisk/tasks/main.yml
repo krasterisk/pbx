@@ -5,10 +5,11 @@
   changed_when: false
   failed_when: false
 
-- name: Check the required extended modules on disk
+- name: Check the required extended and route recording modules on disk
   ansible.builtin.stat:
     path: "/usr/lib/asterisk/modules/{{ item }}.so"
   loop:
+    - app_system
     - app_amd
     - app_waitforcond
     - app_waitforring
@@ -42,7 +43,7 @@
   when: >
     asterisk_version.rc != 0
     or asterisk_version_needle not in (asterisk_version.stdout | default(''))
-    or (asterisk_required_modules.results | selectattr('stat.exists') | list | length) != 4
+    or (asterisk_required_modules.results | selectattr('stat.exists') | list | length) != 5
 
 - name: Create the asterisk system user
   ansible.builtin.user:
@@ -129,10 +130,11 @@
     mode: "0644"
   notify: Reload systemd
 
-- name: Require the four extended modules to be installed
+- name: Require extended and route recording modules to be installed
   ansible.builtin.stat:
     path: "/usr/lib/asterisk/modules/{{ item }}.so"
   loop:
+    - app_system
     - app_amd
     - app_waitforcond
     - app_waitforring
