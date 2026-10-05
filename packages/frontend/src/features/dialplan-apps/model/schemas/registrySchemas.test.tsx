@@ -157,3 +157,24 @@ describe('New action types UI (D-44 / D-45 / D-47 / D-49)', () => {
     expect(config.schema.some((field) => field.key === 'keySource')).toBe(true);
   });
 });
+
+import { normalizeToTrunkParams } from './totrunk';
+import { buildCallerIdSchema } from './callerid';
+describe('Trunk display names and CallerID name schema', () => {
+  it('uses catalog name for canonical and legacy trunk IDs', () => {
+    const refs = { trunkIds: { items: [{ value: 't_komandor_0', label: 'Командор' }] } };
+    expect(dialplanAppsRegistry.totrunk.summarize({ trunks: [{ trunkId: 't_komandor_0' }] }, t, refs)).toBe('Транк Командор');
+    expect(dialplanAppsRegistry.totrunk.summarize({ trunk: 'PJSIP/t_komandor_0' }, t, refs)).toBe('Транк Командор');
+  });
+  it('preserves legacy CallerID name during normalization', () => {
+    expect(normalizeToTrunkParams({ trunk: 't1', callerIdName: 'Командор' }).trunks).toEqual([
+      { trunkId: 't1', callerId: { mode: 'static', value: '' }, callerIdName: 'Командор', timeout: 60 },
+    ]);
+  });
+  it('offers name in primary section for every mode without requiring a number', () => {
+    const schema = buildCallerIdSchema(t);
+    expect(schema.find((field) => field.key === 'name')).toMatchObject({ group: 'primary' });
+    expect(schema.find((field) => field.key === 'name')?.visibleWhen).toBeUndefined();
+    expect(schema.find((field) => field.key === 'callerid')?.required).toBeUndefined();
+  });
+});

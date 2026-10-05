@@ -120,6 +120,7 @@ export interface IToTrunkParams {
   cid_mode?: 'static';
   /** @deprecated dual-read — use `callerId` / `trunks[0].callerId` */
   callerid?: string;
+  callerIdName?: string;
   dest?: ValueSource;
   timeout?: number | string;
   options?: string;

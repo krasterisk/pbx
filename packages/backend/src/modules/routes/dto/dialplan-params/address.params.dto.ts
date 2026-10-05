@@ -352,6 +352,11 @@ class TrunkCallerIdDto {
 }
 
 class TrunkCarouselItemDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[^(),?[\]{}$\\";|\n\r]*$/)
+  callerIdName?: string;
+
   @IsString()
   @MinLength(1)
   @Matches(SAFE_DIAL)
@@ -369,6 +374,11 @@ class TrunkCarouselItemDto {
 }
 
 export class ToTrunkParamsDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[^(),?[\]{}$\\";|\n\r]*$/)
+  callerIdName?: string;
+
   @IsOptional()
   @IsIn(['single', 'carousel'])
   trunkMode?: 'single' | 'carousel';

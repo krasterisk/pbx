@@ -1423,6 +1423,7 @@ export const ru = {
           "Случайно выбирает один номер из упорядоченного пула (${CID_${RAND(1,N)}}). Не выполняет повторный набор и failover - для retry/failover используйте Карусель транков.",
         callerid: "Номер CallerID",
         name: "Имя CallerID (опц.)",
+        keepName: "Пусто — сохранить текущее имя",
         selectPhonebook: "Выберите справочник",
         selectDirectory: "Справочник",
         listUid: "ID списка",

@@ -964,7 +964,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
       expect(dp).toBe('Set(CALLERID(num)=79001112233)');
     });
 
-    it('callerid static with registry defaultParams emits empty CALLERID(num)', () => {
+    it('callerid static with registry defaultParams preserves CALLERID(num)', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         {
           type: 'callerid',
@@ -973,7 +973,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         },
         vpbx,
       );
-      expect(dp).toBe('Set(CALLERID(num)=)');
+      expect(dp).toBe('NoOp(Keep CallerID number)');
     });
 
     it('callerid number_list with filled list_uid emits CURL setclid (D-31)', () => {
@@ -2284,5 +2284,22 @@ describe('confbridge route step (16-03)', () => {
       vpbx,
     );
     expect(dp).not.toContain('krsk_conf_sfu');
+  });
+});
+
+describe('CallerID name without rewriting number', () => {
+  it('preserves the number for name-only static actions', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan({ type: 'callerid', params: { mode: 'static', name: 'Командор' }, condition: {} }, 0);
+    expect(dp).toContain('Set(CALLERID(name)=Командор)');
+    expect(dp).not.toContain('Set(CALLERID(num)=)');
+  });
+  it.each(['directory', 'number_list', 'carousel'])('sets name with %s number mode', (mode) => {
+    const dp = AsteriskDialplanUtils.actionToDialplan({ type: 'callerid', params: { mode, name: 'Командор', directoryUid: 1, valueFieldUid: 2, list_uid: 3, pool: ['100'] }, condition: {} }, 0);
+    expect(dp).toContain('Set(CALLERID(name)=Командор)');
+  });
+  it('supports legacy single-trunk name before Dial', () => {
+    const dp = AsteriskDialplanUtils.actionToDialplan({ type: 'totrunk', params: { trunk: 'PJSIP/t1', callerIdName: 'Sales' }, condition: {} }, 0);
+    expect(dp).toContain('Set(CALLERID(name)=Sales)');
+    expect(dp.indexOf('CALLERID(name)')).toBeLessThan(dp.indexOf('Dial('));
   });
 });

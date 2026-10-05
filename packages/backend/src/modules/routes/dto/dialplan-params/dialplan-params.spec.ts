@@ -951,3 +951,14 @@ describe('D-47 / D-49 http_request and collect_input DTO', () => {
     expect(badName.length).toBeGreaterThan(0);
   });
 });
+
+describe('Trunk CallerID name validation', () => {
+  const action = (callerIdName: unknown) => [{ id: 'name', type: 'totrunk', params: { trunks: [{ trunkId: 't1', callerId: { mode: 'static', value: '' }, callerIdName }] } }];
+  it('accepts Unicode names and empty names', () => {
+    expect(validateActionParams(action('Робот Командор'))).toEqual([]);
+    expect(validateActionParams(action(''))).toEqual([]);
+  });
+  it.each(['${SHELL(cmd)}', 'Name\nHangup()', 'a|b', 'x;y'])('rejects unsafe name %s', (name) => {
+    expect(validateActionParams(action(name)).length).toBeGreaterThan(0);
+  });
+});

@@ -1422,6 +1422,7 @@ export const en = {
           "Randomly selects one number from the ordered pool (${CID_${RAND(1,N)}}). Does not dial or fail over - use Trunk Carousel for retry/failover.",
         callerid: "CallerID number",
         name: "CallerID name (optional)",
+        keepName: "Leave empty to keep the current name",
         selectPhonebook: "Select phonebook",
         selectDirectory: "Directory",
         listUid: "List ID",

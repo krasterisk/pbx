@@ -62,6 +62,8 @@ export type TrunkCallerIdSource =
 export interface ITrunkCarouselItem {
   trunkId: string;
   callerId: TrunkCallerIdSource;
+  /** Empty or absent preserves the name at entry to this trunk action. */
+  callerIdName?: string;
   timeout?: number;
 }
 

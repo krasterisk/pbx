@@ -21,7 +21,7 @@ export function normalizeToTrunkParams(
   }
 
   const trunkRaw = String(params.trunk ?? '').trim();
-  if (!trunkRaw && !params.callerId && !params.callerid) {
+  if (!trunkRaw && !params.callerId && !params.callerid && !params.callerIdName) {
     return {
       ...params,
       trunks: [{
@@ -53,6 +53,7 @@ export function normalizeToTrunkParams(
     trunks: [{
       trunkId: trunkRaw,
       callerId,
+      callerIdName: String(params.callerIdName ?? ''),
       timeout: Number(params.timeout) || DEFAULT_TRUNK_TIMEOUT,
     }],
     mode: params.mode === 'sequential' ? 'sequential' : 'random_then_failover',
@@ -123,7 +124,9 @@ function summarizeCid(callerId: TrunkCallerIdSource | undefined, t: TFn): string
   return null;
 }
 
-export function summarizeToTrunk(params: Record<string, unknown>, t: TFn): string {
+export function summarizeToTrunk(params: Record<string, unknown>, t: TFn, refs?: Record<string, unknown>): string {
+  const catalog = refs?.trunkIds as { items?: Array<{ value: string; label: string }> } | undefined;
+  const label = (raw: string) => catalog?.items?.find((item) => item.value === raw.replace(/^PJSIP\//, '') || item.label === raw)?.label ?? raw;
   const trunks = Array.isArray(params.trunks) ? (params.trunks as ITrunkCarouselItem[]) : [];
   const filled = trunks.filter((row) => String(row?.trunkId ?? '').trim());
 
@@ -139,8 +142,8 @@ export function summarizeToTrunk(params: Record<string, unknown>, t: TFn): strin
 
   if (filled.length === 1) {
     const row = filled[0];
-    const trunk = String(row.trunkId).trim() || '…';
-    const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', trunk);
+    const trunk = label(String(row.trunkId).trim()) || '…';
+    const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', label(trunk));
     const cid = summarizeCid(row.callerId, t);
     return cid ? `${base} (CID: ${cid})` : base;
   }
@@ -148,7 +151,7 @@ export function summarizeToTrunk(params: Record<string, unknown>, t: TFn): strin
   // Legacy single dual-read
   const trunk = String(params.trunk ?? '').trim();
   if (trunk) {
-    const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', trunk);
+    const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', label(trunk));
     const callerId = params.callerId as TrunkCallerIdSource | undefined;
     const cid = summarizeCid(callerId, t)
       ?? (params.callerid ? String(params.callerid) : null);

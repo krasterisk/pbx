@@ -45,6 +45,7 @@ function asEntry(item: ITrunkCarouselItem): ITrunkCarouselItem {
     trunkId: item?.trunkId ?? '',
     timeout: item?.timeout,
     callerId: item?.callerId ?? { mode: 'static' },
+    callerIdName: item?.callerIdName,
   };
 }
 
@@ -193,6 +194,8 @@ function emitCallerIdApply(
 ): string[] {
   const callerId = entry.callerId;
   const apps = ['Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})'];
+  const name = sanitizeListField(entry.callerIdName);
+  if (name) apps.push(`Set(CALLERID(name)=${name})`);
   if (isDirectoryCaller(callerId)) {
     const { valueVar, statusVar } = directorySlots(callerId, groups);
     if (valueVar && statusVar) {
@@ -275,12 +278,15 @@ export function buildTrunkCarousel(
   const start = mode === 'sequential' ? 'Set(TC_I=1)' : `Set(TC_I=\${RAND(1,${n})})`;
 
   const rest: string[] = [];
+  const names = entries.map((entry) => sanitizeListField(entry.callerIdName)).join('|');
   for (const compiled of groups.values()) {
     for (const line of compiled.lines) {
       rest.push(`n,${line}`);
     }
   }
   rest.push(
+    'n,Set(TC_ORIG_NAME=${CALLERID(name)})',
+    `n,Set(TC_NAMES=${names})`,
     `n,Set(TC_TIMEOUTS=${timeouts})`,
     `n,Set(TC_CIDMODE=${cidModes})`,
     `n,Set(TC_CID=${cids})`,
@@ -295,6 +301,9 @@ export function buildTrunkCarousel(
     'n(tc_try),Set(TC_TRUNK_ID=${CUT(TC_LIST,|,${TC_I})})',
     'n,Set(TC_TIMEOUT=${CUT(TC_TIMEOUTS,|,${TC_I})})',
     'n,Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})',
+    'n,Set(CALLERID(name)=${TC_ORIG_NAME})',
+    'n,Set(TC_NAME=${CUT(TC_NAMES,|,${TC_I})})',
+    'n,ExecIf($["${TC_NAME}" != ""]?Set(CALLERID(name)=${TC_NAME}))',
     'n,Set(TC_CM=${CUT(TC_CIDMODE,|,${TC_I})})',
     'n,GotoIf($["${TC_CM}" = "directory"]?tc_dir)',
     'n,GotoIf($["${TC_CM}" = "pool"]?tc_pool)',
@@ -340,6 +349,7 @@ export function buildTrunkCarousel(
 export function mapTrunkCarouselItems(
   trunks: Array<{
     trunkId?: string;
+    callerIdName?: string;
     callerId?: {
       mode?: string;
       value?: string;
@@ -375,6 +385,7 @@ export function mapTrunkCarouselItems(
     }
     return {
       trunkId: String(item.trunkId ?? ''),
+      callerIdName: item.callerIdName,
       callerId,
       timeout: item.timeout as number | undefined,
     };

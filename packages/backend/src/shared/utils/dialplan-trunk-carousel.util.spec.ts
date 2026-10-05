@@ -300,3 +300,28 @@ describe('buildTrunkCarousel pool CallerID', () => {
     expect(dp).toContain('Set(DB(${CID_DBKEY}/last)=${CALLERID(num)})');
   });
 });
+
+import { mapTrunkCarouselItems } from './dialplan-trunk-carousel.util';
+describe('CallerID names per trunk', () => {
+  it('maps and applies a Unicode name before Dial, independent of number source', () => {
+    const items = mapTrunkCarouselItems([{ trunkId: 't1', callerIdName: 'Робот Командор', callerId: { mode: 'pool', numbers: ['100'], pick: 'random' } }]);
+    const dp = buildTrunkCarousel(items);
+    expect(dp).toContain('Set(CALLERID(name)=Робот Командор)');
+    expect(dp.indexOf('CALLERID(name)')).toBeLessThan(dp.indexOf('Dial('));
+  });
+  it('keeps existing names when no name is configured for a single trunk', () => {
+    expect(buildTrunkCarousel([staticItem('t1')])).not.toContain('CALLERID(name)');
+  });
+  it('resets name at each failover attempt to the name entering the action', () => {
+    const dp = buildTrunkCarousel([{ ...staticItem('t1'), callerIdName: 'Sales' }, staticItem('t2')], { mode: 'sequential' });
+    expect(dp).toContain('Set(TC_ORIG_NAME=${CALLERID(name)})');
+    expect(dp).toContain('Set(TC_NAMES=Sales|)');
+    expect(dp.indexOf('Set(CALLERID(name)=${TC_ORIG_NAME})')).toBeGreaterThan(dp.indexOf('n(tc_try)'));
+    expect(dp).toContain('Set(TC_NAME=${CUT(TC_NAMES,|,${TC_I})})');
+    expect(dp).toContain('ExecIf($["${TC_NAME}" != ""]?Set(CALLERID(name)=${TC_NAME}))');
+  });
+  it('removes dialplan/list delimiters from direct compiler input', () => {
+    const dp = buildTrunkCarousel([{ ...staticItem('t1'), callerIdName: 'Sales|;\n${X}' }]);
+    expect(dp).toContain('Set(CALLERID(name)=SalesX)');
+  });
+});

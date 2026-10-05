@@ -333,6 +333,11 @@ export function TrunkCarouselTrunksField({
                 onChange={(e) => updateRow(index, { trunkId: e.target.value })}
               >
                 <option value="">{t('routes.apps.trunkCarousel.selectTrunkOption', 'Выберите транк')}</option>
+                {row.trunkId && !trunks.some((trunk) => trunk.value === row.trunkId) ? (
+                  <option value={row.trunkId}>
+                    {trunks.find((trunk) => trunk.value === row.trunkId.replace(/^PJSIP\//, '') || trunk.label === row.trunkId)?.label ?? row.trunkId}
+                  </option>
+                ) : null}
                 {trunks.map((trunk) => (
                   <option key={trunk.value} value={trunk.value}>
                     {trunk.label}
@@ -373,6 +378,16 @@ export function TrunkCarouselTrunksField({
             readOnly={readOnly}
             onChange={(next) => updateRow(index, { callerId: next })}
           />
+          <VStack gap="4" max>
+            <Label>{t('routes.apps.callerid.name', 'Имя CallerID (опц.)')}</Label>
+            <Input
+              disabled={readOnly}
+              value={row.callerIdName ?? ''}
+              aria-label={t('routes.apps.callerid.name', 'Имя CallerID (опц.)')}
+              placeholder={t('routes.apps.callerid.keepName', 'Пусто — сохранить текущее имя')}
+              onChange={(e) => updateRow(index, { callerIdName: e.target.value })}
+            />
+          </VStack>
         </VStack>
       ))}
       {!readOnly ? (

@@ -36,7 +36,6 @@ export function buildCallerIdSchema(t: TFn): FieldSchema[] {
     {
       key: 'callerid',
       kind: 'text',
-      required: true,
       group: 'primary',
       labelKey: 'routes.apps.callerid.callerid',
       label: t('routes.apps.callerid.callerid', 'Номер CallerID'),
@@ -45,10 +44,9 @@ export function buildCallerIdSchema(t: TFn): FieldSchema[] {
     {
       key: 'name',
       kind: 'text',
-      group: 'params',
+      group: 'primary',
       labelKey: 'routes.apps.callerid.name',
       label: t('routes.apps.callerid.name', 'Имя CallerID (опц.)'),
-      visibleWhen: { key: 'mode', equals: 'static' },
     },
     {
       key: 'directoryLookup',

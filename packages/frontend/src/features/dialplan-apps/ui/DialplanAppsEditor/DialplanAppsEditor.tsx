@@ -43,6 +43,7 @@ import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { copyStep, hasStep } from '../../model/clipboard';
 import { createActionId } from '../../model/actionIds';
 import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
+import { useGetTrunksQuery } from '@/shared/api/endpoints/trunkApi';
 import { ChainLabelsProvider, collectChainLabelNames } from '../../model/chainLabels';
 import {
   editorReducer,
@@ -202,10 +203,13 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
 
   const resolvedAllowed = allowedTypes ?? typesForHost(host);
   const hasVoiceRobot = actions.some((action) => action.type === 'voicerobot');
+  const hasTrunk = actions.some((action) => action.type === 'totrunk');
+  const { data: trunks = [] } = useGetTrunksQuery(undefined, { skip: !hasTrunk });
   const { data: voiceRobots = [] } = useGetVoiceRobotsQuery(undefined, { skip: !hasVoiceRobot });
   const rowRefs = useMemo(() => ({
+    trunkIds: { items: trunks.map((trunk) => ({ value: trunk.id, label: trunk.name || trunk.id })) },
     voiceRobots: { items: voiceRobots.map((robot) => ({ value: String(robot.uid), label: robot.name })) },
-  }), [voiceRobots]);
+  }), [voiceRobots, trunks]);
   const atLimit = maxSteps != null && actions.length >= maxSteps;
   const terminalIndex = firstAlwaysTerminalIndex(actions);
   const unreachableCount =

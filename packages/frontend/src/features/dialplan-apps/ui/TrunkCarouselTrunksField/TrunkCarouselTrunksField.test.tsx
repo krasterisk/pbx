@@ -291,3 +291,18 @@ describe('TrunkCarouselTrunksField', () => {
     });
   });
 });
+
+describe('CallerID name trunk editor', () => {
+  it('displays trunk label and edits name while preserving number source', () => {
+    const onChange = vi.fn();
+    const row: ITrunkCarouselItem = { trunkId: 't_alpha_100', callerId: { mode: 'pool', numbers: ['100'], pick: 'random' } };
+    render(<TrunkCarouselTrunksField params={{ trunks: [row] }} onChange={onChange} />);
+    expect(screen.getByRole('option', { name: 'Alpha' })).toHaveValue('t_alpha_100');
+    fireEvent.change(screen.getByLabelText('Имя CallerID (опц.)'), { target: { value: 'Командор' } });
+    expect(onChange).toHaveBeenLastCalledWith({ trunks: [{ ...row, callerIdName: 'Командор' }], trunkMode: 'single' });
+  });
+  it('disables the name field in read-only mode', () => {
+    render(<TrunkCarouselTrunksField params={{ trunks: [{ trunkId: 't_alpha_100', callerId: { mode: 'static' }, callerIdName: 'Sales' }] }} onChange={vi.fn()} readOnly />);
+    expect(screen.getByLabelText('Имя CallerID (опц.)')).toBeDisabled();
+  });
+});

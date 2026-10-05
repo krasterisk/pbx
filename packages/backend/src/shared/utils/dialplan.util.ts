@@ -277,6 +277,8 @@ export class AsteriskDialplanUtils {
           );
           if (cid) dialLines.push(`Set(CALLERID(num)=${cid})`);
         }
+        const callerName = this.sanitizeDialplanInput(params.callerIdName);
+        if (callerName) dialLines.push(`Set(CALLERID(name)=${callerName})`);
         if (wh.custom?.url) {
           dialLines.push(`ExecIf($["\${DIALTO}" != ""]?Dial(${trunk}/\${DIALTO},15,${dialOpts}))`);
           dialLines.push(`ExecIf($["\${DIALSTATUS}" = "ANSWER"]?Return())`);
@@ -594,9 +596,7 @@ export class AsteriskDialplanUtils {
         const mode = params.mode || 'static';
         if (mode === 'static') {
           const callerid = this.sanitizeDialplanInput(params.callerid);
-          const name = this.sanitizeDialplanInput(params.name);
-          const lines = [`Set(CALLERID(num)=${callerid})`];
-          if (name) lines.push(`Set(CALLERID(name)=${name})`);
+          const lines = callerid ? [`Set(CALLERID(num)=${callerid})`] : ['NoOp(Keep CallerID number)'];
           dp = lines.join('\nsame => n,');
         } else if (mode === 'directory') {
           const fieldUid = Number(params.valueFieldUid);
@@ -656,6 +656,8 @@ export class AsteriskDialplanUtils {
     } else {
       dp = `NoOp(Unknown callerid mode)`;
     }
+    const callerName = this.sanitizeDialplanInput(params.name);
+    if (callerName) dp += `\nsame => n,Set(CALLERID(name)=${callerName})`;
     break;
   }
       case 'directory_lookup': {
