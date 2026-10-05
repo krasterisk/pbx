@@ -13,3 +13,5 @@
 | ai-chat-widget | [EXECUTION](ai-chat-widget/EXECUTION.md) | [Scoped UI plan](ai-chat-widget/PLAN.md) |
 
 | ac-reservations-fix | [EXECUTION/PLAN](AC-RESERVATIONS-FIX.md) | Scoped production schema repair |
+
+| trunk-status-fix | [EXECUTION/PLAN](TRUNK-STATUS-FIX.md) | Trunk reachability UI |

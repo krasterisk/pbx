@@ -27,6 +27,7 @@ import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
 import { trunksPageActions } from '../../model/slice/trunksPageSlice';
 import { useTrunksTableColumns } from './useTrunksTableColumns';
+import { TrunkStatus } from './TrunkStatus';
 import cls from './TrunksTable.module.scss';
 
 const PAGE_SIZE = 50;
@@ -35,7 +36,13 @@ export const TrunksTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: trunks = [], isLoading } = useGetTrunksQuery();
+  const { data, isLoading, isError } = useGetTrunksQuery(undefined, {
+    pollingInterval: 15000,
+    refetchOnMountOrArgChange: true,
+  });
+  const trunks = useMemo(() => (data ?? []).map(trunk => isError
+    ? { ...trunk, reachabilityStatus: 'Unknown' as const, registrationStatus: null }
+    : trunk), [data, isError]);
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteTrunksMutation();
   const [deleteTrunk] = useDeleteTrunkMutation();
 
@@ -44,9 +51,8 @@ export const TrunksTable = memo(() => {
 
   const columns = useTrunksTableColumns();
 
-  const registeredCount = trunks.filter(
-    (tr) => tr.registrationStatus === 'Registered',
-  ).length;
+  const registeredCount = trunks.filter((tr) => tr.trunkType === 'auth' && tr.registrationStatus === 'Registered').length;
+  const reachableCount = trunks.filter((tr) => tr.reachabilityStatus === 'Reachable').length;
 
   const filtered = useMemo(() => {
     const q = globalFilter.trim().toLowerCase();
@@ -111,7 +117,8 @@ export const TrunksTable = memo(() => {
         <Text className={cls.count}>{t('trunks.count', { count: trunks.length })}</Text>
         {trunks.length > 0 && (
           <Text as="span" className={cls.registeredBadge}>
-            {registeredCount} {t('trunks.statusRegistered', 'Registered').toLowerCase()}
+            {t('trunks.reachableCount', { count: reachableCount })}
+            {trunks.some(tr => tr.trunkType === 'auth') && ` · ${registeredCount} ${t('trunks.statusRegistered').toLowerCase()}`}
           </Text>
         )}
       </HStack>
@@ -168,7 +175,6 @@ export const TrunksTable = memo(() => {
               </Text>
             ) : (
               filtered.map((trunk) => {
-                const isAuth = trunk.trunkType === 'auth';
                 return (
                   <Flex
                     key={trunk.id}
@@ -180,25 +186,7 @@ export const TrunksTable = memo(() => {
                       <VStack gap="4">
                         <HStack gap="8" align="center">
                           <Text className={cls.name}>{trunk.name}</Text>
-                          {isAuth ? (
-                            <>
-                              <Flex className={
-                                trunk.registrationStatus === 'Registered'
-                                  ? cls.statusDotRegistered
-                                  : trunk.registrationStatus === 'Rejected'
-                                    ? cls.statusDotRejected
-                                    : cls.statusDotUnknown
-                              }
-                              >
-                                {''}
-                              </Flex>
-                              <Text variant="muted" className={cls.statusUnknown}>
-                                {trunk.registrationStatus || 'unknown'}
-                              </Text>
-                            </>
-                          ) : (
-                            <Text variant="muted" className={cls.statusUnknown}>IP</Text>
-                          )}
+                          <TrunkStatus {...trunk} />
                         </HStack>
                         <Text className={cls.mono}>{trunk.host || '-'}</Text>
                         {trunk.context ? (

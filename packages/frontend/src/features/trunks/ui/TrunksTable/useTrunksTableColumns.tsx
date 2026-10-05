@@ -2,29 +2,15 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Pencil, Trash2, Copy } from 'lucide-react';
-import { Flex } from '@/shared/ui/Stack';
 import { TableRowActions, TableRowAction, Text } from '@/shared/ui';
 import { useAppDispatch } from '@/shared/hooks/useAppStore';
 import { trunksPageActions } from '../../model/slice/trunksPageSlice';
 import { useDeleteTrunkMutation } from '@/shared/api/endpoints/trunkApi';
 import type { ITrunkListItem } from '@/shared/api/endpoints/trunkApi';
 import cls from './TrunksTable.module.scss';
+import { TrunkStatus } from './TrunkStatus';
 
 const columnHelper = createColumnHelper<ITrunkListItem>();
-
-function statusClass(status: string | undefined, trunkType: string) {
-  if (trunkType !== 'auth') return cls.statusUnknown;
-  if (status === 'Registered') return cls.statusRegistered;
-  if (status === 'Rejected') return cls.statusRejected;
-  return cls.statusUnknown;
-}
-
-function statusDotClass(status: string | undefined, trunkType: string) {
-  if (trunkType !== 'auth') return cls.statusDotUnknown;
-  if (status === 'Registered') return cls.statusDotRegistered;
-  if (status === 'Rejected') return cls.statusDotRejected;
-  return cls.statusDotUnknown;
-}
 
 export const useTrunksTableColumns = () => {
   const { t } = useTranslation();
@@ -71,21 +57,7 @@ export const useTrunksTableColumns = () => {
 
       columnHelper.accessor('registrationStatus', {
         header: () => t('trunks.status', 'Статус'),
-        cell: (info) => {
-          const status = info.getValue();
-          const trunkType = info.row.original.trunkType;
-
-          if (trunkType !== 'auth') {
-            return <Text variant="muted" className={cls.statusUnknown}>IP</Text>;
-          }
-
-          return (
-            <Flex align="center" gap="4">
-              <Flex className={statusDotClass(status ?? undefined, trunkType)}>{''}</Flex>
-              <Text className={statusClass(status ?? undefined, trunkType)}>{status || 'unknown'}</Text>
-            </Flex>
-          );
-        },
+        cell: (info) => <TrunkStatus {...info.row.original} />,
       }),
 
       columnHelper.display({

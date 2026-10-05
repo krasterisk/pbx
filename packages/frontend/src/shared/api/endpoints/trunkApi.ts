@@ -18,6 +18,7 @@ export interface ITrunkListItem {
   maxChannels?: number;
   registrationExpiration: number | null;
   registrationStatus: string | null;
+  reachabilityStatus?: 'Reachable' | 'Unreachable' | 'Unqualified' | 'Unknown';
   serverUri: string;
   clientUri: string;
 }

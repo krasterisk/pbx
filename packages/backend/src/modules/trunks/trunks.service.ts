@@ -19,6 +19,7 @@ import {
   resolveRegistrationExpiration,
 } from './trunk-timers.util';
 import { Transaction } from 'sequelize';
+import { trunkReachability, type TrunkReachabilityStatus } from './trunk-reachability.util';
 
 export interface CreateTrunkDto {
   name: string;
@@ -140,10 +141,10 @@ export class TrunksService {
       ipMap.set(ip.endpoint, list);
     }
 
-    // Try to get live registration statuses from AMI
-    let regStatuses = new Map<string, string>();
+    // IP-only trunks have no outbound registrations to query.
+    const regStatuses = new Map<string, string>();
     try {
-      if (this.amiService.isConnected()) {
+      if (regMap.size > 0 && this.amiService.isConnected()) {
         const result = await this.amiService.pjsipShowRegistrations();
         if (result && Array.isArray(result.events)) {
           result.events.forEach((evt: any) => {
@@ -155,6 +156,21 @@ export class TrunksService {
       }
     } catch (e) {
       this.logger.warn('Could not fetch registration statuses from AMI');
+    }
+
+    // Query only endpoints selected for this tenant. Bound concurrent AMI actions.
+    const reachability = new Map<string, TrunkReachabilityStatus>();
+    if (this.amiService.isConnected()) {
+      for (let offset = 0; offset < trunkEndpoints.length; offset += 8) {
+        await Promise.all(trunkEndpoints.slice(offset, offset + 8).map(async (endpoint) => {
+          try {
+            const { events } = await this.amiService.pjsipShowEndpoint(endpoint.id);
+            reachability.set(endpoint.id, trunkReachability(events));
+          } catch {
+            reachability.set(endpoint.id, 'Unknown');
+          }
+        }));
+      }
     }
 
     return trunkEndpoints.map((ep) => {
@@ -180,6 +196,7 @@ export class TrunksService {
         maxChannels: Number(ep.device_state_busy_at) > 0 ? Number(ep.device_state_busy_at) : 0,
         registrationExpiration: reg?.expiration ?? null,
         registrationStatus: trunkType === 'auth' ? (liveStatus || 'unknown') : null,
+        reachabilityStatus: reachability.get(ep.id) ?? 'Unknown',
         serverUri: reg?.server_uri || '',
         clientUri: reg?.client_uri || '',
       };
@@ -311,6 +328,7 @@ export class TrunksService {
         await this.amiService.moduleReload('res_pjsip_outbound_registration.so');
         await this.amiService.moduleReload('res_pjsip_endpoint_identifier_ip.so');
         await this.amiService.pjsipRegister(trunkId);
+        await this.syncQualify(trunkId);
         this.logger.log(`✅ AMI PJSIPRegister sent for ${trunkId}`);
       }
     } catch (e: any) {
@@ -378,6 +396,7 @@ export class TrunksService {
     try {
       if (this.amiService.isConnected()) {
         await this.amiService.moduleReload('res_pjsip_endpoint_identifier_ip.so');
+        await this.syncQualify(trunkId);
         this.logger.log(`✅ AMI ModuleLoad reload sent for IP trunk ${trunkId}`);
       }
     } catch (e: any) {
@@ -520,9 +539,7 @@ export class TrunksService {
           await this.amiService.moduleReload('res_pjsip_outbound_registration.so');
           await this.amiService.pjsipRegister(trunkId);
         }
-        if (dto.qualifyFrequency !== undefined) {
-          await this.amiService.pjsipReload();
-        }
+        await this.syncQualify(trunkId);
       }
     } catch (e: any) {
       this.logger.warn(`AMI reload failed after update of ${trunkId}: ${e.message}`);
@@ -626,6 +643,12 @@ export class TrunksService {
     const suffix = String(vpbxUserUid);
     if (context.endsWith(suffix)) return context.slice(0, -suffix.length);
     return context;
+  }
+
+  private async syncQualify(trunkId: string): Promise<void> {
+    // CLI identifiers must stay one argument, including for legacy database rows.
+    if (!/^[a-zA-Z0-9_.-]+$/.test(trunkId)) throw new Error('Invalid endpoint identifier for qualify synchronization');
+    await this.amiService.command(`pjsip reload qualify endpoint ${trunkId}`);
   }
 
   /** Ensure trunk ID is unique */
