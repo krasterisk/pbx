@@ -188,3 +188,15 @@ test('reviewed PostgreSQL baseline matches the pinned offline schema translation
   assert.equal(sql, draft());
   assert.doesNotMatch(sql, /FOREIGN_KEY_CHECKS|ENGINE=InnoDB|auto_increment|TINYINT\(1\)/i);
 });
+
+
+test('virtual context attributes are fingerprinted but never treated as SQL columns', () => {
+  const result = inventory();
+  const context = result.models.contexts;
+  assert.deepEqual(Object.keys(context.columns).sort(), ['comment', 'name', 'uid', 'user_uid']);
+  for (const field of ['include_uids', 'is_default_for_endpoints', 'is_default_for_trunks']) {
+    assert.equal(Object.hasOwn(context.columns, field), false);
+    assert.equal(result.differences.modelColumnsAbsentFromBaseline.includes('contexts.' + field), false);
+  }
+  assert.equal(result.sources.modelMetadataSha256, reviewed.modelMetadataSha256);
+});

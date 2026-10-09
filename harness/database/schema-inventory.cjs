@@ -158,11 +158,14 @@ function modelInventory() {
       if (!column && !created && !updated) continue;
       if (!member.name || !ts.isIdentifier(member.name)) throw new Error(`Dynamic column in ${name}`);
       const options = column && callArg(column);
+      // Virtual Sequelize attributes are serialized API metadata, not SQL columns.
+      const columnType = code(property(options, 'type') || (options && !ts.isObjectLiteralExpression(options) ? options : undefined));
+      if (/^DataType\.VIRTUAL(?:\(|$)/.test(columnType || '')) continue;
       const field = value(property(options, 'field')) || member.name.text;
       if (columns[field]) throw new Error(`Duplicate column ${tableName}.${field}`);
       columns[field] = {
         member: member.name.text,
-        type: code(property(options, 'type') || (options && !ts.isObjectLiteralExpression(options) ? options : undefined)),
+        type: columnType,
         allowNull: code(property(options, 'allowNull') || callArg(decorator(member, 'AllowNull'))),
         defaultValue: code(property(options, 'defaultValue') || callArg(decorator(member, 'Default'))),
         primaryKey: !!decorator(member, 'PrimaryKey') || code(property(options, 'primaryKey')) === 'true',
