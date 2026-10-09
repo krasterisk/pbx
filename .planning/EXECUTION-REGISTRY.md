@@ -22,4 +22,4 @@
 | design-system-refresh | [EXECUTION/PLAN](DESIGN-SYSTEM-REFRESH-EXECUTION.md) | Centered errors, redesigned dark palette, AiChat launcher |
 | context-defaults-aichat | [EXECUTION/PLAN](CONTEXT-DEFAULTS-AICHAT-EXECUTION.md) | Default contexts and platform assistant capability audit |
 | routes-contexts-refactor | [EXECUTION/PLAN](ROUTES-CONTEXTS-REFACTOR-PLAN.md) | Ordered includes, route permissions removal and isolated live Asterisk tests |
-| release-20261009 | [EXECUTION/PLAN](RELEASE-20261009.md) | Current snapshot commit/push and production deployment |
+| release-20261009 | [EXECUTION/PLAN](RELEASE-20261009.md) | Released 7acfa819; CI and authenticated production smoke PASS |
