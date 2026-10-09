@@ -22,6 +22,8 @@ export const CALLBACK_REQUESTED_LABEL = 'Итог: абонент заказал
 export const TOROUTE_REASON_MESSAGES = {
   ambiguous: 'неоднозначность',
   pattern_only: 'паттерн',
+  caller_id_required: 'нужен номер вызывающего',
+  caller_id_pattern: 'шаблон номера вызывающего требует живой проверки',
   non_route_context: 'не-маршрутный контекст',
   inactive: 'Цель перехода выключена',
 } as const;
@@ -186,6 +188,7 @@ export function walkDialplanGraph(options: WalkDialplanOptions): WalkDialplanRes
     let i = 0;
     while (i < actions.length && !stopped) {
       const action = actions[i];
+      if (action.enabled === false) { i++; continue; }
       const cond = evaluateCondition(action.condition, scenario);
       if (cond === 'reask') {
         segment.nodes.push({
@@ -224,7 +227,7 @@ export function walkDialplanGraph(options: WalkDialplanOptions): WalkDialplanRes
         const label = String(action.params?.label_name ?? '');
         const target = actions.findIndex(
           (candidate) =>
-            candidate.type === 'label' && String(candidate.params?.label_name ?? '') === label,
+            candidate.enabled !== false && candidate.type === 'label' && String(candidate.params?.label_name ?? '') === label,
         );
         if (target < 0) {
           outcome = { kind: 'incomplete', actionType: 'goto' };
@@ -277,7 +280,7 @@ export function walkDialplanGraph(options: WalkDialplanOptions): WalkDialplanRes
           return;
         }
         const candidates = options.resolveRoutesInContext?.(contextName) ?? [];
-        const resolvedRoute = resolveExactRoute(contextName, resolved.value, candidates);
+        const resolvedRoute = resolveExactRoute(contextName, resolved.value, candidates, options.callerNumber);
         if (resolvedRoute.kind !== 'enter') {
           const reason = resolvedRoute.kind;
           outcome = {

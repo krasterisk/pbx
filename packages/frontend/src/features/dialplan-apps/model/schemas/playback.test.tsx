@@ -171,7 +171,7 @@ describe('PlaybackApp', () => {
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByText('Может выйти из цепочки')).toBeInTheDocument();
+    expect(screen.getByLabelText('Может выйти из цепочки')).toBeInTheDocument();
     expect(screen.getByText(/шаг ниже может не выполниться/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /добавить действие/i })).not.toBeDisabled();
   });

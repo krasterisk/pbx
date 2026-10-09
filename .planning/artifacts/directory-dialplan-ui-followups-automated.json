@@ -1,0 +1,87 @@
+{
+  "assignment": "R16-R17",
+  "coordinator": "/root",
+  "mode": "codex-direct",
+  "status": "implemented / automated-tests-passed",
+  "scope": [
+    "Per-step directory policies with compatible legacy binding conversion",
+    "English static schema options translated via i18n keys",
+    "Directories and Where used tabs removed, Dialplan tab renamed, pre-dial UI removed",
+    "Active control in identity header and default-collapsed empty recording card",
+    "Flowchart notes and scenario runner removed",
+    "Step operations and template actions in overflow menus; statuses and conditions represented by tooltip icons",
+    "Persistent enabled flag honored by compiler, label references, abstract walk and AI drafts",
+    "Adaptive themed modal surfaces with semantic sections and CSS modules"
+  ],
+  "verification": {
+    "sharedBuild": "passed",
+    "backendBuild": "passed",
+    "backendTests": {
+      "command": "npm run test:backend",
+      "suites": 388,
+      "passed": 3662,
+      "skipped": 11,
+      "status": "passed"
+    },
+    "frontendFullRun": {
+      "command": "npm run test:frontend",
+      "files": 323,
+      "tests": 1698,
+      "initialPassed": 1696,
+      "initialFailed": 2,
+      "initialExitCode": 1,
+      "reason": "Two old assertions looked for visible may-exit badge text after it became an accessible icon",
+      "resolution": {
+        "batchFiles": 40,
+        "batchTests": 280,
+        "status": "passed",
+        "unresolvedFailures": 0
+      }
+    },
+    "frontendAffectedSuite": {
+      "files": 46,
+      "tests": 381,
+      "status": "passed",
+      "covers": "Dialplan apps and routes including persistence of disabled steps"
+    },
+    "latestFrontendCheck": {
+      "files": 4,
+      "tests": 46,
+      "status": "passed",
+      "covers": "Redirect context selection, RU/EN options, editor menus and modal persistence after final UI changes"
+    },
+    "latestFrontendBuild": {
+      "status": "passed",
+      "command": "npm run build --workspace=@krasterisk/frontend",
+      "includesTypeCheck": true
+    },
+    "lint": {
+      "status": "passed",
+      "command": "npm run lint",
+      "errors": 0,
+      "warnings": "Existing and non-blocking warnings remain"
+    },
+    "live": {
+      "report": "directory-steps-live.json",
+      "groups": 8,
+      "status": "passed",
+      "cleanup": true,
+      "providerCalls": false,
+      "uses": "Real HTTP controllers, test tenant DB records, AMI and Asterisk Local channels"
+    },
+    "browserVisual": {
+      "status": "unavailable",
+      "reason": "CUA kernel cannot initialize: Windows sandbox helper setup refresh error"
+    },
+    "diffCheck": "passed"
+  },
+  "compatibility": {
+    "legacyBindings": "Converted locally on explicit action-mode save; bindings cleared atomically with action changes",
+    "explicitRaw": "Stored raw execution source and legacy bindings preserved while remaining in raw mode",
+    "preCommand": "Existing values retained for compatibility; field removed from UI",
+    "oldLookup": "Output-only directory_lookup JSON remains valid",
+    "schemaMigration": "Not required",
+    "disabled": "Previously editor-only enabled:false is now persisted and respected in dialplan execution, AI drafts, label references and abstract walk"
+  },
+  "release": "Not deployed"
+}

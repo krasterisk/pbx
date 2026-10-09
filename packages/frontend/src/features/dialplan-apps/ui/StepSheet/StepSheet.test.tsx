@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import type { IRouteAction } from '@krasterisk/shared';
 import { DialplanAppsEditor } from '../DialplanAppsEditor/DialplanAppsEditor';
@@ -23,8 +23,7 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
 }));
 
 vi.mock('@/entities/User', () => ({
-  selectCurrentUser: (state: { auth?: { user?: { vpbx_user_uid: number } } }) =>
-    state.auth?.user,
+  selectCurrentUser: (state: { auth?: { user?: { vpbx_user_uid: number } } }) => state.auth?.user,
 }));
 
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
@@ -435,6 +434,61 @@ describe('StepSheet', () => {
     fireEvent.change(priority, { target: { value: '5' } });
     expect(priority).toHaveFocus();
     expect(screen.getByLabelText('Действие шага')).not.toHaveFocus();
+  });
+
+  it('opens a collapsed field section after validation and focuses that field', async () => {
+    render(
+      <StepSheet
+        open
+        stepId="n"
+        tenantUid={42}
+        action={{
+          id: 'n',
+          type: 'notify',
+          params: { integration_uid: 1, body: 'Text' },
+          condition: {},
+        }}
+        fieldErrors={{ subject: 'subject must match a regular expression' }}
+        onOpenChange={vi.fn()}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Тема (для email)' })).toHaveFocus(),
+    );
+    expect(screen.getByRole('textbox', { name: 'Тема (для email)' })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(screen.queryByText(/must match/)).not.toBeInTheDocument();
+  });
+
+  it('shows a server error for an otherwise complete value-source control', async () => {
+    render(
+      <StepSheet
+        open
+        stepId="s"
+        tenantUid={42}
+        action={{
+          id: 's',
+          type: 'toexten',
+          params: { target: { source: 'fixed', value: '101' } },
+          condition: {},
+        }}
+        fieldErrors={{ target: 'target must match a regular expression' }}
+        onOpenChange={vi.fn()}
+        onChange={vi.fn()}
+        onTypeChange={vi.fn()}
+      />,
+    );
+    const invalidSource = screen.getAllByRole('combobox', { name: 'Абонент' }).find(control => control.getAttribute('aria-invalid') === 'true')!;
+    await waitFor(() => expect(invalidSource).toHaveFocus());
+    expect(invalidSource).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('routes.chain.fieldError.format');
   });
 
   it('focuses the first invalid field on open', () => {

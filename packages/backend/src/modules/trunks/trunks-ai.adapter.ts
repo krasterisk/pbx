@@ -10,19 +10,24 @@ import {
   AgentDiffProposal,
 } from '../ai-platform/ai-adapter.types';
 import { defineMutationTool } from '../ai-platform/ai-mutation.contract';
+import { ContextsService } from '../contexts/contexts.service';
+import { selectConfigurationContext } from '../contexts/context-selection';
+import { trunkConfigurationShape } from '../ai-platform/pbx-configuration.schemas';
+import { redactSecrets } from '../ai-platform/ai-secret-redaction';
 
-const SCHEMA_VERSION = 'trunks-1';
+const SCHEMA_VERSION = 'trunks-2';
 
 const trunkType = z.enum(['auth', 'ip']);
 
 /** No `password` key anywhere: a provider secret is set on the trunk screen, not by the model. */
 const createTrunkShape = {
+  ...trunkConfigurationShape,
   name: z.string().min(1).describe('Имя транка ("МТТ", "Ростелеком")'),
   trunkType: trunkType.optional(),
   host: z.string().min(1).describe('Адрес SIP-сервера провайдера'),
   port: z.number().int().positive().optional(),
   username: z.string().optional(),
-  context: z.string().optional().describe('Контекст для входящих (from-trunk)'),
+  context: trunkConfigurationShape.context.describe('Имя из list_contexts; без значения нужен основной для транков.'),
   codecs: z.string().optional(),
   fromDomain: z.string().optional(),
 };
@@ -31,7 +36,11 @@ const createTrunkInput = z.strictObject(createTrunkShape);
 const createTrunkArgs = z.strictObject({
   ...createTrunkShape,
   trunkType: trunkType.default('ip'),
+  context: z.string().trim().min(1),
+  requiresSecureInput: z.boolean(),
 });
+const updateTrunkInput = z.strictObject({ trunkId: z.string().min(1), ...trunkConfigurationShape });
+type UpdateTrunkInput = z.infer<typeof updateTrunkInput>;
 
 const deleteTrunkInput = z.strictObject({
   trunkId: z.string().min(1).describe('ID транка (t_{name}_{tenantId})'),
@@ -133,6 +142,7 @@ export class TrunksAiAdapter implements DomainAiAdapter, OnModuleInit {
     private readonly trunksService: TrunksService,
     private readonly routesService: RoutesService,
     private readonly registry: AiAdapterRegistryService,
+    private readonly contextsService: ContextsService,
   ) {}
 
   onModuleInit(): void {
@@ -141,7 +151,7 @@ export class TrunksAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListTrunks(), this.toolCreateTrunk(), this.toolDeleteTrunk()];
+    return [this.toolListTrunks(), this.toolCreateTrunk(), this.toolDeleteTrunk(), this.toolGetTrunk(), this.toolUpdateTrunk()];
   }
 
   getStateProvider(): AiStateProvider {
@@ -190,18 +200,21 @@ export class TrunksAiAdapter implements DomainAiAdapter, OnModuleInit {
       input: createTrunkInput,
       args: createTrunkArgs,
       reload: { kind: 'none' },
-      propose: async (input) => {
+      propose: async (input, ctx) => {
         const kind = input.trunkType ?? 'ip';
+        const context = await selectConfigurationContext(this.contextsService, input.context, 'trunks', ctx);
+        if (!context) return { refused: true, message: 'Выберите контекст из list_contexts или назначьте основной для транков.' };
         return this.proposal(
           'create_trunk',
           input.name,
-          { ...input, trunkType: kind },
+          { ...input, context, trunkType: kind, requiresSecureInput: kind === 'auth' },
           null,
-          { name: input.name, host: input.host, trunkType: kind },
+          { ...input, context, trunkType: kind, requiresSecureInput: kind === 'auth' },
           [`Создать транк «${input.name}» на хосте ${input.host} (${kind})`],
         );
       },
       revalidate: async (args, ctx) => {
+        if (!await selectConfigurationContext(this.contextsService, args.context, 'trunks', ctx)) return { ok: false, reason: 'Контекст не найден в этом кабинете.' };
         const existing = await this.trunksService.findAll(ctx.vpbxUserUid);
         if (existing.some((trunk) => trunk.name === args.name)) {
           return { ok: false, reason: `Транк «${args.name}» уже есть у тенанта` };
@@ -209,7 +222,9 @@ export class TrunksAiAdapter implements DomainAiAdapter, OnModuleInit {
         return { ok: true, args };
       },
       apply: async (args, ctx) => {
-        await this.trunksService.create(args as never, ctx.vpbxUserUid);
+        const { requiresSecureInput, ...settings } = args;
+        if (requiresSecureInput && !ctx.secureInput?.password) throw new Error('secure_input_required');
+        await this.trunksService.create({ ...settings, ...(requiresSecureInput ? { password: ctx.secureInput!.password } : {}) } as never, ctx.vpbxUserUid);
       },
     });
   }
@@ -265,6 +280,36 @@ export class TrunksAiAdapter implements DomainAiAdapter, OnModuleInit {
           const names = (result.references ?? []).map((row) => row.name).join(', ');
           throw new Error(`Trunk is referenced by routes: ${names}`);
         }
+      },
+    });
+  }
+
+  private toolGetTrunk(): AiToolDefinition {
+    return { name: 'get_trunk_configuration', description: 'Текущая полная конфигурация транка: endpoint, aor, registration, identify; секреты скрыты.',
+      inputSchema: { trunkId: { type: 'string' } }, entityType: 'trunk',
+      handler: async (args, uid) => redactSecrets(await this.trunksService.findOne(String(args.trunkId ?? ''), uid)) };
+  }
+
+  private toolUpdateTrunk(): AiToolDefinition {
+    return defineMutationTool<UpdateTrunkInput, UpdateTrunkInput>({
+      name: 'update_trunk', description: 'Изменить существующий SIP-транк: хост/порт, логин, контекст, транспорт, кодеки, From/Contact, identify, интервалы регистрации/qualify, лимит каналов, advanced PJSIP. Пароль сохраняется.',
+      entityType: 'trunk', schemaVersion: SCHEMA_VERSION, input: updateTrunkInput, args: updateTrunkInput, reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        if (Object.keys(input).length < 2) return { refused: true, message: 'Не указано ни одного изменения.' };
+        const current = await this.trunksService.findOne(input.trunkId, ctx.vpbxUserUid);
+        if (input.context && !await selectConfigurationContext(this.contextsService, input.context, 'trunks', ctx)) return { refused: true, message: 'Контекст не найден в этом кабинете.' };
+        const row = (await this.trunksService.findAll(ctx.vpbxUserUid)).find((trunk) => trunk.id === input.trunkId);
+        const before = { ...redactSecrets(row ?? {}), advanced: redactSecrets(current.endpoint ?? {}) };
+        return this.proposal('update_trunk', row?.name ?? input.trunkId, input, before, { ...before, ...input, advanced: { ...before.advanced, ...input.advanced } }, [`Изменить настройки транка «${row?.name ?? input.trunkId}»`]);
+      },
+      revalidate: async (args, ctx) => {
+        await this.trunksService.findOne(args.trunkId, ctx.vpbxUserUid);
+        if (args.context && !await selectConfigurationContext(this.contextsService, args.context, 'trunks', ctx)) return { ok: false, reason: 'Контекст не найден в этом кабинете.' };
+        return { ok: true, args };
+      },
+      apply: async (args, ctx) => {
+        const { trunkId, ...settings } = args;
+        await this.trunksService.update(trunkId, settings as never, ctx.vpbxUserUid);
       },
     });
   }

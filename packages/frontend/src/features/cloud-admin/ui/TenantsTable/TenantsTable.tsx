@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building2, Loader2, Plus, Search, ArrowRightLeft, ExternalLink, Pause, Pencil, Play } from 'lucide-react';
@@ -44,7 +45,7 @@ export const TenantsTable = memo(() => {
     debounceRef.current = setTimeout(() => setDebouncedSearch(value), 350);
   };
 
-  const { data, isLoading } = useGetTenantsQuery({
+  const { data, isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetTenantsQuery({
     search: debouncedSearch || undefined,
     limit: 50,
     offset: 0,
@@ -144,6 +145,7 @@ export const TenantsTable = memo(() => {
     </TableRowActions>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   return (
     <VStack gap="16" max className={cls.wrapper}>
       <TenantDrawer />

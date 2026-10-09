@@ -83,12 +83,14 @@ export function expandAsteriskPattern(raw: string): string {
 
 function coerceSource(
   source: ValueSource | string | number | undefined | null,
+  preserveText = false,
 ): ValueSource | undefined {
   if (source == null || source === '') return undefined;
   if (typeof source === 'number' && Number.isFinite(source)) {
     return { source: 'fixed', value: String(Math.trunc(source)) };
   }
   if (typeof source === 'string') {
+    if (preserveText) return { source: 'fixed', value: source };
     const trimmed = source.trim();
     if (!trimmed || trimmed === '${EXTEN}' || trimmed === '__USE_EXTEN__') {
       return { source: 'route_pattern' };
@@ -119,9 +121,11 @@ export function resolveDialPreviewOptions(
     fallback?: string;
     /** Replace route_pattern samples shorter than this with `fallback`. */
     minLength?: number;
+    /** Preserve text characters and whitespace for Caller ID names. */
+    preserveText?: boolean;
   } = {},
 ): DialPreviewOption[] {
-  const src = coerceSource(source);
+  const src = coerceSource(source, opts.preserveText);
   const fallback = opts.fallback ?? '79001234567';
   const minLength = opts.minLength;
 
@@ -130,7 +134,8 @@ export function resolveDialPreviewOptions(
   }
 
   if (src.source === 'fixed') {
-    const value = String(src.value ?? '').trim();
+    const raw = String(src.value ?? '');
+    const value = opts.preserveText ? raw : raw.trim();
     if (value) return [{ value, label: value, exact: true }];
     return [{ value: fallback, label: fallback }];
   }
@@ -148,7 +153,8 @@ export function resolveDialPreviewOptions(
     const samples: DialPreviewOption[] = [];
     for (const record of directory?.records ?? []) {
       const raw = key ? record.values?.[key] : undefined;
-      const value = String(raw ?? '').trim();
+      const text = String(raw ?? '');
+      const value = opts.preserveText ? text : text.trim();
       if (!value) continue;
       const label = record.lookup_value ? `${record.lookup_value} → ${value}` : value;
       if (!samples.some((s) => s.value === value)) {

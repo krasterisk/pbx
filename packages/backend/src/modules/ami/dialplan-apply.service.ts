@@ -10,6 +10,8 @@ export interface DialplanCategory {
 export interface ApplyCategoriesOptions {
   /** Run `dialplan reload` once after all categories are applied. Default: true. */
   reload?: boolean;
+  /** Revoke previous categories only in an exclusively owned managed file. */
+  replaceAll?: boolean;
 }
 
 export interface ApplyCategoriesResult {
@@ -82,6 +84,12 @@ export class DialplanApplyService {
   ): Promise<ApplyCategoriesResult> {
     await this.ensureConfigFile(filename);
 
+    if (opts.replaceAll) {
+      const config = await this.amiService.action({ action: 'GetConfig', filename });
+      if (!config || config.response === 'Error') throw new Error('Cannot read managed categories before replacement');
+      const names = Object.entries(config).filter(([key]) => /^category-\d+$/i.test(key)).map(([, value]) => String(value));
+      await this.deleteCategories(filename, names, { reload: false });
+    }
     let totalLines = 0;
 
     for (const category of categories) {

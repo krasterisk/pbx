@@ -2,6 +2,7 @@ import type { AgentTimelineItem } from '@krasterisk/shared';
 import { rtkApi } from '../rtkApi';
 import type { AiModel } from '@/features/ai-chat/model/types/AiChatSchema';
 import { getLiveTimeline, mergeTimelines, setLiveTimeline } from './aiChatLiveTimeline';
+export const AI_CHAT_CONFIGURATION_TAGS = ['Ivrs', 'CallGroups', 'Endpoints', 'Trunks', 'Contexts', 'Routes', 'Queues', 'TenantSettings', 'TimeGroups', 'Directory', 'Moh', 'Prompts', 'Notifications', 'AiProviders', 'TtsEngines', 'SttEngines', 'PickupGroups', 'ProvisionTemplates'] as const;
 
 export interface IAiChatSettings {
     confirmDestructive: boolean;
@@ -88,6 +89,8 @@ export interface IAgentWorkflowStepView {
     error: string | null;
     dependsOn: string[];
     requiresSecureInput: boolean;
+    before?: Record<string, unknown> | null;
+    after?: Record<string, unknown> | null;
 }
 
 export interface IAgentWorkflowPlanView {
@@ -260,12 +263,16 @@ const aiChatApi = rtkApi.injectEndpoints({
                 'AiChatThreads',
             ],
         }),
-        confirmAiChatProposal: builder.mutation<IAgentProposalActionResult, string>({
-            query: (proposalId) => ({
+        confirmAiChatProposal: builder.mutation<IAgentProposalActionResult, string | { proposalId: string; secureInputs: Record<string, { password: string }> }>({
+            query: (input) => {
+              const proposalId = typeof input === 'string' ? input : input.proposalId;
+              return {
                 url: `/ai-chat/proposals/${proposalId}/apply`,
                 method: 'POST',
-            }),
-            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints'],
+                ...(typeof input === 'string' ? {} : { body: { secureInputs: input.secureInputs } }),
+              };
+            },
+            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints', 'Trunks', 'Contexts', 'Routes', 'Queues', 'TenantSettings', 'TimeGroups', 'Directory', 'Moh', 'Prompts', 'Notifications', 'AiProviders', 'TtsEngines', 'SttEngines', 'PickupGroups', 'ProvisionTemplates'],
         }),
         rejectAiChatProposal: builder.mutation<IAgentProposalActionResult, string>({
             query: (proposalId) => ({
@@ -278,12 +285,13 @@ const aiChatApi = rtkApi.injectEndpoints({
             query: () => '/ai-chat/workflows/pending',
             providesTags: ['AiChatThreads'],
         }),
-        confirmAiChatWorkflow: builder.mutation<IAgentWorkflowPlanView, string>({
-            query: (workflowId) => ({
-                url: `/ai-chat/workflows/${workflowId}/apply`,
+        confirmAiChatWorkflow: builder.mutation<IAgentWorkflowPlanView, string | { workflowId: string; secureInputs: Record<string, { password: string }> }>({
+            query: (input) => ({
+                url: `/ai-chat/workflows/${typeof input === 'string' ? input : input.workflowId}/apply`,
                 method: 'POST',
+                ...(typeof input === 'string' ? {} : { body: { secureInputs: input.secureInputs } }),
             }),
-            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints'],
+            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints', 'Trunks', 'Contexts', 'Routes', 'Queues', 'TenantSettings', 'TimeGroups', 'Directory', 'Moh', 'Prompts', 'Notifications', 'AiProviders', 'TtsEngines', 'SttEngines', 'PickupGroups', 'ProvisionTemplates'],
         }),
         rejectAiChatWorkflow: builder.mutation<IAgentWorkflowPlanView, string>({
             query: (workflowId) => ({

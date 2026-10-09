@@ -136,3 +136,11 @@
     grid-column: 1 / -1;
   }
 }
+
+.row { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); background: linear-gradient(110deg, var(--color-card), color-mix(in srgb, var(--color-muted) 30%, var(--color-card))); transition: border-color 150ms, box-shadow 150ms; cursor: pointer; }
+.row:hover { border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border)); box-shadow: var(--shadow-md); }
+.number { width: 24px; height: 24px; border-radius: 50%; background: var(--color-muted); font-size: 12px; line-height: 24px; }
+.row .main { align-items: flex-start; }
+.statusIcon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-md); color: var(--color-muted-foreground); }
+.statusIcon:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.dangerItem { color: var(--color-destructive); }

@@ -82,9 +82,9 @@ describe('compileDirectoryLookup', () => {
     const text = compile().lines.join('\n');
     expect(text).toContain('Set(KRSK_DL_A3_STATUS=ERROR)');
     expect(text.indexOf('Set(KRSK_DL_A3_STATUS=ERROR)')).toBeLessThan(text.indexOf('${CURL('));
-    expect(text).toContain('"${CUT(KRSK_DL_A3_RAW,|,1)}" = "KDL1"');
-    expect(text).toContain('"${CUT(KRSK_DL_A3_RAW,|,2)}" = "FOUND"');
-    expect(text).toContain('"${CUT(KRSK_DL_A3_RAW,|,2)}" = "NOT_FOUND"');
+    expect(text).toContain('"${KRSK_DL_A3_RAW_PROTO}" = "S0RMMQ=="');
+    expect(text).toContain('"${KRSK_DL_A3_RAW_REMOTE_STATUS}" = "Rk9VTkQ="');
+    expect(text).toContain('"${KRSK_DL_A3_RAW_REMOTE_STATUS}" = "Tk9UX0ZPVU5E"');
   });
 
   it('decodes requested fields only on FOUND so pipes, Unicode, commas, line breaks, and empty values survive', () => {

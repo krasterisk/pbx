@@ -45,6 +45,6 @@ describe('clientStepFieldErrors', () => {
       },
       condition: {},
     });
-    expect(errors.outputs).toBe('invalid');
+    expect(errors.outputs).toBe('directory-invalid');
   });
 });

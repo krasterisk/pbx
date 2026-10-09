@@ -97,6 +97,20 @@ const FIXTURE_TURN = [
 ];
 
 describe('useAgentTurn', () => {
+  it('refreshes entity catalogs and the card after a configuration applied through chat confirmation', async () => {
+    mockFetchStream([encodeSse([
+      { event: 'thread', data: { uid: 7 } },
+      { event: 'done', data: { closeKind: 'complete', configurationChanged: true } },
+    ])]);
+    const store = makeStore();
+    const dispatch = vi.spyOn(store, 'dispatch');
+    const { result } = renderHook(() => useAgentTurn({ threadUid: 7 }), { wrapper: wrapperFor(store) });
+    await act(async () => { result.current.send('Подтверждаю'); });
+    await waitFor(() => {
+      expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: `${rtkApi.reducerPath}/invalidateTags`, payload: expect.arrayContaining(['Endpoints', 'Trunks', 'Contexts', 'Routes']) }));
+      expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: `${rtkApi.reducerPath}/invalidateTags`, payload: [{ type: 'AiChatThreads', id: 7 }] }));
+    });
+  });
   beforeEach(() => {
     vi.unstubAllGlobals();
     localStorage.setItem('accessToken', 'test-token');

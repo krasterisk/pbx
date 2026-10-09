@@ -11,6 +11,7 @@ export {
 } from './enums/index';
 
 // Types
+export * from './types/endpoint.types';
 export * from './types/user.types';
 export * from './types/peer.types';
 export * from './types/trunk.types';
@@ -97,3 +98,14 @@ export type {
   WalkSegment,
 } from './utils/dialplan-walk';
 export * from './types/ai-voice.types';
+export * from './pjsipAdvancedFields';
+export * from './pjsipSettings';
+export * from './queueAdvancedFields';
+export * from './contextIdentifier';
+
+export * from './routeDialPattern';
+
+export * from './callerid';
+export * from './notifyParams';
+
+export * from './directoryStep';

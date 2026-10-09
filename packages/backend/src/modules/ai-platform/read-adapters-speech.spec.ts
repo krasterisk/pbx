@@ -215,9 +215,9 @@ describe('read-adapters-speech — voice robots (D-12, D-15)', () => {
     );
   });
 
-  it('declares no mutating tool', () => {
+  it('keeps the read tools nonmutating', () => {
     expect(adapter.getTools().length).toBeGreaterThan(0);
-    for (const tool of adapter.getTools()) {
+    for (const tool of adapter.getTools().filter((tool) => !tool.mutation)) {
       expect(isMutating(tool)).toBe(false);
       expect(tool.name).not.toMatch(/create|update|delete|write|apply/i);
     }
@@ -391,7 +391,7 @@ describe('read-adapters-speech — tts engines (D-15, secret boundary)', () => {
 
   it('declares no tool that synthesises audio', () => {
     expect(adapter.getTools().length).toBeGreaterThan(0);
-    for (const tool of adapter.getTools()) {
+    for (const tool of adapter.getTools().filter((tool) => !tool.mutation)) {
       expect(isMutating(tool)).toBe(false);
       expect(tool.name).not.toMatch(/synth|speak|generate|play|render/i);
     }
@@ -481,7 +481,7 @@ describe('read-adapters-speech — stt engines (D-15, secret boundary)', () => {
 
   it('declares no tool that transcribes audio', () => {
     expect(adapter.getTools().length).toBeGreaterThan(0);
-    for (const tool of adapter.getTools()) {
+    for (const tool of adapter.getTools().filter((tool) => !tool.mutation)) {
       expect(isMutating(tool)).toBe(false);
       expect(tool.name).not.toMatch(/transcri|recognize|listen|decode/i);
     }
@@ -594,7 +594,7 @@ describe('read-adapters-speech — per-tool and registry-enumerated isolation (D
   });
 
   it('proves per-tool cross-tenant isolation and forged-key ignore for every speech adapter tool', async () => {
-    const tools = [...robots.getTools(), ...tts.getTools(), ...stt.getTools()];
+    const tools = [...robots.getTools(), ...tts.getTools().filter((tool) => !tool.mutation), ...stt.getTools().filter((tool) => !tool.mutation)];
     expect(tools.map((tool) => tool.name).sort()).toEqual(
       ['describe_voice_robot', 'list_stt_engines', 'list_tts_engines', 'list_voice_robots'].sort(),
     );

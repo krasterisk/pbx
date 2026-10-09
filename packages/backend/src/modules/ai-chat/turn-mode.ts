@@ -32,6 +32,10 @@ export const EVIDENCE_TOOLS = new Set([
 
 /** Single-object reads stay intact. List payloads are still clipped. */
 export const UNTRUNCATED_TOOLS = new Set([
+  'get_configuration_capabilities',
+  'get_endpoint_configuration',
+  'get_trunk_configuration',
+  'get_queue_configuration',
   'describe_number',
   'get_compiled_dialplan',
   'get_endpoint_registration',

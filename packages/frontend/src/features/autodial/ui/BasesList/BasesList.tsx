@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Database, Loader2, Pencil, Trash2 } from 'lucide-react';
@@ -109,10 +110,7 @@ export const BasesList = memo(() => {
       <CardContent className={cls.content}>
         {error && <Text role="alert">{error}</Text>}
         {isError ? (
-          <VStack gap="8">
-            <Text role="alert">{t('autodial.common.loadFailed')}</Text>
-            <Button onClick={() => void refetch()}>{t('autodial.common.retry')}</Button>
-          </VStack>
+          <QueryErrorState message={t('autodial.common.loadFailed')} onRetry={() => void refetch()} retryLabel={t('autodial.common.retry')} />
         ) : isLoading ? (
           <Flex justify="center" className={cls.loading}>
             <Loader2 size={20} className={cls.spinner} />

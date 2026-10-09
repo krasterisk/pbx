@@ -115,7 +115,7 @@ krasterisk_v4/
   - Нельзя: нативный `<button>` / `Button variant="ghost" size="icon"` + Tailwind `hover:bg-white/5` / `hover:bg-accent` / `className="h-8 w-8"` на иконках — фон кнопки сливается с hover строки, иконка «пропадает».
   - Визуал: muted иконка → на hover только смена цвета (`foreground` / `destructive` для `danger`), **без** заливки фона.
   - Порядок, если есть копирование: **Edit → Copy → Delete**. Copy только `dispatch(openCopyModal)`, без прямого API.
-  - Обязательны `title` и `aria-label`.
+  - `aria-label` обязателен; `title` задаётся только без `Tooltip` / `InfoTooltip`, чтобы не дублировать подсказки.
   - Lucide внутри `TableRowAction`: только `<Pencil />` / `<Copy />` / `<Trash2 />` **без** `className`, `size`, `text-primary`, `text-destructive`. Размер задаёт `TableRowActions.module.scss` (`svg { width: 1rem; height: 1rem }`). Цвет по умолчанию - muted; destructive **только** на hover у `danger`.
   - **Запрещённые иконки edit:** `Edit2`, `FileEdit`, `SquarePen` - только `Pencil`.
   - **Запрещённый цвет «сразу»:** `className="w-4 h-4 text-primary"` / `text-destructive` на иконке - иконка кричит до hover и расходится с каноном.
@@ -161,25 +161,25 @@ import { Pencil, Copy, Trash2 } from 'lucide-react';
 
 #### Источник токенов
 
-Все дизайн-токены проекта определены в `src/app/styles/globals.css` в директиве `@theme` (Tailwind v4). Это **единственный источник правды** для цветов, скруглений и z-индексов.
+Семантические UI-токены проекта определены в `src/app/styles/globals.css` в директиве `@theme` (Tailwind v4). Это **единственный источник правды** для цветов компонентов, скруглений и z-индексов. Исходная тёмная палитра aiPBX **redesigned** хранится в `src/app/styles/variables/design-system.scss`: графитовые `#090f11` / `#0c1214` / `#151c1f`, текст `#dbdbdb`, muted/icon `#74a2b2`, cyan `#5ed3f3`, success `#6cd98b`, error `#d95757`. `globals.css` отображает её на `--color-*`; legacy SCSS-алиасы и glass/glow используют те же семантические токены. Светлая тема переопределяет `--color-*` через `.light`. Компоненты не копируют значения палитры и не закрепляют Indigo через hex/rgba.
 
 ```css
 /* globals.css */
 @theme {
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-card:       #0a0a0f;
-  --color-border:     #27272a;  /* light: #e4e4e7 */
-  --color-primary:    #6366f1;
-  --color-muted:      #18181b;
-  --color-muted-foreground: #71717a;
-  --color-destructive: #ef4444;
-  --color-success:    #22c55e;
+  --color-background: var(--bg-redesigned);
+  --color-foreground: var(--text-redesigned);
+  --color-card:       var(--light-bg-redesigned);
+  --color-border:     color-mix(in srgb, var(--hint-redesigned) 65%, var(--light-bg-redesigned));
+  --color-primary:    var(--accent-redesigned);
+  --color-muted:      var(--light-bg-redesigned);
+  --color-muted-foreground: var(--icon-redesigned);
+  --color-destructive: var(--cancel-redesigned);
+  --color-success:    var(--save-redesigned);
   --color-warning:    #f59e0b;
-  --color-info:       #3b82f6;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
+  --color-info:       var(--accent-redesigned);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
   --radius-xl: 1rem;
 }
 ```
@@ -533,6 +533,8 @@ import { Pencil, Copy, Trash2 } from 'lucide-react';
 - Пароль: только `PasswordInput`; генерация — соседняя `Button variant="outline" size="icon"`.
 
 ##### 3. Подсказки — только `InfoTooltip`
+
+**Одна подсказка на элемент (MUST):** если элемент использует `Tooltip` / `InfoTooltip`, HTML-атрибут `title` на триггере и его вложенных элементах не задаётся. Подпись для доступности задаётся через `aria-label`. `title` допустим у элементов без custom tooltip. Для `TableRowAction` внутри tooltip обязателен `aria-label`, дублирующий `title` не нужен.
 
 Длинный текст-подсказка **под** полем **запрещён**. Подсказки — `InfoTooltip` рядом с лейблом (`HStack gap="4" align="center"`).
 
@@ -1320,7 +1322,9 @@ Tailwind на полосе табов в JSX **не использовать**. 
 | Пустой список, кнопка уже в шапке | `VStack gap="12"`: `Text variant="h2"` + `Text variant="muted"` + та же кнопка. Выравнивание по левому краю. `data-testid` вида `*-empty` |
 | Пусто и кнопки в шапке нет | Та же тройка, по центру, на панели: пунктир `color-mix(in srgb, var(--color-primary) 38%, var(--color-border))`, `border-radius: var(--radius-xl)`, радиальный wash сверху. Эталон: ключи на `AiConnectionsPage` |
 | Нечего показать, действия нет | Только заголовок и muted-текст. Эталон: пустой период дашборда |
-| Ошибка запроса | Текст + `Button variant="outline"` «Повторить», вызывает `refetch` |
+| Ошибка запроса | `QueryErrorState` из `@/shared/ui`: текст ошибки и `Button variant="outline"` «Повторить» центрируются горизонтально и вертикально в области содержимого, текст выровнен по центру; кнопка вызывает `refetch` |
+
+**Центрирование ошибки загрузки (MUST):** во всех модулях для страницы, таблицы, списка или самостоятельной секции, где запрос не позволил показать содержимое, используется общий `QueryErrorState`. Контейнер занимает всю доступную ширину, имеет достаточную высоту (общий минимум `12rem`), `align="center"`, `justify="center"` и `text-align: center`. Шапка и панель действий могут оставаться на месте; центрируется состояние внутри тела. При доступном `refetch` обязательна кнопка «Повторить»; RTK-ошибка не должна подменяться пустым успешным списком. Правило одинаково для desktop/mobile и обеих тем. Ошибки отдельных полей и мутаций показываются локально у поля/операции — их не превращают в полноэкранную ошибку загрузки.
 | Загрузка списка | `Flex` по центру, `min-height: 6rem`, `Loader2 size={24}` с вращением |
 | Загрузка сетки | `Skeleton` в тех же ячейках, что и готовые карточки, чтобы сетка не прыгала |
 

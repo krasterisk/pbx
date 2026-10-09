@@ -21,6 +21,8 @@ export interface UseHubModulesResult {
   /** Marketplace section - locked modules only (never disabled). */
   marketplace: HubModuleRow[];
   isLoading: boolean;
+  isError?: boolean;
+  refetch?: () => unknown;
   favoriteCodes: string[];
   toggleFavorite: (code: string) => void;
   isFavorite: (code: string) => boolean;
@@ -36,7 +38,7 @@ export function useHubModules(): UseHubModulesResult {
   const user = useAppSelector((s) => s.auth.user);
   const level = user?.level as UserLevel | undefined;
 
-  const { data: catalog, isLoading } = useGetHubCatalogQuery(undefined, {
+  const { data: catalog, isLoading, isError, refetch } = useGetHubCatalogQuery(undefined, {
     skip: !user,
   });
   const ownModels = catalog?.find((item) => typeof item.ownModels === 'boolean')?.ownModels;
@@ -79,6 +81,8 @@ export function useHubModules(): UseHubModulesResult {
     active,
     marketplace,
     isLoading,
+    isError,
+    refetch,
     favoriteCodes,
     toggleFavorite,
     isFavorite,

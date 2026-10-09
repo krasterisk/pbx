@@ -189,8 +189,8 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
     new ContextsAiAdapter(contextsService as any, registry).onModuleInit();
     new DirectoriesAiAdapter(directoriesService as any, registry).onModuleInit();
     new ReportsAiAdapter(cdrService as any, registry).onModuleInit();
-    new EndpointsAiAdapter(endpointsService as any, registry).onModuleInit();
-    new TrunksAiAdapter(trunksService as any, routesService as any, registry).onModuleInit();
+    new EndpointsAiAdapter(endpointsService as any, registry, contextsService as never, { findAll: async (uid: number) => [{ uid, name: 'Pickup ' + uid, slug: 't' + uid + '_pickup' }] } as never, { findAll: async (uid: number) => [{ uid, name: 'Provision ' + uid, vendor: 'test', model: 'phone' }] } as never).onModuleInit();
+    new TrunksAiAdapter(trunksService as any, routesService as any, registry, contextsService as never).onModuleInit();
 
     mcp = createMcp(registry, contextsService, directoriesService, cdrService);
     warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
@@ -453,7 +453,7 @@ function expectNoForeignTenantLeak(text: string, uid: number): void {
 
 async function minimalArgs(
   mcp: McpToolsService,
-  tool: { name: string; inputSchema: Record<string, any> },
+  tool: { name: string; inputSchema: Record<string, any>; entityType?: string },
   uid: number,
 ): Promise<Record<string, any>> {
   const args: Record<string, any> = {};
@@ -461,8 +461,9 @@ async function minimalArgs(
   let listedUid: number | undefined;
 
   if (schema.uid) {
-    const listed = parseToolJson(await mcp.callTool('list_directories', {}, uid));
-    listedUid = listed.directories?.[0]?.uid;
+    const isContext = tool.entityType === 'context';
+    const listed = parseToolJson(await mcp.callTool(isContext ? 'list_contexts' : 'list_directories', {}, uid));
+    listedUid = (isContext ? listed.contexts : listed.directories)?.[0]?.uid;
   }
 
   for (const [key, def] of Object.entries(schema)) {

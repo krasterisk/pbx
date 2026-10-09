@@ -82,6 +82,7 @@ function createHarness(
     maxSteps?: number;
     tools?: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
     pendingWorkflow?: Record<string, unknown> | null;
+    pendingProposal?: Record<string, unknown> | null;
     skillNames?: string[];
     modeDecision?: TurnModeDecision;
     setupBrief?: SetupBrief | null;
@@ -189,6 +190,7 @@ function createHarness(
     })),
   };
 
+  const proposals = { findLatestPendingForThread: jest.fn(async () => options.pendingProposal ?? null), apply: jest.fn(async () => ({ ok: true })) };
   const service = new PbxAgentLoopService(
     llm as any,
     providers as any,
@@ -212,12 +214,34 @@ function createHarness(
       readSkillsForPrompt: jest.fn(() => []),
     } as any,
     workflows as any,
+    proposals as any,
   );
 
-  return { service, llm, providers, contextBuilder, threads, mcpTools, config, chatSettings, stored, workflows };
+  return { service, llm, providers, contextBuilder, threads, mcpTools, config, chatSettings, stored, workflows, proposals };
 }
 
 describe('PbxAgentLoopService', () => {
+  it('applies a thread-scoped single proposal on a natural confirmation without generating a new plan', async () => {
+    const h = createHarness([], { pendingProposal: { proposalId: 'p-one', after: { maxChannels: 5 } } });
+    const events = await collect(h.service.runTurn('Да, примени', { uid: THREAD }, turnContext()));
+    expect(h.proposals.findLatestPendingForThread).toHaveBeenCalledWith(THREAD, expect.objectContaining({ vpbxUserUid: TENANT, userUid: AUTHOR }));
+    expect(h.proposals.apply).toHaveBeenCalledWith('p-one', expect.objectContaining({ threadUid: THREAD }));
+    expect(h.llm.chat).not.toHaveBeenCalled();
+    expect(events.at(-1)?.data).toEqual({ closeKind: 'complete', configurationChanged: true });
+  });
+  it('keeps a secret-bearing confirmation pending and directs to protected input without applying any step', async () => {
+    for (const options of [
+      { pendingProposal: { proposalId: 'p-one', after: { requiresSecureInput: true } } },
+      { pendingWorkflow: { workflowId: 'w-one', steps: [{ requiresSecureInput: true, status: 'pending' }] } },
+    ]) {
+      const h = createHarness([], options);
+      const events = await collect(h.service.runTurn('Да, примени', { uid: THREAD }, turnContext()));
+      expect(h.proposals.apply).not.toHaveBeenCalled();
+      expect(h.workflows.apply).not.toHaveBeenCalled();
+      expect(h.llm.chat).not.toHaveBeenCalled();
+      expect(events.at(-1)?.data).toEqual({ closeKind: 'wait_confirm' });
+    }
+  });
   it('runs one read tool then an answer and yields thread, user, step, assistant, done', async () => {
     const { service, llm, mcpTools, providers, chatSettings } = createHarness([
       {

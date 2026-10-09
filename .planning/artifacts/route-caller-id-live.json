@@ -1,0 +1,58 @@
+{
+  "run": "cidaudit_f8714e5c1a",
+  "tenant": 807411937,
+  "target": "ipbx.krasterisk.ru",
+  "checks": [
+    {
+      "case": "exact_cid_and_mid_chain_change_no_leak",
+      "pass": true
+    },
+    {
+      "case": "cid_mask_and_generic_fallback",
+      "pass": true
+    },
+    {
+      "case": "multiple_pairs_and_nonmatching_rejection",
+      "pass": true
+    },
+    {
+      "case": "anonymous_distinct_from_any",
+      "pass": true
+    },
+    {
+      "case": "destination_and_caller_masks",
+      "pass": true
+    },
+    {
+      "case": "included_cid_and_own_context_precedence",
+      "pass": true
+    },
+    {
+      "case": "validation_duplicate_and_concurrent_pair",
+      "pass": true
+    },
+    {
+      "case": "update_and_disable_revoke_match",
+      "pass": true
+    },
+    {
+      "case": "delete_private_category_and_plain_route_compatibility",
+      "pass": true
+    },
+    {
+      "case": "explicit_raw_override_clear_to_cid_rule",
+      "pass": true
+    },
+    {
+      "case": "context_delete_revokes_private_categories",
+      "pass": true
+    }
+  ],
+  "cleanup": true,
+  "pass": true,
+  "post_cleanup_database": {
+    "contexts": 0,
+    "context_includes": 0,
+    "routes": 0
+  }
+}

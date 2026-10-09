@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from 'react';
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Bot, Pencil, Plus, ToggleLeft, ToggleRight, Trash2, Wrench } from 'lucide-react';
@@ -23,9 +24,9 @@ export const AiAgentsPage = memo(() => {
   const isMobile = useIsMobile(768);
   const [tab, setTab] = useState<Tab>('agents');
 
-  const { data: agents = [] } = useGetAiAgentsQuery();
+  const { data: agents = [], isError: agentsLoadError, refetch: retryAgents } = useGetAiAgentsQuery();
   const { data: providers = [] } = useGetAiProvidersQuery();
-  const { data: toolsets = [] } = useGetAiToolsetsQuery();
+  const { data: toolsets = [], isError: toolsetsLoadError, refetch: retryToolsets } = useGetAiToolsetsQuery();
 
   const [deleteAgent] = useDeleteAiAgentMutation();
   const [updateAgent] = useUpdateAiAgentMutation();
@@ -70,6 +71,7 @@ export const AiAgentsPage = memo(() => {
 
   const agentCards = useMemo(() => agents, [agents]);
 
+  if (tab === 'agents' ? agentsLoadError : toolsetsLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void (tab === 'agents' ? retryAgents() : retryToolsets())} />;
   return (
     <VStack gap="24" max className={cls.page} data-testid="ai-agents-page-responsive">
       <Flex justify="between" align="center" className={cls.header} max>

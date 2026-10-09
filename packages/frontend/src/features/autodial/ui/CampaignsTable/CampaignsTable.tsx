@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -132,10 +133,7 @@ export const CampaignsTable = memo(() => {
       <Card className={cls.card}>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <VStack gap="12" align="center" className={cls.empty}>
-            <Text>{t('autodial.campaigns.loadFailed')}</Text>
-            <Button onClick={() => void refetch()}>{t('common.retry')}</Button>
-          </VStack>
+          <QueryErrorState message={t('autodial.campaigns.loadFailed')} onRetry={() => void refetch()} retryLabel={t('common.retry')} />
         </CardContent>
       </Card>
     );

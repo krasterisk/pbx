@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -77,12 +78,7 @@ export function ShiftPolicyForm() {
 
   if (isError) {
     return (
-      <div className={styles.wrap}>
-        <Text variant="error">{t('common.loadFailed', 'Failed to load')}</Text>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          {t('common.retry', 'Retry')}
-        </Button>
-      </div>
+      <QueryErrorState message={t('common.loadFailed', 'Failed to load')} onRetry={() => refetch()} retryLabel={t('common.retry', 'Retry')} />
     );
   }
 

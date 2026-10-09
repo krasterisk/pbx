@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -241,18 +242,7 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
       </div>
 
       {showLoadError ? (
-        <div className={styles.errorBanner} data-testid="softphone-contacts-error">
-          <Text>{t('callcenter.contacts.loadFailed', 'Could not load contacts')}</Text>
-          <Button
-            type="button"
-            variant="outline"
-            className={styles.ctaBtn}
-            onClick={handleRetry}
-            aria-label={t('callcenter.settings.retry', 'Retry')}
-          >
-            {t('callcenter.settings.retry', 'Retry')}
-          </Button>
-        </div>
+        <QueryErrorState message={t('callcenter.contacts.loadFailed', 'Could not load contacts')} onRetry={handleRetry} retryLabel={t('callcenter.settings.retry', 'Retry')} data-testid="softphone-contacts-error" />
       ) : null}
 
       <div className={styles.list}>

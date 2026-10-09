@@ -178,4 +178,17 @@ describe('DialplanApplyService', () => {
     expect(amiService.action.mock.calls.every((c) => c[0].action === 'UpdateConfig')).toBe(true);
     expect(amiService.action.mock.calls.some((c) => c[0].action === 'CreateConfig')).toBe(false);
   });
+
+  it('revokes every old private category before applying an exclusively owned route file', async () => {
+    amiService.action.mockImplementation(async (request: any) => request.action === 'GetConfig' ? {response:'Success','category-000000':'old-public','category-000001':'__krs_route_42_100'} : {response:'Success'});
+    await service.applyCategories('krasterisk/routes/extensions_test100.conf',[{name:'new-public',lines:['exten => 100,1,Hangup()']}],{replaceAll:true});
+    const actions=amiService.action.mock.calls.map(([action])=>action);
+    expect(actions.some(action=>action['Action-000000']==='DelCat' && action['Cat-000000']==='__krs_route_42_100')).toBe(true);
+    expect(amiService.command).toHaveBeenCalledTimes(1);
+  });
+  it('refuses replacement when the previous category inventory cannot be read', async () => {
+    amiService.action.mockImplementation(async (request: any)=> request.action==='GetConfig'?{response:'Error'}:{response:'Success'});
+    await expect(service.applyCategories('managed.conf',[{name:'ctx',lines:[]}],{replaceAll:true})).rejects.toThrow('Cannot read');
+    expect(amiService.command).not.toHaveBeenCalled();
+  });
 });

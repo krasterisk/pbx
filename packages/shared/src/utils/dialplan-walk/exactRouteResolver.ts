@@ -1,3 +1,4 @@
+import { parseRouteDialPattern, routeDialPatternKey } from '../../routeDialPattern';
 import type { ExactRouteCandidate, ExactRouteResolveResult } from './types';
 
 /** D-46: pattern extensions are leading-underscore only — no Asterisk pattern engine. */
@@ -23,11 +24,20 @@ export function resolveExactRoute(
   _contextName: string,
   extension: string,
   routesInContext: ExactRouteCandidate[],
+  callerNumber?: string,
 ): ExactRouteResolveResult {
   if (routesInContext.length === 0) {
     return { kind: 'non_route_context' };
   }
 
+  const qualified = routesInContext.filter((route) => route.active === 1 && (route.extensions ?? []).some((value) => {
+    const rule = parseRouteDialPattern(value); return routeDialPatternKey(rule.extension) === routeDialPatternKey(extension) && rule.callerId !== undefined;
+  }));
+  if (qualified.length && callerNumber === undefined) return { kind: 'caller_id_required' };
+  const selected = qualified.filter((route) => (route.extensions ?? []).some((value) => { const rule = parseRouteDialPattern(value); return routeDialPatternKey(rule.extension) === routeDialPatternKey(extension) && rule.callerId !== undefined && !rule.callerId.startsWith('_') && routeDialPatternKey(rule.callerId) === routeDialPatternKey(callerNumber ?? ''); }));
+  if (selected.length > 1) return { kind: 'ambiguous', matches: selected };
+  if (selected.length === 1) return { kind: 'enter', route: selected[0] };
+  if (qualified.some((route) => (route.extensions ?? []).some((value) => { const rule = parseRouteDialPattern(value); return routeDialPatternKey(rule.extension) === routeDialPatternKey(extension) && rule.callerId?.startsWith('_'); }))) return { kind: 'caller_id_pattern' };
   const exact = routesInContext.filter((route) => hasExactExtension(route, extension));
 
   if (exact.length > 1) {

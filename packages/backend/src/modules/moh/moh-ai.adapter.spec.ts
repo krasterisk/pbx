@@ -118,6 +118,7 @@ describe('MohAiAdapter', () => {
         'list_moh_classes',
         'describe_moh_class',
         'assign_moh_class',
+        'update_moh_class',
       ]);
     });
 

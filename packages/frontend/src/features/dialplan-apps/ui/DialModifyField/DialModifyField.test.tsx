@@ -10,7 +10,6 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-
 vi.mock('@/shared/api/endpoints/queueApi', () => ({
   useGetQueuesQuery: () => ({ data: [], isLoading: false }),
 }));
@@ -20,6 +19,51 @@ function expandModifySection() {
 }
 
 describe('DialModifyField', () => {
+  it('disables the expert editor and switch through a prop', () => {
+    render(<DialModifyField allowExpertMode={false} onRewriteChange={vi.fn()} />);
+    expandModifySection();
+    expect(screen.queryByLabelText('Экспертный режим')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Если правило не подошло')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Добавить в начало')).toBeInTheDocument();
+  });
+
+  it('requires confirmation before simple editing replaces saved complex rules', () => {
+    const changed = vi.fn();
+    render(
+      <DialModifyField
+        allowExpertMode={false}
+        rewrite={{
+          rules: [
+            {
+              id: 'advanced',
+              conditions: [{ kind: 'startsWith', value: '7' }],
+              transform: { prefix: '8' },
+            },
+          ],
+        }}
+        onRewriteChange={changed}
+      />,
+    );
+    expect(changed).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Экспертный режим')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Добавить в начало'), { target: { value: '9' } });
+    expect(changed).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
+    expect(changed).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Добавить в начало'), { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: 'routes.apps.calleridV2.convertBasic' }));
+    expect(changed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rules: [
+          expect.objectContaining({
+            conditions: [],
+            transform: expect.objectContaining({ prefix: '9' }),
+          }),
+        ],
+      }),
+    );
+  });
+
   it('starts collapsed when there is no rewrite configuration', () => {
     render(
       <DialModifyField
@@ -159,7 +203,14 @@ describe('DialModifyField', () => {
       <DialModifyField
         rewrite={{
           noMatch: 'passthrough',
-          rules: [{ id: 'r1', enabled: true, conditions: [{ kind: 'startsWith', value: '7' }], transform: { prefix: '8' } }],
+          rules: [
+            {
+              id: 'r1',
+              enabled: true,
+              conditions: [{ kind: 'startsWith', value: '7' }],
+              transform: { prefix: '8' },
+            },
+          ],
         }}
         onRewriteChange={vi.fn()}
         charset="phone"
@@ -170,5 +221,63 @@ describe('DialModifyField', () => {
     expect(screen.getByLabelText('Если правило не подошло')).toBeInTheDocument();
     expect(screen.queryByLabelText('Проверка')).not.toBeInTheDocument();
     expect(screen.getByText('Что уйдёт в набор')).toBeInTheDocument();
+  });
+
+  it('keeps an explicit empty replacement in expert mode', () => {
+    const changed = vi.fn();
+    render(
+      <DialModifyField
+        rewrite={{ rules: [{ id: 'clear', transform: { replaceAll: '' } }] }}
+        onRewriteChange={changed}
+      />,
+    );
+    expandModifySection();
+    expect(screen.getByLabelText('Экспертный режим')).toBeChecked();
+    fireEvent.click(screen.getByLabelText('Экспертный режим'));
+    expect(changed).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('button', { name: 'routes.apps.calleridV2.convertBasic' }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps expert rules until conversion is explicitly confirmed', () => {
+    const changed = vi.fn();
+    render(
+      <DialModifyField
+        rewrite={{
+          rules: [
+            {
+              id: 'r1',
+              conditions: [{ kind: 'startsWith', value: '7' }],
+              transform: { prefix: '8' },
+            },
+          ],
+        }}
+        onRewriteChange={changed}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Экспертный режим'));
+    expect(changed).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
+    expect(changed).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Экспертный режим')).toBeChecked();
+    fireEvent.click(screen.getByLabelText('Экспертный режим'));
+    fireEvent.click(screen.getByRole('button', { name: 'routes.apps.calleridV2.convertBasic' }));
+    expect(changed).toHaveBeenCalledWith({
+      noMatch: 'passthrough',
+      rules: [
+        {
+          id: 'basic',
+          enabled: true,
+          conditions: [],
+          transform: {
+            prefix: '8',
+            postfix: undefined,
+            stripStartCount: undefined,
+            stripEndCount: undefined,
+          },
+        },
+      ],
+    });
   });
 });

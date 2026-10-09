@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -36,7 +37,7 @@ export const NotificationIntegrationsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: integrations = [], isLoading } = useGetNotificationsQuery();
+  const { data: integrations = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetNotificationsQuery();
   const [deleteIntegration] = useDeleteNotificationMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
@@ -140,6 +141,7 @@ export const NotificationIntegrationsTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

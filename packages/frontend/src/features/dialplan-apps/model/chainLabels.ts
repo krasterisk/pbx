@@ -4,11 +4,11 @@ import { createElement } from 'react';
 const ChainLabelsContext = createContext<string[]>([]);
 
 export function collectChainLabelNames(
-  actions: Array<{ type?: string; params?: { label_name?: unknown } }>,
+  actions: Array<{ enabled?:boolean; type?: string; params?: { label_name?: unknown } }>,
 ): string[] {
   const names: string[] = [];
   for (const action of actions) {
-    if (action.type !== 'label') continue;
+    if (action.enabled === false || action.type !== 'label') continue;
     const name = typeof action.params?.label_name === 'string' ? action.params.label_name.trim() : '';
     if (name && !names.includes(name)) names.push(name);
   }

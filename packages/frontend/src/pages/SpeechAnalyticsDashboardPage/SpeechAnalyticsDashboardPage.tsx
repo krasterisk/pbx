@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -168,8 +169,10 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
   }, [projectId, range.from, range.to]);
 
   const dashboard = dashboardQuery.data;
+  const dashboardLoadError = projectsQuery.isError || (Boolean(projectId) && dashboardQuery.isError);
   const conversationCount = dashboard?.conversationCount ?? dashboard?.scored ?? 0;
   const isEmptyPeriod = !dashboardQuery.isLoading
+    && !dashboardLoadError
     && !dashboardQuery.isUninitialized
     && conversationCount === 0;
   const belowMinInsights = conversationCount < 10;
@@ -315,6 +318,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
         ) : null}
       </Flex>
       <PeriodNavigator value={period} onChange={setPeriod} />
+      {dashboardLoadError ? <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void (projectsQuery.isError ? projectsQuery.refetch() : dashboardQuery.refetch())} data-testid="dashboard-error" /> : null}
 
       {projectsQuery.isLoading || (Boolean(projectId) && dashboardQuery.isLoading) ? (
         <div className={cls.statGrid} data-testid="dashboard-skeleton">
@@ -326,7 +330,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
         </div>
       ) : null}
 
-      {!projectsQuery.isLoading && !projectId ? (
+      {!dashboardLoadError && !projectsQuery.isLoading && !projectId ? (
         <VStack gap="12" max className={cls.empty} data-testid="dashboard-empty">
           <Text variant="h2" as="h2">
             {t('speechAnalytics.emptyDashboardHeading', 'Недостаточно данных')}
@@ -354,7 +358,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
         </VStack>
       ) : null}
 
-      {Boolean(projectId) && !dashboardQuery.isLoading && !dashboardQuery.isUninitialized && !isEmptyPeriod ? (
+      {!dashboardLoadError && Boolean(projectId) && !dashboardQuery.isLoading && !dashboardQuery.isUninitialized && !isEmptyPeriod ? (
         <>
           <div className={cls.statGrid} data-testid="dashboard-stat-cards">
             <KpiBadge
@@ -451,17 +455,10 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
               ) : null}
 
               {insightsError ? (
-                <VStack gap="8" data-testid="sa-insights-error">
-                  <Text>
-                    {t(
+                <QueryErrorState message={t(
                       'speechAnalytics.errorInsights',
                       'Не удалось получить инсайты. Повторите запрос.',
-                    )}
-                  </Text>
-                  <Button type="button" variant="outline" onClick={() => { void onGetInsights(); }}>
-                    {t('speechAnalytics.retry', 'Повторить')}
-                  </Button>
-                </VStack>
+                    )} onRetry={() => { void onGetInsights(); }} retryLabel={t('speechAnalytics.retry', 'Повторить')} data-testid="sa-insights-error" />
               ) : null}
 
               <div className={cls.insightGrid}>

@@ -32,6 +32,11 @@ const AUTHOR_A = 11;
  * added without a propose/apply exercise.
  */
 const MUTATION_FIXTURES: Record<string, Record<string, unknown>> = {
+  update_moh_class: { name: 'moh_100_jazz', sort: 'random' },
+  update_call_group: { uid: 5, strategy: 'hunt', ring_time: 25 },
+  update_endpoint: { sipId: '201', blfEnabled: true, permit: '10.0.0.0/8' },
+  update_trunk: { trunkId: 't_mtt_100', maxChannels: 5 },
+  update_route: { id: 11, options: { record_stereo: true } },
   create_directory: {
     name: 'Новый справочник',
     lookupFieldKey: 'num',
@@ -126,7 +131,7 @@ function matchesWhere(row: ProposalRow, where: Record<string, unknown> | undefin
 }
 
 function tenantFixtures() {
-  const contexts = [{ uid: 7, name: 'from-internal', comment: 'internal' }];
+  const contexts = [{ uid: 7, name: 'from-internal', comment: 'internal', is_default_for_endpoints: true, is_default_for_trunks: true }];
   const endpoints = [
     {
       extension: '201',
@@ -240,6 +245,7 @@ function bootHarness() {
     remove: jest.fn(async () => undefined),
   };
   const endpointsService = {
+    update: jest.fn(async () => ({})),
     findAll: jest.fn(async (uid: number) => forTenant(data.endpoints, uid)),
     findOne: jest.fn(async (sipId: string, tenant: number) => {
       const found = forTenant(data.endpoints, tenant).find((row) => row.sipUsername === sipId);
@@ -251,6 +257,7 @@ function bootHarness() {
     remove: jest.fn(async () => undefined),
   };
   const trunksService = {
+    update: jest.fn(async () => ({})),
     findAll: jest.fn(async (uid: number) => forTenant(data.trunks, uid)),
     findOne: jest.fn(async (trunkId: string, tenant: number) => {
       const found = forTenant(data.trunks, tenant).find((row) => row.id === trunkId);
@@ -339,8 +346,8 @@ function bootHarness() {
 
   const registry = new AiAdapterRegistryService();
   new DirectoriesAiAdapter(directoriesService as any, registry).onModuleInit();
-  new EndpointsAiAdapter(endpointsService as any, registry).onModuleInit();
-  new TrunksAiAdapter(trunksService as any, routesService as any, registry).onModuleInit();
+  new EndpointsAiAdapter(endpointsService as any, registry, contextsService as never).onModuleInit();
+  new TrunksAiAdapter(trunksService as any, routesService as any, registry, contextsService as never).onModuleInit();
   new IvrsAiAdapter(
     ivrsService as any,
     registry,
@@ -568,7 +575,7 @@ describe('executable mutation contract — booted adapters', () => {
     for (const tool of mutationTools(harness)) {
       expect(harness.registry.getMutationTool(tool.name)).toBeDefined();
     }
-    expect(harness.registry.getMutationTool('update_route')).toBeUndefined();
+    expect(harness.registry.getMutationTool('update_route')).toBeDefined();
   });
 
   it('fails fast on a duplicate domain and on a duplicate tool name', () => {

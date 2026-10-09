@@ -76,4 +76,8 @@ export class AiAdapterRegistryService {
   getDomains(): string[] {
     return Array.from(this.adapters.keys());
   }
+
+  getAdapter(domain: string): DomainAiAdapter | undefined {
+    return this.adapters.get(domain);
+  }
 }

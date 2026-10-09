@@ -1,5 +1,7 @@
+import { validateRouteDialPatterns, callerIdV2Errors, directoryStepErrors } from '@krasterisk/shared';
 import {
   IsString,
+  IsBoolean,
   IsObject,
   IsOptional,
   ValidateNested,
@@ -80,6 +82,7 @@ class IsTypedActionParamsConstraint implements ValidatorConstraintInterface {
   validate(params: unknown, args: ValidationArguments): boolean {
     if (!params || typeof params !== 'object' || Array.isArray(params)) return false;
     const action = args.object as RouteActionDto;
+    if (action.type === 'callerid' && 'version' in params) return callerIdV2Errors(params).length === 0;
     if (action.type === 'toqueue') {
       const dto = plainToInstance(ToQueueParamsDto, params);
       const errors = validateSync(dto);
@@ -87,6 +90,7 @@ class IsTypedActionParamsConstraint implements ValidatorConstraintInterface {
       return errors.length === 0;
     }
     if (action.type !== 'directory_lookup') return true;
+    if (Object.keys(directoryStepErrors(params)).length) return false;
     const dto = plainToInstance(DirectoryLookupParamsDto, params);
     const errors = validateSync(dto);
     toQueueParamErrors.set(action, errors);
@@ -148,6 +152,10 @@ export class RouteActionConditionDto extends RouteConditionDto {
 }
 
 export class RouteActionDto {
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
   @IsString()
   id: string;
 
@@ -197,6 +205,12 @@ export class RouteDirectoryBindingDto {
   actions?: RouteActionDto[];
 }
 
+@ValidatorConstraint({ name: 'RouteDialPatterns', async: false })
+class RouteDialPatternsConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean { try { validateRouteDialPatterns(value); return true; } catch { return false; } }
+  defaultMessage(): string { return 'Expected 1–100 unique valid extension/Caller ID rules'; }
+}
+
 export class CreateRouteDto {
   @IsNumber()
   context_uid: number;
@@ -206,6 +220,7 @@ export class CreateRouteDto {
 
   @IsArray()
   @IsString({ each: true })
+  @Validate(RouteDialPatternsConstraint)
   extensions: string[];
 
   @IsOptional()
@@ -249,6 +264,7 @@ export class UpdateRouteDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Validate(RouteDialPatternsConstraint)
   extensions?: string[];
 
   @IsOptional()

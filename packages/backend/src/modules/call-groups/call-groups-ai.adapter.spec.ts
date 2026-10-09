@@ -119,6 +119,7 @@ describe('CallGroupsAiAdapter', () => {
         'list_call_groups',
         'create_call_group',
         'update_call_group_members',
+        'update_call_group',
         'delete_call_group',
       ]);
     });

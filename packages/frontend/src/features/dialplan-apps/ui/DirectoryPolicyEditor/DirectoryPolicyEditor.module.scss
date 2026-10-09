@@ -1,0 +1,8 @@
+.editor { width: 100%; min-width: 0; }
+.paramsRow { flex-wrap: wrap; width: 100%; justify-content: flex-start; }
+.fieldSelect, .paramsInput { flex: 1; min-width: min(100%, 180px); }
+.paramsModeSelect { min-width: 130px; }
+.paramsLabel, .behaviorHint { color: var(--color-muted-foreground); }
+.customBlock { width: 100%; min-width: 0; }
+
+.contextField { flex-basis: 100%; min-width: 0; }

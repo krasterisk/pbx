@@ -1,0 +1,18 @@
+{
+  "files": 488,
+  "tooltipSites": 297,
+  "remainingTitles": [
+    {
+      "file": "packages\\frontend\\src\\features\\route-templates\\ui\\RouteTemplatesPage\\useRouteTemplatesTableColumns.tsx",
+      "line": 39,
+      "value": "title={builtin ? undefined : args.editLabel}",
+      "guarded": true
+    },
+    {
+      "file": "packages\\frontend\\src\\features\\route-templates\\ui\\RouteTemplatesPage\\useRouteTemplatesTableColumns.tsx",
+      "line": 55,
+      "value": "title={builtin ? undefined : args.deleteLabel}",
+      "guarded": true
+    }
+  ]
+}

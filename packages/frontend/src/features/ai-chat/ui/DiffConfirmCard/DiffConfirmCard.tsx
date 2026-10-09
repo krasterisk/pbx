@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge, Button, Text } from '@/shared/ui';
+import { Badge, Button, Label, PasswordInput, Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import {
     useConfirmAiChatProposalMutation,
@@ -11,6 +11,7 @@ import {
 } from '@/shared/api/endpoints/aiChatApi';
 import { isRawToolId, resolveCardStatusLabel, resolveWorkflowStepLabel } from '../../model/agentToolLabels';
 import cls from './DiffConfirmCard.module.scss';
+import { ConfigurationDiff } from './ConfigurationDiff';
 
 export interface DiffConfirmCardProps {
     proposal: IAgentProposalView;
@@ -106,6 +107,8 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
     const { t } = useTranslation();
     const [view, setView] = useState(proposal);
     const [localBusy, setLocalBusy] = useState(false);
+    const [secureInputs, setSecureInputs] = useState<Record<string, { password: string }>>({});
+    useEffect(() => { setSecureInputs({}); }, [proposal.proposalId]);
     const inFlightRef = useRef(false);
     const [applyError, setApplyError] = useState<string | null>(
         proposal.status === 'pending' || proposal.status === 'failed' ? proposal.error ?? null : null,
@@ -149,7 +152,10 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
     const analyticsAfter = readAnalyticsAfter(view.after);
     const recordingOff = analyticsAfter?.recordingEnabled === false;
     const projectMissing = Boolean(analyticsAfter?.isSetAction && !analyticsAfter.projectId);
-    const confirmBlocked = recordingOff || projectMissing;
+    const secureFields = workflowId
+      ? (view.steps ?? []).filter((step) => step.requiresSecureInput && step.status !== 'applied').map((step) => ({ key: step.stepKey, label: step.entityLabel }))
+      : view.after?.requiresSecureInput === true ? [{ key: 'proposal', label: view.entityLabel }] : [];
+    const confirmBlocked = recordingOff || projectMissing || secureFields.some((field) => (secureInputs[field.key]?.password.length ?? 0) < 4);
     const projectDisplayName = analyticsAfter?.projectName || view.entityLabel;
 
     const handleConfirm = async () => {
@@ -158,7 +164,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
         setLocalBusy(true);
         try {
             if (workflowId) {
-                const result = await confirmWorkflow(workflowId).unwrap();
+                const result = await confirmWorkflow(secureFields.length ? { workflowId, secureInputs } : workflowId).unwrap();
                 const next = {
                     ...view,
                     status: result.status,
@@ -172,7 +178,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                 if (SETTLED_STATUSES.has(result.status)) onSettled?.(next);
                 return;
             }
-            const result = await confirmProposal(view.proposalId).unwrap();
+            const result = await confirmProposal(secureFields.length ? { proposalId: view.proposalId, secureInputs } : view.proposalId).unwrap();
             if (result.ok && result.proposal) {
                 setView(result.proposal);
                 setApplyError(null);
@@ -193,6 +199,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
             }
             setApplyError(result.error ?? result.reason ?? result.proposal?.error ?? 'apply_failed');
         } finally {
+            setSecureInputs({});
             inFlightRef.current = false;
             setLocalBusy(false);
         }
@@ -269,12 +276,15 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
             {Array.isArray(view.steps) && view.steps.length > 0 && (
                 <VStack className={cls.summary} gap="4" align="stretch" data-testid="ai-agent-workflow-steps" role="list">
                     {view.steps.map((step) => (
-                        <HStack key={step.stepKey} gap="8" align="center" justify="between" role="listitem">
+                        <VStack key={step.stepKey} gap="8" max role="listitem">
+                        <HStack gap="8" align="center" justify="between" max>
                             <Text as="span">{resolveWorkflowStepLabel(t, step)}</Text>
                             <Badge variant={step.status === 'failed' ? 'destructive' : 'outline'}>
                                 {resolveCardStatusLabel(t, step.status)}
                             </Badge>
                         </HStack>
+                        <ConfigurationDiff before={step.before} after={step.after} />
+                        </VStack>
                     ))}
                 </VStack>
             )}
@@ -290,6 +300,8 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                         <Text as="p" key={`after:${line}`} className={cls.summaryLine}>{line}</Text>
                     ))}
             </VStack>
+
+            {!workflowId && <ConfigurationDiff before={view.before} after={view.after} />}
 
             {recordingOff && (
                 <Text as="p" className={cls.gateText} data-testid="ai-agent-recording-required">
@@ -319,6 +331,19 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                 </Text>
             )}
 
+            {showActions && secureFields.length > 0 && (
+                <VStack gap="8" max>
+                    <Text variant="muted">{t('aiChat.card.secureInputHint')}</Text>
+                    {secureFields.map((field) => (
+                        <VStack gap="4" max key={field.key}>
+                            <Label htmlFor={`secure-${view.proposalId}-${field.key}`}>{t('aiChat.card.providerPassword')} — {field.label}</Label>
+                            <PasswordInput id={`secure-${view.proposalId}-${field.key}`} autoComplete="new-password" disabled={busy}
+                                value={secureInputs[field.key]?.password ?? ''}
+                                onChange={(event) => setSecureInputs((prev) => ({ ...prev, [field.key]: { password: event.target.value } }))} />
+                        </VStack>
+                    ))}
+                </VStack>
+            )}
             {showActions && (
                 <HStack className={cls.actions} gap="8" align="center">
                     <Button

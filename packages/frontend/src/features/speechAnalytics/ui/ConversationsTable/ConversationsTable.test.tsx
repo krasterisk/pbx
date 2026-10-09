@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ru } from '@/shared/config/locales/ru';
 import type { SaJournalRow } from '../../api/speechAnalyticsApi';
 import { ConversationsTable } from './ConversationsTable';
 
@@ -11,8 +12,11 @@ const { exportJournalExcelMock, downloadBlobMock } = vi.hoisted(() => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string | { defaultValue?: string }) => {
+    t: (key: string, fallback?: string | Record<string, unknown>) => {
       if (typeof fallback === 'string') return fallback;
+      if (key === 'common.tableRange' && fallback) {
+        return ru.common.tableRange.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(fallback[name] ?? ''));
+      }
       if (fallback && typeof fallback.defaultValue === 'string') return fallback.defaultValue;
       return key;
     },

@@ -1,7 +1,8 @@
+import { normalizeNotifyParams } from '@krasterisk/shared';
 import { BadRequestException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validateSync, ValidationError } from 'class-validator';
-import { coerceDestValueSource, type ActionType } from '@krasterisk/shared';
+import { callerIdV2Errors, directoryStepErrors, coerceDestValueSource, type ActionType } from '@krasterisk/shared';
 import { ActionTypesList } from '../../modules/routes/dto/route-action.dto';
 import { resolveParamsDto } from '../../modules/routes/dto/dialplan-params';
 import { validateLabelRefs } from '../utils/dialplan-labels.util';
@@ -38,6 +39,7 @@ function actionIdOf(action: { id?: unknown }, index: number): string {
 
 function validateOne(action: Record<string, unknown>, index: number): ActionParamsError[] {
   const actionId = actionIdOf(action, index);
+  if (action.enabled !== undefined && typeof action.enabled !== 'boolean') return [{actionId,path:'enabled',message:'enabled must be a boolean'}];
   if (!action.type) {
     return [{ actionId, path: 'type', message: `action ${actionId} has empty type` }];
   }
@@ -56,7 +58,14 @@ function validateOne(action: Record<string, unknown>, index: number): ActionPara
   if (params == null || typeof params !== 'object' || Array.isArray(params)) {
     return [{ actionId, path: 'params', message: 'params must be an object' }];
   }
-  const next = { ...(params as Record<string, unknown>) };
+  if (type === 'callerid' && 'version' in params) {
+    return callerIdV2Errors(params).map(message => ({actionId,path:'params',message}));
+  }
+  if (type === 'directory_lookup') {
+    const errors = directoryStepErrors(params);
+    if (Object.keys(errors).length) return Object.entries(errors).map(([path, message]) => ({ actionId, path, message: 'Directory lookup: ' + message }));
+  }
+  const next = type === 'notify' ? normalizeNotifyParams(params as Record<string, unknown>) : { ...(params as Record<string, unknown>) };
   if (type === 'totrunk' && 'dest' in next) {
     next.dest = coerceDestValueSource(next.dest);
   }
@@ -101,6 +110,12 @@ export function collectHostActionErrors(body: unknown): ActionParamsError[] {
     errors.push({ actionId: null, path: 'name', message: 'name must be a non-empty string' });
   }
   errors.push(...validateActionParams(collectNestedActionChains(record)));
+  for (const chain of collectLabelChains(record)) for (const item of chain) {
+    const action = item as {id?:string;type?:string;params?:{behavior?:string;actions?:unknown[]}};
+    if(action?.type==='directory_lookup' && action.params?.behavior==='custom' && Array.isArray(action.params.actions)) {
+      if(validateActionParams(action.params.actions).length || validateLabelRefs(action.params.actions).length) errors.push({actionId:action.id??null,path:'behavior',message:'Directory custom chain is invalid'});
+    }
+  }
   for (const chain of collectLabelChains(record)) {
     errors.push(...validateLabelRefs(chain));
   }
@@ -134,6 +149,12 @@ function collectLabelChains(body: Record<string, unknown>): unknown[][] {
       }
     }
   }
+  for (let i = 0; i < chains.length; i++) {
+    for (const item of chains[i]) {
+      const action = item as {type?:string;params?:{actions?:unknown[]}};
+      if (action?.type === "directory_lookup" && Array.isArray(action.params?.actions)) chains.push(action.params.actions);
+    }
+  }
   return chains;
 }
 
@@ -145,31 +166,5 @@ export function throwIfInvalidActionPayload(body: unknown): void {
 }
 
 export function collectNestedActionChains(body: Record<string, unknown>): unknown[] {
-  const chains: unknown[] = [];
-  if (Array.isArray(body.actions)) chains.push(...body.actions);
-  if (body.fallback_action) chains.push(body.fallback_action);
-  if (body.max_retries_action) chains.push(body.max_retries_action);
-  if (Array.isArray(body.bindings)) {
-    for (const binding of body.bindings as Array<{ actions?: unknown[] }>) {
-      if (Array.isArray(binding?.actions)) chains.push(...binding.actions);
-    }
-  }
-  if (Array.isArray(body.menu_items)) {
-    for (const item of body.menu_items as Array<{ actions?: unknown[] }>) {
-      if (Array.isArray(item?.actions)) chains.push(...item.actions);
-    }
-  }
-  if (Array.isArray(body.keywords)) {
-    for (const kw of body.keywords as Array<{ actions?: unknown[] }>) {
-      if (Array.isArray(kw?.actions)) chains.push(...kw.actions);
-    }
-  }
-  if (Array.isArray(body.keyword_groups)) {
-    for (const group of body.keyword_groups as Array<{ keywords?: Array<{ actions?: unknown[] }> }>) {
-      for (const kw of group?.keywords ?? []) {
-        if (Array.isArray(kw?.actions)) chains.push(...kw.actions);
-      }
-    }
-  }
-  return chains;
+  return collectLabelChains(body).flat();
 }

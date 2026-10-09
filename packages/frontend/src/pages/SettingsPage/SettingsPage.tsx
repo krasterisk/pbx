@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route, Bot, Table2 } from 'lucide-react';
+import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route, Bot, Table2, Phone } from 'lucide-react';
 import { Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { DialplanSubroutinesCard } from '@/features/system-settings/ui/DialplanSubroutinesCard';
@@ -10,12 +10,20 @@ import { FfmpegStatusCard } from '@/features/system-settings/ui/FfmpegStatusCard
 import { RedisStatusCard } from '@/features/system-settings/ui/RedisStatusCard';
 import { TenantSettingsSection } from '@/features/tenant-settings/ui/TenantSettingsSection';
 import { TablePageSizeSetting } from '@/features/tenant-settings/ui/TablePageSizeSetting/TablePageSizeSetting';
+import { EndpointExpertModeSetting } from '@/features/tenant-settings/ui/EndpointExpertModeSetting/EndpointExpertModeSetting';
 import { AiChatProviderCard } from '@/features/system-settings/ui/AiChatProviderCard';
 import { TenantSpeechModelsCard } from '@/features/speechAnalytics/ui/TenantSpeechModelsCard/TenantSpeechModelsCard';
 import { useGetSaSpeechModelsQuery } from '@/features/speechAnalytics/api/speechAnalyticsApi';
 import cls from './SettingsPage.module.scss';
 
 const SECTIONS = [
+  {
+    key: 'endpoints',
+    icon: Phone,
+    titleKey: 'endpoints.title',
+    descKey: 'endpoints.expertModeGlobalHint',
+    content: <EndpointExpertModeSetting />,
+  },
   {
     key: 'dialplan',
     icon: Terminal,

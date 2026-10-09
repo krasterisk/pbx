@@ -1,4 +1,5 @@
-import type { CallValueSource, DirectoryLookupOutput } from '@krasterisk/shared';
+import { directoryStepErrors, type IDirectoryLookupParams, type CallValueSource, type DirectoryLookupOutput } from '@krasterisk/shared';
+import { DirectoryPolicyEditor } from '../../ui/DirectoryPolicyEditor/DirectoryPolicyEditor';
 import type { FieldSchema } from '../schema.types';
 import { CallValueSourceField } from '../../ui/DirectoryLookupField';
 import { DirectoryLookupOutputsField } from '../../ui/DirectoryLookupOutputsField';
@@ -16,13 +17,7 @@ export function validateDirectoryOutputTarget(name: string, used: string[]): str
 }
 
 export function directoryLookupFieldErrors(params: Record<string, unknown>): Record<string, string> {
-  const outputs = Array.isArray(params.outputs) ? (params.outputs as DirectoryLookupOutput[]) : [];
-  const names = outputs.map((row) => String(row?.targetVariable ?? '').trim());
-  const invalid = outputs.some((_row, index) => {
-    const name = names[index] ?? '';
-    return validateDirectoryOutputTarget(name, names.filter((_, i) => i !== index)) !== null;
-  });
-  return invalid ? { outputs: 'invalid' } : {};
+  return Object.fromEntries(Object.entries(directoryStepErrors(params)).map(([field,code])=>[field,code==='invalid'?'directory-invalid':code]));
 }
 
 export function summarizeDirectoryLookup(params: Record<string, unknown>, t: TFn): string {
@@ -30,6 +25,7 @@ export function summarizeDirectoryLookup(params: Record<string, unknown>, t: TFn
   if (!directoryUid) {
     return t('routes.chain.directoryLookup.summaryEmpty', 'Справочник: не выбран');
   }
+  if (params.behavior) return t('routes.directories.behavior.'+params.behavior);
   const outputs = Array.isArray(params.outputs) ? params.outputs : [];
   if (!outputs.length) {
     return t('routes.chain.directoryLookup.summaryNoOutputs', 'Справочник: нет полей');
@@ -74,6 +70,7 @@ export function buildDirectoryLookupSchema(t: TFn): FieldSchema[] {
     },
     {
       key: 'outputs',
+      visibleWhen: {key:'behavior',equals:''},
       kind: 'custom',
       required: true,
       group: 'primary',
@@ -95,6 +92,7 @@ export function buildDirectoryLookupSchema(t: TFn): FieldSchema[] {
     },
     {
       key: 'onMissing',
+      visibleWhen: {key:'behavior',equals:''},
       kind: 'select',
       required: true,
       group: 'primary',

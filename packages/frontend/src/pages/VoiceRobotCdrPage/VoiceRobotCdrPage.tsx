@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -81,7 +82,7 @@ const VoiceRobotCdrPage = memo(() => {
     offset: (page - 1) * PAGE_SIZE,
   };
 
-  const { data: cdrData, isLoading: isLoadingCdr, isFetching } = useGetVoiceRobotCdrsQuery(queryParams);
+  const { data: cdrData, isLoading: isLoadingCdr, isFetching, isError: cdrLoadError, refetch: retryCdr } = useGetVoiceRobotCdrsQuery(queryParams);
   const { data: statsData, isLoading: isLoadingStats } = useGetVoiceRobotCdrStatsQuery();
   const [triggerExport, { isFetching: isExporting }] = useLazyExportVoiceRobotCdrQuery();
 
@@ -157,11 +158,11 @@ const VoiceRobotCdrPage = memo(() => {
             data-testid="hybrid-table"
             data-hybrid="overflow-x-auto"
           >
-            <VoiceRobotCdrTable
+            {cdrLoadError ? <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryCdr()} /> : <VoiceRobotCdrTable
               data={cdrData?.rows || []}
               isLoading={isLoadingCdr || isFetching}
               onRowClick={(cdr) => setSelectedCdrId(cdr.uid)}
-            />
+            />}
           </Flex>
         </CardContent>
         {totalPages > 1 && (

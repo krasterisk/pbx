@@ -1,7 +1,8 @@
-import { Injectable, ConflictException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
+import { buildEndpointContext, stripEndpointContext } from '../endpoints/endpoint-context-name';
 import { PsAuth } from '../endpoints/ps-auth.model';
 import { PsAor } from '../endpoints/ps-aor.model';
 import { PsRegistration } from './ps-registration.model';
@@ -91,10 +92,7 @@ export class TrunksService {
 
   /** Build default context for incoming trunk calls */
   private buildContext(context: string | undefined, vpbxUserUid: number): string {
-    const base = context || 'from-trunk';
-    const suffix = String(vpbxUserUid);
-    if (base.endsWith(suffix)) return base;
-    return `${base}${suffix}`;
+    return buildEndpointContext(context || 'from-trunk', vpbxUserUid);
   }
 
   /**
@@ -417,6 +415,7 @@ export class TrunksService {
    * Create a trunk (dispatches to Auth or IP creation).
    */
   async create(dto: CreateTrunkDto, vpbxUserUid: number, userId?: number) {
+    if (typeof dto.context !== 'string' || !dto.context.trim()) throw new BadRequestException('Context is required');
     if (dto.trunkType === 'auth') {
       return this.createAuthTrunk(dto, vpbxUserUid, userId);
     } else {
@@ -428,6 +427,7 @@ export class TrunksService {
    * Update a trunk's configuration.
    */
   async update(trunkId: string, dto: UpdateTrunkDto, vpbxUserUid: number, userId?: number) {
+    if (dto.context !== undefined && (typeof dto.context !== 'string' || !dto.context.trim())) throw new BadRequestException('Context is required');
     const existing = await this.endpointModel.findOne({
       where: { id: trunkId, tenantid: String(vpbxUserUid) },
     });
@@ -639,10 +639,7 @@ export class TrunksService {
 
   /** Strip tenant suffix from context for display */
   private stripContext(context: string | null, vpbxUserUid: number): string {
-    if (!context) return '';
-    const suffix = String(vpbxUserUid);
-    if (context.endsWith(suffix)) return context.slice(0, -suffix.length);
-    return context;
+    return stripEndpointContext(context, vpbxUserUid);
   }
 
   private async syncQualify(trunkId: string): Promise<void> {

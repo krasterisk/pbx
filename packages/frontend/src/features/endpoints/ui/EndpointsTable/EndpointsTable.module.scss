@@ -7,6 +7,10 @@
   width: 100%;
   min-width: 0;
 }
+.error {
+  color: var(--color-destructive);
+  font-size: 0.875rem;
+}
 
 .cardContent {
   padding: 0;
@@ -142,7 +146,7 @@
 .extension {
   composes: cell;
   font-weight: 600;
-  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
   color: var(--color-primary);
 }
 
@@ -150,7 +154,7 @@
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.25;
-  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-muted) 80%, transparent);
@@ -161,7 +165,7 @@
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.25;
-  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
   color: var(--color-primary);
 }
 
@@ -252,6 +256,7 @@
 
 .jobBar {
   width: 100%;
+  flex-wrap: wrap;
 }
 
 .jobTrack {
@@ -270,11 +275,26 @@
 }
 
 .jobLabel {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .mobileList {
   width: 100%;
+}
+
+@media (max-width: 767px) {
+  .toolbar,
+  .toolbarActions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .toolbarActions {
+    gap: 0.5rem;
+  }
+  .searchWrap {
+    width: 100%;
+    order: -1;
+  }
 }
 
 .mobileCard {

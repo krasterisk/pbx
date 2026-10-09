@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -30,7 +31,7 @@ export const QueuesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: queues = [], isLoading } = useGetQueuesQuery();
+  const { data: queues = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetQueuesQuery();
   const [deleteQueue] = useDeleteQueueMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
@@ -133,6 +134,7 @@ export const QueuesTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

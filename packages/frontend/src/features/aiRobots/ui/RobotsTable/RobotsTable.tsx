@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AiVoiceRobot } from '@krasterisk/shared';
@@ -10,7 +11,7 @@ import cls from './RobotsTable.module.scss';
 
 export function RobotsTable() {
   const { t } = useTranslation();
-  const { data = [], isLoading, isError } = useGetAiVoiceRobotsQuery();
+  const { data = [], isLoading, isError, refetch: retryListLoad } = useGetAiVoiceRobotsQuery();
   const [filter, setFilter] = useState('');
   const [editor, setEditor] = useState<{ robot?: AiVoiceRobot; copy?: boolean } | null>(null);
   const edit = useCallback((robot: AiVoiceRobot) => setEditor({ robot }), []);
@@ -24,7 +25,7 @@ export function RobotsTable() {
       <Button className={cls.create} onClick={() => setEditor({})}><Plus size={16} /><Text as="span">{t('aiVoiceDesigner.create')}</Text></Button>
     </Flex>
     <Input aria-label={t('aiVoiceDesigner.search')} placeholder={t('aiVoiceDesigner.search')} value={filter} onChange={event => setFilter(event.target.value)} />
-    {isError ? <Text role="alert" variant="error">{t('aiVoiceDesigner.loadFailed')}</Text>
+    {isError ? <QueryErrorState message={t('aiVoiceDesigner.loadFailed')} onRetry={() => void retryListLoad()} />
       : isLoading ? <Text>{t('common.loading')}</Text>
         : <Flex max direction="column" align="stretch" className={cls.table} data-hybrid="overflow-x-auto">
           <DataTable columns={columns} data={data} globalFilter={filter} getRowId={row => String(row.uid)} emptyText={t('aiVoiceDesigner.empty')} />

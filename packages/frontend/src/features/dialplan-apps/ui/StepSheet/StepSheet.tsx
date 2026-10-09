@@ -1,3 +1,5 @@
+import { normalizeNotifyParams } from '@krasterisk/shared';
+import { localizeStepError } from '../../model/stepErrors';
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActionType, IRouteAction, ValueSource } from '@krasterisk/shared';
@@ -95,6 +97,7 @@ export function StepSheet({
   const [optionsOpen, setOptionsOpen] = useState(initialSection === 'options');
   const [conditionsOpen, setConditionsOpen] = useState(initialSection === 'conditions');
   const bodyRef = useRef<HTMLDivElement>(null);
+  const focusContext = useRef({ open: false, stepId, type: action?.type });
   const config = action?.type ? dialplanAppsRegistry[action.type] : undefined;
   const schema = config?.schema ?? EMPTY_SCHEMA;
   const catalogSources = useMemo(() => {
@@ -115,16 +118,22 @@ export function StepSheet({
     const mapped = Object.fromEntries(
       Object.entries(client).map(([key, code]) => [key, resolveClientFieldError(code, t)]),
     );
-    return { ...mapped, ...fieldErrors };
+    const server = Object.fromEntries(
+      Object.entries(fieldErrors ?? {}).map(([field, message]) => [
+        field,
+        localizeStepError(action?.type ?? '', field, message, t),
+      ]),
+    );
+    return { ...mapped, ...server };
   }, [action, fieldErrors, t]);
   const resolvedOptionsSlot =
-    optionsSlot
-    ?? (action?.type === 'togroup' ? (
-      <CallGroupDialOptionsPanel groupRef={toGroupFixedKey(action.params as Record<string, unknown>)} />
+    optionsSlot ??
+    (action?.type === 'togroup' ? (
+      <CallGroupDialOptionsPanel
+        groupRef={toGroupFixedKey(action.params as Record<string, unknown>)}
+      />
     ) : null);
-  const appLabel = config
-    ? t(config.labelKey, action?.type ?? '')
-    : '';
+  const appLabel = config ? t(config.labelKey, action?.type ?? '') : '';
   const title = appLabel
     ? t('routes.chain.sheetTitle', 'Параметры шага · {{action}}').replace('{{action}}', appLabel)
     : t('routes.chain.sheetTitleEmpty', 'Параметры шага');
@@ -140,18 +149,47 @@ export function StepSheet({
     }
   }, [open, stepId, initialSection]);
 
-  // Only on open / step / type — not on field edits (those recreate error maps).
+  // Server validation may target a collapsed section or a custom nested editor.
   useEffect(() => {
+    const previous = focusContext.current;
+    focusContext.current = { open, stepId, type: action?.type };
     if (!open) return;
-    const root = bodyRef.current;
-    if (!root) return;
-    const invalid = root.querySelector<HTMLElement>('[aria-invalid="true"]');
-    const editable = root.querySelector<HTMLElement>(
-      'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])',
-    );
-    const target = invalid ?? editable;
-    target?.focus();
-  }, [open, stepId, action?.type]);
+    const fields = Object.keys(fieldErrors ?? {});
+    if (
+      previous.open &&
+      previous.stepId === stepId &&
+      previous.type === action?.type &&
+      !fields.length
+    )
+      return;
+    const groups = splitSchemaFields(schema);
+    if (fields.some((key) => groups.primary.some((field) => field.key === key)))
+      setPrimaryOpen(true);
+    if (fields.some((key) => groups.params.some((field) => field.key === key))) setParamsOpen(true);
+    if (fields.includes('options')) setOptionsOpen(true);
+    if (fields.includes('condition')) setConditionsOpen(true);
+    // Wait for the expanded section's controls to mount, and for Radix open autofocus.
+    const focusField = () => {
+      const root = bodyRef.current;
+      if (!root) return;
+      const field = Array.from(root.querySelectorAll<HTMLElement>('[data-field-key]')).find(
+        (element) => fields.includes(element.dataset.fieldKey ?? ''),
+      );
+      const editable =
+        'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])';
+      const target =
+        field?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+        field?.querySelector<HTMLElement>(editable) ??
+        field?.querySelector<HTMLElement>('button:not([disabled])') ??
+        root.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+        root.querySelector<HTMLElement>(editable);
+      target?.scrollIntoView?.({ block: 'nearest' });
+      target?.focus();
+    };
+    focusField();
+    const timer = window.setTimeout(focusField, 0);
+    return () => window.clearTimeout(timer);
+  }, [open, stepId, action?.type, fieldErrors, schema]);
 
   const requestClose = (next: boolean) => {
     if (!next && !queueComplete) {
@@ -172,9 +210,7 @@ export function StepSheet({
   // Only hide labels that belong to the primary section itself. Coalesced
   // `params`-group fields must keep their own Label (e.g. WebRTC, timeout).
   const primaryFields = hidePrimaryLabels
-    ? primaryRaw.map((field) =>
-        field.group === 'params' ? field : { ...field, hideLabel: true },
-      )
+    ? primaryRaw.map((field) => (field.group === 'params' ? field : { ...field, hideLabel: true }))
     : primaryRaw;
   const paramFields = paramsRaw;
   const hasPrimary = primaryFields.length > 0;
@@ -182,14 +218,17 @@ export function StepSheet({
   const optionsValue = typeof action?.params?.options === 'string' ? action.params.options : '';
   const optionFlags = config?.optionFlags ?? [];
   const showDialOptions =
-    optionFlags.length > 0
-    || (typeof optionsValue === 'string' && optionsValue.length > 0)
-    || resolvedOptionsSlot != null;
+    optionFlags.length > 0 ||
+    (typeof optionsValue === 'string' && optionsValue.length > 0) ||
+    resolvedOptionsSlot != null;
 
   // Two «параметры» blocks in one sheet get «Основные» / «Дополнительные» so the
   // titles stay distinguishable; a single block keeps the plain «Параметры».
   const primaryTitle = config?.primarySection
-    ? t(config.primarySection.titleKey, config.primarySection.title ?? config.primarySection.titleKey)
+    ? t(
+        config.primarySection.titleKey,
+        config.primarySection.title ?? config.primarySection.titleKey,
+      )
     : hasParamFields
       ? t('routes.chain.section.primaryParams', 'Основные параметры')
       : t('routes.chain.section.params', 'Параметры');
@@ -203,7 +242,10 @@ export function StepSheet({
     ? t('routes.chain.section.extraParams', 'Дополнительные параметры')
     : t('routes.chain.section.params', 'Параметры');
   const paramsTooltip = config?.paramsSection?.tooltipKey
-    ? t(config.paramsSection.tooltipKey, config.paramsSection.tooltip ?? config.paramsSection.tooltipKey)
+    ? t(
+        config.paramsSection.tooltipKey,
+        config.paramsSection.tooltip ?? config.paramsSection.tooltipKey,
+      )
     : (config?.paramsSection?.tooltip ??
       t(
         'routes.chain.section.extraParamsTooltip',
@@ -218,7 +260,9 @@ export function StepSheet({
           ? normalizePlaybackParams(action?.params ?? {})
           : action?.type === 'totrunk'
             ? normalizeToTrunkParams(action?.params ?? {})
-            : action?.params ?? {}
+            : action?.type === 'notify'
+              ? normalizeNotifyParams(action?.params ?? {})
+              : (action?.params ?? {})
       }
       tenantUid={tenantUid}
       previewPatterns={previewPatterns}
@@ -246,12 +290,15 @@ export function StepSheet({
         </SheetHeader>
 
         {/* scrollBody exception: native div required for flex min-height shrink (ARCHITECTURE.md) */}
-        <div
-          ref={bodyRef}
-          data-testid="step-sheet-body"
-          className={styles.body}
-        >
+        <div ref={bodyRef} data-testid="step-sheet-body" className={styles.body}>
           <VStack gap="16" max>
+            {Object.entries(fieldErrors ?? {})
+              .filter(([key]) => !schema.some((field) => field.key === key))
+              .map(([key, message]) => (
+                <Text key={key} variant="error" role="alert">
+                  {localizeStepError(action?.type ?? '', key, message, t)}
+                </Text>
+              ))}
             {action ? (
               <ActionTypeSelect
                 value={(action.type || '') as ActionType | ''}
@@ -305,14 +352,16 @@ export function StepSheet({
                   'Флаги набора: перевод, сброс, музыка ожидания и другие.\nВлияют на поведение Dial/Queue, не на номер назначения.',
                 )}
               >
-                {resolvedOptionsSlot ?? (
-                  <OptionsEditor
-                    value={optionsValue}
-                    flags={optionFlags}
-                    onChange={(options) => onChange({ options })}
-                    embedded
-                  />
-                )}
+                <VStack gap="4" data-field-key="options">
+                  {resolvedOptionsSlot ?? (
+                    <OptionsEditor
+                      value={optionsValue}
+                      flags={optionFlags}
+                      onChange={(options) => onChange({ options })}
+                      embedded
+                    />
+                  )}
+                </VStack>
               </AppCollapsibleSection>
             ) : null}
 
@@ -325,12 +374,14 @@ export function StepSheet({
                 'Когда выполнять этот шаг по результату предыдущего (набор или очередь).\nБез условия - всегда.\nРасписание - по группе времени.',
               )}
             >
-              {conditionsSlot ?? (
-                <ConditionEditor
-                  condition={action?.condition}
-                  onChange={(next) => onConditionChange?.(next)}
-                />
-              )}
+              <VStack gap="4" data-field-key="condition">
+                {conditionsSlot ?? (
+                  <ConditionEditor
+                    condition={action?.condition}
+                    onChange={(next) => onConditionChange?.(next)}
+                  />
+                )}
+              </VStack>
             </AppCollapsibleSection>
           </VStack>
         </div>

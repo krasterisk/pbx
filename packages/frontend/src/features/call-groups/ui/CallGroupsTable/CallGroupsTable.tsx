@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -33,7 +34,7 @@ export const CallGroupsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: callGroups = [], isLoading } = useGetCallGroupsQuery();
+  const { data: callGroups = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetCallGroupsQuery();
   const [deleteCallGroup] = useDeleteCallGroupMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
@@ -136,6 +137,7 @@ export const CallGroupsTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

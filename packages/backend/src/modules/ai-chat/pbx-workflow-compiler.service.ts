@@ -166,6 +166,7 @@ export class PbxWorkflowCompilerService {
 export function plannedEntitiesFromSteps(steps: DeclarativeWorkflowStep[]): PlannedWorkflowEntities {
   const extensions = new Set<string>();
   const groups: PlannedWorkflowEntities['groups'] = [];
+  const contexts: NonNullable<PlannedWorkflowEntities['contexts']> = [];
   const queues: PlannedWorkflowEntities['queues'] = [];
 
   for (const step of steps) {
@@ -177,6 +178,12 @@ export function plannedEntitiesFromSteps(steps: DeclarativeWorkflowStep[]): Plan
     }
     if (step.tool === 'create_endpoint' && args.extension != null) {
       extensions.add(String(args.extension));
+    }
+    if (step.tool === 'create_context' && typeof args.name === 'string') {
+      contexts.push({ name: args.name, is_default_for_endpoints: args.is_default_for_endpoints === true, is_default_for_trunks: args.is_default_for_trunks === true });
+    }
+    if (step.tool === 'update_context' && typeof args.uid === 'number') {
+      contexts.push({ uid: args.uid, ...(typeof args.name === 'string' ? { name: args.name } : {}), ...(typeof args.is_default_for_endpoints === 'boolean' ? { is_default_for_endpoints: args.is_default_for_endpoints } : {}), ...(typeof args.is_default_for_trunks === 'boolean' ? { is_default_for_trunks: args.is_default_for_trunks } : {}) });
     }
     if (step.tool === 'create_call_group') {
       groups.push({
@@ -192,5 +199,5 @@ export function plannedEntitiesFromSteps(steps: DeclarativeWorkflowStep[]): Plan
     }
   }
 
-  return { extensions: [...extensions], groups, queues };
+  return { extensions: [...extensions], groups, queues, ...(contexts.length ? { contexts } : {}) };
 }

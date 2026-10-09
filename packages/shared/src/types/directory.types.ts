@@ -40,6 +40,11 @@ export interface IDirectoryLookupParams {
   keySource: CallValueSource;
   outputs: DirectoryLookupOutput[];
   onMissing: 'keep' | 'empty';
+  /** Optional matched-record behavior; absent retains the original output-only contract. */
+  matchMode?: DirectoryMatchMode;
+  behavior?: DirectoryBehaviorType;
+  behaviorParams?: IDirectoryBehaviorParams;
+  actions?: IRouteAction[];
 }
 
 export type TrunkCallerIdPoolPick = 'random' | 'round_robin';

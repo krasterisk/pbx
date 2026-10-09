@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
+import { QUEUE_ADVANCED_FIELDS } from '@krasterisk/shared';
 import { toPublicExten, toPublicMemberInterface } from '../../shared/utils/tenant-public-id.util';
 import { QueuesService } from './queues.service';
 import { ContextsService } from '../contexts/contexts.service';
@@ -19,16 +20,35 @@ import {
   type MutationRevalidation,
 } from '../ai-platform/ai-mutation.contract';
 
-const STRATEGIES = ['ringall', 'leastrecent', 'fewestcalls', 'random', 'rrmemory'] as const;
-const SCHEMA_VERSION = 'queues-1';
+const STRATEGIES = ['ringall', 'leastrecent', 'fewestcalls', 'random', 'rrmemory', 'linear', 'wrandom'] as const;
+const SCHEMA_VERSION = 'queues-2';
+const queueConfigurationShape = {
+  display_name: z.string().max(128).optional(),
+  retry: z.number().int().min(0).optional(), wrapuptime: z.number().int().min(0).optional(),
+  maxlen: z.number().int().min(0).optional(), musiconhold: z.string().optional(),
+  weight: z.number().int().min(0).optional(), servicelevel: z.number().int().min(0).optional(),
+  joinempty: z.string().optional(), leavewhenempty: z.string().optional(),
+  ringinuse: z.boolean().optional(), autofill: z.union([z.boolean(), z.enum(['yes', 'no'])]).optional(),
+  announce: z.string().optional(), announce_frequency: z.number().int().min(0).optional(),
+  announce_holdtime: z.string().optional(), announce_round_seconds: z.number().int().min(0).optional(),
+  periodic_announce: z.string().optional(), periodic_announce_frequency: z.number().int().min(0).optional(),
+  queue_youarenext: z.string().optional(), queue_thereare: z.string().optional(), queue_callswaiting: z.string().optional(),
+  queue_holdtime: z.string().optional(), queue_minutes: z.string().optional(), queue_seconds: z.string().optional(),
+  queue_lessthan: z.string().optional(), queue_thankyou: z.string().optional(), queue_reporthold: z.string().optional(),
+  advanced: z.strictObject(Object.fromEntries(QUEUE_ADVANCED_FIELDS.map((field) => [field, z.string().max(2048).regex(/^[^\r\n]*$/).refine(value => !value.includes(String.fromCharCode(0))).nullable().optional()]))).optional(),
+};
 
 const memberSchema = z.strictObject({
   interface: z.string().min(1).describe('Интерфейс агента, например PJSIP/201'),
   membername: z.string().optional(),
   penalty: z.number().int().min(0).optional(),
+  paused: z.number().int().min(0).max(1).optional(),
+  wrapuptime: z.number().int().min(0).optional(),
+  state_interface: z.string().optional(),
 });
 
 const createInput = z.strictObject({
+  ...queueConfigurationShape,
   name: z.string().min(1).describe('Отображаемое имя'),
   exten: z.string().min(1).describe('Номер очереди, 2–8 цифр'),
   strategy: z.enum(STRATEGIES).optional().describe(STRATEGIES.join(', ')),
@@ -39,6 +59,7 @@ const createInput = z.strictObject({
 });
 
 const createArgs = z.strictObject({
+  ...queueConfigurationShape,
   exten: z.string().min(1),
   display_name: z.string().min(1),
   strategy: z.enum(STRATEGIES).default('ringall'),
@@ -48,6 +69,7 @@ const createArgs = z.strictObject({
 });
 
 const updateInput = z.strictObject({
+  ...queueConfigurationShape,
   name: z.string().optional().describe('Отображаемое имя или номер очереди'),
   exten: z.string().optional().describe('Номер очереди, 2–8 цифр'),
   strategy: z.enum(STRATEGIES).optional(),
@@ -58,6 +80,7 @@ const updateInput = z.strictObject({
 });
 
 const updateArgs = z.strictObject({
+  ...queueConfigurationShape,
   name: z.string().min(1),
   strategy: z.enum(STRATEGIES).optional(),
   timeout: z.number().int().positive().optional().describe('Секунды звонка одному оператору; не общее ожидание'),
@@ -81,6 +104,7 @@ type DeleteArgs = z.infer<typeof deleteArgs>;
 type MemberView = z.infer<typeof memberSchema>;
 
 interface QueueView {
+  [key: string]: unknown;
   name: string;
   display_name?: string;
   strategy?: string;
@@ -117,6 +141,7 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
   getTools(): AiToolDefinition[] {
     return [
       this.toolListQueues(),
+      { name: 'get_queue_configuration', description: 'Текущие настройки очереди и члены для частичного изменения.', inputSchema: { name: { type: 'string' } }, entityType: 'queue', handler: async (args, uid) => this.queuesService.findOne(await this.resolveQueueName({ name: String(args.name ?? '') }, uid), uid) },
       this.toolCreateQueue(),
       this.toolUpdateQueue(),
       this.toolDeleteQueue(),
@@ -173,7 +198,9 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
         const refused = await this.refuseBadRefs(overflow, members, ctx.vpbxUserUid);
         if (refused) return refused;
 
+        const extraSettings = z.object(queueConfigurationShape).parse(input);
         const applyArgs: CreateArgs = {
+          ...extraSettings,
           exten: toPublicExten(input.exten, ctx.vpbxUserUid),
           display_name: input.name,
           strategy: input.strategy ?? 'ringall',
@@ -225,7 +252,7 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
         const refused = await this.refuseBadRefs(overflow, members, ctx.vpbxUserUid);
         if (refused) return refused;
 
-        const applyArgs: UpdateArgs = { name };
+        const applyArgs: UpdateArgs = { name, ...z.object(queueConfigurationShape).parse(input) };
         if (input.strategy != null) applyArgs.strategy = input.strategy;
         if (input.timeout != null) applyArgs.timeout = input.timeout;
         if (overflow) applyArgs.context = overflow;
@@ -365,7 +392,7 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
     if (members?.length) {
       const endpoints = await this.endpointsService.findAll(uid);
       for (const member of members) {
-        if (!memberResolves(member.interface, endpoints)) {
+        if (!memberResolves(member.interface, endpoints) || (member.state_interface && !memberResolves(member.state_interface, endpoints))) {
           return {
             refused: true,
             destination: member.interface,
@@ -444,6 +471,7 @@ export class QueuesAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   private snapshot(row: QueueView): Record<string, unknown> {
     return {
+      ...Object.fromEntries(Object.keys(queueConfigurationShape).filter((key) => row[key] !== undefined).map((key) => [key, row[key]])),
       name: row.name,
       strategy: row.strategy ?? null,
       timeout: row.timeout ?? null,

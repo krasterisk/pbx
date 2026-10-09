@@ -59,7 +59,7 @@ for (let i = 0; i < files.length; i += CHUNK) {
   console.log(`\n=== ${label} ===`);
   const result = spawnSync(
     process.execPath,
-    [vitestBin, 'run', '--config', 'vite.config.ts', '--reporter=dot', ...chunk],
+    [vitestBin, 'run', '--config', 'vite.config.ts', '--pool=forks', `--maxWorkers=${process.env.VITEST_MAX_WORKERS || 1}`, '--reporter=dot', ...chunk],
     {
       cwd: frontendRoot,
       stdio: 'inherit',

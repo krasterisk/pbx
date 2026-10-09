@@ -18,3 +18,8 @@
 
 | dialplan-callerid-name | [EXECUTION/PLAN](DIALPLAN-CALLERID-NAME.md) | Trunk labels and CallerID name |
 | blf-support | [EXECUTION/PLAN](BLF-SUPPORT.md) | Optional tenant-isolated BLF and presence |
+| endpoints-architecture | [EXECUTION/PLAN](ENDPOINTS-ARCHITECTURE-EXECUTION.md) | Endpoints UI architecture and audit repair |
+| design-system-refresh | [EXECUTION/PLAN](DESIGN-SYSTEM-REFRESH-EXECUTION.md) | Centered errors, redesigned dark palette, AiChat launcher |
+| context-defaults-aichat | [EXECUTION/PLAN](CONTEXT-DEFAULTS-AICHAT-EXECUTION.md) | Default contexts and platform assistant capability audit |
+| routes-contexts-refactor | [EXECUTION/PLAN](ROUTES-CONTEXTS-REFACTOR-PLAN.md) | Ordered includes, route permissions removal and isolated live Asterisk tests |
+| release-20261009 | [EXECUTION/PLAN](RELEASE-20261009.md) | Current snapshot commit/push and production deployment |

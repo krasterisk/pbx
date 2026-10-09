@@ -94,7 +94,7 @@ describe('New action types UI (D-44 / D-45 / D-47 / D-49)', () => {
       />,
     );
     expect(screen.queryByText('Завершает цепочку')).toBeNull();
-    expect(screen.getByText('Может выйти из цепочки')).toBeInTheDocument();
+    expect(screen.getByLabelText('Может выйти из цепочки')).toBeInTheDocument();
 
     render(
       <StepRow
@@ -173,8 +173,9 @@ describe('Trunk display names and CallerID name schema', () => {
   });
   it('offers name in primary section for every mode without requiring a number', () => {
     const schema = buildCallerIdSchema(t);
-    expect(schema.find((field) => field.key === 'name')).toMatchObject({ group: 'primary' });
-    expect(schema.find((field) => field.key === 'name')?.visibleWhen).toBeUndefined();
+    expect(schema).toHaveLength(1);
+    expect(schema[0]).toMatchObject({key:'callerIdV2',kind:'custom',group:'primary'});
+    expect(schema[0].visibleWhen).toBeUndefined();
     expect(schema.find((field) => field.key === 'callerid')?.required).toBeUndefined();
   });
 });

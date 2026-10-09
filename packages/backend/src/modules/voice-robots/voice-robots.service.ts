@@ -449,7 +449,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       // Max retries action (separate from fallback)
       lines.push(`same => n(max_retries),NoOp(Max retries for ${robot.name})`);
       if (robot.max_retries_action && Array.isArray(robot.max_retries_action)) {
-        const dp = renderActionChain(robot.max_retries_action, { vpbxUserUid, host: 'robot' });
+        const dp = renderActionChain(robot.max_retries_action, { vpbxUserUid, host: 'robot', ownerId: robot.uid });
         if (dp) lines.push(prefixSamePriority(dp));
       }
       lines.push(`same => n,Return()`);
@@ -459,7 +459,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       lines.push(`[voicerobot_fallback_${robot.uid}]`);
       lines.push(`exten => s,1,NoOp(Fallback for Robot: ${robot.name})`);
       if (robot.fallback_action && Array.isArray(robot.fallback_action)) {
-        const dp = renderActionChain(robot.fallback_action, { vpbxUserUid, host: 'robot' });
+        const dp = renderActionChain(robot.fallback_action, { vpbxUserUid, host: 'robot', ownerId: robot.uid });
         if (dp) lines.push(prefixSamePriority(dp));
       }
       lines.push(`same => n,Return()`);
@@ -480,7 +480,7 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
           lines.push(`[voicerobot_keyword_${keyword.uid}]`);
           lines.push(`exten => s,1,NoOp(Robot Keyword Match: ${keyword.keywords})`);
           if (keyword.actions && Array.isArray(keyword.actions)) {
-            const dp = renderActionChain(keyword.actions, { vpbxUserUid, host: 'robot' });
+            const dp = renderActionChain(keyword.actions, { vpbxUserUid, host: 'robot', ownerId: robot.uid });
             if (dp) lines.push(prefixSamePriority(dp));
           }
           lines.push(`same => n,Return()`);

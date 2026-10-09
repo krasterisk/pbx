@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+import { compileDirectoryPolicy } from './directory-policy-compiler.util';
+import { normalizeNotifyParams } from '@krasterisk/shared';
+import { compileCallerIdV2 } from './callerid-dialplan.util';
 import { DIALPLAN_ACTION_META, HTTP_RESULT_VAR, evaluateDialTargetRewrite, type ActionType, type ITimeGroupInterval, type ValueSource } from '@krasterisk/shared';
 import { ActionLog } from '../../modules/logger/action-log.model';
 import { normalizeTarget, resolveQueueValueSource, resolveQueuePriority, queuePriorityExpr, resolveValueSource } from './dialplan-target.util';
@@ -194,7 +198,10 @@ export class AsteriskDialplanUtils {
     vpbxUserUid: number,
     isAdmin: boolean = false,
     wh: Record<string, any> = {},
+    callerIdScope: string = 'action',
+    routeContext?: string,
   ): string {
+    if (action.enabled === false) return '';
     const { type, params = {}, condition = {} } = action;
     let dp = '';
 
@@ -259,14 +266,14 @@ export class AsteriskDialplanUtils {
           });
           const valueVar = compiledCid.valueVars.get(Number(callerId.valueFieldUid));
           dialLines.push(...compiledCid.lines);
-          dialLines.push('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
+          dialLines.push('NoOp(Keep Caller ID at trunk entry)');
           if (valueVar) {
             dialLines.push(
               `ExecIf($["\${${compiledCid.statusVar}}" = "FOUND" & "\${${valueVar}}" != ""]?Set(CALLERID(num)=\${${valueVar}}))`,
             );
           }
         } else if (callerId?.mode === 'pool') {
-          dialLines.push('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
+          dialLines.push('NoOp(Keep Caller ID at trunk entry)');
           dialLines.push(
             ...emitPoolCallerIdApps(
               Array.isArray(callerId.numbers) ? callerId.numbers.map(String) : [],
@@ -595,6 +602,7 @@ export class AsteriskDialplanUtils {
         dp = this.emitNotifyDialplan(params, vpbxUserUid);
         break;
       case 'callerid': {
+        if (params.version === 2) { dp = compileCallerIdV2(params, {tenant:vpbxUserUid,actionId:String(action.id ?? action.uid ?? 'CID'),scope:callerIdScope,backendBaseUrl:this.backendBaseUrl,apiKey:this.dialplanApiKey}); break; }
         // D-14: unified CallerID — static / directory / setclid_list / carousel
         const mode = params.mode || 'static';
         if (mode === 'static') {
@@ -664,6 +672,20 @@ export class AsteriskDialplanUtils {
     break;
   }
       case 'directory_lookup': {
+        if (params.behavior) {
+          const uid = 'S' + createHash('sha256').update(callerIdScope + '|' + String(action.id ?? action.uid ?? 'DL')).digest('hex').slice(0, 20);
+          const contextName = 'dir_policy_' + uid + '_' + vpbxUserUid;
+          const category = compileDirectoryPolicy({
+            binding: { uid, directory_uid: Number(params.directoryUid), position: 0, key_source: params.keySource, match_mode: params.matchMode ?? 'on_match', behavior_type: params.behavior, behavior_params: params.behaviorParams, actions: params.actions },
+            directory: { uid: Number(params.directoryUid) }, vpbxUserUid,
+            routeTenantedContext: routeContext ?? '$' + '{ARG1}', contextName, preserveExten: true,
+            backendBaseUrl: this.backendBaseUrl, apiKey: this.dialplanApiKey,
+            sanitize: value => this.sanitizeDialplanInput(value),
+            render: actions => renderActionChain(actions, { vpbxUserUid, host: 'directory_policy', ownerId: uid, isAdmin, routeContext }),
+          });
+          dp = 'Gosub(' + contextName + ',$' + '{EXTEN},1($' + '{CONTEXT}))' + '\n' + category.lines.join('\n');
+          break;
+        }
         const keySource = params.keySource && typeof params.keySource === 'object'
           ? params.keySource
           : { source: 'original_caller' };
@@ -831,7 +853,7 @@ export class AsteriskDialplanUtils {
    * integration uid, the text and an optional recipient override.
    */
   private static emitNotifyDialplan(params: Record<string, any>, vpbxUserUid: number): string {
-    const message = this.sanitizeTemplate(params.body ?? '');
+    const message = this.sanitizeTemplate(String(normalizeNotifyParams(params).body ?? ''));
     const subject = this.sanitizeTemplate(params.subject ?? '');
     const target = this.sanitizeTemplate(params.target ?? '');
     const payload: Record<string, string> = {
@@ -950,8 +972,10 @@ export interface RenderActionChainCtx {
   vpbxUserUid: number;
   timeGroup?: string;
   host: ActionChainHost;
+  ownerId?: string | number;
   isAdmin?: boolean;
   wh?: Record<string, any>;
+  routeContext?: string;
 }
 
 /**
@@ -963,12 +987,15 @@ export function renderActionChain(
   ctx: RenderActionChainCtx,
 ): string {
   const parts: string[] = [];
+  const extraContexts = new Map<string,string>();
   for (const action of actions ?? []) {
     let dp = AsteriskDialplanUtils.actionToDialplan(
       action,
       ctx.vpbxUserUid,
       ctx.isAdmin ?? false,
       ctx.wh ?? {},
+      ctx.host + ':' + String(ctx.ownerId ?? 'default'),
+      ctx.routeContext,
     );
     if (!dp) continue;
     const tgExpr = ctx.timeGroup
@@ -980,7 +1007,18 @@ export function renderActionChain(
       const name = AsteriskDialplanUtils.sanitizeDialplanInput(action.params?.label_name);
       if (name) dp = `(${name}),${dp}`;
     }
+    const index = dp.indexOf('\n[');
+    if (index >= 0) {
+      for (const category of dp.slice(index + 1).split(/(?=^\[)/m).filter(Boolean)) {
+        const name = /^\[([^\]]+)\]/.exec(category)?.[1];
+        if (name) extraContexts.set(name, category);
+      }
+      dp = dp.slice(0,index);
+    }
     parts.push(dp);
   }
-  return joinDialplanParts(parts);
+  if ((actions ?? []).some(action => action?.enabled !== false && (action?.type === 'callerid' || action?.type === 'directory_lookup'))) {
+    parts.unshift('ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_NUM=${CALLERID(num)}))\nsame => n,ExecIf($["${KRSK_ORIG_CALLER_CAPTURED}" != "1"]?Set(__KRSK_ORIG_CALLER_CAPTURED=1))');
+  }
+  return [joinDialplanParts(parts),...extraContexts.values()].filter(Boolean).join("\n");
 }

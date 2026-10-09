@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
@@ -167,12 +168,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
           data-overflow="y"
         >
           {loadError ? (
-            <VStack gap="8" max>
-              <Text role="alert">{t('autodial.common.loadFailed')}</Text>
-              <Button onClick={() => { void refetchBase(); if (contactUid !== null) void refetchContact(); }}>
-                {t('autodial.common.retry')}
-              </Button>
-            </VStack>
+            <QueryErrorState message={t('autodial.common.loadFailed')} onRetry={() => { void refetchBase(); if (contactUid !== null) void refetchContact(); }} retryLabel={t('autodial.common.retry')} />
           ) : !isReady ? <Loader2 aria-label={t('common.loading')} /> : null}
           <VStack gap="8" max inert={!isReady || isSaving}>
             <Text className={cls.sectionTitle}>{t('autodial.contacts.phones')}</Text>

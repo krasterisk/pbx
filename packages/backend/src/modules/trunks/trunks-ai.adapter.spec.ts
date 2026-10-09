@@ -54,7 +54,7 @@ describe('TrunksAiAdapter', () => {
       }),
     };
     registry = { register: jest.fn() };
-    adapter = new TrunksAiAdapter(trunksService as any, routesService as any, registry as any);
+    adapter = new TrunksAiAdapter(trunksService as any, routesService as any, registry as any, { findAll: async () => [{ name: 'from-trunk', is_default_for_trunks: true }] } as any);
   });
 
   describe('list_trunks (D-15)', () => {

@@ -1,3 +1,4 @@
+import { callerIdNameResponse, callerIdListResponse, type CallerIdNameRequest, type CallerIdListRequest } from './callerid-bridge.util';
 import {
   Body,
   Controller,
@@ -36,6 +37,20 @@ export class DialplanBridgeController {
     private readonly configService: ConfigService,
   ) {
     this.apiKey = this.configService.get<string>('DIALPLAN_API_KEY') || '';
+  }
+
+  @Post('callerid-name')
+  @HttpCode(200)
+  callerIdName(@Headers('x-api-key') headerKey: string, @Body() body: CallerIdNameRequest) {
+    this.assertKey(headerKey || body.api_key);
+    return callerIdNameResponse(body);
+  }
+
+  @Post('callerid-list')
+  @HttpCode(200)
+  callerIdList(@Headers('x-api-key') headerKey: string, @Body() body: CallerIdListRequest) {
+    this.assertKey(headerKey || body.api_key);
+    return callerIdListResponse(this.bridge.callerIdNumbers(), body);
   }
 
   @Post('setclid')

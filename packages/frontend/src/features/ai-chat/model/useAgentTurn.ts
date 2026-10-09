@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useStore } from 'react-redux';
 import { collapseDuplicateAgentSteps, type AgentTimelineItem } from '@krasterisk/shared';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
-import { aiChatApi, type IAiChatThreadDetail } from '@/shared/api/endpoints/aiChatApi';
+import { aiChatApi, AI_CHAT_CONFIGURATION_TAGS, type IAiChatThreadDetail } from '@/shared/api/endpoints/aiChatApi';
 import { setLiveTimeline } from '@/shared/api/endpoints/aiChatLiveTimeline';
 import { aiChatActions, type AgentTurnOutcome } from './slice/aiChatSlice';
 import { selectAiChatIsStreaming } from './selectors/aiChatSelectors';
@@ -68,7 +68,7 @@ export function streamAgentTurn(params: {
     body?: Record<string, unknown>;
     onThread: (uid: number) => void;
     onItem: (item: AgentTimelineItem) => void;
-    onDone: () => void;
+    onDone: (result?: { configurationChanged: boolean }) => void;
     onError: (message: string, code?: string) => void;
     onDisconnect: () => void;
 }): AbortController {
@@ -123,7 +123,7 @@ export function streamAgentTurn(params: {
                                 params.onItem(data);
                             } else if (eventType === 'done') {
                                 reachedTerminal = true;
-                                params.onDone();
+                                params.onDone({ configurationChanged: data?.configurationChanged === true });
                                 return;
                             } else if (eventType === 'error') {
                                 reachedTerminal = true;
@@ -222,11 +222,12 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
                 if (item.kind === 'proposal') sawProposalRef.current = true;
                 upsertItem(item);
             },
-            onDone: () => {
+            onDone: (result) => {
+                if (result?.configurationChanged) dispatch(aiChatApi.util.invalidateTags([...AI_CHAT_CONFIGURATION_TAGS]));
                 if (stoppedRef.current) return;
                 const uid = threadUidRef.current;
                 dispatch(aiChatActions.finishStreaming());
-                if (uid != null && sawProposalRef.current) {
+                if (uid != null && (sawProposalRef.current || result?.configurationChanged)) {
                     dispatch(aiChatApi.util.invalidateTags([{ type: 'AiChatThreads', id: uid }]));
                 }
             },

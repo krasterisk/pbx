@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { ExternalLink } from 'lucide-react';
 import type { IRoute } from '@krasterisk/shared';
@@ -25,7 +26,7 @@ export interface UsageTabProps {
 export function UsageTab({ kind, uid, showTorouteCaveat = kind === 'route' }: UsageTabProps) {
   const { t } = useTranslation();
   const skip = uid == null || uid === '' || !isRouteReferenceApiKind(kind);
-  const { data, isLoading, isError } = useGetUsageQuery(
+  const { data, isLoading, isError, refetch } = useGetUsageQuery(
     { kind, uid: uid ?? '' },
     { skip },
   );
@@ -64,17 +65,7 @@ export function UsageTab({ kind, uid, showTorouteCaveat = kind === 'route' }: Us
       )}
 
       {isError && !skip && (
-        <VStack gap="8" max data-testid="usage-tab-error">
-          <HStack gap="4" align="center">
-            <Text variant="error">{t('references.error', 'Не удалось проверить ссылки')}</Text>
-            <InfoTooltip
-              text={t(
-                'references.errorHint',
-                'Пока проверка не прошла, удаление недоступно',
-              )}
-            />
-          </HStack>
-        </VStack>
+        <QueryErrorState data-testid="usage-tab-error" onRetry={() => void refetch()} message={<>{t('references.error', 'Не удалось проверить ссылки')} <InfoTooltip text={t('references.errorHint', 'Пока проверка не прошла, удаление недоступно')} /></>} />
       )}
 
       {empty && (

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
+import { IsDialOptionsConstraint } from './dto/call-group.dto';
 import { toPublicExten } from '../../shared/utils/tenant-public-id.util';
 import { CallGroupsService } from './call-groups.service';
 import { EndpointsService } from '../endpoints/endpoints.service';
@@ -95,8 +96,28 @@ export class CallGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
       this.toolListCallGroups(),
       this.toolCreateCallGroup(),
       this.toolUpdateMembers(),
+      this.toolUpdateSettings(),
       this.toolDeleteCallGroup(),
     ];
+  }
+
+  private toolUpdateSettings(): AiToolDefinition {
+    const schema = z.strictObject({
+      uid: z.number().int().positive(), name: z.string().trim().min(1).max(128).optional(), strategy: z.enum(STRATEGIES).optional(),
+      ring_time: z.number().int().positive().optional(), cid_prefix: z.string().max(128).optional(),
+      confirmExternal: z.boolean().optional(), confirmDigit: z.string().regex(/^[0-9*#]$/).optional(), skipBusy: z.boolean().optional(),
+      useMohInsteadOfRingback: z.boolean().optional(), dialOptions: z.string().max(2048).refine(value => new IsDialOptionsConstraint().validate(value), 'Invalid Dial options').optional(),
+    });
+    return defineMutationTool({ name: 'update_call_group', description: 'Изменить настройки существующей группы: имя, стратегия, время дозвона, префикс CallerID, подтверждение внешнего вызова, пропуск занятых и опции Dial. Состав меняется отдельным update_call_group_members.', entityType: 'call_group', schemaVersion: 'call-group-settings-1', input: schema, args: schema, reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        if (Object.keys(input).length < 2) return { refused: true, message: 'Не указано изменение.' };
+        const current = await this.callGroupsService.findOne(input.uid, ctx.vpbxUserUid);
+        const before = Object.fromEntries(Object.keys(input).filter(key => key !== 'uid').map(key => [key, (current as unknown as Record<string, unknown>)[key] ?? null]));
+        return this.proposal('update_call_group', current.name, input, before, { ...before, ...input }, ['Изменить настройки группы вызова']);
+      },
+      revalidate: async (args, ctx) => { await this.callGroupsService.findOne(args.uid, ctx.vpbxUserUid); return { ok: true, args }; },
+      apply: async ({ uid, ...patch }, ctx) => { await this.callGroupsService.update(uid, patch, ctx.vpbxUserUid); },
+    });
   }
 
   getStateProvider(): AiStateProvider {

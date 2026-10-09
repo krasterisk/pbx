@@ -32,6 +32,8 @@ describe('looksLikeUserConfirm', () => {
     'согласна',
     'делай',
     'применяй',
+    'Да, примени',
+    'примени карточку',
     'ок, делай',
     'apply',
   ])('accepts %s', (text) => {
@@ -48,6 +50,8 @@ describe('looksLikeUserConfirm', () => {
     'таймаут 30',
     'ок',
     'да',
+    'Да, примени если настройки проверены',
+    'Не примени карточку',
   ])('rejects %s', (text) => {
     expect(looksLikeUserConfirm(text)).toBe(false);
   });

@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -58,7 +59,7 @@ const CdrReportPage = memo(() => {
       : activeTab;
 
   const queryParams = filtersToQueryParams(filters, page, PAGE_SIZE);
-  const { data: listData, isLoading: listLoading, isFetching } = useGetCdrListQuery(queryParams);
+  const { data: listData, isLoading: listLoading, isFetching, isError: listLoadError, refetch: retryList } = useGetCdrListQuery(queryParams);
   const { data: statsData, isLoading: statsLoading } = useGetCdrStatsQuery({
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
@@ -67,7 +68,7 @@ const CdrReportPage = memo(() => {
     search: filters.search,
   });
   const [triggerExport, { isFetching: isExporting }] = useLazyExportCdrQuery();
-  const { data: voicemailMessages, isLoading: voicemailLoading } = useGetVoicemailMessagesQuery(
+  const { data: voicemailMessages, isLoading: voicemailLoading, isError: voicemailLoadError, refetch: retryVoicemail } = useGetVoicemailMessagesQuery(
     undefined,
     { skip: currentTab === 'analytics' },
   );
@@ -212,6 +213,7 @@ const CdrReportPage = memo(() => {
         </CardHeader>
         <CardContent className={cls.cardContent}>
           {currentTab === 'journal' ? (
+            listLoadError ? <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryList()} /> :
             <Flex
               direction="column"
               align="stretch"
@@ -237,7 +239,7 @@ const CdrReportPage = memo(() => {
             </VStack>
           ) : (
             <Flex direction="column" align="stretch" className={cls.tableScroll} max>
-              {voicemailLoading ? (
+              {voicemailLoadError ? <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryVoicemail()} /> : voicemailLoading ? (
                 <Text variant="muted" className={cls.vmEmpty}>{t('common.loading', 'Загрузка...')}</Text>
               ) : (voicemailMessages ?? []).length === 0 ? (
                 <Text variant="muted" className={cls.vmEmpty}>{t('cdr.voicemail.empty', 'Нет голосовых сообщений')}</Text>

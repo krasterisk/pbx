@@ -13,6 +13,7 @@ import { McpToolsService } from '../mcp/mcp-tools.service';
 import { PbxAgentLlmClient } from './pbx-agent-llm.client';
 import { PbxContextBuilderService } from './pbx-context-builder.service';
 import { PbxAgentThreadService } from './pbx-agent-thread.service';
+import { PbxAgentDiffService } from './pbx-agent-diff.service';
 import { PbxConversationBriefService } from './pbx-conversation-brief.service';
 import { AgentIntentClassifierService } from './agent-intent-classifier.service';
 import { AgentSkillRegistryService } from '../ai-platform/agent-skill-registry.service';
@@ -105,6 +106,7 @@ export class PbxAgentLoopService {
     private readonly intentClassifier: AgentIntentClassifierService,
     private readonly skillRegistry: AgentSkillRegistryService,
     private readonly workflows: PbxWorkflowRunnerService,
+    private readonly proposals?: PbxAgentDiffService,
   ) {}
 
   /**
@@ -198,12 +200,33 @@ export class PbxAgentLoopService {
       threadUid,
     };
     const pendingWorkflow = await this.workflows.findLatestPendingForThread(threadUid, proposalCtx);
+    const pendingProposal = !pendingWorkflow && this.proposals
+      ? await this.proposals.findLatestPendingForThread(threadUid, proposalCtx) : null;
+    const needsSecureInput = pendingWorkflow?.steps?.some(step => step.requiresSecureInput && step.status !== 'applied') || pendingProposal?.after?.requiresSecureInput === true;
+
+    if (looksLikeUserConfirm(message) && needsSecureInput) {
+      const closing = 'Введите пароль в защищённом поле карточки и нажмите «Применить». Пароль в чат отправлять не нужно.';
+      const row = await this.threads.appendMessage(threadUid, tenantUid, authorUid, { role: 'assistant', content: closing, close_kind: 'wait_confirm', visibility: 'public' });
+      yield { name: 'item', data: { kind: 'assistant', id: `m${row.uid}`, text: closing, closeKind: 'wait_confirm', createdAt: this.createdAtIso(row.created_at) } };
+      yield { name: 'done', data: { closeKind: 'wait_confirm' } };
+      return;
+    }
+
+    if (looksLikeUserConfirm(message) && pendingProposal && this.proposals) {
+      const applied = await this.proposals.apply(pendingProposal.proposalId, proposalCtx);
+      const closing = applied.ok ? 'Изменения из карточки применены.' : `Карточка не применена: ${scrubToolIdsFromPublicText(applied.reason ?? applied.error ?? 'ошибка применения')}`;
+      const closeKind = applied.ok ? 'complete' : 'question';
+      const row = await this.threads.appendMessage(threadUid, tenantUid, authorUid, { role: 'assistant', content: closing, close_kind: closeKind, visibility: 'public' });
+      yield { name: 'item', data: { kind: 'assistant', id: `m${row.uid}`, text: closing, closeKind, createdAt: this.createdAtIso(row.created_at) } };
+      yield { name: 'done', data: { closeKind, configurationChanged: applied.ok } };
+      return;
+    }
 
     if (looksLikeUserConfirm(message) && pendingWorkflow) {
       try {
         const applied = await this.workflows.apply(pendingWorkflow.workflowId, proposalCtx);
         const closing = applied.status === 'applied'
-          ? 'План применён. Сущности из карточки созданы.'
+          ? 'План применён. Изменения из карточки сохранены.'
           : applied.error
             ? `Не удалось применить план: ${scrubToolIdsFromPublicText(applied.error)}`
             : 'Карточка не применена.';
@@ -224,7 +247,7 @@ export class PbxAgentLoopService {
             createdAt: this.createdAtIso(row.created_at),
           },
         };
-        yield { name: 'done', data: { closeKind } };
+        yield { name: 'done', data: { closeKind, configurationChanged: applied.status === 'applied' } };
         return;
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
@@ -238,12 +261,12 @@ export class PbxAgentLoopService {
       messages.push({
         role: 'system',
         content:
-          'Пользователь подтвердил. Не вызывай create_call_group снова и не передавай поля одного члена (member_type/value) как аргументы группы. ' +
-          'Если группа таймаута уже есть (например exten 9010), сразу вызови create_ivr с подтверждёнными name/prompts/menu_items (t → kind group, target 9010). ' +
-          'Карточку в UI подтверждает пользователь — не придумывай apply tool.',
+          'Подтверждение относится к текущему брифу и последнему предложению. Не создавай повторно уже созданные сущности. ' +
+          'Прочитай текущее состояние, продолжи только оставшиеся шаги согласованного плана. Если активной карточки нет, подготовь актуальное предложение по истории, не угадывай новый сценарий. ' +
+          'Карточку в UI подтверждает пользователь — не придумывай apply tool. Если нужна защищённая форма ввода пароля, направь к ней, не проси секрет в чат.',
       });
       forceToolChoice = true;
-    } else if (pendingWorkflow) {
+    } else if (pendingWorkflow || pendingProposal) {
       messages.push({
         role: 'system',
         content:
@@ -284,6 +307,7 @@ export class PbxAgentLoopService {
         return;
       }
       if (decision.mode === 'configure') {
+        forceToolChoice = true;
         const setup = yield* this.tryCompileSetup({
           message,
           threadUid,
@@ -307,7 +331,7 @@ export class PbxAgentLoopService {
     const preferTools =
       classification.confidence >= 0.5 &&
       classification.skillNames.some((name) =>
-        ['ivrs', 'endpoints', 'call-groups', 'queues', 'routes', 'trunks', 'pbx-setup'].includes(name),
+        ['ivrs', 'endpoints', 'call-groups', 'queues', 'routes', 'trunks', 'pbx-setup', 'platform-configuration', 'contexts', 'settings'].includes(name),
       );
 
     while (true) {

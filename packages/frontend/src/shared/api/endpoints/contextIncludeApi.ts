@@ -19,12 +19,12 @@ const contextIncludeApi = rtkApi.injectEndpoints({
 
     addContextInclude: builder.mutation<IContextInclude, { contextUid: number; includeUid: number }>({
       query: (data) => ({ url: '/context-includes', method: 'POST', body: data }),
-      invalidatesTags: [{ type: 'Contexts', id: 'INCLUDES' }],
+      invalidatesTags: ['Contexts'],
     }),
 
     removeContextInclude: builder.mutation<void, number>({
       query: (uid) => ({ url: `/context-includes/${uid}`, method: 'DELETE' }),
-      invalidatesTags: [{ type: 'Contexts', id: 'INCLUDES' }],
+      invalidatesTags: ['Contexts'],
     }),
   }),
 });

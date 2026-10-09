@@ -53,6 +53,13 @@ describe('TenantSettingsService (D-19, D-17)', () => {
   });
 
   describe('getAll', () => {
+    it('defaults expert mode off and persists a tenant-wide boolean preference', async () => {
+      expect((await service.getAll(42))['endpoints.expert_mode']).toBe(false);
+      await service.setMany(42, { 'endpoints.expert_mode': true });
+      expect((await service.getAll(42))['endpoints.expert_mode']).toBe(true);
+      expect((await service.getAll(43))['endpoints.expert_mode']).toBe(false);
+      await expect(service.setMany(42, { 'endpoints.expert_mode': 'true' })).rejects.toThrow(BadRequestException);
+    });
     it('returns D-17 defaults true for a tenant with no rows', async () => {
       const result = await service.getAll(42);
 

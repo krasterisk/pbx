@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react';
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { Loader, Text } from '@/shared/ui';
 import { VStack, Flex } from '@/shared/ui/Stack';
@@ -36,9 +37,10 @@ export const ModuleHub = memo(function ModuleHub() {
   const { t } = useTranslation();
   const user = useAppSelector((s) => s.auth.user);
   const level = user?.level as UserLevel | undefined;
-  const { active, marketplace, isLoading, toggleFavorite } = useHubModules();
+  const { active, marketplace, isLoading, isError, refetch, toggleFavorite } = useHubModules();
   const reduceMotion = usePrefersReducedMotion();
 
+  if (isError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={refetch} />;
   if (isLoading) {
     return (
       <Flex className={cls.loaderWrap} align="center" justify="center">

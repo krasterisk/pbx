@@ -264,7 +264,6 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
             onClick={() => { setAgentOpen((open) => agentMinimized || !open); setAgentMinimized(false); }}
             aria-label={t('aiChat.openAssistant')}
             aria-pressed={agentOpen && !agentMinimized}
-            title={agentShortcutHint}
           >
             <Sparkles size={16} aria-hidden />
           </Button>
@@ -279,7 +278,6 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
               id="shell-cmdk-trigger"
               onClick={() => setPaletteOpen(true)}
               aria-label={t('commandPalette.placeholder')}
-              title={searchShortcutHint}
             >
               <Search size={16} aria-hidden />
             </Button>

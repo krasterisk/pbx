@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -14,7 +15,7 @@ import {
 export const SpeechAnalyticsRecordingPage = memo(() => {
   const { t } = useTranslation();
   const { id = '' } = useParams();
-  const { data, isError } = useGetSaRunQuery(id, { skip: !id });
+  const { data, isError, refetch } = useGetSaRunQuery(id, { skip: !id });
   const [reanalyze] = useReanalyzeSaRunMutation();
   const [review] = useReviewSaRunMutation();
   const [correct] = useCorrectSaTranscriptMutation();
@@ -22,7 +23,7 @@ export const SpeechAnalyticsRecordingPage = memo(() => {
   const [value, setValue] = useState('true');
   const [revisionId, setRevisionId] = useState('');
   if (isError) {
-    return <Text data-testid="speech-analytics-recording">{t('speechAnalytics.forbidden')}</Text>;
+    return <QueryErrorState data-testid="speech-analytics-recording" message={t('speechAnalytics.forbidden')} onRetry={() => void refetch()} />;
   }
   const metrics = data?.result ? JSON.parse(data.result.metric_results) as Array<{ id: string; status: string; value: unknown }> : [];
   return (

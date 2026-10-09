@@ -91,6 +91,18 @@ function pendingView(partial: Partial<IAgentProposalView> = {}): IAgentProposalV
 }
 
 describe('DiffConfirmCard', () => {
+    it('requires protected input for an auth trunk and submits it only to confirmation', async () => {
+        render(<DiffConfirmCard proposal={pendingView({ entityType: 'trunk', entityLabel: 'Carrier', after: { requiresSecureInput: true } })} />);
+        const button = screen.getByRole('button', { name: 'aiChat.card.apply' });
+        expect(button).toBeDisabled();
+        const field = screen.getByLabelText(/aiChat.card.providerPassword/);
+        expect(field).toHaveAttribute('type', 'password');
+        fireEvent.change(field, { target: { value: 'protected-secret' } });
+        expect(button).not.toBeDisabled();
+        fireEvent.click(button);
+        await vi.waitFor(() => expect(confirmCalls).toContainEqual({ proposalId: PROPOSAL_ID, secureInputs: { proposal: { password: 'protected-secret' } } }));
+        expect(screen.queryByText('protected-secret')).toBeNull();
+    });
     beforeEach(() => {
         confirmCalls.length = 0;
         rejectCalls.length = 0;
@@ -403,7 +415,7 @@ describe('DiffConfirmCard', () => {
         expect(confirmCalls).toHaveLength(0);
     });
 
-    it('confirm and reject mutations send only the proposal identifier', () => {
+    it('confirmation accepts protected input without client apply arguments', () => {
         const src = readFileSync(
             join(process.cwd(), 'src/shared/api/endpoints/aiChatApi.ts'),
             'utf8',
@@ -413,8 +425,9 @@ describe('DiffConfirmCard', () => {
         expect(src).toMatch(/url:\s*`\/ai-chat\/proposals\/\$\{proposalId\}\/apply`/);
         expect(src).toMatch(/url:\s*`\/ai-chat\/proposals\/\$\{proposalId\}\/reject`/);
         const confirmBlock = src.slice(src.indexOf('confirmAiChatProposal'), src.indexOf('rejectAiChatProposal'));
-        const rejectBlock = src.slice(src.indexOf('rejectAiChatProposal'), src.indexOf('export { aiChatApi }'));
-        expect(confirmBlock).not.toMatch(/body:/);
+        const rejectBlock = src.slice(src.indexOf('rejectAiChatProposal'), src.indexOf('getPendingAiChatWorkflows'));
+        expect(confirmBlock).toMatch(/body:\s*\{\s*secureInputs:/);
+        expect(confirmBlock).not.toMatch(/applyPayload|args:|confirm:\s*true/);
         expect(rejectBlock).not.toMatch(/body:/);
         expect(confirmBlock).not.toMatch(/confirm:\s*true/);
         expect(src).not.toMatch(/entityId|entity_id/);

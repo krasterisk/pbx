@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { SecureConfirmationDto } from './dto/secure-confirmation.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -29,8 +30,8 @@ export class AgentProposalsController {
   @ApiOperation({ summary: 'Apply a pending proposal by identifier' })
   @Throttle({ global: { limit: 10, ttl: 60000 } })
   @Post(':proposalId/apply')
-  apply(@Param('proposalId') proposalId: string, @Req() req: any) {
-    return this.diffService.apply(proposalId, contextFromToken(req));
+  apply(@Param('proposalId') proposalId: string, @Req() req: any, @Body() body: SecureConfirmationDto = {}) {
+    return this.diffService.apply(proposalId, contextFromToken(req), body.secureInputs);
   }
 
   @ApiOperation({ summary: 'Reject a pending proposal by identifier' })

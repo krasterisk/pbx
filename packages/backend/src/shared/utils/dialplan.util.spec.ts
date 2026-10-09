@@ -438,7 +438,8 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         vpbx,
       );
       expect(dp).toContain('RAND');
-      expect(dp).toContain('Return()');
+      expect(dp).toContain('n(tc_done),NoOp(Trunk carousel completed)');
+      expect(dp).not.toContain('Return()');
       expect(dp).not.toContain('Hangup');
       expect(dp).toContain('Set(TC_LIST=trunkA|trunkB)');
       expect(dp).toContain('Dial(PJSIP/${EXTEN}@${TC_TRUNK_ID},${TC_TIMEOUT},tT)');
@@ -564,7 +565,7 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         expect(dp).toContain('internal/dialplan/directory-lookup');
         expect(dp).toContain('directory_uid=42');
         expect(dp).toContain('key=${URIENCODE(${KRSK_ORIG_CALLER_NUM})}');
-        expect(dp).toContain('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
+        expect(dp).toContain('NoOp(Keep Caller ID at trunk entry)');
         expect(dp).toContain('Dial(PJSIP/${EXTEN}@out1,60,tT)');
         expect(dp).not.toContain('phonebook-lookup');
         expect(dp).not.toContain('PB_RAW');
@@ -2302,4 +2303,13 @@ describe('CallerID name without rewriting number', () => {
     expect(dp).toContain('Set(CALLERID(name)=Sales)');
     expect(dp.indexOf('CALLERID(name)')).toBeLessThan(dp.indexOf('Dial('));
   });
+});
+
+describe('legacy notification execution',()=>{
+ it('renders legacy message exactly as canonical body',()=>{
+  const message='Звонок завершён: '+ '$'+'{CALLERID(num)} → '+ '$'+'{EXTEN}, статус '+ '$'+'{DIALSTATUS}';
+  const legacy=AsteriskDialplanUtils.actionToDialplan({id:'n',type:'notify',params:{integration_uid:'1',message,target:''}},42);
+  const canonical=AsteriskDialplanUtils.actionToDialplan({id:'n',type:'notify',params:{integration_uid:'1',body:message,target:''}},42);
+  expect(legacy).toBe(canonical);expect(legacy).toContain('Звонок завершён');
+ });
 });

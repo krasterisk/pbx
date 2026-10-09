@@ -1,3 +1,4 @@
+import { normalizeNotifyParams } from '@krasterisk/shared';
 import type { ActionType, IRouteAction } from '@krasterisk/shared';
 import { createActionId } from './actionIds';
 import { pasteStep } from './clipboard';
@@ -153,7 +154,7 @@ export function editorReducer(
       const actions = state.actions.slice();
       actions[index] = {
         ...current,
-        params: { ...current.params, ...action.patch },
+        params: current.type === 'callerid' && action.patch.version === 2 ? { ...action.patch } : current.type === 'notify' ? normalizeNotifyParams({ ...current.params, ...action.patch }) : { ...current.params, ...action.patch },
       };
       return { ...state, actions };
     }

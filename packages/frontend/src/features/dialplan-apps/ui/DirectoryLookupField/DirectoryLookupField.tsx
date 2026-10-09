@@ -312,11 +312,13 @@ export function SchemaDirectoryLookupField({
   onChange,
   readOnly,
   expectedType,
+  showOnMissing,
 }: {
   value: DirectoryValueSource | undefined;
   onChange: (next: DirectoryValueSource) => void;
   readOnly?: boolean;
   expectedType?: DirectoryFieldType;
+  showOnMissing?: boolean;
 }) {
   const refs = useSchemaRefs(['dialplanDirectories']);
   const directories = (refs.dialplanDirectories?.items ?? []).map((item) => ({
@@ -330,6 +332,7 @@ export function SchemaDirectoryLookupField({
       directories={directories}
       readOnly={readOnly}
       expectedType={expectedType}
+      showOnMissing={showOnMissing}
     />
   );
 }

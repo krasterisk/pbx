@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
@@ -120,10 +121,7 @@ export const ContactsGrid = memo(({ baseUid }: ContactsGridProps) => {
       <CardContent className={cls.content}>
         {deleteError && <Text role="alert">{deleteError}</Text>}
         {isError ? (
-          <VStack gap="8">
-            <Text role="alert">{t('autodial.common.loadFailed')}</Text>
-            <Button onClick={() => void refetch()}>{t('autodial.common.retry')}</Button>
-          </VStack>
+          <QueryErrorState message={t('autodial.common.loadFailed')} onRetry={() => void refetch()} retryLabel={t('autodial.common.retry')} />
         ) : isLoading || (isFetching && !data) ? (
           <Flex justify="center" className={cls.loading}>
             <Loader2 size={24} className={cls.spinner} />

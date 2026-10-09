@@ -53,7 +53,9 @@ function isRuleVisible(rule: FieldVisibleWhenRule, params: Record<string, unknow
     : String(actual ?? '') === expected;
 }
 
-function isVisibleWhenArray(cond: FieldSchema['visibleWhen']): cond is readonly FieldVisibleWhenRule[] {
+function isVisibleWhenArray(
+  cond: FieldSchema['visibleWhen'],
+): cond is readonly FieldVisibleWhenRule[] {
   return Array.isArray(cond);
 }
 
@@ -123,11 +125,27 @@ const CATALOG_DEFAULTS: Record<
   OptionsSource,
   { href: string; sectionKey: string; sectionFallback: string }
 > = {
-  queues: { href: '/queues', sectionKey: 'routes.chain.catalog.queuesSection', sectionFallback: 'Очереди' },
-  trunks: { href: '/trunks', sectionKey: 'routes.chain.catalog.trunksSection', sectionFallback: 'Транки' },
-  trunkIds: { href: '/trunks', sectionKey: 'routes.chain.catalog.trunksSection', sectionFallback: 'Транки' },
+  queues: {
+    href: '/queues',
+    sectionKey: 'routes.chain.catalog.queuesSection',
+    sectionFallback: 'Очереди',
+  },
+  trunks: {
+    href: '/trunks',
+    sectionKey: 'routes.chain.catalog.trunksSection',
+    sectionFallback: 'Транки',
+  },
+  trunkIds: {
+    href: '/trunks',
+    sectionKey: 'routes.chain.catalog.trunksSection',
+    sectionFallback: 'Транки',
+  },
   ivrs: { href: '/ivrs', sectionKey: 'routes.chain.catalog.ivrsSection', sectionFallback: 'IVR' },
-  prompts: { href: '/prompts', sectionKey: 'routes.chain.catalog.promptsSection', sectionFallback: 'Записи' },
+  prompts: {
+    href: '/prompts',
+    sectionKey: 'routes.chain.catalog.promptsSection',
+    sectionFallback: 'Записи',
+  },
   dialplanDirectories: {
     href: '/directories',
     sectionKey: 'routes.chain.catalog.directoriesSection',
@@ -168,11 +186,6 @@ const CATALOG_DEFAULTS: Record<
     sectionKey: 'routes.chain.catalog.endpointsSection',
     sectionFallback: 'Абоненты',
   },
-  numberLists: {
-    href: '/numbers',
-    sectionKey: 'routes.chain.catalog.numberListsSection',
-    sectionFallback: 'Списки доступа',
-  },
   notifications: {
     href: '/notifications',
     sectionKey: 'routes.chain.catalog.notificationsSection',
@@ -206,7 +219,7 @@ function FieldShell({
   const inlineHint = Boolean(hideLabel && hint);
 
   return (
-    <VStack gap="8" max className={styles.field}>
+    <VStack gap="8" max className={styles.field} data-field-key={id.replace('schema-field-', '')}>
       {!hideLabel ? (
         <HStack gap="4" align="center">
           <Label htmlFor={id} className={styles.label}>
@@ -225,7 +238,7 @@ function FieldShell({
         children
       )}
       {error ? (
-        <Text id={`${id}-error`} variant="muted" className={styles.error}>
+        <Text id={`${id}-error`} variant="error" role="alert" className={styles.error}>
           {error}
         </Text>
       ) : null}
@@ -266,7 +279,11 @@ function RefSelect({
     catalog?.sectionFallback ?? defaults.sectionFallback,
   );
   const aria = loading ? loadingLabel : empty ? emptyLabel : label;
-  const placeholder = loading ? loadingLabel : empty ? emptyLabel : t('routes.chain.catalog.choose', 'Выберите');
+  const placeholder = loading
+    ? loadingLabel
+    : empty
+      ? emptyLabel
+      : t('routes.chain.catalog.choose', 'Выберите');
   const selected = matchCatalogValue(value, items);
 
   return (
@@ -291,10 +308,10 @@ function RefSelect({
       {empty ? (
         <>
           <Text variant="muted">
-            {t('routes.chain.catalog.emptyHint', 'Сначала создайте запись в разделе «{{section}}»').replace(
-              '{{section}}',
-              sectionName,
-            )}
+            {t(
+              'routes.chain.catalog.emptyHint',
+              'Сначала создайте запись в разделе «{{section}}»',
+            ).replace('{{section}}', sectionName)}
           </Text>
           {/* catalogLink exception: cross-section link opens in a new tab, Text has no anchor props */}
           <a
@@ -319,6 +336,7 @@ function renderControl(
   params: Record<string, unknown>,
   onChange: (patch: Record<string, unknown>) => void,
   extras: {
+    t: (key:string, fallback:string)=>string;
     id: string;
     label: string;
     hint?: string;
@@ -332,7 +350,7 @@ function renderControl(
     autodialFields?: Array<{ value: string; label: string }>;
   },
 ): ReactNode {
-  const { id, label, hint, readOnly, invalid, errorId, refs, tenantUid, showErrors } = extras;
+  const { t, id, label, hint, readOnly, invalid, errorId, refs, tenantUid, showErrors } = extras;
   const raw =
     field.kind === 'value-source' && field.key === 'target'
       ? (params.target ?? params.group ?? params.queue)
@@ -415,7 +433,7 @@ function renderControl(
           <option value="">{label}</option>
           {(field.options ?? []).map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label ?? opt.labelKey}
+              {t(opt.labelKey, opt.label ?? opt.labelKey)}
             </option>
           ))}
         </Select>
@@ -428,7 +446,7 @@ function renderControl(
             onChange={(next) => onChange({ [field.key]: next })}
             options={(field.options ?? []).map((opt) => ({
               value: opt.value,
-              label: opt.label ?? opt.labelKey,
+              label: t(opt.labelKey, opt.label ?? opt.labelKey),
             }))}
             placeholder={label}
           />
@@ -473,8 +491,8 @@ function renderControl(
             onChange={(next) => onChange({ [field.key]: next })}
             options={(field.options ?? []).map((opt) => ({
               value: opt.value,
-              label: opt.label ?? opt.labelKey,
-              description: opt.description ?? opt.descriptionKey,
+              label: t(opt.labelKey, opt.label ?? opt.labelKey),
+              description: opt.descriptionKey ? t(opt.descriptionKey, opt.description ?? opt.descriptionKey) : opt.description,
             }))}
           />
         </div>
@@ -487,7 +505,7 @@ function renderControl(
           onChange={(next) => onChange({ [field.key]: next })}
           options={(field.options ?? []).map((opt) => ({
             value: opt.value,
-            label: opt.label ?? opt.labelKey,
+            label: t(opt.labelKey, opt.label ?? opt.labelKey),
           }))}
         />
       );
@@ -495,10 +513,12 @@ function renderControl(
       return (
         <ValueSourceField
           value={raw as ValueSource | number | string | undefined}
-          onChange={(next) => onChange({
-            [field.key]: next,
-            ...(field.key === 'target' ? { group: undefined } : {}),
-          })}
+          onChange={(next) =>
+            onChange({
+              [field.key]: next,
+              ...(field.key === 'target' ? { group: undefined } : {}),
+            })
+          }
           tenantUid={tenantUid}
           label={label}
           hint={hint}
@@ -508,6 +528,7 @@ function renderControl(
           mode={field.valueSourceMode}
           readOnly={readOnly}
           showErrors={showErrors || invalid}
+          invalid={!!errorId}
           catalog={field.optionsSource ? refs?.[field.optionsSource] : undefined}
           directories={(refs?.dialplanDirectories?.items ?? []).map((item) => ({
             uid: Number(item.value),
@@ -558,19 +579,29 @@ export function SchemaFields({
     const renderCtxExtras = { previewPatterns, tenantUid };
 
     if (field.kind === 'value-source') {
-      return renderControl(field, params, onChange, {
-        id,
-        label,
-        hint,
-        readOnly,
-        invalid,
-        errorId,
-        refs,
-        tenantUid,
-        showErrors,
-        previewPatterns,
-        autodialFields,
-      });
+      return (
+        <VStack gap="4" max data-field-key={field.key}>
+          {renderControl(field, params, onChange, {
+            t,
+            id,
+            label,
+            hint,
+            readOnly,
+            invalid,
+            errorId,
+            refs,
+            tenantUid,
+            showErrors,
+            previewPatterns,
+            autodialFields,
+          })}
+          {error && (
+            <Text id={errorId} variant="error" role="alert">
+              {error}
+            </Text>
+          )}
+        </VStack>
+      );
     }
 
     if (field.kind === 'custom' && typeof field.render === 'function') {
@@ -598,6 +629,7 @@ export function SchemaFields({
         hideLabel={field.hideLabel}
       >
         {renderControl(field, params, onChange, {
+          t,
           id,
           label,
           hint,

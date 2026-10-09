@@ -193,7 +193,7 @@ function emitCallerIdApply(
   ctx: BuildTrunkCarouselCtx,
 ): string[] {
   const callerId = entry.callerId;
-  const apps = ['Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})'];
+  const apps = ['NoOp(Keep Caller ID at trunk entry)'];
   const name = sanitizeListField(entry.callerIdName);
   if (name) apps.push(`Set(CALLERID(name)=${name})`);
   if (isDirectoryCaller(callerId)) {
@@ -233,7 +233,7 @@ function emitSingleTrunk(entry: ITrunkCarouselItem, ctx: BuildTrunkCarouselCtx):
   }
   apps.push(...emitCallerIdApply({ ...entry, trunkId }, groups, ctx));
   apps.push(`Dial(PJSIP/${dest}@${trunkId},${timeout},${opts})`);
-  apps.push('Return()');
+  apps.push('NoOp(Trunk attempt completed)');
   return joinDialplan(apps[0], apps.slice(1).map((app) => `n,${app}`));
 }
 
@@ -285,6 +285,7 @@ export function buildTrunkCarousel(
     }
   }
   rest.push(
+    'n,Set(TC_ORIG_NUM=${CALLERID(num)})',
     'n,Set(TC_ORIG_NAME=${CALLERID(name)})',
     `n,Set(TC_NAMES=${names})`,
     `n,Set(TC_TIMEOUTS=${timeouts})`,
@@ -300,7 +301,7 @@ export function buildTrunkCarousel(
     'n,Set(TC_TRIED=0)',
     'n(tc_try),Set(TC_TRUNK_ID=${CUT(TC_LIST,|,${TC_I})})',
     'n,Set(TC_TIMEOUT=${CUT(TC_TIMEOUTS,|,${TC_I})})',
-    'n,Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})',
+    'n,Set(CALLERID(num)=${TC_ORIG_NUM})',
     'n,Set(CALLERID(name)=${TC_ORIG_NAME})',
     'n,Set(TC_NAME=${CUT(TC_NAMES,|,${TC_I})})',
     'n,ExecIf($["${TC_NAME}" != ""]?Set(CALLERID(name)=${TC_NAME}))',
@@ -334,12 +335,12 @@ export function buildTrunkCarousel(
     'n,Set(CALLERID(num)=${CUT(CID_POOL,|,${CID_I})})',
     'n,Set(DB(${CID_DBKEY}/last)=${CALLERID(num)})',
     `n(tc_dial),Dial(PJSIP/${dest}@\${TC_TRUNK_ID},\${TC_TIMEOUT},${opts})`,
-    'n,ExecIf($["${DIALSTATUS}" = "ANSWER"]?Return())',
+    'n,GotoIf($["${DIALSTATUS}" = "ANSWER"]?tc_done)',
     'n,Set(TC_I=$[${TC_I} + 1])',
     'n,ExecIf($[${TC_I} > ${TC_N}]?Set(TC_I=1))',
     'n,Set(TC_TRIED=$[${TC_TRIED} + 1])',
     'n,GotoIf($[${TC_TRIED} < ${TC_N}]?tc_try)',
-    'n,Return()',
+    'n(tc_done),NoOp(Trunk carousel completed)',
   );
 
   return joinDialplan(`Set(TC_LIST=${list})`, rest);

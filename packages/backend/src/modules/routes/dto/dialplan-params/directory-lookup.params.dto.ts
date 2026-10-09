@@ -1,5 +1,8 @@
 import {
   IsArray,
+  IsOptional,
+  IsObject,
+  ArrayMaxSize,
   IsIn,
   IsInt,
   Min,
@@ -35,6 +38,7 @@ export class DirectoryLookupOutputDto {
 }
 
 export class DirectoryLookupParamsDto {
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   directoryUid: number;
@@ -50,4 +54,21 @@ export class DirectoryLookupParamsDto {
 
   @IsIn(['keep', 'empty'])
   onMissing: 'keep' | 'empty';
+
+  @IsOptional()
+  @IsIn(['on_match', 'on_no_match'])
+  matchMode?: string;
+
+  @IsOptional()
+  @IsIn(['set_name','set_number','redirect','drop','map_fields','custom'])
+  behavior?: string;
+
+  @IsOptional()
+  @IsObject()
+  behaviorParams?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  actions?: unknown[];
 }

@@ -97,4 +97,10 @@ describe('resolveDialPreviewOptions', () => {
     expect(opts[0].label).toBe('${OUTNUM}');
     expect(opts[0].value).toBe('79001234567');
   });
+  it('preserves Unicode and surrounding spaces in text previews', () => {
+    expect(resolveDialPreviewOptions({source:'fixed',value:' 😀 Иван '},{preserveText:true})[0]).toMatchObject({value:' 😀 Иван ',exact:true});
+    expect(resolveDialPreviewOptions(' Отдел ',{preserveText:true})[0].value).toBe(' Отдел ');
+    expect(resolveDialPreviewOptions({source:'fixed',value:' 201 '})[0].value).toBe('201');
+  });
+
 });

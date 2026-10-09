@@ -322,7 +322,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     type: 'callerid',
     labelKey: 'routes.action.callerid',
     category: 'system',
-    defaultParams: { mode: 'static', callerid: '' },
+    defaultParams: { version: 2 },
     schema: buildCallerIdSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeCallerId,
   },

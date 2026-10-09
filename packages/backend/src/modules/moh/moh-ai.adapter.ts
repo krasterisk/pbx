@@ -70,7 +70,19 @@ export class MohAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListClasses(), this.toolDescribeClass(), this.toolAssignClass()];
+    return [this.toolListClasses(), this.toolDescribeClass(), this.toolAssignClass(), this.toolUpdateClass()];
+  }
+
+  private toolUpdateClass(): AiToolDefinition {
+    const schema = z.strictObject({ name: z.string().min(1).regex(/^[A-Za-z0-9_-]+$/), sort: z.enum(['random', 'alpha']) });
+    return defineMutationTool({ name: 'update_moh_class', description: 'Изменить порядок воспроизведения существующего класса музыки. Треки сохраняются; загрузка файлов не выполняется.', entityType: 'moh', schemaVersion: 'moh-order-1', input: schema, args: schema, reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        const row = await this.mohService.findOne(input.name, ctx.vpbxUserUid);
+        return this.proposal('update_moh_class', row.displayName || row.name, input, { sort: row.sort }, { sort: input.sort }, ['Изменить порядок музыки на удержании']);
+      },
+      revalidate: async (args, ctx) => { await this.mohService.findOne(args.name, ctx.vpbxUserUid); return { ok: true, args }; },
+      apply: async (args, ctx) => { await this.mohService.update(args.name, { sort: args.sort }, ctx.vpbxUserUid); },
+    });
   }
 
   getStateProvider(): AiStateProvider {

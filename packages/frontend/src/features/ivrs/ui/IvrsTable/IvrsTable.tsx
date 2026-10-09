@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -30,7 +31,7 @@ export const IvrsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: ivrs = [], isLoading } = useGetIvrsQuery();
+  const { data: ivrs = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetIvrsQuery();
   const [deleteIvr] = useDeleteIvrMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteIvrsMutation();
 
@@ -123,6 +124,7 @@ export const IvrsTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

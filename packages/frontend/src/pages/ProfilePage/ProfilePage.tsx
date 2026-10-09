@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Trash2, Upload, UserRound } from 'lucide-react';
@@ -32,7 +33,7 @@ export const ProfilePage = () => {
   const accessToken = useAppSelector((s) => s.auth.accessToken);
   const userId = authUser?.uniqueid ?? 0;
 
-  const { data: user, isLoading } = useGetUserByIdQuery(userId, { skip: !userId });
+  const { data: user, isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetUserByIdQuery(userId, { skip: !userId });
   const [updateUser, { isLoading: isSaving }] = useUpdateUserMutation();
   const [uploadAvatar, { isLoading: isUploading }] = useUploadUserAvatarMutation();
   const [deleteAvatar, { isLoading: isDeleting }] = useDeleteUserAvatarMutation();
@@ -97,8 +98,9 @@ export const ProfilePage = () => {
     }
   };
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (!userId) {
-    return <Text>{t('common.error')}</Text>;
+    return <QueryErrorState message={t('common.error')} />;
   }
 
   return (

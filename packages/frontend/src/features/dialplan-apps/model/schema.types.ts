@@ -29,7 +29,6 @@ export type OptionsSource =
   | 'aiVoiceRobots'
   | 'contexts'
   | 'endpoints'
-  | 'numberLists'
   | 'notifications'
   | 'conferenceRooms';
 

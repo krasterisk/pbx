@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   useReactTable,
   getCoreRowModel,
@@ -62,6 +63,7 @@ export interface DataTableProps<TData> {
   getRowClassName?: (row: TData) => string;
   /** Aria-label for the header “select page” checkbox */
   selectAllAriaLabel?: string;
+  selectRowAriaLabel?: (row: TData) => string;
   /** Row click (journal and other non-CRUD lists). */
   onRowClick?: (row: TData) => void;
   /** Stable test id for a data row. */
@@ -111,6 +113,7 @@ export interface DataTableRef {
 // ---------------------------------------------------------------------------
 
 function ClientPaginationControls<TData>({ table }: { table: Table<TData> }) {
+  const { t } = useTranslation();
   const pageIndex = table.getState().pagination.pageIndex;
   const pageCount = table.getPageCount();
   const totalRows = table.getFilteredRowModel().rows.length;
@@ -121,14 +124,14 @@ function ClientPaginationControls<TData>({ table }: { table: Table<TData> }) {
   return (
     <HStack justify="between" align="center" className="px-4 py-3 border-t border-border">
       <span className="text-xs text-muted-foreground">
-        {pageIndex * pageSize + 1}–{Math.min((pageIndex + 1) * pageSize, totalRows)} из {totalRows}
+        {t('common.tableRange', { start: pageIndex * pageSize + 1, end: Math.min((pageIndex + 1) * pageSize, totalRows), total: totalRows })}
       </span>
       <HStack gap="4" align="center">
         <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          onClick={() => table.setPageIndex(0)}
+          aria-label={t("common.firstPage")} onClick={() => table.setPageIndex(0)}
           disabled={!table.getCanPreviousPage()}
         >
           <ChevronsLeft className="w-4 h-4" />
@@ -137,7 +140,7 @@ function ClientPaginationControls<TData>({ table }: { table: Table<TData> }) {
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          onClick={() => table.previousPage()}
+          aria-label={t("common.previousPage")} onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
         >
           <ChevronLeft className="w-4 h-4" />
@@ -149,7 +152,7 @@ function ClientPaginationControls<TData>({ table }: { table: Table<TData> }) {
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          onClick={() => table.nextPage()}
+          aria-label={t("common.nextPage")} onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
         >
           <ChevronRight className="w-4 h-4" />
@@ -158,7 +161,7 @@ function ClientPaginationControls<TData>({ table }: { table: Table<TData> }) {
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          onClick={() => table.setPageIndex(pageCount - 1)}
+          aria-label={t("common.lastPage")} onClick={() => table.setPageIndex(pageCount - 1)}
           disabled={!table.getCanNextPage()}
         >
           <ChevronsRight className="w-4 h-4" />
@@ -235,6 +238,7 @@ function DataTableInner<TData>(
     renderBanner,
     getRowClassName,
     selectAllAriaLabel,
+    selectRowAriaLabel,
     onRowClick,
     getRowTestId,
     renderExpandedRow,
@@ -330,7 +334,7 @@ function DataTableInner<TData>(
       const filteredRows = table.getFilteredRowModel().rows;
       let rows = filteredRows;
       if (options?.rows === 'selected') {
-        const selectedRows = table.getFilteredSelectedRowModel().rows;
+        const selectedRows = table.getSelectedRowModel().rows;
         if (selectedRows.length > 0) {
           rows = selectedRows;
         }
@@ -455,7 +459,8 @@ function DataTableInner<TData>(
                       <TableCell className="px-4 py-3 w-10">
                         <input
                           type="checkbox"
-                          checked={row.getIsSelected()}
+                          aria-label={selectRowAriaLabel?.(row.original)}
+                      checked={row.getIsSelected()}
                           onChange={row.getToggleSelectedHandler()}
                           onClick={(event) => event.stopPropagation()}
                           className="w-4 h-4 rounded border-border bg-background accent-primary cursor-pointer"

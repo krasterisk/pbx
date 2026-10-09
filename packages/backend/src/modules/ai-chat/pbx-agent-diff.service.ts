@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { randomUUID } from 'crypto';
+import { Op } from 'sequelize';
 import { UserLevel } from '../users/user.model';
 import { RouteApplyService } from '../routes/route-apply.service';
 import { LoggerService } from '../logger/logger.service';
@@ -12,6 +13,8 @@ import {
   type AiMutationContext,
 } from '../ai-platform/ai-mutation.contract';
 import { AgentProposal } from './models/agent-proposal.model';
+import { parseSecureConfirmationInputs, type SecureConfirmationInputs } from './dto/secure-confirmation.dto';
+import { assertNoSecretArgs } from '../ai-platform/ai-secret-redaction';
 import {
   parseAgentDiffProposal,
   toProposalView,
@@ -106,6 +109,7 @@ export class PbxAgentDiffService {
       ? rec.applyPayload
       : {}) as Record<string, unknown>;
     const toolName = typeof payload.tool === 'string' ? payload.tool : '';
+    assertNoSecretArgs((payload.args ?? {}) as Record<string, unknown>);
     const tool =
       toolName && typeof this.registry?.getMutationTool === 'function'
         ? this.registry.getMutationTool(toolName)
@@ -145,7 +149,13 @@ export class PbxAgentDiffService {
       .map((row) => toProposalView(row));
   }
 
-  async apply(proposalId: string, ctx: ProposalContext): Promise<ProposalActionResult> {
+  async findLatestPendingForThread(threadUid: number, ctx: ProposalContext): Promise<AgentProposalView | null> {
+    const row = await this.proposalModel.findOne({ where: { thread_uid: threadUid, vpbx_user_uid: ctx.vpbxUserUid, user_uid: ctx.userUid, status: 'pending', expires_at: { [Op.gt]: new Date() } }, order: [['created_at', 'DESC']] });
+    return row ? toProposalView(row) : null;
+  }
+
+  async apply(proposalId: string, ctx: ProposalContext, secureInputs?: SecureConfirmationInputs): Promise<ProposalActionResult> {
+    const secure = parseSecureConfirmationInputs(secureInputs);
     const startedAt = Date.now();
     const owned = await this.findOwned(proposalId, ctx);
     if (!owned) {
@@ -252,6 +262,11 @@ export class PbxAgentDiffService {
     }
 
     const mutationCtx = this.mutationContext(ctx);
+    mutationCtx.secureInput = secure.proposal;
+    if ((args as { requiresSecureInput?: boolean }).requiresSecureInput && !mutationCtx.secureInput) {
+      await this.releaseClaim(row);
+      return { ok: false, reason: 'secure_input_required', proposal: toProposalView(row) };
+    }
     let revalidated: unknown;
     try {
       const check = await mutation.revalidate(args, mutationCtx);

@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, MessageSquareText, Receipt, RefreshCw, Star, Trash2 } from 'lucide-react';
@@ -141,19 +142,10 @@ export function ConversationExpandedPanel({
       ) : null}
 
       {isError ? (
-        <VStack gap="12" max className={cls.body} data-testid="conversation-expanded-error">
-          <Text variant="muted">
-            {t(
+        <QueryErrorState message={t(
               'speechAnalytics.errorLoadConversation',
               'Не удалось загрузить разговор. Повторите попытку.',
-            )}
-          </Text>
-          {onRetry ? (
-            <Button type="button" variant="outline" onClick={onRetry}>
-              {t('common.retry', 'Повторить')}
-            </Button>
-          ) : null}
-        </VStack>
+            )} onRetry={onRetry} retryLabel={t('common.retry', 'Повторить')} data-testid="conversation-expanded-error" />
       ) : null}
 
       {!isLoading && !isError ? (

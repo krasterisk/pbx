@@ -22,7 +22,7 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
 vi.mock('@/shared/api/api', () => ({
   useGetContextsQuery: () => ({
     data: [
-      { uid: 1, name: 'from-internal', comment: 'Internal routing' },
+      { uid: 1, name: 'from-internal', comment: 'Internal routing', is_default_for_endpoints: true },
     ],
     isLoading: false,
   }),
@@ -41,5 +41,8 @@ describe('ContextsTable', () => {
     expect(edit).toHaveAttribute('aria-label');
     expect(del).toHaveAttribute('title');
     expect(del).toHaveAttribute('aria-label');
+    expect(screen.getByText('contexts.defaultForEndpoints')).toBeInTheDocument();
+    expect(screen.queryByText('contexts.defaultForTrunks')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 });

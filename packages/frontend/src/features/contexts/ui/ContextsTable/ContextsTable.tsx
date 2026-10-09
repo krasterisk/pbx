@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -25,13 +26,17 @@ const PAGE_SIZE = 50;
 export const ContextsTable = memo(() => {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
-  const { data: contexts = [], isLoading } = useGetContextsQuery();
+  const { data: contexts = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetContextsQuery();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteContextsMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
   const selection = useCrossPageRowSelection({ globalFilter });
 
   const columns = useContextsTableColumns();
+  // TanStack caches accessor values per row. Refresh rows when translations
+  // change so the purpose labels and CSV export use the current language.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- t intentionally invalidates the row-value cache.
+  const tableData = useMemo(() => [...contexts], [contexts, t]);
 
   const selectedLabels = useMemo(
     () =>
@@ -112,6 +117,7 @@ export const ContextsTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>
@@ -133,7 +139,7 @@ export const ContextsTable = memo(() => {
           <DataTable
             ref={selection.tableRef}
             className={cls.table}
-            data={contexts}
+          data={tableData}
             columns={columns}
             getRowId={(row) => String(row.uid)}
             selectable

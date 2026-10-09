@@ -4,7 +4,6 @@ import { Route } from './route.model';
 import { ContextInclude } from './context-include.model';
 import { WebhookFailure } from './webhook-failure.model';
 import { RoutesService } from './routes.service';
-import { ContextIncludesService } from './context-includes.service';
 import { RouteApplyService } from './route-apply.service';
 import { RoutesAiAdapter } from './routes-ai.adapter';
 import { RoutesController } from './routes.controller';
@@ -53,7 +52,6 @@ import { SpeechAnalyticsModule } from '../speech-analytics/speech-analytics.modu
   controllers: [RoutesController, ContextIncludesController, DialplanWebhooksController],
   providers: [
     RoutesService,
-    ContextIncludesService,
     RouteApplyService,
     RoutesAiAdapter,
     DialplanWebhooksService,
@@ -64,6 +62,6 @@ import { SpeechAnalyticsModule } from '../speech-analytics/speech-analytics.modu
     },
     WebhookQueueService,
   ],
-  exports: [RoutesService, ContextIncludesService, RouteApplyService, DialplanWebhooksService, WebhookQueueService],
+  exports: [RoutesService, RouteApplyService, DialplanWebhooksService, WebhookQueueService],
 })
 export class RoutesModule {}

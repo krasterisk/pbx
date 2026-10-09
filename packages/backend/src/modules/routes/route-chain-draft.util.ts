@@ -1,3 +1,4 @@
+import { callerIdV2Errors } from '@krasterisk/shared';
 import type { ActionType, DialplanAction } from '@krasterisk/shared';
 
 export const ROUTE_ACTION_TYPES: readonly ActionType[] = [
@@ -75,7 +76,9 @@ function validateStep(
   if (!rec.params || typeof rec.params !== 'object' || Array.isArray(rec.params)) {
     return { ok: false, stepIndex, reason: 'params must be an object' };
   }
+  if(rec.enabled !== undefined && typeof rec.enabled !== 'boolean') return {ok:false,stepIndex,reason:'enabled must be a boolean'};
   const params = rec.params as Record<string, unknown>;
+  if (type === 'callerid' && 'version' in params && callerIdV2Errors(params).length) return {ok:false,stepIndex,reason:'Invalid Caller ID v2 settings'};
   const missing = missingRequiredParam(type as ActionType, params);
   if (missing) {
     return { ok: false, stepIndex, reason: `missing required parameter ${missing}` };
@@ -94,6 +97,7 @@ function validateStep(
     action: {
       id,
       type,
+      ...(rec.enabled === false ? {enabled:false} : {}),
       params,
       condition,
     } as DialplanAction,
@@ -200,6 +204,12 @@ function unresolvedEntity(
       && !refs.routes.some((row) => String(row.uid) === context || row.name === context)
     ) {
       return `route context "${context}" does not exist for this tenant`;
+    }
+  }
+  if (type === 'callerid' && params.version === 2) {
+    for (const target of ['number','name']) {
+      const field = params[target] as {source?:{source?:string;directoryUid?:number}} | undefined;
+      if (field?.source?.source === 'directory' && !refs.directories.some(row => Number(row.uid) === field.source?.directoryUid)) return 'Caller ID directory does not exist for this tenant';
     }
   }
   if (type === 'directory_lookup') {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AgentDiffProposal, AiToolDefinition, TENANT_ARG_KEYS } from './ai-adapter.types';
+import { assertNoSecretArgs } from './ai-secret-redaction';
 
 /**
  * Executable mutation contract (schema / propose / revalidate / apply).
@@ -22,6 +23,7 @@ import { AgentDiffProposal, AiToolDefinition, TENANT_ARG_KEYS } from './ai-adapt
 
 /** Entities promised by earlier steps of the same workflow draft. */
 export interface PlannedWorkflowEntities {
+  contexts?: Array<{ uid?: number; name?: string; is_default_for_endpoints?: boolean; is_default_for_trunks?: boolean }>;
   extensions: string[];
   groups: Array<{ name?: string; exten?: string }>;
   queues: Array<{ name?: string; exten?: string }>;
@@ -29,6 +31,8 @@ export interface PlannedWorkflowEntities {
 
 /** Tenant identity for a mutation. Always derived from JWT/dispatch, never from arguments. */
 export interface AiMutationContext {
+  /** Ephemeral human input from confirmation, never model arguments or a persisted plan. */
+  secureInput?: { password: string };
   vpbxUserUid: number;
   userUid: number;
   role: number;
@@ -166,6 +170,7 @@ export function parseMutationInput<TInput>(
   if (!parsed.success) {
     throw new Error(`ARGS_INVALID: ${formatIssues(parsed.error)}`);
   }
+  assertNoSecretArgs(parsed.data as Record<string, unknown>);
   return parsed.data;
 }
 
@@ -174,6 +179,8 @@ export function parseMutationArgs<TArgs>(
   mutation: AiMutationContract<any, TArgs>,
   raw: unknown,
 ): TArgs {
+  assertNoTenantAliases(raw);
+  assertNoSecretArgs((raw ?? {}) as Record<string, unknown>);
   const parsed = mutation.args.safeParse(raw ?? {});
   if (!parsed.success) {
     throw new Error(`APPLY_ARGS_INVALID: ${formatIssues(parsed.error)}`);

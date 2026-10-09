@@ -1,0 +1,42 @@
+{
+  "run": "cidapp_00a4a6c93e",
+  "tenant": 801770001,
+  "target": "ipbx.krasterisk.ru",
+  "checks": [
+    {
+      "case": "directory_reads_current_identity_at_chain_position_and_returns_with_exten",
+      "pass": true
+    },
+    {
+      "case": "all_five_directory_keys_and_unicode_fields",
+      "pass": true
+    },
+    {
+      "case": "number_name_literals_and_field_mapping",
+      "pass": true
+    },
+    {
+      "case": "custom_chain_return_and_internal_labels_do_not_collide",
+      "pass": true
+    },
+    {
+      "case": "redirect_uses_original_or_selected_tenant_context_and_rejects_foreign_context",
+      "pass": true
+    },
+    {
+      "case": "not_found_policy_and_error_fail_open",
+      "pass": true
+    },
+    {
+      "case": "matched_drop_stops_following_steps",
+      "pass": true
+    },
+    {
+      "case": "disabled_step_persists_and_is_not_executed",
+      "pass": true
+    }
+  ],
+  "cleanup": true,
+  "pass": true,
+  "sip_invites": []
+}

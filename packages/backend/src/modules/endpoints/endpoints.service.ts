@@ -533,6 +533,7 @@ export class EndpointsService {
    * Optionally creates a WebRTC companion (ew*) when webrtcEnabled is true.
    */
   async create(dto: CreateEndpointDto, vpbxUserUid: number, userId?: number) {
+    if (typeof dto.context !== 'string' || !dto.context.trim()) throw new BadRequestException('Context is required');
     const sipId = buildSipId(vpbxUserUid, dto.extension);
     const webrtcEnabled = dto.webrtcEnabled === true;
 
@@ -854,6 +855,7 @@ export class EndpointsService {
     userId?: number,
   ) {
     if (!isPrimarySubscriber(sipId, vpbxUserUid)) throw new BadRequestException('Not a primary subscriber endpoint');
+    if (data.endpoint?.context !== undefined && !data.endpoint.context?.trim()) throw new BadRequestException('Context is required');
     if (isWebrtcCompanion(sipId)) {
       throw new BadRequestException('Edit the primary endpoint; WebRTC companion is managed automatically');
     }

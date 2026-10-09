@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
@@ -116,12 +117,7 @@ export const ThreadList = ({ selectedUid, skip = false, onSelect, onDeleted }: T
             )}
 
             {!query.isLoading && query.isError && (
-                <VStack className={cls.state} gap="8" align="stretch">
-                    <Text variant="muted">{t('aiChat.errorThreads')}</Text>
-                    <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>
-                        {t('aiChat.retry')}
-                    </Button>
-                </VStack>
+                <QueryErrorState message={t('aiChat.errorThreads')} onRetry={() => void query.refetch()} retryLabel={t('aiChat.retry')} />
             )}
 
             {!query.isLoading && !query.isError && threads.length === 0 && (

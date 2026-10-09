@@ -42,7 +42,7 @@ function describeAction(action: DialplanAction): string {
     case 'notify':
       return action.params.body ?? '';
     case 'callerid':
-      return action.params.mode;
+      return 'version' in action.params ? 'v2' : action.params.mode;
     case 'voicemail':
       return action.params.target?.source ?? action.params.exten ?? '';
     case 'text2speech':
@@ -106,7 +106,7 @@ describe('D-08 DialplanAction union + D-24 meta', () => {
 
   it('registers directory_lookup metadata for every host that can enrich a call', () => {
     expect(DIALPLAN_ACTION_META.directory_lookup).toEqual({
-      terminal: 'never',
+      terminal: 'conditional',
       // Autodial scenarios look contacts up the same way a route does.
       allowedIn: ['route', 'directory_policy', 'ivr', 'autodial'],
       family: 'integration',
@@ -961,4 +961,14 @@ describe('Trunk CallerID name validation', () => {
   it.each(['${SHELL(cmd)}', 'Name\nHangup()', 'a|b', 'x;y'])('rejects unsafe name %s', (name) => {
     expect(validateActionParams(action(name)).length).toBeGreaterThan(0);
   });
+});
+
+describe('legacy notification message compatibility',()=>{
+ it('accepts the user payload text through the canonical body validation',()=>{
+  const message='Звонок завершён: '+ '$'+'{CALLERID(num)} → '+ '$'+'{EXTEN}, статус '+ '$'+'{DIALSTATUS}';
+  expect(validateActionParams([{id:'a_1784177403527_klki',type:'notify',params:{target:'',message,integration_uid:'1'},condition:{dialstatus:''}}])).toEqual([]);
+ });
+ it('does not let a legacy alias override an explicitly cleared body',()=>{
+  expect(validateActionParams([{id:'n',type:'notify',params:{body:'',message:'ignored',integration_uid:'1'}}]).some(e=>e.path==='body')).toBe(true);
+ });
 });

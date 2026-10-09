@@ -1,0 +1,1445 @@
+{
+  "toolCount": 119,
+  "modules": [
+    {
+      "domain": "autodial",
+      "skills": [
+        "autodial"
+      ],
+      "tools": [
+        {
+          "name": "list_autodial_campaigns",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "get_autodial_campaign",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "uid",
+            "name"
+          ]
+        },
+        {
+          "name": "list_autodial_bases",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "get_autodial_stats",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "from",
+            "to",
+            "campaign_uid"
+          ]
+        },
+        {
+          "name": "create_autodial_campaign",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "dial_mode",
+            "base_uid",
+            "pacing",
+            "retry",
+            "trunk_pool",
+            "cid_policy",
+            "scenario_actions",
+            "amd",
+            "success_min_sec",
+            "dial_timeout_sec",
+            "schedules"
+          ]
+        },
+        {
+          "name": "update_autodial_campaign",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "dial_mode",
+            "base_uid",
+            "pacing",
+            "retry",
+            "trunk_pool",
+            "cid_policy",
+            "scenario_actions",
+            "amd",
+            "success_min_sec",
+            "dial_timeout_sec",
+            "schedules"
+          ]
+        },
+        {
+          "name": "pause_autodial_campaign",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid"
+          ]
+        },
+        {
+          "name": "add_autodial_dnc",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "phone",
+            "reason",
+            "campaign_uid"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "call-groups",
+      "skills": [
+        "call-groups"
+      ],
+      "tools": [
+        {
+          "name": "list_call_groups",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "create_call_group",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "exten",
+            "strategy",
+            "members"
+          ]
+        },
+        {
+          "name": "update_call_group_members",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "members"
+          ]
+        },
+        {
+          "name": "update_call_group",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "strategy",
+            "ring_time",
+            "cid_prefix",
+            "confirmExternal",
+            "confirmDigit",
+            "skipBusy",
+            "useMohInsteadOfRingback",
+            "dialOptions"
+          ]
+        },
+        {
+          "name": "delete_call_group",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "callcenter",
+      "skills": [
+        "callcenter"
+      ],
+      "tools": [
+        {
+          "name": "cc_get_queue_snapshot",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "cc_get_agents",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "cc_get_today_kpi",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "cc_force_pause_agent",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "agent_interface",
+            "reason"
+          ]
+        },
+        {
+          "name": "cc_force_unpause_agent",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "agent_interface"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "conferences",
+      "skills": [
+        "conferences"
+      ],
+      "tools": [
+        {
+          "name": "list_conference_rooms",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "create_conference_room",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "number",
+            "record_mode"
+          ]
+        },
+        {
+          "name": "update_conference_room",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "number",
+            "pin",
+            "wait_marked",
+            "end_marked",
+            "record_mode",
+            "notify_recording",
+            "announce_join_leave"
+          ]
+        },
+        {
+          "name": "cf_force_mute_participant",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "room_uid",
+            "ref"
+          ]
+        },
+        {
+          "name": "cf_force_kick_participant",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "room_uid",
+            "ref"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "contexts",
+      "skills": [
+        "contexts",
+        "platform-configuration"
+      ],
+      "tools": [
+        {
+          "name": "list_contexts",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "get_context_configuration",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "uid"
+          ]
+        },
+        {
+          "name": "apply_context",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid"
+          ]
+        },
+        {
+          "name": "create_context",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "comment",
+            "include_uids",
+            "is_default_for_endpoints",
+            "is_default_for_trunks"
+          ]
+        },
+        {
+          "name": "update_context",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "comment",
+            "include_uids",
+            "is_default_for_endpoints",
+            "is_default_for_trunks"
+          ]
+        },
+        {
+          "name": "delete_context",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "diagnostics",
+      "skills": [
+        "call-support",
+        "diagnostics",
+        "registration-support"
+      ],
+      "tools": [
+        {
+          "name": "get_live_channels",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "get_recent_call_events",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "get_compiled_dialplan",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "context"
+          ]
+        },
+        {
+          "name": "get_endpoint_registration",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "extension"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "dialplan_dry_run",
+      "skills": [],
+      "tools": [
+        {
+          "name": "dialplan_dry_run",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "host",
+            "actions",
+            "menu_items",
+            "callerNumber",
+            "scenario",
+            "ivrChoice"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "directories",
+      "skills": [
+        "directories"
+      ],
+      "tools": [
+        {
+          "name": "list_directories",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "create_directory",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "description",
+            "lookupFieldKey",
+            "key_normalization",
+            "fields",
+            "records"
+          ]
+        },
+        {
+          "name": "update_directory",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "description",
+            "lookupFieldKey",
+            "key_normalization",
+            "fields",
+            "records"
+          ]
+        },
+        {
+          "name": "delete_directory",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid"
+          ]
+        },
+        {
+          "name": "list_directory_records",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "uid"
+          ]
+        },
+        {
+          "name": "add_directory_records",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "records"
+          ]
+        },
+        {
+          "name": "remove_directory_records",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "lookup_values",
+            "record_uids"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "endpoints",
+      "skills": [
+        "endpoints",
+        "platform-configuration",
+        "registration-support"
+      ],
+      "tools": [
+        {
+          "name": "list_endpoints",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "extensions"
+          ]
+        },
+        {
+          "name": "create_endpoint",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "context",
+            "displayName",
+            "transport",
+            "codecs",
+            "natProfile",
+            "webrtcEnabled",
+            "blfEnabled",
+            "department",
+            "namedCallGroup",
+            "namedPickupGroup",
+            "provisionEnabled",
+            "macAddress",
+            "provisionTemplateId",
+            "pvVars",
+            "permit",
+            "deny",
+            "advanced",
+            "extension",
+            "name"
+          ]
+        },
+        {
+          "name": "create_endpoints_bulk",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "extensionsPattern",
+            "startExtension",
+            "count",
+            "context",
+            "displayNamePattern",
+            "codecs",
+            "natProfile"
+          ]
+        },
+        {
+          "name": "delete_endpoint",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "sipId"
+          ]
+        },
+        {
+          "name": "get_endpoint_configuration",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "sipId"
+          ]
+        },
+        {
+          "name": "update_endpoint",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "sipId",
+            "context",
+            "displayName",
+            "transport",
+            "codecs",
+            "natProfile",
+            "webrtcEnabled",
+            "blfEnabled",
+            "department",
+            "namedCallGroup",
+            "namedPickupGroup",
+            "provisionEnabled",
+            "macAddress",
+            "provisionTemplateId",
+            "pvVars",
+            "permit",
+            "deny",
+            "advanced"
+          ]
+        },
+        {
+          "name": "list_pickup_groups",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "list_provision_templates",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        }
+      ]
+    },
+    {
+      "domain": "ivrs",
+      "skills": [
+        "ivrs"
+      ],
+      "tools": [
+        {
+          "name": "list_ivrs",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "create_ivr",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "timeout",
+            "name",
+            "prompts",
+            "text",
+            "engine_uid",
+            "engine",
+            "menu_items",
+            "steps"
+          ]
+        },
+        {
+          "name": "update_ivr",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "timeout",
+            "id",
+            "name",
+            "description",
+            "digit",
+            "destination",
+            "prompts",
+            "text",
+            "engine_uid",
+            "menu_items",
+            "steps"
+          ]
+        },
+        {
+          "name": "delete_ivr",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "komandor-claims",
+      "skills": [],
+      "tools": [
+        {
+          "name": "list_claims",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "date_from",
+            "date_to",
+            "limit"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "moh",
+      "skills": [
+        "moh"
+      ],
+      "tools": [
+        {
+          "name": "list_moh_classes",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "describe_moh_class",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "name"
+          ]
+        },
+        {
+          "name": "assign_moh_class",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "target_type",
+            "target",
+            "class_name"
+          ]
+        },
+        {
+          "name": "update_moh_class",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "sort"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "notifications",
+      "skills": [],
+      "tools": [
+        {
+          "name": "list_notifications",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "date_from",
+            "date_to",
+            "limit"
+          ]
+        },
+        {
+          "name": "list_notification_integrations",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "update_notification_integration",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "config"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "numbers",
+      "skills": [
+        "numbers"
+      ],
+      "tools": [
+        {
+          "name": "list_numbers",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "describe_number",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "number",
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "pbx",
+      "skills": [],
+      "tools": [
+        {
+          "name": "get_pbx_state",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "domain"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "plan",
+      "skills": [],
+      "tools": [
+        {
+          "name": "propose_plan",
+          "mutation": false,
+          "proposes": true,
+          "fields": [
+            "title",
+            "steps"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "prompts",
+      "skills": [],
+      "tools": [
+        {
+          "name": "list_audio_prompts",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "limit"
+          ]
+        },
+        {
+          "name": "update_audio_prompt",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "comment",
+            "description"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "queues",
+      "skills": [
+        "queues"
+      ],
+      "tools": [
+        {
+          "name": "list_queues",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "get_queue_configuration",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "name"
+          ]
+        },
+        {
+          "name": "create_queue",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "display_name",
+            "retry",
+            "wrapuptime",
+            "maxlen",
+            "musiconhold",
+            "weight",
+            "servicelevel",
+            "joinempty",
+            "leavewhenempty",
+            "ringinuse",
+            "autofill",
+            "announce",
+            "announce_frequency",
+            "announce_holdtime",
+            "announce_round_seconds",
+            "periodic_announce",
+            "periodic_announce_frequency",
+            "queue_youarenext",
+            "queue_thereare",
+            "queue_callswaiting",
+            "queue_holdtime",
+            "queue_minutes",
+            "queue_seconds",
+            "queue_lessthan",
+            "queue_thankyou",
+            "queue_reporthold",
+            "advanced",
+            "name",
+            "exten",
+            "strategy",
+            "timeout",
+            "overflow",
+            "context",
+            "members"
+          ]
+        },
+        {
+          "name": "update_queue",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "display_name",
+            "retry",
+            "wrapuptime",
+            "maxlen",
+            "musiconhold",
+            "weight",
+            "servicelevel",
+            "joinempty",
+            "leavewhenempty",
+            "ringinuse",
+            "autofill",
+            "announce",
+            "announce_frequency",
+            "announce_holdtime",
+            "announce_round_seconds",
+            "periodic_announce",
+            "periodic_announce_frequency",
+            "queue_youarenext",
+            "queue_thereare",
+            "queue_callswaiting",
+            "queue_holdtime",
+            "queue_minutes",
+            "queue_seconds",
+            "queue_lessthan",
+            "queue_thankyou",
+            "queue_reporthold",
+            "advanced",
+            "name",
+            "exten",
+            "strategy",
+            "timeout",
+            "overflow",
+            "context",
+            "members"
+          ]
+        },
+        {
+          "name": "delete_queue",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "exten"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "reports",
+      "skills": [
+        "reports"
+      ],
+      "tools": [
+        {
+          "name": "get_cdr_summary",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "dateFrom",
+            "dateTo"
+          ]
+        },
+        {
+          "name": "find_cdr_calls",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "dateFrom",
+            "dateTo",
+            "search",
+            "direction",
+            "limit"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "route_templates",
+      "skills": [],
+      "tools": [
+        {
+          "name": "list_templates",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "apply_template",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "uid",
+            "slotValues",
+            "mode"
+          ]
+        },
+        {
+          "name": "build_from_description",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "description"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "routes",
+      "skills": [
+        "call-support",
+        "platform-configuration",
+        "routes"
+      ],
+      "tools": [
+        {
+          "name": "list_routes",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "context_uid"
+          ]
+        },
+        {
+          "name": "list_dialplan_apps",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "types",
+            "host",
+            "include_usage"
+          ]
+        },
+        {
+          "name": "describe_route_chain",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "context_uid"
+          ]
+        },
+        {
+          "name": "create_route",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "active",
+            "options",
+            "webhooks",
+            "context_uid",
+            "pattern",
+            "extensions",
+            "dial_patterns",
+            "name",
+            "actions"
+          ]
+        },
+        {
+          "name": "delete_route",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "id"
+          ]
+        },
+        {
+          "name": "update_route",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "id",
+            "dial_patterns",
+            "name",
+            "extensions",
+            "actions",
+            "active",
+            "options",
+            "webhooks"
+          ]
+        },
+        {
+          "name": "list_route_analytics_projects",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "route_id"
+          ]
+        },
+        {
+          "name": "set_route_analytics_project",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "route_id",
+            "project_id"
+          ]
+        },
+        {
+          "name": "clear_route_analytics_project",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "route_id"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "service-requests",
+      "skills": [],
+      "tools": [
+        {
+          "name": "list_service_requests",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "date_from",
+            "date_to",
+            "limit"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "skills",
+      "skills": [
+        "platform-configuration"
+      ],
+      "tools": [
+        {
+          "name": "list_skills",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "read_skill",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "name"
+          ]
+        },
+        {
+          "name": "get_configuration_capabilities",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "domain",
+            "tool",
+            "field"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "sms",
+      "skills": [],
+      "tools": [
+        {
+          "name": "get_sms_channel",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "list_sms_deliveries",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        }
+      ]
+    },
+    {
+      "domain": "speech-analytics",
+      "skills": [
+        "speech-analytics"
+      ],
+      "tools": [
+        {
+          "name": "pause_speech_analytics",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "pause_new"
+          ]
+        },
+        {
+          "name": "edit_speech_analytics_project",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "project_id",
+            "config"
+          ]
+        },
+        {
+          "name": "issue_speech_analytics_token",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "project_id"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "stt-engines",
+      "skills": [],
+      "tools": [
+        {
+          "name": "list_stt_engines",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "update_stt_engine",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "enabled"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "system-settings",
+      "skills": [],
+      "tools": [
+        {
+          "name": "get_platform_settings",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        }
+      ]
+    },
+    {
+      "domain": "telegram",
+      "skills": [],
+      "tools": [
+        {
+          "name": "get_telegram_channel",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "list_telegram_deliveries",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        }
+      ]
+    },
+    {
+      "domain": "tenant-settings",
+      "skills": [
+        "platform-configuration"
+      ],
+      "tools": [
+        {
+          "name": "get_tenant_settings",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "update_tenant_setting",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "key",
+            "value"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "time-groups",
+      "skills": [
+        "call-support",
+        "time-groups"
+      ],
+      "tools": [
+        {
+          "name": "list_time_groups",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "evaluate_time_group",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "name",
+            "at"
+          ]
+        },
+        {
+          "name": "create_time_group",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "name",
+            "comment",
+            "intervals"
+          ]
+        },
+        {
+          "name": "update_time_group",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "comment",
+            "intervals"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "trunks",
+      "skills": [
+        "platform-configuration",
+        "trunks"
+      ],
+      "tools": [
+        {
+          "name": "list_trunks",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "create_trunk",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "host",
+            "port",
+            "username",
+            "context",
+            "transport",
+            "codecs",
+            "fromUser",
+            "fromDomain",
+            "contactUser",
+            "matchIp",
+            "qualifyFrequency",
+            "registrationExpiration",
+            "maxChannels",
+            "advanced",
+            "name",
+            "trunkType"
+          ]
+        },
+        {
+          "name": "delete_trunk",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "trunkId"
+          ]
+        },
+        {
+          "name": "get_trunk_configuration",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "trunkId"
+          ]
+        },
+        {
+          "name": "update_trunk",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "trunkId",
+            "host",
+            "port",
+            "username",
+            "context",
+            "transport",
+            "codecs",
+            "fromUser",
+            "fromDomain",
+            "contactUser",
+            "matchIp",
+            "qualifyFrequency",
+            "registrationExpiration",
+            "maxChannels",
+            "advanced"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "tts-engines",
+      "skills": [],
+      "tools": [
+        {
+          "name": "list_tts_engines",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "update_tts_engine",
+          "mutation": true,
+          "proposes": true,
+          "fields": [
+            "uid",
+            "name",
+            "enabled"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "users",
+      "skills": [
+        "users"
+      ],
+      "tools": [
+        {
+          "name": "list_portal_users",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "describe_portal_user",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "uid"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "voice-robots",
+      "skills": [
+        "voice-robots"
+      ],
+      "tools": [
+        {
+          "name": "list_voice_robots",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "describe_voice_robot",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "uid"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "voicemail",
+      "skills": [
+        "voicemail"
+      ],
+      "tools": [
+        {
+          "name": "list_voicemail_messages",
+          "mutation": false,
+          "proposes": false,
+          "fields": []
+        },
+        {
+          "name": "get_voicemail_message",
+          "mutation": false,
+          "proposes": false,
+          "fields": [
+            "uniqueid"
+          ]
+        }
+      ]
+    }
+  ]
+}

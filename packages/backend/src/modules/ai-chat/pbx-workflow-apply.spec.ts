@@ -20,6 +20,19 @@ function fixture() {
 }
 
 describe('workflow durable apply', () => {
+  it('accepts a secret only for confirmation, supports retry, and never stores it in step results', async () => {
+    const f = fixture();
+    f.step.canonical_args = { requiresSecureInput: true };
+    f.mutation.args = z.object({ requiresSecureInput: z.boolean() }) as never;
+    expect((await f.make().apply('test', ctx)).status).toBe('failed');
+    expect(f.mutation.apply).not.toHaveBeenCalled();
+    expect((await f.make().apply('test', ctx, { first: { password: 'private-provider-secret' } })).status).toBe('applied');
+    expect(f.mutation.apply).toHaveBeenCalledWith({}, expect.objectContaining({ secureInput: { password: 'private-provider-secret' } }));
+    expect(JSON.stringify(f.step)).not.toContain('private-provider-secret');
+    expect(JSON.stringify(f.row)).not.toContain('private-provider-secret');
+    await f.make().apply('test', ctx);
+    expect(f.mutation.apply).toHaveBeenCalledTimes(1);
+  });
   it('retries only reload after the domain write has committed', async () => {
     const f = fixture();
     f.reload.mockRejectedValueOnce(new Error('AMI unavailable'));

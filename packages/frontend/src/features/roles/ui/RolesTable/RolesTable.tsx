@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -30,7 +31,7 @@ export const RolesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: roles = [], isLoading } = useGetRolesQuery();
+  const { data: roles = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetRolesQuery();
   const [deleteRole] = useDeleteRoleMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteRolesMutation();
 
@@ -127,6 +128,7 @@ export const RolesTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

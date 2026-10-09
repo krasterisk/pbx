@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -259,14 +260,7 @@ export function CallCenterReportsPage() {
 
     if (isError) {
       return (
-        <div className={styles.errorState}>
-          <Text className={styles.emptyTitle}>
-            {t('callcenter.reports.loadError')}
-          </Text>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            {t('callcenter.reports.retry')}
-          </Button>
-        </div>
+        <QueryErrorState message={t('callcenter.reports.loadError')} onRetry={() => refetch()} retryLabel={t('callcenter.reports.retry')} />
       );
     }
 

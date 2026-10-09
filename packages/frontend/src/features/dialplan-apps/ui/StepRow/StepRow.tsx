@@ -7,11 +7,18 @@ import {
   MoreVertical,
   Power,
   PowerOff,
-  SlidersHorizontal,
+  Filter,
+  LogOut,
+  CircleStop,
   Trash2,
 } from 'lucide-react';
-import { DIALPLAN_ACTION_META, type ActionType, type IRouteAction, type ITemplateSlot } from '@krasterisk/shared';
-import { Badge, Text } from '@/shared/ui';
+import {
+  DIALPLAN_ACTION_META,
+  type ActionType,
+  type IRouteAction,
+  type ITemplateSlot,
+} from '@krasterisk/shared';
+import { Button, Tooltip, Text } from '@/shared/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +29,7 @@ import { Flex, VStack } from '@/shared/ui/Stack';
 import { TableRowAction, TableRowActions } from '@/shared/ui/TableRowActions';
 import { ActionTypeSelect } from '../ActionTypeSelect';
 import { dialplanAppsRegistry } from '../../model/registry';
+import { toConditionSource } from '../../model/conditionMap';
 import type { ChainAction } from '../../model/editorReducer';
 import { sanitizeParamsForPreview } from '@/features/route-templates/model/sanitizeParamsForPreview';
 import { stripActionTitleFromSummary } from '../../model/stripActionTitleFromSummary';
@@ -51,12 +59,43 @@ export interface StepRowProps {
   onTypeChange?: (id: string, type: ActionType) => void;
 }
 
-function conditionLabel(action: IRouteAction): string | null {
-  const dialstatus = action.condition?.dialstatus;
-  if (Array.isArray(dialstatus) && dialstatus.length > 0) return dialstatus.join(', ');
-  if (typeof dialstatus === 'string' && dialstatus) return dialstatus;
-  if (action.condition?.time_group_uid) return 'schedule';
-  return null;
+function conditionLabel(
+  action: IRouteAction,
+  t: (key: string, fallback: string) => string,
+): string | null {
+  const source = toConditionSource(action.condition);
+  const details: string[] = [];
+  if (source) {
+    if (
+      source.source === 'dialstatus' ||
+      source.source === 'queuestatus' ||
+      source.source === 'record_status'
+    ) {
+      const group =
+        source.source === 'dialstatus'
+          ? 'dial'
+          : source.source === 'queuestatus'
+            ? 'queue'
+            : 'record';
+      const statuses = source.values
+        .map((value) =>
+          t(
+            'routes.chain.conditions.' + group + '.' + value.toLowerCase(),
+            value,
+          ),
+        )
+        .join(', ');
+      details.push(
+        t(
+          'routes.chain.row.conditionHint',
+          'Условие по результату звонка: {{status}}',
+        ).replace('{{status}}', statuses),
+      );
+    } else details.push(t('routes.chain.row.conditions', 'Условия выполнения'));
+  }
+  if (action.condition?.time_group_uid)
+    details.push(t('routes.chain.row.scheduleHint', 'Условие по расписанию'));
+  return details.length ? details.join('\n') : null;
 }
 
 export const StepRow = memo(function StepRow({
@@ -86,27 +125,41 @@ export const StepRow = memo(function StepRow({
     ? t(config.labelKey, action.type)
     : action.type || t('routes.chain.placeholder', 'Выберите действие');
   const rawSummary = config?.summarize
-    ? config.summarize(sanitizeParamsForPreview(action.params ?? {}, slots), t, refs)
+    ? config.summarize(
+        sanitizeParamsForPreview(action.params ?? {}, slots),
+        t,
+        refs,
+      )
     : t(
         'routes.chain.unknown.summary',
         'Неизвестный тип действия. Параметры сохранены и не будут потеряны',
       );
   const summary = stripActionTitleFromSummary(title, rawSummary);
-  const cond = conditionLabel(action);
+  const cond = conditionLabel(action, t);
+  const terminal =
+    action.type === 'directory_lookup' &&
+    !['drop', 'redirect', 'custom'].includes(String(action.params?.behavior))
+      ? 'never'
+      : meta?.terminal;
   const enabled = action.enabled ?? true;
   const minHeight = density === 'compact' ? '44px' : '56px';
   const isEmptyType = !action.type;
   const isUnknown = Boolean(action.type && !config);
 
-  const configureLabel = t('routes.chain.configureStep', 'Настроить шаг');
-  const duplicateLabel = t('routes.chain.row.duplicate', 'Дублировать действие');
+  const duplicateLabel = t(
+    'routes.chain.row.duplicate',
+    'Дублировать действие',
+  );
   const copyLabel = t('routes.chain.row.copy', 'Копировать действие');
   const toggleLabel = enabled
     ? t('routes.chain.row.disable', 'Выключить действие')
     : t('routes.chain.row.enable', 'Включить действие');
   const removeLabel = t('common.delete', 'Удалить');
   const moreLabel = t('routes.chain.row.more', 'Ещё действия');
-  const dragLabel = t('routes.tooltips.dragHandle', 'Перетащите для изменения порядка выполнения');
+  const dragLabel = t(
+    'routes.tooltips.dragHandle',
+    'Перетащите для изменения порядка выполнения',
+  );
 
   const openParams = () => onOpenStep(action.id, 'params');
 
@@ -123,7 +176,7 @@ export const StepRow = memo(function StepRow({
         ...style,
         ['--step-min-height' as string]: minHeight,
       }}
-      onClick={readOnly ? openParams : undefined}
+      onClick={isEmptyType ? undefined : openParams}
     >
       {!readOnly ? (
         <Flex
@@ -133,6 +186,7 @@ export const StepRow = memo(function StepRow({
           aria-label={dragLabel}
           aria-roledescription="sortable"
           title={dragLabel}
+          onClick={(event) => event.stopPropagation()}
         >
           <GripVertical size={20} />
         </Flex>
@@ -149,18 +203,27 @@ export const StepRow = memo(function StepRow({
       <VStack
         gap="4"
         className={styles.main}
-        role={readOnly || isEmptyType ? undefined : 'button'}
-        tabIndex={readOnly || isEmptyType ? undefined : 0}
-        onClick={isEmptyType ? undefined : (event) => {
-          event.stopPropagation();
-          openParams();
-        }}
-        onKeyDown={isEmptyType ? undefined : (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            openParams();
-          }
-        }}
+        aria-label={title}
+        role={isEmptyType ? undefined : 'button'}
+        tabIndex={isEmptyType ? undefined : 0}
+        onClick={
+          isEmptyType
+            ? undefined
+            : (event) => {
+                event.stopPropagation();
+                openParams();
+              }
+        }
+        onKeyDown={
+          isEmptyType
+            ? undefined
+            : (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  openParams();
+                }
+              }
+        }
       >
         {isEmptyType && onTypeChange ? (
           <ActionTypeSelect
@@ -172,7 +235,9 @@ export const StepRow = memo(function StepRow({
           <>
             <Flex gap="6" align="center">
               {isUnknown ? <FileQuestion size={16} /> : null}
-              <Text className={isUnknown ? styles.unknownType : styles.title}>{title}</Text>
+              <Text className={isUnknown ? styles.unknownType : styles.title}>
+                {title}
+              </Text>
             </Flex>
             {summary ? (
               <Text data-testid="step-row-summary" className={styles.summary}>
@@ -183,96 +248,109 @@ export const StepRow = memo(function StepRow({
         )}
       </VStack>
 
-      <Flex className={styles.badges} gap="4" wrap="wrap">
-        {cond ? (
-          <Badge
-            variant="outline"
-            data-testid="step-row-condition-badge"
-            className={styles.conditionBadge}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenStep(action.id, 'conditions');
-            }}
+      <Flex className={styles.badges} gap="4">
+        {cond && (
+          <Tooltip content={cond}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={styles.statusIcon}
+              aria-label={t(
+                'routes.chain.row.conditions',
+                'Условия выполнения',
+              )}
+              data-testid="step-row-condition-badge"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenStep(action.id, 'conditions');
+              }}
+            >
+              <Filter size={16} />
+            </Button>
+          </Tooltip>
+        )}
+        {enabled && terminal === 'always' && (
+          <Tooltip
+            content={t('routes.chain.badge.terminal', 'Завершает цепочку')}
           >
-            {cond}
-          </Badge>
-        ) : null}
-        {meta?.terminal === 'always' ? (
-          <Badge variant="outline">{t('routes.chain.badge.terminal', 'Завершает цепочку')}</Badge>
-        ) : null}
-        {meta?.terminal === 'conditional' ? (
-          <Badge variant="outline">{t('routes.chain.badge.mayExit', 'Может выйти из цепочки')}</Badge>
-        ) : null}
-        {!enabled ? (
-          <Badge variant="secondary">{t('routes.chain.badge.disabled', 'Выключен')}</Badge>
-        ) : null}
+            <span
+              tabIndex={0}
+              className={styles.statusIcon}
+              aria-label={t('routes.chain.badge.terminal', 'Завершает цепочку')}
+            >
+              <CircleStop size={16} />
+            </span>
+          </Tooltip>
+        )}
+        {enabled && terminal === 'conditional' && (
+          <Tooltip
+            content={t('routes.chain.badge.mayExit', 'Может выйти из цепочки')}
+          >
+            <span
+              tabIndex={0}
+              className={styles.statusIcon}
+              aria-label={t(
+                'routes.chain.badge.mayExit',
+                'Может выйти из цепочки',
+              )}
+            >
+              <LogOut size={16} />
+            </span>
+          </Tooltip>
+        )}
+        {!enabled && (
+          <Tooltip content={t('routes.chain.badge.disabled', 'Выключен')}>
+            <span
+              tabIndex={0}
+              className={styles.statusIcon}
+              aria-label={t('routes.chain.badge.disabled', 'Выключен')}
+            >
+              <PowerOff size={16} />
+            </span>
+          </Tooltip>
+        )}
       </Flex>
-
       {!readOnly ? (
         <TableRowActions className={styles.actions}>
-          <TableRowAction
-            className={styles.actionBtn}
-            title={configureLabel}
-            aria-label={configureLabel}
-            onClick={(event) => {
-              event.stopPropagation();
-              openParams();
-            }}
-          >
-            <SlidersHorizontal size={16} />
-          </TableRowAction>
-          <TableRowAction
-            className={styles.actionBtn}
-            title={isUnknown ? t('routes.chain.unknown.noDuplicate', 'Нельзя дублировать неизвестный тип') : duplicateLabel}
-            aria-label={duplicateLabel}
-            disabled={isUnknown}
-            onClick={(event) => {
-              event.stopPropagation();
-              onDuplicate(action.id);
-            }}
-          >
-            <Copy size={16} />
-          </TableRowAction>
-          <TableRowAction
-            className={styles.actionBtn}
-            title={isUnknown ? t('routes.chain.unknown.noToggle', 'Нельзя выключить неизвестный тип') : toggleLabel}
-            aria-label={toggleLabel}
-            disabled={isUnknown}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleEnabled(action.id);
-            }}
-          >
-            {enabled ? <Power size={16} /> : <PowerOff size={16} />}
-          </TableRowAction>
-          <TableRowAction
-            danger
-            className={styles.actionBtn}
-            title={removeLabel}
-            aria-label={removeLabel}
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove(action.id);
-            }}
-          >
-            <Trash2 size={16} />
-          </TableRowAction>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <TableRowAction
                 className={styles.actionBtn}
-                title={moreLabel}
                 aria-label={moreLabel}
                 onClick={(event) => event.stopPropagation()}
               >
-                <MoreVertical size={16} />
+                <MoreVertical size={18} />
               </TableRowAction>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent
+              align="end"
+              onClick={(event) => event.stopPropagation()}
+            >
               <DropdownMenuItem
-                onClick={() => onCopy(action.id)}
+                disabled={isUnknown}
+                onClick={() => onDuplicate(action.id)}
               >
+                <Copy size={16} />
+                {duplicateLabel}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onCopy(action.id)}>
+                <Copy size={16} />
                 {copyLabel}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={isUnknown}
+                onClick={() => onToggleEnabled(action.id)}
+              >
+                {enabled ? <Power size={16} /> : <PowerOff size={16} />}{' '}
+                {toggleLabel}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={styles.dangerItem}
+                onClick={() => onRemove(action.id)}
+              >
+                <Trash2 size={16} />
+                {removeLabel}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

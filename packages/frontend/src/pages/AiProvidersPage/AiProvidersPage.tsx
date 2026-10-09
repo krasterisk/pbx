@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { Plug, Plus } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
@@ -10,9 +11,10 @@ import cls from './AiProvidersPage.module.scss';
 
 export const AiProvidersPage = memo(() => {
   const { t } = useTranslation();
-  const { data: speechModels, isLoading: modelsLoading } = useGetSaSpeechModelsQuery();
+  const { data: speechModels, isLoading: modelsLoading, isError: modelsLoadError, refetch: retryModels } = useGetSaSpeechModelsQuery();
   const [editing, setEditing] = useState<IAiProvider | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  if (modelsLoadError) return <QueryErrorState onRetry={() => void retryModels()} />;
 
   if (!modelsLoading && speechModels && !speechModels.ownModels) {
     return (

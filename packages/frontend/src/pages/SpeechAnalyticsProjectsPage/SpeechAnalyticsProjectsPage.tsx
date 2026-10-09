@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import type { TFunction } from 'i18next';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -406,17 +407,10 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
       />
 
       {projectsQuery.isError ? (
-        <VStack gap="12" max data-testid="projects-error">
-          <Text>
-            {t(
+        <QueryErrorState message={t(
               'speechAnalytics.errorLoadProjects',
               'Не удалось загрузить проекты. Повторите попытку.',
-            )}
-          </Text>
-          <Button type="button" variant="outline" onClick={() => void projectsQuery.refetch()}>
-            {t('speechAnalytics.retry', 'Повторить')}
-          </Button>
-        </VStack>
+            )} onRetry={() => void projectsQuery.refetch()} retryLabel={t('speechAnalytics.retry', 'Повторить')} data-testid="projects-error" />
       ) : null}
 
       {isEmpty ? (

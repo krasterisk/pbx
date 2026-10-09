@@ -56,7 +56,8 @@ describe('generatePolicyDialplan', () => {
     expect(dp).toContain('directory_uid=7');
     expect(dp).toContain('user_uid=42');
     expect(dp).toContain('key=${URIENCODE(${KRSK_ORIG_CALLER_NUM})}');
-    expect(dp).toContain('KDL1');
+    expect(dp).toContain('S0RMMQ==');
+    expect(dp).toContain('BASE64_ENCODE('+String.fromCharCode(36)+'{CUT(KRSK_DL_P3_RAW,|,1)})');
     expect(dp).toContain('Set(CURLOPT(conntimeout)=1)');
     expect(dp).toContain('Set(CURLOPT(httptimeout)=2)');
     expect(dp).not.toContain('phonebook-lookup');

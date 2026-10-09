@@ -6,8 +6,27 @@ import type {
   DialTargetRewrite,
   ValueSource,
 } from '@krasterisk/shared';
-import { coerceDialTargetRewrite, evaluateDialTargetRewrite, rewriteHasWork } from '@krasterisk/shared';
-import { Input, Label, Switch, Text, InfoTooltip, Button } from '@/shared/ui';
+import {
+  coerceDialTargetRewrite,
+  evaluateCallerIdName,
+  evaluateCallerIdNumber,
+  evaluateDialTargetRewrite,
+  rewriteHasWork,
+} from '@krasterisk/shared';
+import {
+  Input,
+  Label,
+  Switch,
+  Text,
+  InfoTooltip,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { AppCollapsibleSection } from '../AppCollapsibleSection/AppCollapsibleSection';
 import { DialTargetRewriteEditor } from '../DialTargetRewriteEditor/DialTargetRewriteEditor';
@@ -50,10 +69,11 @@ function isBasicShape(rw: DialTargetRewrite): boolean {
   if (rules.length === 0) return true;
   if (rules.length > 1) return false;
   const rule = rules[0];
+  if (rule.enabled === false) return false;
   if ((rule.conditions?.length ?? 0) > 0) return false;
   const t = rule.transform ?? {};
   return (
-    !t.replaceAll &&
+    t.replaceAll === undefined &&
     !t.stripStartText &&
     !t.stripEndText &&
     !t.replaceFind &&
@@ -70,6 +90,10 @@ function buildBasicRewrite(t: BasicTransform): DialTargetRewrite | undefined {
 }
 
 export interface DialModifyFieldProps {
+  /** Allow the expert editor and its mode switch. */
+  allowExpertMode?: boolean;
+  textMode?: boolean;
+  allowShortNumbers?: boolean;
   rewrite?: DialTargetRewrite | unknown;
   onRewriteChange: (next: DialTargetRewrite | undefined) => void;
   /** Destination ValueSource — drives interactive preview samples. */
@@ -93,22 +117,36 @@ export function DialModifyField({
   charset = 'phone',
   tenantUid = 0,
   readOnly,
+  textMode = false,
+  allowShortNumbers = false,
+  allowExpertMode = true,
 }: DialModifyFieldProps) {
   const { t } = useTranslation();
   const rewrite = asRewrite(rewriteProp);
   const basicShape = isBasicShape(rewrite);
+  const [confirmBasic, setConfirmBasic] = useState(false);
+  const [pendingBasic, setPendingBasic] = useState<BasicTransform>();
   const [expert, setExpert] = useState(!basicShape);
+  const expertVisible = allowExpertMode && expert;
   const [open, setOpen] = useState(() => rewriteHasWork(rewrite));
 
   const options = useMemo(
     () =>
       resolveDialPreviewOptions(source, {
+        preserveText: textMode,
         routePatterns: previewPatterns,
-        fallback: charset === 'exten' ? '1001' : '79001234567',
+        fallback: textMode
+          ? t('routes.apps.calleridV2.nameSample')
+          : charset === 'exten'
+            ? '1001'
+            : '79001234567',
         // Trunks dial external numbers — short route extens (e.g. 201) make a poor rewrite demo.
-        minLength: charset === 'phone' ? DEFAULT_PHONE_MIN_LENGTH : undefined,
+        minLength:
+          !allowShortNumbers && !textMode && charset === 'phone'
+            ? DEFAULT_PHONE_MIN_LENGTH
+            : undefined,
       }),
-    [source, previewPatterns, charset],
+    [source, previewPatterns, charset, textMode, allowShortNumbers, t],
   );
 
   const [pickedValue, setPickedValue] = useState(options[0]?.value ?? '');
@@ -140,8 +178,13 @@ export function DialModifyField({
   };
 
   const preview = useMemo(
-    () => evaluateDialTargetRewrite(sample, rewrite, charset),
-    [sample, rewrite, charset],
+    () =>
+      textMode
+        ? evaluateCallerIdName(sample, rewrite)
+        : allowShortNumbers
+          ? evaluateCallerIdNumber(sample, rewrite)
+          : evaluateDialTargetRewrite(sample, rewrite, charset),
+    [sample, rewrite, charset, textMode, allowShortNumbers],
   );
 
   const matchedRuleN = useMemo(() => {
@@ -152,12 +195,22 @@ export function DialModifyField({
   }, [preview.matchedRuleId, rewrite.rules]);
 
   const setBasic = (patch: Partial<BasicTransform>) => {
-    onRewriteChange(buildBasicRewrite({ ...basic, ...patch }));
+    const next = { ...basic, ...patch };
+    if (!allowExpertMode && !basicShape) {
+      setPendingBasic(next);
+      setConfirmBasic(true);
+      return;
+    }
+    onRewriteChange(buildBasicRewrite(next));
   };
 
   const toggleExpert = (checked: boolean) => {
     if (checked) {
       setExpert(true);
+      return;
+    }
+    if (!basicShape) {
+      setConfirmBasic(true);
       return;
     }
     onRewriteChange(buildBasicRewrite(basic));
@@ -169,243 +222,325 @@ export function DialModifyField({
 
   return (
     <AppCollapsibleSection
-      title={t('routes.chain.modify.title', 'Модификация номера')}
+      title={
+        textMode
+          ? t('routes.apps.calleridV2.modifyName')
+          : t('routes.chain.modify.title', 'Модификация номера')
+      }
       open={open}
       onToggle={() => setOpen((v) => !v)}
-      tooltip={t(
-        'routes.chain.modify.sectionHint',
-        '**Необязательно** - префикс, обрезка цифр или экспертные правила',
-      )}
+      tooltip={
+        textMode
+          ? t('routes.apps.calleridV2.nameRewriteHint')
+          : !allowExpertMode
+            ? t('routes.chain.modify.simpleSectionHint')
+            : t(
+                'routes.chain.modify.sectionHint',
+                '**Необязательно** - префикс, обрезка цифр или экспертные правила',
+              )
+      }
     >
       <VStack gap="12" max className={styles.root}>
-      {!expert ? (
-        <VStack gap="12" max className={styles.card}>
-          <HStack gap="8" max wrap="wrap" className={styles.fieldRow}>
-            <VStack gap="4" max className={styles.fieldHalf}>
-              <Label className={styles.label} htmlFor="dial-modify-prefix">
-                {t('routes.chain.modify.prefix', 'Добавить в начало')}
-              </Label>
-              <Input
-                id="dial-modify-prefix"
-                className={styles.narrow}
-                value={basic.prefix ?? ''}
-                disabled={readOnly}
-                placeholder="8"
-                aria-label={t('routes.chain.modify.prefix', 'Добавить в начало')}
-                onChange={(e) => setBasic({ prefix: e.target.value || undefined })}
-              />
-            </VStack>
-            <VStack gap="4" max className={styles.fieldHalf}>
-              <Label className={styles.label} htmlFor="dial-modify-postfix">
-                {t('routes.chain.modify.postfix', 'Добавить в конец')}
-              </Label>
-              <Input
-                id="dial-modify-postfix"
-                className={styles.narrow}
-                value={basic.postfix ?? ''}
-                disabled={readOnly}
-                aria-label={t('routes.chain.modify.postfix', 'Добавить в конец')}
-                onChange={(e) => setBasic({ postfix: e.target.value || undefined })}
-              />
-            </VStack>
-          </HStack>
-
-          <HStack gap="8" max wrap="wrap" className={styles.fieldRow}>
-            <VStack gap="4" max className={styles.fieldHalf}>
-              <Label className={styles.label} htmlFor="dial-modify-strip-start">
-                {t('routes.chain.modify.stripStart', 'Убрать цифр в начале')}
-              </Label>
-              <Input
-                id="dial-modify-strip-start"
-                className={styles.narrow}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={numberValue(basic.stripStartCount)}
-                disabled={readOnly}
-                placeholder="0"
-                aria-label={t('routes.chain.modify.stripStart', 'Убрать цифр в начале')}
-                onChange={(e) => setBasic({ stripStartCount: toCount(e.target.value) })}
-              />
-            </VStack>
-            <VStack gap="4" max className={styles.fieldHalf}>
-              <Label className={styles.label} htmlFor="dial-modify-strip-end">
-                {t('routes.chain.modify.stripEnd', 'Убрать цифр в конце')}
-              </Label>
-              <Input
-                id="dial-modify-strip-end"
-                className={styles.narrow}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={numberValue(basic.stripEndCount)}
-                disabled={readOnly}
-                placeholder="0"
-                aria-label={t('routes.chain.modify.stripEnd', 'Убрать цифр в конце')}
-                onChange={(e) => setBasic({ stripEndCount: toCount(e.target.value) })}
-              />
-            </VStack>
-          </HStack>
-        </VStack>
-      ) : (
-        <DialTargetRewriteEditor
-          rewrite={rewrite}
-          onRewriteChange={onRewriteChange}
-          charset={charset}
-          tenantUid={tenantUid}
-          readOnly={readOnly}
-          hidePreview
-        />
-      )}
-
-      <VStack gap="8" max className={styles.preview}>
-        <HStack gap="4" align="center" justify="between" max wrap="wrap">
+        {!allowExpertMode && !basicShape && (
           <HStack gap="4" align="center">
-            <Label className={styles.label}>
-              {t('routes.chain.modify.preview', 'Что уйдёт в набор')}
-            </Label>
-            <InfoTooltip
-              text={t(
-                'routes.chain.modify.previewHint',
-                '**Фиксированный номер** - берётся из назначения\n**Маска маршрута** - пример из расширений маршрута\n**Справочник** - значение поля из записи\nМожно выбрать другой пример или задать свой',
-              )}
-            />
+            <Text variant="muted">{t('routes.chain.modify.savedAdvanced')}</Text>
+            <InfoTooltip text={t('routes.chain.modify.savedAdvancedHint')} />
           </HStack>
-          {!lockedExact && !manualMode ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={readOnly}
-              onClick={() => {
-                setManualMode(true);
-                setManualSample(sample);
-              }}
-            >
-              {t('routes.chain.modify.customSample', 'Свой пример')}
-            </Button>
-          ) : null}
-          {manualMode ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={readOnly}
-              onClick={() => setManualMode(false)}
-            >
-              {t('routes.chain.modify.autoSample', 'Авто')}
-            </Button>
-          ) : null}
-        </HStack>
+        )}
+        {!expertVisible ? (
+          <VStack gap="12" max className={styles.card}>
+            <HStack gap="8" max wrap="wrap" className={styles.fieldRow}>
+              <VStack gap="4" max className={styles.fieldHalf}>
+                <Label className={styles.label} htmlFor="dial-modify-prefix">
+                  {t('routes.chain.modify.prefix', 'Добавить в начало')}
+                </Label>
+                <Input
+                  id="dial-modify-prefix"
+                  className={styles.narrow}
+                  value={basic.prefix ?? ''}
+                  disabled={readOnly}
+                  placeholder={textMode ? undefined : '8'}
+                  aria-label={t('routes.chain.modify.prefix', 'Добавить в начало')}
+                  onChange={(e) => setBasic({ prefix: e.target.value || undefined })}
+                />
+              </VStack>
+              <VStack gap="4" max className={styles.fieldHalf}>
+                <Label className={styles.label} htmlFor="dial-modify-postfix">
+                  {t('routes.chain.modify.postfix', 'Добавить в конец')}
+                </Label>
+                <Input
+                  id="dial-modify-postfix"
+                  className={styles.narrow}
+                  value={basic.postfix ?? ''}
+                  disabled={readOnly}
+                  aria-label={t('routes.chain.modify.postfix', 'Добавить в конец')}
+                  onChange={(e) => setBasic({ postfix: e.target.value || undefined })}
+                />
+              </VStack>
+            </HStack>
 
-        {options.length > 1 && !manualMode ? (
-          <HStack
-            gap="4"
-            wrap="wrap"
-            max
-            className={styles.chips}
-            role="listbox"
-            aria-label={t('routes.chain.modify.samples', 'Примеры')}
-          >
-            {options.map((opt) => (
-              <Button
-                key={`${opt.label}-${opt.value}`}
-                type="button"
-                variant={opt.value === pickedValue ? 'secondary' : 'outline'}
-                size="sm"
-                role="option"
-                aria-selected={opt.value === pickedValue}
-                className={styles.chip}
-                disabled={readOnly}
-                onClick={() => setPickedValue(opt.value)}
-              >
-                <Text variant="small">{opt.label}</Text>
-              </Button>
-            ))}
-          </HStack>
-        ) : null}
-
-        {manualMode ? (
-          <Input
-            id="dial-modify-preview"
-            value={manualSample}
-            disabled={readOnly}
-            aria-label={t('routes.chain.modify.sample', 'Пример номера')}
-            onChange={(e) => setManualSample(e.target.value)}
-          />
+            <HStack gap="8" max wrap="wrap" className={styles.fieldRow}>
+              <VStack gap="4" max className={styles.fieldHalf}>
+                <Label className={styles.label} htmlFor="dial-modify-strip-start">
+                  {textMode
+                    ? t('routes.apps.calleridV2.stripStart')
+                    : t('routes.chain.modify.stripStart', 'Убрать цифр в начале')}
+                </Label>
+                <Input
+                  id="dial-modify-strip-start"
+                  className={styles.narrow}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={numberValue(basic.stripStartCount)}
+                  disabled={readOnly}
+                  placeholder="0"
+                  aria-label={
+                    textMode
+                      ? t('routes.apps.calleridV2.stripStart')
+                      : t('routes.chain.modify.stripStart', 'Убрать цифр в начале')
+                  }
+                  onChange={(e) => setBasic({ stripStartCount: toCount(e.target.value) })}
+                />
+              </VStack>
+              <VStack gap="4" max className={styles.fieldHalf}>
+                <Label className={styles.label} htmlFor="dial-modify-strip-end">
+                  {textMode
+                    ? t('routes.apps.calleridV2.stripEnd')
+                    : t('routes.chain.modify.stripEnd', 'Убрать цифр в конце')}
+                </Label>
+                <Input
+                  id="dial-modify-strip-end"
+                  className={styles.narrow}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={numberValue(basic.stripEndCount)}
+                  disabled={readOnly}
+                  placeholder="0"
+                  aria-label={
+                    textMode
+                      ? t('routes.apps.calleridV2.stripEnd')
+                      : t('routes.chain.modify.stripEnd', 'Убрать цифр в конце')
+                  }
+                  onChange={(e) => setBasic({ stripEndCount: toCount(e.target.value) })}
+                />
+              </VStack>
+            </HStack>
+          </VStack>
         ) : (
-          <Text variant="muted" className={styles.sampleMeta}>
-            {activeOption?.exact
-              ? t('routes.chain.modify.fromSource', 'Из назначения: {{label}}').replace(
-                  '{{label}}',
-                  activeOption.label,
-                )
-              : t('routes.chain.modify.fromPattern', 'Пример B-номера: {{label}}').replace(
-                  '{{label}}',
-                  activeOption?.label ?? sample,
-                )}
-          </Text>
+          <DialTargetRewriteEditor
+            rewrite={rewrite}
+            onRewriteChange={onRewriteChange}
+            charset={charset}
+            tenantUid={tenantUid}
+            readOnly={readOnly}
+            hidePreview
+            textMode={textMode}
+          />
         )}
 
-        <HStack gap="8" align="center" className={styles.previewRow}>
-          <Text variant="small" className={styles.previewFrom}>
-            {sample || '-'}
-          </Text>
-          <Text variant="small" className={styles.previewArrow}>
-            →
-          </Text>
-          {preview.error ? (
-            <Text variant="small" className={styles.previewError}>
-              {t(`routes.chain.rewrite.error.${preview.error}`, preview.error)}
-            </Text>
+        <VStack gap="8" max className={styles.preview}>
+          <HStack gap="4" align="center" justify="between" max wrap="wrap">
+            <HStack gap="4" align="center">
+              <Label className={styles.label}>
+                {allowShortNumbers
+                  ? t('routes.apps.calleridV2.result')
+                  : t('routes.chain.modify.preview', 'Что уйдёт в набор')}
+              </Label>
+              <InfoTooltip
+                text={
+                  allowShortNumbers
+                    ? t('routes.apps.calleridV2.previewHint')
+                    : t(
+                        'routes.chain.modify.previewHint',
+                        '**Фиксированный номер** - берётся из назначения\n**Маска маршрута** - пример из расширений маршрута\n**Справочник** - значение поля из записи\nМожно выбрать другой пример или задать свой',
+                      )
+                }
+              />
+            </HStack>
+            {!lockedExact && !manualMode ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={readOnly}
+                onClick={() => {
+                  setManualMode(true);
+                  setManualSample(sample);
+                }}
+              >
+                {t('routes.chain.modify.customSample', 'Свой пример')}
+              </Button>
+            ) : null}
+            {manualMode ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={readOnly}
+                onClick={() => setManualMode(false)}
+              >
+                {t('routes.chain.modify.autoSample', 'Авто')}
+              </Button>
+            ) : null}
+          </HStack>
+
+          {options.length > 1 && !manualMode ? (
+            <HStack
+              gap="4"
+              wrap="wrap"
+              max
+              className={styles.chips}
+              role="listbox"
+              aria-label={t('routes.chain.modify.samples', 'Примеры')}
+            >
+              {options.map((opt) => (
+                <Button
+                  key={`${opt.label}-${opt.value}`}
+                  type="button"
+                  variant={opt.value === pickedValue ? 'secondary' : 'outline'}
+                  size="sm"
+                  role="option"
+                  aria-selected={opt.value === pickedValue}
+                  className={styles.chip}
+                  disabled={readOnly}
+                  onClick={() => setPickedValue(opt.value)}
+                >
+                  <Text variant="small">{opt.label}</Text>
+                </Button>
+              ))}
+            </HStack>
+          ) : null}
+
+          {manualMode ? (
+            <Input
+              id="dial-modify-preview"
+              value={manualSample}
+              disabled={readOnly}
+              aria-label={
+                allowShortNumbers
+                  ? t('routes.apps.calleridV2.sample')
+                  : t('routes.chain.modify.sample', 'Пример номера')
+              }
+              onChange={(e) => setManualSample(e.target.value)}
+            />
           ) : (
-            <Text variant="small" className={styles.previewOut}>
-              {preview.output || '-'}
+            <Text variant="muted" className={styles.sampleMeta}>
+              {allowShortNumbers
+                ? t('routes.apps.calleridV2.sampleValue', { value: sample })
+                : activeOption?.exact
+                  ? t('routes.chain.modify.fromSource', 'Из назначения: {{label}}').replace(
+                      '{{label}}',
+                      activeOption.label,
+                    )
+                  : t('routes.chain.modify.fromPattern', 'Пример B-номера: {{label}}').replace(
+                      '{{label}}',
+                      activeOption?.label ?? sample,
+                    )}
             </Text>
           )}
-        </HStack>
-        {expert ? (
-          <Text variant="muted">
-            {matchedRuleN != null
-              ? t('routes.chain.rewrite.matched', 'Сработало правило {{n}}').replace(
-                  '{{n}}',
-                  String(matchedRuleN),
-                )
-              : t('routes.chain.rewrite.matchedNone', 'Ни одно правило не подошло')}
-          </Text>
-        ) : null}
-      </VStack>
 
-      <HStack gap="8" align="center" max justify="between" wrap="wrap" className={styles.expertHeader}>
-        <HStack gap="4" align="center">
-          <Label className={styles.label} htmlFor="dial-modify-expert">
-            {t('routes.chain.modify.expert', 'Экспертный режим')}
-          </Label>
-          <InfoTooltip
-            text={t(
-              'routes.chain.modify.expertHint',
-              '**Условия** - когда правило применимо\n**Несколько правил** - срабатывает первое подходящее\nНужно редко',
+          <HStack gap="8" align="center" className={styles.previewRow}>
+            <Text variant="small" className={styles.previewFrom}>
+              {sample || '-'}
+            </Text>
+            <Text variant="small" className={styles.previewArrow}>
+              →
+            </Text>
+            {preview.error ? (
+              <Text variant="small" className={styles.previewError}>
+                {t(`routes.chain.rewrite.error.${preview.error}`, preview.error)}
+              </Text>
+            ) : (
+              <Text variant="small" className={styles.previewOut}>
+                {preview.output || '-'}
+              </Text>
             )}
-          />
-        </HStack>
-        <Switch
-          id="dial-modify-expert"
-          checked={expert}
-          disabled={readOnly}
-          aria-label={t('routes.chain.modify.expert', 'Экспертный режим')}
-          onCheckedChange={toggleExpert}
-        />
-      </HStack>
+          </HStack>
+          {expertVisible ? (
+            <Text variant="muted">
+              {matchedRuleN != null
+                ? t('routes.chain.rewrite.matched', 'Сработало правило {{n}}').replace(
+                    '{{n}}',
+                    String(matchedRuleN),
+                  )
+                : t('routes.chain.rewrite.matchedNone', 'Ни одно правило не подошло')}
+            </Text>
+          ) : null}
+        </VStack>
+
+        {allowExpertMode && (
+          <HStack
+            gap="8"
+            align="center"
+            max
+            justify="between"
+            wrap="wrap"
+            className={styles.expertHeader}
+          >
+            <HStack gap="4" align="center">
+              <Label className={styles.label} htmlFor="dial-modify-expert">
+                {t('routes.chain.modify.expert', 'Экспертный режим')}
+              </Label>
+              <InfoTooltip
+                text={t(
+                  'routes.chain.modify.expertHint',
+                  '**Условия** - когда правило применимо\n**Несколько правил** - срабатывает первое подходящее\nНужно редко',
+                )}
+              />
+            </HStack>
+            <Switch
+              id="dial-modify-expert"
+              checked={expert}
+              disabled={readOnly}
+              aria-label={t('routes.chain.modify.expert', 'Экспертный режим')}
+              onCheckedChange={toggleExpert}
+            />
+          </HStack>
+        )}
+        <Dialog
+          open={confirmBasic}
+          onOpenChange={(open) => {
+            setConfirmBasic(open);
+            if (!open) setPendingBasic(undefined);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('routes.apps.calleridV2.confirmBasic')}</DialogTitle>
+              <DialogDescription>{t('routes.apps.calleridV2.confirmBasicHint')}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setConfirmBasic(false);
+                  setPendingBasic(undefined);
+                }}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                onClick={() => {
+                  onRewriteChange(buildBasicRewrite(pendingBasic ?? basic));
+                  setPendingBasic(undefined);
+                  setExpert(false);
+                  setConfirmBasic(false);
+                }}
+              >
+                {t('routes.apps.calleridV2.convertBasic')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </VStack>
     </AppCollapsibleSection>
   );
 }
 
 /** Registry helper: modification field that seeds preview from `sourceKey`. */
-export function makeDialModifyRenderer(
-  sourceKey: string | undefined,
-  charset: DialRewriteCharset,
-) {
+export function makeDialModifyRenderer(sourceKey: string | undefined, charset: DialRewriteCharset) {
   return function renderDialModify(ctx: SchemaFieldRenderCtx) {
     const source = sourceKey
       ? (ctx.params[sourceKey] as ValueSource | string | number | undefined)
@@ -414,7 +549,12 @@ export function makeDialModifyRenderer(
       <DialModifyField
         rewrite={coerceDialTargetRewrite(ctx.params) ?? ctx.params.rewrite}
         onRewriteChange={(rewrite) =>
-          ctx.onChange({ rewrite, strip: undefined, prepend: undefined, numberManipulation: undefined })
+          ctx.onChange({
+            rewrite,
+            strip: undefined,
+            prepend: undefined,
+            numberManipulation: undefined,
+          })
         }
         source={source}
         previewPatterns={ctx.previewPatterns}

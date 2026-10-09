@@ -1,0 +1,29 @@
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-muted-foreground);
+}
+.dotOnline {
+  composes: dot;
+  background: var(--color-success);
+}
+.offline {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-muted-foreground);
+}
+.online {
+  composes: offline;
+  color: var(--color-success);
+}
+.browser {
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.browserOnline {
+  composes: browser;
+  border-color: var(--color-info);
+}

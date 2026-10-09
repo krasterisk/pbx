@@ -1,6 +1,15 @@
+import { isRouteDialPattern, normalizeNotifyParams, directoryBindingsToSteps } from '@krasterisk/shared';
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button } from '@/shared/ui';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Button,
+  Text,
+} from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import {
   useCreateRouteMutation,
@@ -8,7 +17,7 @@ import {
   type IRouteOptions,
 } from '@/shared/api/api';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
-import { type IRouteAction, type IRouteDirectoryBinding } from '@krasterisk/shared';
+import { type IRouteAction } from '@krasterisk/shared';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import { selectCurrentUser } from '@/entities/User';
 import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
@@ -21,38 +30,41 @@ import { RouteGeneralTab, decodeRecordMode } from './RouteGeneralTab';
 import { RouteWebhooksTab, WebhookItem } from './RouteWebhooksTab';
 import { RouteActionsTab } from './RouteActionsTab';
 import { ensureActionIds } from '@/features/dialplan-apps/model/actionIds';
-import { mapStepErrors } from '@/features/dialplan-apps';
+import {
+  mapStepErrors,
+  localizeStepError,
+  clientStepFieldErrors,
+  resolveClientFieldError,
+} from '@/features/dialplan-apps';
 import type { MappedStepErrors } from '@/features/dialplan-apps/model/stepErrors';
-import { RouteDirectoriesTab } from './RouteDirectoriesTab';
 import { RouteFlowchartTab } from './RouteFlowchartTab';
-import { UsageTab } from '@/features/route-references/ui/UsageTab';
+import styles from './RouteFormModal.module.scss';
 
 function hasIncompleteQueueAction(list: IRouteAction[]): boolean {
-  return list.some(
-    (a) => a.type === 'toqueue' && !isValueSourceComplete(a.params?.target as any),
-  );
+  return list.some((a) => a.type === 'toqueue' && !isValueSourceComplete(a.params?.target as any));
 }
 
-const BASE_TABS = ['general', 'actions', 'directories', 'webhooks'] as const;
-type RouteTab = typeof BASE_TABS[number] | 'flowchart' | 'usage';
+const BASE_TABS = ['general', 'actions', 'webhooks'] as const;
+type RouteTab = (typeof BASE_TABS)[number] | 'flowchart';
 const TAB_FALLBACKS: Record<RouteTab, string> = {
   general: 'Основные',
-  actions: 'Действия',
-  directories: 'Справочники',
+  actions: 'Dialplan',
   webhooks: 'Вебхуки',
   flowchart: 'Схема',
-  usage: 'Где используется',
 };
 
 export const RouteFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { isModalOpen, selectedRoute, selectedContextUids, modalMode, editorMode } = useAppSelector((s) => s.routes);
+  const { isModalOpen, selectedRoute, selectedContextUids, modalMode, editorMode } = useAppSelector(
+    (s) => s.routes,
+  );
   const currentUser = useAppSelector(selectCurrentUser);
   const vpbxUserUid = currentUser?.vpbx_user_uid ?? 0;
   const { data: tenantSettings, isLoading: tenantSettingsLoading } = useGetTenantSettingsQuery();
   const showRawDialplan = tenantSettings?.['routes.show_raw_dialplan'] ?? true;
-  const showFlowchart = !tenantSettingsLoading && (tenantSettings?.['routes.show_flowchart'] ?? true);
+  const showFlowchart =
+    !tenantSettingsLoading && (tenantSettings?.['routes.show_flowchart'] ?? true);
 
   const isCreateMode = modalMode === 'create' || modalMode === 'copy';
 
@@ -63,14 +75,16 @@ export const RouteFormModal = memo(() => {
   const tabs: RouteTab[] = [
     ...BASE_TABS,
     ...(showFlowchart ? (['flowchart'] as const) : []),
-    ...(!isCreateMode && selectedRoute ? (['usage'] as const) : []),
   ];
   const [contextUid, setContextUid] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [extensions, setExtensions] = useState<string[]>([]);
+  const [hasRuleDraft, setHasRuleDraft] = useState(false);
   const [active, setActive] = useState(true);
   const [actions, setActions] = useState<IRouteAction[]>([]);
   const [stepErrors, setStepErrors] = useState<MappedStepErrors | undefined>();
+  const [saveError, setSaveError] = useState('');
+  const [routeFieldErrors, setRouteFieldErrors] = useState<Record<string, string>>({});
   const [rawDialplan, setRawDialplan] = useState('');
 
   const { data: contexts = [] } = useGetContextsQuery();
@@ -87,24 +101,26 @@ export const RouteFormModal = memo(() => {
   const [recordStereo, setRecordStereo] = useState(false);
   const [analyticsMode, setAnalyticsMode] = useState<'inherit' | 'off' | 'on'>('inherit');
   const [analyticsProjectId, setAnalyticsProjectId] = useState('');
-  const [bindings, setBindings] = useState<IRouteDirectoryBinding[]>([]);
-  const [preCommand, setPreCommand] = useState('');
-  const [routeType, setRouteType] = useState(0);
 
   // Webhooks
   const [webhooksList, setWebhooksList] = useState<WebhookItem[]>([]);
 
   // Initialize form when editing/copying
   useEffect(() => {
+    setStepErrors(undefined);
+    setSaveError('');
+    setRouteFieldErrors({});
     if (selectedRoute) {
       setName(modalMode === 'copy' ? '' : selectedRoute.name);
       setContextUid(selectedRoute.context_uid);
       setExtensions(selectedRoute.extensions || []);
       setActive(!!selectedRoute.active);
-      setActions(ensureActionIds(selectedRoute.actions || []));
-      setRawDialplan(
-        ensureCdrVpbxUserUidInDialplan(selectedRoute.raw_dialplan || '', vpbxUserUid),
+      setActions(
+        ensureActionIds([...directoryBindingsToSteps(selectedRoute.bindings || [],selectedRoute.actions || []),...(selectedRoute.actions || [])]).map((a) =>
+          a.type === 'notify' ? { ...a, params: normalizeNotifyParams(a.params ?? {}) } : a,
+        ),
       );
+      setRawDialplan(ensureCdrVpbxUserUidInDialplan(selectedRoute.raw_dialplan || '', vpbxUserUid));
       const opts = selectedRoute.options || {};
       const recMode = decodeRecordMode(opts);
       setRecord(recMode !== 'off');
@@ -112,18 +128,20 @@ export const RouteFormModal = memo(() => {
       setRecordStereo(!!opts.record_stereo);
       setAnalyticsMode(opts.analytics?.mode ?? 'inherit');
       setAnalyticsProjectId(opts.analytics?.projectId ?? '');
-      setBindings(
-        [...(selectedRoute.bindings || [])].sort((a, b) => a.position - b.position),
-      );
-      setPreCommand(opts.pre_command || '');
-      setRouteType(opts.route_type || 0);
       const wh = selectedRoute.webhooks || {};
       const list: WebhookItem[] = [];
       const addToList = (evnt: string, value: any) => {
         if (Array.isArray(value)) {
           value.forEach((item: any) => {
             if (typeof item === 'string') {
-              list.push({ id: Math.random().toString(), event: evnt, url: item, authMode: 'none', token: '', customHeaders: [] });
+              list.push({
+                id: Math.random().toString(),
+                event: evnt,
+                url: item,
+                authMode: 'none',
+                token: '',
+                customHeaders: [],
+              });
             } else if (item && typeof item === 'object') {
               list.push({
                 id: Math.random().toString(),
@@ -136,7 +154,14 @@ export const RouteFormModal = memo(() => {
             }
           });
         } else if (typeof value === 'string' && value) {
-          list.push({ id: Math.random().toString(), event: evnt, url: value, authMode: 'none', token: '', customHeaders: [] });
+          list.push({
+            id: Math.random().toString(),
+            event: evnt,
+            url: value,
+            authMode: 'none',
+            token: '',
+            customHeaders: [],
+          });
         } else if (value && typeof value === 'object' && !Array.isArray(value)) {
           list.push({
             id: Math.random().toString(),
@@ -170,11 +195,11 @@ export const RouteFormModal = memo(() => {
     setRecordStereo(false);
     setAnalyticsMode('inherit');
     setAnalyticsProjectId('');
-    setBindings([]);
-    setPreCommand('');
-    setRouteType(0);
     setWebhooksList([]);
     setActiveTab('general');
+    setStepErrors(undefined);
+    setSaveError('');
+    setRouteFieldErrors({});
   };
 
   const handleClose = useCallback(() => {
@@ -183,7 +208,29 @@ export const RouteFormModal = memo(() => {
   }, [dispatch]);
 
   const handleSave = async () => {
-    if (!contextUid) return;
+    if (!contextUid || hasRuleDraft || !extensions.every(isRouteDialPattern)) return;
+    const byStep = new Map<string, Record<string, string>>();
+    for (const action of actions) {
+      const fields = clientStepFieldErrors(action);
+      if (Object.keys(fields).length)
+        byStep.set(
+          action.id,
+          Object.fromEntries(
+            Object.entries(fields).map(([field, code]) => [
+              field,
+              resolveClientFieldError(code, t),
+            ]),
+          ),
+        );
+    }
+    if (byStep.size) {
+      setStepErrors({ byStep, orphans: [] });
+      setSaveError(t('routes.chain.saveErrors'));
+      setActiveTab('actions');
+      return;
+    }
+    setSaveError('');
+    setRouteFieldErrors({});
 
     if (hasIncompleteQueueAction(actions)) {
       const ok = window.confirm(
@@ -197,16 +244,13 @@ export const RouteFormModal = memo(() => {
       // Only persist record_all when recording is actually enabled - prevents record_all:true/record:false ghost state
       record_all: record && recordAll ? true : undefined,
       record_stereo: record && recordStereo ? true : undefined,
-      analytics: analyticsProjectId
-        ? { projectId: analyticsProjectId }
-        : undefined,
-      pre_command: preCommand || undefined,
-      route_type: routeType || undefined,
+      analytics: analyticsProjectId ? { projectId: analyticsProjectId } : undefined,
+      pre_command: selectedRoute?.options?.pre_command || undefined,
       dialplan_source: showRawDialplan && editorMode === 'raw' ? 'raw' : 'actions',
     };
 
     const webhooksPayload: any = {};
-    webhooksList.forEach(w => {
+    webhooksList.forEach((w) => {
       const u = w.url.trim();
       if (u) {
         if (!webhooksPayload[w.event]) webhooksPayload[w.event] = [];
@@ -217,9 +261,10 @@ export const RouteFormModal = memo(() => {
             url: u,
             authMode: w.authMode,
             token: w.authMode === 'bearer' ? w.token : undefined,
-            customHeaders: w.authMode === 'custom' && w.customHeaders.length > 0
-              ? w.customHeaders.filter(h => h.key.trim())
-              : undefined,
+            customHeaders:
+              w.authMode === 'custom' && w.customHeaders.length > 0
+                ? w.customHeaders.filter((h) => h.key.trim())
+                : undefined,
           });
         }
       }
@@ -229,33 +274,39 @@ export const RouteFormModal = memo(() => {
       (list ?? []).map((a) => ({
         id: a.id,
         type: a.type,
-        params: a.params,
-        condition: a.condition && typeof a.condition === 'object' && !Array.isArray(a.condition)
-          ? a.condition
-          : {},
+        enabled: a.enabled === false ? false : undefined,
+        params: a.type === 'notify' ? normalizeNotifyParams(a.params ?? {}) : a.params,
+        condition:
+          a.condition && typeof a.condition === 'object' && !Array.isArray(a.condition)
+            ? a.condition
+            : {},
       }));
-
-    const bindingsPayload = bindings.map((b, index) => ({
-      directory_uid: b.directory_uid,
-      position: index,
-      key_source: b.key_source,
-      match_mode: b.match_mode,
-      behavior_type: b.behavior_type,
-      behavior_params: b.behavior_params ?? undefined,
-      actions: b.actions ? sanitizeActions(b.actions) : undefined,
-    }));
 
     const nextActions = sanitizeActions(actions);
     // IDs identify editor rows; adding one to a legacy action does not change the dialplan.
     const dialplanActions = (list: IRouteAction[] | undefined) =>
-      sanitizeActions(list).map(({ type, params, condition }) => ({ type, params, condition }));
+      sanitizeActions(list).map(({ type, params, condition, enabled }) => ({
+        enabled,
+        type,
+        params,
+        condition,
+      }));
     const actionsChanged =
-      JSON.stringify(dialplanActions(actions)) !== JSON.stringify(dialplanActions(selectedRoute?.actions));
+      JSON.stringify(dialplanActions(actions)) !==
+      JSON.stringify(dialplanActions([...directoryBindingsToSteps(selectedRoute?.bindings || [],selectedRoute?.actions || []),...(selectedRoute?.actions || [])]));
 
+    const loadedRawSource = !!selectedRoute?.raw_dialplan && (selectedRoute.options?.dialplan_source === 'raw' || (selectedRoute.options?.dialplan_source !== 'actions' && !selectedRoute.actions?.length));
+    const preserveHiddenRaw = !showRawDialplan && loadedRawSource && !actionsChanged;
+    const preserveLegacyBindings = preserveHiddenRaw || (showRawDialplan && editorMode === 'raw' && !!rawDialplan.trim());
+    if (preserveHiddenRaw) options.dialplan_source = 'raw';
     const data = {
-      name, extensions, active: active ? 1 : 0,
-      options, webhooks: webhooksPayload, actions: nextActions,
-      bindings: bindingsPayload,
+      name,
+      extensions,
+      active: active ? 1 : 0,
+      options,
+      webhooks: webhooksPayload,
+      actions: nextActions,
+      bindings: preserveLegacyBindings ? undefined : [],
       raw_dialplan: resolveRouteRawDialplanPayload({
         showRawDialplan,
         editorMode,
@@ -276,16 +327,64 @@ export const RouteFormModal = memo(() => {
       setStepErrors(undefined);
       handleClose();
     } catch (err) {
-      const body = (err as { data?: { errors?: Array<{ actionId?: string; path: string; message: string }> } })?.data;
-      setStepErrors(mapStepErrors(body, actions));
+      const body = (
+        err as {
+          data?: {
+            errors?: Array<{
+              actionId?: string;
+              path: string;
+              message: string;
+            }>;
+            message?: string | string[];
+          };
+        }
+      )?.data;
+      const mapped = mapStepErrors(body, actions);
+      setStepErrors(mapped);
+      if (mapped.byStep.size) {
+        setSaveError(t('routes.chain.saveErrors'));
+        setActiveTab('actions');
+      } else {
+        const fieldLabels: Record<string, string> = {
+          name: t('routes.name', 'Наименование маршрута'),
+          context_uid: t('routes.context', 'Контекст'),
+          extensions: t('routes.extensions', 'Номера назначения'),
+        };
+        const known = mapped.orphans.filter((error) => fieldLabels[error.path.split('.')[0]]);
+        setSaveError(
+          known.length
+            ? [
+                ...new Set(
+                  known.map(
+                    (error) =>
+                      fieldLabels[error.path.split('.')[0]] +
+                      ': ' +
+                      localizeStepError('', error.path, error.message, t),
+                  ),
+                ),
+              ].join('; ')
+            : t('routes.saveFailed'),
+        );
+        if (known.length) {
+          setRouteFieldErrors(
+            Object.fromEntries(
+              known.map((error) => [
+                error.path.split('.')[0],
+                localizeStepError('', error.path, error.message, t),
+              ]),
+            ),
+          );
+          setActiveTab('general');
+        }
+      }
     }
   };
 
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent size="large">
-        <DialogHeader className="mb-4 shrink-0">
-          <DialogTitle className="text-xl font-bold">
+      <DialogContent size="large" className={styles.modal} aria-describedby={undefined}>
+        <DialogHeader className={styles.modalHeader}>
+          <DialogTitle className={styles.modalTitle}>
             {modalMode === 'edit'
               ? t('routes.editRoute', 'Редактировать маршрут')
               : modalMode === 'copy'
@@ -294,86 +393,115 @@ export const RouteFormModal = memo(() => {
           </DialogTitle>
         </DialogHeader>
 
+        {saveError && (
+          <Text variant="error" role="alert" className={styles.saveError}>
+            {saveError}
+          </Text>
+        )}
         {/* Tabs */}
-        <VStack className="border-b border-border/50 mb-6 shrink-0" max>
-          <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <VStack className={styles.tabBar} max>
+          <HStack
+            gap="8"
+            className={styles.tabs}
+            max
+          >
             {tabs.map((tab) => (
               <Button
                 key={tab}
                 variant="ghost"
                 onClick={() => setActiveTab(tab)}
-                className={`relative py-3 px-1 rounded-none text-sm font-medium transition-colors whitespace-nowrap shrink-0 outline-none ${
-                    activeTab === tab ? 'text-primary bg-transparent hover:bg-transparent hover:text-primary' : 'text-muted-foreground bg-transparent hover:text-foreground hover:bg-transparent'
-                }`}
+                aria-pressed={activeTab === tab}
+                className={[styles.tab, activeTab === tab ? styles.tabActive : ''].join(' ')}
               >
                 {t(`routes.tab.${tab}`, TAB_FALLBACKS[tab])}
-                {activeTab === tab && (
-                  <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
-                )}
+
               </Button>
             ))}
           </HStack>
         </VStack>
 
-        <VStack className="flex-1 overflow-y-auto pr-1">
+        <VStack className={styles.body} align="stretch" max>
           {activeTab === 'general' && (
             <RouteGeneralTab
-              name={name} setName={setName}
-              extensions={extensions} setExtensions={setExtensions}
-              active={active} setActive={setActive}
-              routeType={routeType} setRouteType={setRouteType}
-              record={record} setRecord={setRecord}
-              recordAll={recordAll} setRecordAll={setRecordAll}
-              recordStereo={recordStereo} setRecordStereo={setRecordStereo}
-              analyticsMode={analyticsMode} setAnalyticsMode={setAnalyticsMode}
-              analyticsProjectId={analyticsProjectId} setAnalyticsProjectId={setAnalyticsProjectId}
-              contextUid={contextUid} setContextUid={setContextUid}
-              isCreateMode={isCreateMode} contexts={contexts}
+              fieldErrors={routeFieldErrors}
+              name={name}
+              setName={(value) => {
+                setName(value);
+                setRouteFieldErrors({});
+                setSaveError('');
+              }}
+              extensions={extensions}
+              setExtensions={(value) => {
+                setExtensions(value);
+                setRouteFieldErrors({});
+                setSaveError('');
+              }}
+              onRuleDraftChange={setHasRuleDraft}
+              active={active}
+              setActive={setActive}
+              record={record}
+              setRecord={setRecord}
+              recordAll={recordAll}
+              setRecordAll={setRecordAll}
+              recordStereo={recordStereo}
+              setRecordStereo={setRecordStereo}
+              analyticsMode={analyticsMode}
+              setAnalyticsMode={setAnalyticsMode}
+              analyticsProjectId={analyticsProjectId}
+              setAnalyticsProjectId={setAnalyticsProjectId}
+              contextUid={contextUid}
+              setContextUid={(value) => {
+                setContextUid(value);
+                setRouteFieldErrors({});
+                setSaveError('');
+              }}
+              isCreateMode={isCreateMode}
+              contexts={contexts}
             />
           )}
 
           {activeTab === 'actions' && (
             <RouteActionsTab
-              actions={actions} setActions={setActions}
-              rawDialplan={rawDialplan} setRawDialplan={setRawDialplan}
-              preCommand={preCommand} setPreCommand={setPreCommand}
+              actions={actions}
+              setActions={(next) => {
+                setActions(next);
+                setStepErrors(undefined);
+                setSaveError('');
+                setRouteFieldErrors({});
+              }}
+              rawDialplan={rawDialplan}
+              setRawDialplan={setRawDialplan}
               vpbxUserUid={vpbxUserUid}
               stepErrors={stepErrors}
               previewPatterns={extensions}
             />
           )}
 
-          {activeTab === 'directories' && (
-            <RouteDirectoriesTab
-              bindings={bindings} setBindings={setBindings}
-            />
-          )}
-
           {activeTab === 'webhooks' && (
-            <RouteWebhooksTab
-              webhooksList={webhooksList}
-              setWebhooksList={setWebhooksList}
-            />
+            <RouteWebhooksTab webhooksList={webhooksList} setWebhooksList={setWebhooksList} />
           )}
 
           {activeTab === 'flowchart' && showFlowchart && (
-            <RouteFlowchartTab
-              actions={actions}
-              routeName={name}
-              extensions={extensions}
-            />
-          )}
-
-          {activeTab === 'usage' && !isCreateMode && selectedRoute && (
-            <UsageTab kind="route" uid={selectedRoute.uid} showTorouteCaveat />
+            <RouteFlowchartTab actions={actions} routeName={name} extensions={extensions} />
           )}
         </VStack>
 
-        <DialogFooter className="mt-6 pt-4 border-t border-border shrink-0">
+        <DialogFooter className={styles.modalFooter}>
           <Button variant="outline" onClick={handleClose}>
             {t('common.cancel', 'Отмена')}
           </Button>
-          <Button onClick={handleSave} disabled={isCreating || isUpdating || !name || extensions.length === 0 || !contextUid}>
+          <Button
+            onClick={handleSave}
+            disabled={
+              isCreating ||
+              isUpdating ||
+              !name ||
+              extensions.length === 0 ||
+              !extensions.every(isRouteDialPattern) ||
+              hasRuleDraft ||
+              !contextUid
+            }
+          >
             {t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>

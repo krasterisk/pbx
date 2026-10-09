@@ -31,6 +31,7 @@ export interface BulkDeleteDialogProps {
    * (`[ns].confirmBulkDelete`, …). Falls back to `common.*`.
    */
   i18nNs?: string;
+  error?: string;
 }
 
 function tKey(
@@ -96,6 +97,7 @@ export const BulkDeleteDialog = memo(function BulkDeleteDialog({
   isDeleting = false,
   onConfirm,
   i18nNs,
+  error,
 }: BulkDeleteDialogProps) {
   const { t } = useTranslation();
 
@@ -127,6 +129,7 @@ export const BulkDeleteDialog = memo(function BulkDeleteDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{body}</DialogDescription>
         </DialogHeader>
+        {error && <Text role="alert" className={cls.error}>{error}</Text>}
         {showExtraIrreversible ? (
           <Text variant="muted">{tKey(t, i18nNs, 'confirmBulkDeleteIrreversible')}</Text>
         ) : null}

@@ -6,10 +6,8 @@
  *   - State:     AiStateProvider     — compact per-tenant summary aggregated into the system prompt
  *   - Knowledge: string              — compact static KB block aggregated into the system prompt
  *
- * Directories is the reference implementation (D-15). The 5 existing domains
- * (endpoints/trunks/ivrs/queues/routes) are NOT migrated onto this contract in
- * this phase — they keep their hand-written McpToolsService.regXxx() methods —
- * but the registry/dispatch plumbing here must not break them.
+ * Domain adapters are the shared source for MCP discovery, chat execution and
+ * confirmation. MCP does not carry a separate hand-written tool registry.
  */
 
 // Type-only: erased at compile time, so ai-mutation.contract stays the only

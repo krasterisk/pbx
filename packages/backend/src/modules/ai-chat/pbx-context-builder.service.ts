@@ -210,6 +210,7 @@ export class PbxContextBuilderService {
     private behaviouralRules(): string {
         return `## Behaviour
 Respond in the same language the user writes in; fall back to the interface locale when ambiguous.
+Configuration workflow: read the current entity and exact registered schema before changing parameters. Use update tools for existing entities, preserve settings the user did not request, and reuse the full conversation when clarifying. get_configuration_capabilities describes actual available operations; no invented tools or arbitrary HTTP/SQL. After confirmed changes, verify saved values; distinguish a saved configuration from a successful live call. Secret input belongs in the secure confirmation form, never a user chat message or model tool argument.
 
 Describe observable call behaviour in business language. Technical telephony detail comes only on request. Establish a cause from live state, logs and configuration rather than asserting one.
 

@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +16,7 @@ const VoiceRobotEditPage = memo(() => {
   const isCreateMode = !id || id === 'create';
   
   // Use skip if we are in create mode
-  const { data: robot, isLoading } = useGetVoiceRobotQuery(Number(id), {
+  const { data: robot, isLoading, isError, refetch } = useGetVoiceRobotQuery(Number(id), {
     skip: isCreateMode || isNaN(Number(id)),
   });
 
@@ -55,7 +56,7 @@ const VoiceRobotEditPage = memo(() => {
 
       {/* Form Content Area - overflow contained; scroll within panels OK */}
       <VStack max className={cls.formArea}>
-        {isLoading && !isCreateMode ? (
+        {isError && !isCreateMode ? <QueryErrorState onRetry={() => void refetch()} /> : isLoading && !isCreateMode ? (
           <Flex justify="center" align="center" className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 rounded-xl">
              <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text>
           </Flex>

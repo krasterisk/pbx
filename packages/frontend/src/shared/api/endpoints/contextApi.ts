@@ -5,6 +5,10 @@ export interface IContext {
   name: string;
   comment: string;
   user_uid: number;
+  is_default_for_endpoints?: boolean;
+  is_default_for_trunks?: boolean;
+  include_uids?: number[];
+  dialplan_applied?: boolean;
 }
 
 const contextApi = rtkApi.injectEndpoints({
@@ -23,12 +27,15 @@ const contextApi = rtkApi.injectEndpoints({
 
     createContext: builder.mutation<IContext, Partial<IContext>>({
       query: (data) => ({ url: '/contexts', method: 'POST', body: data }),
-      invalidatesTags: [{ type: 'Contexts', id: 'LIST' }],
+      invalidatesTags: ['Contexts'],
+    }),
+    applyContext: builder.mutation<{ dialplan_applied: boolean }, number>({
+      query: (uid) => ({ url: `/contexts/${uid}/apply`, method: 'POST' }),
     }),
 
     updateContext: builder.mutation<IContext, { uid: number; data: Partial<IContext> }>({
       query: ({ uid, data }) => ({ url: `/contexts/${uid}`, method: 'PUT', body: data }),
-      invalidatesTags: [{ type: 'Contexts', id: 'LIST' }],
+      invalidatesTags: ['Contexts'],
     }),
 
     deleteContext: builder.mutation<void, number>({
@@ -50,6 +57,7 @@ const contextApi = rtkApi.injectEndpoints({
 export const {
   useGetContextsQuery,
   useCreateContextMutation,
+  useApplyContextMutation,
   useUpdateContextMutation,
   useDeleteContextMutation,
   useBulkDeleteContextsMutation,

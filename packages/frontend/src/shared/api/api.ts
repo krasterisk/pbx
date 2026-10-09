@@ -72,6 +72,7 @@ export {
   useGetContextsQuery,
   useCreateContextMutation,
   useUpdateContextMutation,
+  useApplyContextMutation,
   useDeleteContextMutation,
   useBulkDeleteContextsMutation,
 } from './endpoints/contextApi';

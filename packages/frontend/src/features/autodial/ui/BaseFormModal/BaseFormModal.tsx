@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from 'lucide-react';
@@ -127,10 +128,7 @@ export const BaseFormModal = memo(() => {
         </DialogHeader>
 
         {isError ? (
-          <VStack gap="8" className={cls.body}>
-            <Text role="alert">{t('autodial.common.loadFailed')}</Text>
-            <Button onClick={() => void refetch()}>{t('autodial.common.retry')}</Button>
-          </VStack>
+          <QueryErrorState message={t('autodial.common.loadFailed')} onRetry={() => void refetch()} retryLabel={t('autodial.common.retry')} />
         ) : !isReady || (isFetching && editUid !== null && !base) ? (
           <HStack justify="center" align="center" className={cls.body}>
             <Loader2 size={24} className={cls.spinner} />

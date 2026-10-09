@@ -67,7 +67,7 @@ export interface INotifyActionParams {
   subject?: string;
 }
 
-export interface ICallerIdActionParams {
+export interface ICallerIdLegacyParams {
   mode: CallerIdMode;
   callerid?: string;
   name?: string;
@@ -80,3 +80,5 @@ export interface ICallerIdActionParams {
   pool?: string[];
 }
 
+
+export type ICallerIdActionParams = ICallerIdLegacyParams | import('../callerid').ICallerIdV2Params;

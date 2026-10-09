@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { Label, Select, Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
@@ -16,16 +17,17 @@ export const PlatformAiThreadsPage = () => {
   const [tenantUid, setTenantUid] = useState<number | null>(null);
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
 
-  const { data: tenantsData } = useGetTenantsQuery({ limit: 100, offset: 0 });
-  const { data: threads = [] } = useGetPlatformAiChatThreadsQuery(tenantUid ?? 0, {
+  const { data: tenantsData, isError: tenantsLoadError, refetch: retryTenants } = useGetTenantsQuery({ limit: 100, offset: 0 });
+  const { data: threads = [], isError: threadsLoadError, refetch: retryThreads } = useGetPlatformAiChatThreadsQuery(tenantUid ?? 0, {
     skip: tenantUid == null,
   });
-  const { data: detail } = useGetPlatformAiChatThreadQuery(
+  const { data: detail, isError: detailLoadError, refetch: retryDetail } = useGetPlatformAiChatThreadQuery(
     { tenantUid: tenantUid ?? 0, uid: selectedUid ?? 0 },
     { skip: tenantUid == null || selectedUid == null },
   );
 
   const showTimeline = Boolean(detail?.timeline.length);
+  if (tenantsLoadError || threadsLoadError || detailLoadError) return <QueryErrorState onRetry={() => void (tenantsLoadError ? retryTenants() : threadsLoadError ? retryThreads() : retryDetail())} />;
 
   return (
     <VStack gap="16" max data-testid="platform-ai-threads-page">

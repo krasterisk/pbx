@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -201,21 +202,7 @@ export function SoftphoneJournal({ softphoneMode = 'webrtc' }: { softphoneMode?:
   if (isError) {
     return (
       <div className={styles.wrap} data-testid="softphone-journal">
-        <div className={styles.errorCard}>
-          <Text>{t('callcenter.journal.loadFailed', 'Could not load the journal')}</Text>
-          <Tooltip content={t('callcenter.settings.retry', 'Retry')}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={styles.retryBtn}
-              onClick={() => void refetch()}
-              aria-label={t('callcenter.settings.retry', 'Retry')}
-            >
-              {t('callcenter.settings.retry', 'Retry')}
-            </Button>
-          </Tooltip>
-        </div>
+        <QueryErrorState message={t('callcenter.journal.loadFailed', 'Could not load the journal')} onRetry={() => void refetch()} retryLabel={t('callcenter.settings.retry', 'Retry')} />
       </div>
     );
   }

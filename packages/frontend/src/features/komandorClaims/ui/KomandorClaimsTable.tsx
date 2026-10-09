@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -52,7 +53,7 @@ export function KomandorClaimsTable({ filters }: Props) {
     dateTo: filters.dateTo,
     limit: PAGE_SIZE,
   };
-  const { data, isLoading } = useGetKomandorClaimsQuery(query);
+  const { data, isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetKomandorClaimsQuery(query);
   const [remove] = useDeleteKomandorClaimMutation();
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState<IKomandorClaim | undefined>();
@@ -177,6 +178,7 @@ export function KomandorClaimsTable({ filters }: Props) {
     },
   ], [handleDelete, t]);
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   return (
     <div>
       <HStack justify="end" gap="8" align="center" className={cls.toolbar}>

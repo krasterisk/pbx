@@ -70,7 +70,7 @@ describe('RouteApplyService', () => {
       expect(firstCall[1][0].lines.join('\n')).not.toContain('PB_');
 
       expect(secondCall[0]).toContain('krasterisk/routes/extensions_');
-      expect(secondCall[2]).toEqual({ reload: true });
+      expect(secondCall[2]).toEqual({ reload: true, replaceAll: true });
     });
 
     it('skips the policy-file apply when no route in the context has bindings', async () => {

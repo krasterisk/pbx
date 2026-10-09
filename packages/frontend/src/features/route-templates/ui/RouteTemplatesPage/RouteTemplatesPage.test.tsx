@@ -57,7 +57,7 @@ describe('RouteTemplatesPage', () => {
     expect(screen.getByTestId('hybrid-table')).toHaveAttribute('data-hybrid', 'overflow-x-auto');
   });
 
-  it('exposes TableRowActions with title and aria-label; built-in edit/delete are disabled', () => {
+  it('keeps accessible names and native titles only for actions without custom tooltips', () => {
     render(<RouteTemplatesPage />);
 
     const editButtons = screen.getAllByRole('button', { name: /Изменить/i });
@@ -68,10 +68,11 @@ describe('RouteTemplatesPage', () => {
     expect(copyButtons).toHaveLength(2);
     expect(deleteButtons).toHaveLength(2);
 
-    editButtons.forEach((btn) => {
-      expect(btn).toHaveAttribute('title');
-      expect(btn).toHaveAttribute('aria-label');
-    });
+    editButtons.forEach((btn) => expect(btn).toHaveAttribute('aria-label'));
+    expect(editButtons[0]).not.toHaveAttribute('title');
+    expect(deleteButtons[0]).not.toHaveAttribute('title');
+    expect(editButtons[1]).toHaveAttribute('title', 'Изменить');
+    expect(deleteButtons[1]).toHaveAttribute('title', 'Удалить');
     copyButtons.forEach((btn) => {
       expect(btn).toHaveAttribute('title');
       expect(btn).toHaveAttribute('aria-label');

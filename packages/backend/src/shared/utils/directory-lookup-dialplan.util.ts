@@ -32,6 +32,7 @@ export interface CompileDirectoryLookupRequest {
   directoryUid: number;
   userUid: number;
   keySource: CallValueSource;
+  keyExpression?: string;
   fieldUids: number[];
   outputs?: DirectoryLookupOutput[];
   onMissing: 'keep' | 'empty' | 'skip';
@@ -111,7 +112,7 @@ export function compileDirectoryLookup(
     }
   }
 
-  const keyExpr = callValueSourceExpr(req.keySource);
+  const keyExpr = req.keyExpression ?? callValueSourceExpr(req.keySource);
   const url = [
     `${req.backendBaseUrl}/internal/dialplan/directory-lookup`,
     `?directory_uid=${req.directoryUid}`,
@@ -125,13 +126,11 @@ export function compileDirectoryLookup(
   lines.push('Set(CURLOPT(httptimeout)=2)');
   lines.push(`Set(${rawVar}=\${CURL(${url})})`);
 
-  const proto = `"\${CUT(${rawVar},|,1)}" = "KDL1"`;
-  lines.push(
-    `ExecIf($[${proto} & "\${CUT(${rawVar},|,2)}" = "FOUND"]?Set(${statusVar}=FOUND))`,
-  );
-  lines.push(
-    `ExecIf($[${proto} & "\${CUT(${rawVar},|,2)}" = "NOT_FOUND"]?Set(${statusVar}=NOT_FOUND))`,
-  );
+  lines.push('Set(' + rawVar + '_PROTO=${BASE64_ENCODE(${CUT(' + rawVar + ',|,1)})})');
+  lines.push('Set(' + rawVar + '_REMOTE_STATUS=${BASE64_ENCODE(${CUT(' + rawVar + ',|,2)})})');
+  const proto = '"${' + rawVar + '_PROTO}" = "S0RMMQ=="';
+  lines.push('ExecIf($[' + proto + ' & "${' + rawVar + '_REMOTE_STATUS}" = "Rk9VTkQ="]?Set(' + statusVar + '=FOUND))');
+  lines.push('ExecIf($[' + proto + ' & "${' + rawVar + '_REMOTE_STATUS}" = "Tk9UX0ZPVU5E"]?Set(' + statusVar + '=NOT_FOUND))');
 
   fieldUids.forEach((fieldUid, index) => {
     const cutPos = index + 3;

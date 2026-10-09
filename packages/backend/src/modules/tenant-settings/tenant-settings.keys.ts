@@ -18,6 +18,7 @@ export const TENANT_SETTING_KEYS: Record<string, TenantSettingDescriptor> = {
   'routes.show_raw_dialplan': { type: 'boolean', default: true, category: 'routes' },
   'routes.show_flowchart': { type: 'boolean', default: true, category: 'routes' },
   'tables.page_size': { type: 'number', default: 50, category: 'tables' },
+  'endpoints.expert_mode': { type: 'boolean', default: false, category: 'endpoints' },
 };
 
 /** Keys owned by global `system-settings` — must never appear in TENANT_SETTING_KEYS. */

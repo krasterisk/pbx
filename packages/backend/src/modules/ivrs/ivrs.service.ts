@@ -294,7 +294,7 @@ export class IvrsService {
       const actions = item.actions || [];
       lines.push(`exten => ${exten},1,NoOp(IVR choice: ${exten})`);
 
-      const dp = renderActionChain(actions, { vpbxUserUid, host: 'ivr', isAdmin });
+      const dp = renderActionChain(actions, { vpbxUserUid, host: 'ivr', ownerId: ivr.uid, isAdmin });
       if (dp) lines.push(prefixSamePriority(dp));
       lines.push('');
     }

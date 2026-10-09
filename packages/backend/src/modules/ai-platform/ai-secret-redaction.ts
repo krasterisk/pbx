@@ -32,6 +32,8 @@ export function assertNoSecretArgs(args: Record<string, unknown>): void {
     }
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      // Canonical bulk creation requests generated credentials; this is not a secret.
+      if (key === 'passwordPattern' && child === 'auto') continue;
       if (SECRET_KEY.test(key) && child != null && child !== '') {
         throw new Error(`SECRET_ARG_FORBIDDEN:${path ? `${path}.` : ''}${key}`);
       }

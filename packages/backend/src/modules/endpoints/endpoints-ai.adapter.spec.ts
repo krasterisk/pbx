@@ -66,7 +66,7 @@ describe('EndpointsAiAdapter', () => {
       remove: jest.fn(),
     };
     registry = { register: jest.fn() };
-    adapter = new EndpointsAiAdapter(endpointsService as any, registry as any);
+    adapter = new EndpointsAiAdapter(endpointsService as any, registry as any, { findAll: async (uid: number) => [{ name: uid === TENANT_B ? 'sip-out' : 'from-internal', is_default_for_endpoints: true }] } as any);
   });
 
   describe('list_endpoints', () => {

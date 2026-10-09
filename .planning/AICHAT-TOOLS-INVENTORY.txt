@@ -1,0 +1,148 @@
+packages/backend/src/modules\conferences\conferences-ai.adapter.ts:61:  readonly domain = 'conferences';
+packages/backend/src/modules\conferences\conferences-ai.adapter.ts:108:      name: 'list_conference_rooms',
+packages/backend/src/modules\conferences\conferences-ai.adapter.ts:128:      name: 'create_conference_room',
+packages/backend/src/modules\conferences\conferences-ai.adapter.ts:159:      name: 'update_conference_room',
+packages/backend/src/modules\conferences\conferences-ai.adapter.ts:174:      name: 'cf_force_mute_participant',
+packages/backend/src/modules\conferences\conferences-ai.adapter.ts:197:      name: 'cf_force_kick_participant',
+packages/backend/src/modules\ai-chat\plan-ai.adapter.ts:9:  readonly domain = 'plan';
+packages/backend/src/modules\ai-chat\plan-ai.adapter.ts:30:      name: 'propose_plan',
+packages/backend/src/modules\ai-chat\pbx-state-ai.adapter.ts:16:    readonly domain = 'pbx';
+packages/backend/src/modules\ai-chat\pbx-state-ai.adapter.ts:34:            name: 'get_pbx_state',
+packages/backend/src/modules\call-groups\call-groups-ai.adapter.ts:80:  readonly domain = 'call-groups';
+packages/backend/src/modules\call-groups\call-groups-ai.adapter.ts:111:    return defineMutationTool({ name: 'update_call_group', description: 'Изменить настройки существующей группы: имя, стратегия, время дозвона, префикс CallerID, подтверждение внешнего вызова, пропуск занятых и опции Dial. Состав меняется отдельным update_call_group_members.', entityType: 'call_group', schemaVersion: 'call-group-settings-1', input: schema, args: schema, reload: { kind: 'none' },
+packages/backend/src/modules\call-groups\call-groups-ai.adapter.ts:145:      name: 'list_call_groups',
+packages/backend/src/modules\call-groups\call-groups-ai.adapter.ts:158:      name: 'create_call_group',
+packages/backend/src/modules\call-groups\call-groups-ai.adapter.ts:210:      name: 'update_call_group_members',
+packages/backend/src/modules\call-groups\call-groups-ai.adapter.ts:255:      name: 'delete_call_group',
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:207:  readonly domain = 'autodial';
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:263:      name: 'list_autodial_campaigns',
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:279:      name: 'get_autodial_campaign',
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:300:      name: 'list_autodial_bases',
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:328:      name: 'get_autodial_stats',
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:354:      name: 'create_autodial_campaign',
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:400:      name: 'update_autodial_campaign',
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:460:      name: 'pause_autodial_campaign',
+packages/backend/src/modules\autodial\autodial-ai.adapter.ts:499:      name: 'add_autodial_dnc',
+packages/backend/src/modules\numbers\numbers-ai.adapter.ts:34:  readonly domain = 'numbers';
+packages/backend/src/modules\numbers\numbers-ai.adapter.ts:71:      name: 'list_numbers',
+packages/backend/src/modules\numbers\numbers-ai.adapter.ts:100:      name: 'describe_number',
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:102:  readonly domain = 'endpoints';
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:125:      { name: 'list_pickup_groups', description: 'Группы перехвата этого кабинета: UID, имя и slug для namedCallGroup/namedPickupGroup.', inputSchema: {}, entityType: 'pickup_group', handler: async (_args, uid) => ({ groups: (await this.pickupGroups!.findAll(uid)).map(row => ({ uid: row.uid, name: row.name, slug: row.slug })) }) },
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:126:      { name: 'list_provision_templates', description: 'Шаблоны автопровижинга этого кабинета: UID, имя, производитель, модель. Содержимое и секреты не возвращаются.', inputSchema: {}, entityType: 'provision_template', handler: async (_args, uid) => ({ templates: (await this.provisionTemplates!.findAll(uid)).map(row => ({ uid: row.uid, name: row.name, vendor: row.vendor, model: row.model })) }) },
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:149:      name: 'list_endpoints',
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:186:      name: 'create_endpoint',
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:239:      name: 'create_endpoints_bulk',
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:317:      name: 'delete_endpoint',
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:402:    return { name: 'get_endpoint_configuration', description: 'Полная текущая конфигурация абонента: endpoint и aor, без паролей. sipId — публичный номер из list_endpoints.',
+packages/backend/src/modules\endpoints\endpoints-ai.adapter.ts:413:      name: 'update_endpoint', description: 'Изменить существующего абонента: контекст, имя, транспорт, кодеки, WebRTC, BLF, перехват, автопровижинг, ACL и advanced PJSIP. Не передавай неизменяемые поля и пароли.',
+packages/backend/src/modules\callcenter\callcenter-ai.adapter.ts:23:  readonly domain = 'callcenter';
+packages/backend/src/modules\callcenter\callcenter-ai.adapter.ts:91:      name: 'cc_get_queue_snapshot',
+packages/backend/src/modules\callcenter\callcenter-ai.adapter.ts:117:      name: 'cc_get_agents',
+packages/backend/src/modules\callcenter\callcenter-ai.adapter.ts:142:      name: 'cc_get_today_kpi',
+packages/backend/src/modules\callcenter\callcenter-ai.adapter.ts:173:      name: 'cc_force_pause_agent',
+packages/backend/src/modules\callcenter\callcenter-ai.adapter.ts:192:      name: 'cc_force_unpause_agent',
+packages/backend/src/modules\notifications\notifications-ai.adapter.ts:53:  readonly domain = 'notifications';
+packages/backend/src/modules\notifications\notifications-ai.adapter.ts:67:      name: 'list_notification_integrations', description: 'Настроенные интеграции уведомлений: канал, имя, config; секреты скрыты. Это конфигурация, а не журнал доставок.',
+packages/backend/src/modules\notifications\notifications-ai.adapter.ts:76:      name: 'update_notification_integration', description: 'Изменить имя или публичные настройки существующей интеграции уведомлений. Credentials и канал сохраняются; отправка сообщений не выполняется.',
+packages/backend/src/modules\notifications\notifications-ai.adapter.ts:112:      name: 'list_notifications',
+packages/backend/src/modules\diagnostics\diagnostics-ai.adapter.ts:17:  readonly domain = 'diagnostics';
+packages/backend/src/modules\diagnostics\diagnostics-ai.adapter.ts:31:      name: 'get_endpoint_registration',
+packages/backend/src/modules\diagnostics\diagnostics-ai.adapter.ts:52:      name: 'get_live_channels',
+packages/backend/src/modules\diagnostics\diagnostics-ai.adapter.ts:63:      name: 'get_recent_call_events',
+packages/backend/src/modules\diagnostics\diagnostics-ai.adapter.ts:74:      name: 'get_compiled_dialplan',
+packages/backend/src/modules\moh\moh-ai.adapter.ts:58:  readonly domain = 'moh';
+packages/backend/src/modules\moh\moh-ai.adapter.ts:78:    return defineMutationTool({ name: 'update_moh_class', description: 'Изменить порядок воспроизведения существующего класса музыки. Треки сохраняются; загрузка файлов не выполняется.', entityType: 'moh', schemaVersion: 'moh-order-1', input: schema, args: schema, reload: { kind: 'none' },
+packages/backend/src/modules\moh\moh-ai.adapter.ts:107:      name: 'list_moh_classes',
+packages/backend/src/modules\moh\moh-ai.adapter.ts:120:      name: 'describe_moh_class',
+packages/backend/src/modules\moh\moh-ai.adapter.ts:133:      name: 'assign_moh_class',
+packages/backend/src/modules\directories\directories-ai.adapter.ts:98:  readonly domain = 'directories';
+packages/backend/src/modules\directories\directories-ai.adapter.ts:152:      name: 'list_directories',
+packages/backend/src/modules\directories\directories-ai.adapter.ts:182:      name: 'create_directory',
+packages/backend/src/modules\directories\directories-ai.adapter.ts:204:      name: 'update_directory',
+packages/backend/src/modules\directories\directories-ai.adapter.ts:234:      name: 'delete_directory',
+packages/backend/src/modules\directories\directories-ai.adapter.ts:263:      name: 'list_directory_records',
+packages/backend/src/modules\directories\directories-ai.adapter.ts:276:      name: 'add_directory_records',
+packages/backend/src/modules\directories\directories-ai.adapter.ts:308:      name: 'remove_directory_records',
+packages/backend/src/modules\contexts\contexts-ai.adapter.ts:52:  readonly domain = 'contexts';
+packages/backend/src/modules\contexts\contexts-ai.adapter.ts:113:      name: 'list_contexts',
+packages/backend/src/modules\contexts\contexts-ai.adapter.ts:171:      name: 'get_context_configuration',
+packages/backend/src/modules\contexts\contexts-ai.adapter.ts:180:      name: 'apply_context',
+packages/backend/src/modules\contexts\contexts-ai.adapter.ts:195:      name: 'create_context',
+packages/backend/src/modules\contexts\contexts-ai.adapter.ts:222:      name: 'update_context',
+packages/backend/src/modules\contexts\contexts-ai.adapter.ts:256:      name: 'delete_context',
+packages/backend/src/modules\dialplan-dry-run\dialplan-dry-run-ai.adapter.ts:20:  readonly domain = 'dialplan_dry_run';
+packages/backend/src/modules\dialplan-dry-run\dialplan-dry-run-ai.adapter.ts:51:      name: 'dialplan_dry_run',
+packages/backend/src/modules\komandor-claims\komandor-claims-ai.adapter.ts:44:  readonly domain = 'komandor-claims';
+packages/backend/src/modules\komandor-claims\komandor-claims-ai.adapter.ts:79:      name: 'list_claims',
+packages/backend/src/modules\ivrs\ivrs-ai.adapter.ts:132:  readonly domain = 'ivrs';
+packages/backend/src/modules\ivrs\ivrs-ai.adapter.ts:173:      name: 'list_ivrs',
+packages/backend/src/modules\ivrs\ivrs-ai.adapter.ts:193:      name: 'create_ivr',
+packages/backend/src/modules\ivrs\ivrs-ai.adapter.ts:254:      name: 'update_ivr',
+packages/backend/src/modules\ivrs\ivrs-ai.adapter.ts:317:      name: 'delete_ivr',
+packages/backend/src/modules\reports\reports-ai.adapter.ts:22:  readonly domain = 'reports';
+packages/backend/src/modules\reports\reports-ai.adapter.ts:51:      name: 'get_cdr_summary',
+packages/backend/src/modules\reports\reports-ai.adapter.ts:70:      name: 'find_cdr_calls',
+packages/backend/src/modules\queues\queues-ai.adapter.ts:126:  readonly domain = 'queues';
+packages/backend/src/modules\queues\queues-ai.adapter.ts:144:      { name: 'get_queue_configuration', description: 'Текущие настройки очереди и члены для частичного изменения.', inputSchema: { name: { type: 'string' } }, entityType: 'queue', handler: async (args, uid) => this.queuesService.findOne(await this.resolveQueueName({ name: String(args.name ?? '') }, uid), uid) },
+packages/backend/src/modules\queues\queues-ai.adapter.ts:170:      name: 'list_queues',
+packages/backend/src/modules\queues\queues-ai.adapter.ts:188:      name: 'create_queue',
+packages/backend/src/modules\queues\queues-ai.adapter.ts:237:      name: 'update_queue',
+packages/backend/src/modules\queues\queues-ai.adapter.ts:287:      name: 'delete_queue',
+packages/backend/src/modules\speech-analytics\speech-analytics-ai.adapter.ts:101:  readonly domain = 'speech-analytics';
+packages/backend/src/modules\speech-analytics\speech-analytics-ai.adapter.ts:160:      name: 'pause_speech_analytics',
+packages/backend/src/modules\speech-analytics\speech-analytics-ai.adapter.ts:196:      name: 'edit_speech_analytics_project',
+packages/backend/src/modules\speech-analytics\speech-analytics-ai.adapter.ts:230:      name: 'issue_speech_analytics_token',
+packages/backend/src/modules\prompts\prompts-ai.adapter.ts:49:  readonly domain = 'prompts';
+packages/backend/src/modules\prompts\prompts-ai.adapter.ts:69:      name: 'update_audio_prompt', description: 'Изменить название или описание существующей аудиозаписи. Не меняет файл и не запускает платный синтез.',
+packages/backend/src/modules\prompts\prompts-ai.adapter.ts:104:      name: 'list_audio_prompts',
+packages/backend/src/modules\sms\sms-ai.adapter.ts:43:  readonly domain = 'sms';
+packages/backend/src/modules\sms\sms-ai.adapter.ts:76:      name: 'get_sms_channel',
+packages/backend/src/modules\sms\sms-ai.adapter.ts:87:      name: 'list_sms_deliveries',
+packages/backend/src/modules\route-templates\route-templates-ai.adapter.ts:20:  readonly domain = 'route_templates';
+packages/backend/src/modules\route-templates\route-templates-ai.adapter.ts:66:      name: 'list_templates',
+packages/backend/src/modules\route-templates\route-templates-ai.adapter.ts:89:      name: 'apply_template',
+packages/backend/src/modules\route-templates\route-templates-ai.adapter.ts:116:      name: 'build_from_description',
+packages/backend/src/modules\service-requests\service-requests-ai.adapter.ts:44:  readonly domain = 'service-requests';
+packages/backend/src/modules\service-requests\service-requests-ai.adapter.ts:79:      name: 'list_service_requests',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:131:  readonly domain = 'routes';
+packages/backend/src/modules\routes\routes-ai.adapter.ts:191:      name: 'list_routes',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:211:      name: 'list_dialplan_apps',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:252:      name: 'describe_route_chain',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:282:      name: 'create_route',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:314:      name: 'delete_route',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:370:      name: 'update_route', description: 'Изменить существующий маршрут по UID: имя, шаблоны, типизированную цепочку, активность, options и webhooks. Не удаляет и не пересоздаёт маршрут; частичный patch, контекст сохраняется.',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:407:      name: 'list_route_analytics_projects',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:449:      name: 'set_route_analytics_project',
+packages/backend/src/modules\routes\routes-ai.adapter.ts:475:      name: 'clear_route_analytics_project',
+packages/backend/src/modules\tenant-settings\tenant-settings-ai.adapter.ts:66:  readonly domain = 'tenant-settings';
+packages/backend/src/modules\tenant-settings\tenant-settings-ai.adapter.ts:105:      name: 'get_tenant_settings',
+packages/backend/src/modules\tenant-settings\tenant-settings-ai.adapter.ts:119:      name: 'update_tenant_setting',
+packages/backend/src/modules\system-settings\system-settings-ai.adapter.ts:55:  readonly domain = 'system-settings';
+packages/backend/src/modules\system-settings\system-settings-ai.adapter.ts:91:      name: 'get_platform_settings',
+packages/backend/src/modules\stt-engines\stt-engines-ai.adapter.ts:38:  readonly domain = 'stt-engines';
+packages/backend/src/modules\stt-engines\stt-engines-ai.adapter.ts:73:      name: 'list_stt_engines',
+packages/backend/src/modules\tts-engines\tts-engines-ai.adapter.ts:52:  readonly domain = 'tts-engines';
+packages/backend/src/modules\tts-engines\tts-engines-ai.adapter.ts:87:      name: 'list_tts_engines',
+packages/backend/src/modules\telegram\telegram-ai.adapter.ts:18:  readonly domain = 'telegram';
+packages/backend/src/modules\telegram\telegram-ai.adapter.ts:51:      name: 'get_telegram_channel',
+packages/backend/src/modules\telegram\telegram-ai.adapter.ts:62:      name: 'list_telegram_deliveries',
+packages/backend/src/modules\time-groups\time-groups-ai.adapter.ts:79:  readonly domain = 'time-groups';
+packages/backend/src/modules\time-groups\time-groups-ai.adapter.ts:123:      name: 'list_time_groups',
+packages/backend/src/modules\time-groups\time-groups-ai.adapter.ts:144:      name: 'evaluate_time_group',
+packages/backend/src/modules\time-groups\time-groups-ai.adapter.ts:168:      name: 'create_time_group',
+packages/backend/src/modules\time-groups\time-groups-ai.adapter.ts:215:      name: 'update_time_group',
+packages/backend/src/modules\trunks\trunks-ai.adapter.ts:139:  readonly domain = 'trunks';
+packages/backend/src/modules\trunks\trunks-ai.adapter.ts:176:      name: 'list_trunks',
+packages/backend/src/modules\trunks\trunks-ai.adapter.ts:196:      name: 'create_trunk',
+packages/backend/src/modules\trunks\trunks-ai.adapter.ts:234:      name: 'delete_trunk',
+packages/backend/src/modules\trunks\trunks-ai.adapter.ts:288:    return { name: 'get_trunk_configuration', description: 'Текущая полная конфигурация транка: endpoint, aor, registration, identify; секреты скрыты.',
+packages/backend/src/modules\trunks\trunks-ai.adapter.ts:295:      name: 'update_trunk', description: 'Изменить существующий SIP-транк: хост/порт, логин, контекст, транспорт, кодеки, From/Contact, identify, интервалы регистрации/qualify, лимит каналов, advanced PJSIP. Пароль сохраняется.',
+packages/backend/src/modules\voicemail\voicemail-ai.adapter.ts:42:  readonly domain = 'voicemail';
+packages/backend/src/modules\voicemail\voicemail-ai.adapter.ts:80:      name: 'list_voicemail_messages',
+packages/backend/src/modules\voicemail\voicemail-ai.adapter.ts:94:      name: 'get_voicemail_message',
+packages/backend/src/modules\users\users-ai.adapter.ts:28:  readonly domain = 'users';
+packages/backend/src/modules\users\users-ai.adapter.ts:63:      name: 'list_portal_users',
+packages/backend/src/modules\users\users-ai.adapter.ts:77:      name: 'describe_portal_user',
+packages/backend/src/modules\voice-robots\voice-robots-ai.adapter.ts:58:  readonly domain = 'voice-robots';
+packages/backend/src/modules\voice-robots\voice-robots-ai.adapter.ts:96:      name: 'list_voice_robots',
+packages/backend/src/modules\voice-robots\voice-robots-ai.adapter.ts:112:      name: 'describe_voice_robot',

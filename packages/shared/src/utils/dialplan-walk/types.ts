@@ -6,6 +6,7 @@ export type WalkHostKind = 'route' | 'ivr';
 /** Wider than ActionType so Wave 0 can encode `callback` before 14-08 extends the union. */
 export interface WalkAction {
   id: string;
+  enabled?:boolean;
   type: string;
   params?: Record<string, unknown>;
   condition?: IRouteActionCondition;
@@ -29,6 +30,8 @@ export type ExactRouteResolveResult =
   | { kind: 'ambiguous'; matches: ExactRouteCandidate[] }
   | { kind: 'pattern_only'; match: ExactRouteCandidate }
   | { kind: 'inactive'; route: ExactRouteCandidate }
+  | { kind: 'caller_id_required' }
+  | { kind: 'caller_id_pattern' }
   | { kind: 'non_route_context' };
 
 export interface WalkResolvedIvr {

@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
@@ -126,12 +127,7 @@ export function CallCenterSettings() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : uiError ? (
-          <div className={styles.errorCard}>
-            <Text>{t('callcenter.settings.loadError')}</Text>
-            <button type="button" className={styles.retryBtn} onClick={() => refetchUi()}>
-              {t('callcenter.settings.retry')}
-            </button>
-          </div>
+          <QueryErrorState message={t('callcenter.settings.loadError')} onRetry={() => void refetchUi()} retryLabel={t('callcenter.settings.retry')} />
         ) : (
           <div className={styles.section}>
             <Text className={styles.sectionTitle}>{t('callcenter.settings.customize.visibilitySection', 'Panel visibility')}</Text>
@@ -235,12 +231,7 @@ export function CallCenterSettings() {
             <Skeleton className="h-32 w-full" />
           </div>
         ) : notifError ? (
-          <div className={styles.errorCard}>
-            <Text>{t('callcenter.settings.loadError')}</Text>
-            <button type="button" className={styles.retryBtn} onClick={() => refetchNotifications()}>
-              {t('callcenter.settings.retry')}
-            </button>
-          </div>
+          <QueryErrorState message={t('callcenter.settings.loadError')} onRetry={() => void refetchNotifications()} retryLabel={t('callcenter.settings.retry')} />
         ) : (
           <div className={styles.section}>
             <Text variant="muted" className={styles.hint}>

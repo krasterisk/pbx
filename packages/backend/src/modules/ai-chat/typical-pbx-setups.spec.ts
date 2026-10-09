@@ -20,7 +20,7 @@ type World = {
   routes: Array<{ uid: number; context_uid: number; name: string; extensions: string[]; actions: unknown[]; vpbx_user_uid: number }>;
   trunks: Array<{ id: string; name: string; host: string; vpbx_user_uid: number }>;
   directories: Array<{ uid: number; name: string; lookupFieldKey: string; fields: unknown[]; records: unknown[]; vpbx_user_uid: number }>;
-  contexts: Array<{ uid: number; name: string; vpbx_user_uid: number }>;
+  contexts: Array<{ uid: number; name: string; vpbx_user_uid: number; is_default_for_endpoints?: boolean; is_default_for_trunks?: boolean }>;
 };
 
 function createWorld(): World {
@@ -33,8 +33,8 @@ function createWorld(): World {
     trunks: [],
     directories: [],
     contexts: [
-      { uid: 10, name: 'from-internal', vpbx_user_uid: TENANT },
-      { uid: 11, name: 'from-trunk', vpbx_user_uid: TENANT },
+      { uid: 10, name: 'from-internal', vpbx_user_uid: TENANT, is_default_for_endpoints: true },
+      { uid: 11, name: 'from-trunk', vpbx_user_uid: TENANT, is_default_for_trunks: true },
     ],
   };
 }
@@ -245,7 +245,7 @@ function wire(world: World) {
       ?? notFound(`context ${contextUid}`),
   };
 
-  new EndpointsAiAdapter(endpointsService as never, registry).onModuleInit();
+  new EndpointsAiAdapter(endpointsService as never, registry, contextsService as never).onModuleInit();
   new DirectoriesAiAdapter(directoriesService as never, registry).onModuleInit();
   new QueuesAiAdapter(
     queuesService as never,
@@ -254,7 +254,7 @@ function wire(world: World) {
     endpointsService as never,
     routeReferencesService as never,
   ).onModuleInit();
-  new TrunksAiAdapter(trunksService as never, routesService as never, registry).onModuleInit();
+  new TrunksAiAdapter(trunksService as never, routesService as never, registry, contextsService as never).onModuleInit();
   new CallGroupsAiAdapter(
     callGroupsService as never,
     registry,

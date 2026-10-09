@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -41,7 +42,7 @@ export const PromptsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: prompts = [], isLoading } = useGetPromptsQuery();
+  const { data: prompts = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetPromptsQuery();
   const [deletePrompt] = useDeletePromptMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeletePromptsMutation();
 
@@ -229,6 +230,7 @@ export const PromptsTable = memo(() => {
     </>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

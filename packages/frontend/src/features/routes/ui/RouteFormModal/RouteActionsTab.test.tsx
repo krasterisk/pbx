@@ -63,8 +63,6 @@ function renderTab(editorMode: 'table' | 'raw') {
         setActions={vi.fn()}
         rawDialplan="exten => 100,1,NoOp()"
         setRawDialplan={vi.fn()}
-        preCommand=""
-        setPreCommand={vi.fn()}
         vpbxUserUid={1}
       />
     </Provider>,

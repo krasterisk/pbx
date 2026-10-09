@@ -9,12 +9,14 @@ const EMERGENCY_NUMBERS = new Set(['101', '102', '103', '104', '110', '112', '91
  * `_X.`, `_N.`, `_Z!` are catch-alls; `_2XX` and exact `112` are not.
  */
 export function isCatchAllPattern(pattern: string): boolean {
+  pattern = pattern.split('/')[0];
   const body = pattern.startsWith('_') ? pattern.slice(1) : pattern;
   if (!/[.!]$/.test(body)) return false;
   return !/^\d/.test(body);
 }
 
 export function isEmergencyPattern(pattern: string): boolean {
+  pattern = pattern.split('/')[0];
   const body = pattern.startsWith('_') ? pattern.slice(1) : pattern;
   const digits = body.replace(/\D/g, '');
   if (EMERGENCY_NUMBERS.has(body) || EMERGENCY_NUMBERS.has(digits)) return true;
@@ -22,6 +24,7 @@ export function isEmergencyPattern(pattern: string): boolean {
 }
 
 export function isSpecificNumericPattern(pattern: string): boolean {
+  pattern = pattern.split('/')[0];
   if (isEmergencyPattern(pattern)) return true;
   if (isCatchAllPattern(pattern)) return false;
   const body = pattern.startsWith('_') ? pattern.slice(1) : pattern;

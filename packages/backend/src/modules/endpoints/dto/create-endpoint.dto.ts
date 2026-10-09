@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class CreateEndpointDto {
   @IsString()
@@ -15,6 +15,7 @@ export class CreateEndpointDto {
   displayName?: string;
 
   @IsString()
+  @Matches(/\S/)
   context: string;
 
   @IsOptional()
@@ -86,6 +87,7 @@ export class BulkCreateEndpointDto {
   displayNamePattern?: string; // "Ext {N}"
 
   @IsString()
+  @Matches(/\S/)
   context: string;
 
   @IsOptional()

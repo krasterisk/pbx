@@ -5,10 +5,9 @@ import cls from './MultiSelect.module.scss';
 
 /**
  * Portal z-index must be above Radix Dialog overlay/content (z-50 = 50).
- * @theme CSS variables are not accessible in SCSS modules, so we use a constant.
- * Matches globals.css --z-index-popover conceptually.
+ * Use the shared popover layer above dialog content.
  */
-const PORTAL_Z_INDEX = 9999;
+const PORTAL_Z_INDEX = 'var(--z-index-popover)';
 
 export interface MultiSelectOption {
   value: string;

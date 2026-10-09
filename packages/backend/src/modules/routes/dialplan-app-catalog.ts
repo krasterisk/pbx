@@ -75,10 +75,10 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
     need: ['channel'],
   },
   callerid: {
-    title: 'Подменить CallerID',
-    summary: 'Меняет имя или номер на линии и пропускает дальше.',
+    title: 'Caller ID',
+    summary: 'Независимо изменяет номер и имя текущего канала: params.version=2, number/name с source, rewrite, clear, onMissing и onError. Все источники читаются из снимка на входе в шаг.',
     when: 'Перед totrunk/toexten, чтобы на телефоне было нужное имя.',
-    need: ['number'],
+    need: ['version=2; необязательные number и name'],
   },
   voicemail: {
     title: 'Голосовая почта',
@@ -160,8 +160,8 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
   },
   directory_lookup: {
     title: 'Поиск в справочнике',
-    summary: 'Ищет запись и кладёт поля в переменные, не набирает сам.',
-    when: 'Перед totrunk/toexten по найденному номеру.',
+    summary: 'Проверяет справочник в этом месте цепочки: поля в переменные, имя/номер, условная цепочка, перенаправление или завершение звонка.',
+    when: 'В нужном месте Dialplan, после подготовки ключа и перед использующим результат шагом.',
     need: ['directoryUid'],
   },
   callback: {

@@ -1,4 +1,4 @@
-import { forwardRef, HTMLAttributes, ReactNode } from 'react';
+import { forwardRef, HTMLAttributes, FormHTMLAttributes, ReactNode } from 'react';
 import { classNames, Mods } from '@/shared/lib/classNames/classNames';
 import cls from './Flex.module.scss';
 
@@ -55,6 +55,9 @@ export interface FlexProps extends HTMLAttributes<HTMLElement> {
   max?: boolean;
   /** Semantic element. Layout stays on the Stack primitive. */
   as?: FlexTag;
+  /** Supported when rendering a form with application validation. */
+  noValidate?: boolean;
+  autoComplete?: FormHTMLAttributes<HTMLFormElement>['autoComplete'];
 }
 
 export const Flex = forwardRef<HTMLDivElement, FlexProps>((props, ref) => {

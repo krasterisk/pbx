@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Label, Switch, Text, Skeleton } from '@/shared/ui';
@@ -121,14 +122,7 @@ export function RolePermissionsDefaultsForm({
 
   if (isError) {
     return (
-      <div className={styles.errorCard}>
-        <Text>{t('callcenter.settings.loadError')}</Text>
-        {onRetry && (
-          <Button type="button" variant="outline" onClick={onRetry}>
-            {t('callcenter.settings.retry')}
-          </Button>
-        )}
-      </div>
+      <QueryErrorState message={t('callcenter.settings.loadError')} onRetry={onRetry} retryLabel={t('callcenter.settings.retry')} />
     );
   }
 

@@ -1,35 +1,30 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { IEndpointListItem } from '@/shared/api/endpoints/endpointApi';
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import type { IEndpointListItem } from "@/shared/api/endpoints/endpointApi";
 
-export interface EndpointsPageSchema {
-  isModalOpen: boolean;
-  isBulkModalOpen: boolean;
-  selectedEndpoint: IEndpointListItem | null;
-  modalMode: 'create' | 'edit';
-  credentialsSipId: string | null;
-}
+import type { EndpointsPageSchema } from "../types/EndpointsPageSchema";
+export type { EndpointsPageSchema } from "../types/EndpointsPageSchema";
 
 const initialState: EndpointsPageSchema = {
   isModalOpen: false,
   isBulkModalOpen: false,
   selectedEndpoint: null,
-  modalMode: 'create',
+  modalMode: "create",
   credentialsSipId: null,
 };
 
 export const endpointsPageSlice = createSlice({
-  name: 'endpointsPage',
+  name: "endpointsPage",
   initialState,
   reducers: {
     openCreateModal(state) {
       state.isModalOpen = true;
       state.selectedEndpoint = null;
-      state.modalMode = 'create';
+      state.modalMode = "create";
     },
     openEditModal(state, action: PayloadAction<IEndpointListItem>) {
       state.isModalOpen = true;
       state.selectedEndpoint = action.payload;
-      state.modalMode = 'edit';
+      state.modalMode = "edit";
     },
     closeModal(state) {
       state.isModalOpen = false;

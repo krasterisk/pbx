@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import type { Transaction } from 'sequelize';
 import { InjectModel } from '@nestjs/sequelize';
 import { TenantSetting } from './tenant-setting.model';
 import { TABLE_PAGE_SIZE_OPTIONS, TENANT_SETTING_KEYS, TenantSettingDescriptor } from './tenant-settings.keys';
@@ -8,6 +9,34 @@ export class TenantSettingsService {
   constructor(
     @InjectModel(TenantSetting) private readonly model: typeof TenantSetting,
   ) {}
+
+  /** Internal UID references: only ContextsService writes these, never generic settings PUT. */
+  async getContextDefaults(vpbxUserUid: number, transaction?: Transaction): Promise<{ endpoints: number; trunks: number }> {
+    const rows = await this.model.findAll({ where: { vpbxUserUid, key: ['contexts.default_endpoints_uid', 'contexts.default_trunks_uid'] }, transaction });
+    const read = (key: string) => {
+      const value = Number(rows.find((row) => row.key === key)?.value ?? 0);
+      return Number.isSafeInteger(value) && value > 0 ? value : 0;
+    };
+    return { endpoints: read('contexts.default_endpoints_uid'), trunks: read('contexts.default_trunks_uid') };
+  }
+
+  async setContextDefault(vpbxUserUid: number, kind: 'endpoints' | 'trunks', uid: number, enabled: boolean, transaction: Transaction): Promise<void> {
+    const key = `contexts.default_${kind}_uid`;
+    if (enabled) {
+      // Ensure the unique tenant/key row exists before locking it. Both concurrent
+      // first selections and later changes must check the same persisted row.
+      await this.model.findOrCreate({ where: { vpbxUserUid, key }, defaults: { vpbxUserUid, key, value: '0', category: 'contexts' }, transaction });
+      const setting = await this.model.findOne({ where: { vpbxUserUid, key }, transaction, lock: transaction.LOCK.UPDATE });
+      if (!setting) throw new ConflictException('Context default could not be locked');
+      if (Number(setting.value) > 0 && Number(setting.value) !== uid) {
+        throw new ConflictException('Сначала снимите признак основного с текущего контекста');
+      }
+      await setting.update({ value: String(uid) }, { transaction });
+    } else {
+      // Compare-and-clear: deselecting an old context cannot clear a newer selection.
+      await this.model.update({ value: '0' }, { where: { vpbxUserUid, key, value: String(uid) }, transaction });
+    }
+  }
 
   async getAll(vpbxUserUid: number): Promise<Record<string, unknown>> {
     const rows = await this.model.findAll({ where: { vpbxUserUid } });

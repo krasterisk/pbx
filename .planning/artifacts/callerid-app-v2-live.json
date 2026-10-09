@@ -1,0 +1,133 @@
+{
+  "run": "cidapp_9a4e577a18",
+  "tenant": 807033051,
+  "target": "ipbx.krasterisk.ru",
+  "checks": [
+    {
+      "case": "static_number_and_unicode_punctuation_name",
+      "pass": true
+    },
+    {
+      "case": "current_number_trim_prefix_length_condition",
+      "pass": true
+    },
+    {
+      "case": "unicode_codepoint_rewrite_matches_preview",
+      "pass": true
+    },
+    {
+      "case": "same_step_snapshot_and_next_step_current_lookup",
+      "pass": true
+    },
+    {
+      "case": "all_five_directory_keys",
+      "pass": true
+    },
+    {
+      "case": "missing_and_empty_values_keep_or_clear_and_explicit_clear",
+      "pass": true
+    },
+    {
+      "case": "catalog_mapping_first_and_tenant_validation",
+      "pass": true
+    },
+    {
+      "case": "round_robin_and_random_without_immediate_repeat",
+      "pass": true
+    },
+    {
+      "case": "parallel_rotation_and_changed_pool_state_reset",
+      "pass": true
+    },
+    {
+      "case": "repeated_execution_of_same_step",
+      "pass": true
+    },
+    {
+      "case": "route_transition_and_empty_original_are_not_recaptured",
+      "pass": true
+    },
+    {
+      "case": "name_and_directory_service_failure_keep_or_abort_atomically",
+      "pass": true
+    },
+    {
+      "case": "legacy_static_remains_executable",
+      "pass": true
+    },
+    {
+      "case": "name_dialplan_expression_is_literal_data",
+      "pass": true
+    },
+    {
+      "case": "number_and_name_variables_and_directory_number",
+      "pass": true
+    },
+    {
+      "case": "catalog_pool_rotation",
+      "pass": true
+    },
+    {
+      "case": "missing_data_strict_policy_aborts_both_assignments",
+      "pass": true
+    },
+    {
+      "case": "actual_loopback_pjsip_trunk_overrides_and_failover_entry_snapshot",
+      "pass": true
+    },
+    {
+      "case": "trunk_directory_missing_keeps_identity_at_trunk_entry",
+      "pass": true
+    },
+    {
+      "case": "single_trunk_preserves_incoming_identity_and_continues_chain",
+      "pass": true
+    }
+  ],
+  "cleanup": true,
+  "pass": true,
+  "sip_invites": [
+    {
+      "method": "INVITE",
+      "uri": "sip:825@127.0.0.1:42869",
+      "from": "\"Первый\" <sip:901@127.0.0.1>;tag=443d338b-f711-4c50-9147-e9016568448c",
+      "callid": "3898592a-38ca-4ff9-bd2f-525979c2d2da"
+    },
+    {
+      "method": "INVITE",
+      "uri": "sip:825@127.0.0.1:42869",
+      "from": "\"Снимок\" <sip:302@127.0.0.1>;tag=c347da6a-91c2-49f5-b6f9-b6cac46f3009",
+      "callid": "847dc820-35e6-433d-a950-3322d3d001ee"
+    },
+    {
+      "method": "INVITE",
+      "uri": "sip:825@127.0.0.1:42869",
+      "from": "\"Audit\" <sip:302@127.0.0.1>;tag=b0f1a5d4-5d26-48ed-bc0a-00e09fa876c8",
+      "callid": "8977cecf-ec05-4d70-acfd-da9371327bb3"
+    },
+    {
+      "method": "INVITE",
+      "uri": "sip:825@127.0.0.1:42869",
+      "from": "\"Audit\" <sip:302@127.0.0.1>;tag=a7c4d977-52e4-4376-9e2f-8fdb3c298959",
+      "callid": "90c08401-e54c-4852-a701-6881dabdef50"
+    },
+    {
+      "method": "INVITE",
+      "uri": "sip:825@127.0.0.1:42869",
+      "from": "\"Один транк\" <sip:304@127.0.0.1>;tag=d3bfa47b-015f-4925-a9a4-5218940a9c33",
+      "callid": "3ab2bfef-50f8-46fa-8df0-1c079f7255ce"
+    }
+  ],
+  "post_cleanup_database": {
+    "Context": 0,
+    "ContextInclude": 0,
+    "Route": 0,
+    "NumberList": 0,
+    "Directory": 0,
+    "TenantSetting": 0,
+    "ps_endpoints": 0,
+    "ps_aors": 0,
+    "cdr": 0
+  },
+  "post_cleanup_server": "0 results found.\n0 active channels\n0 active calls\n232 calls processed\n{\"owned_processes\": []}"
+}

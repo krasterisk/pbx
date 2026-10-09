@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
@@ -263,16 +264,7 @@ export function AgentDetailModal({ agent, open, onClose }: AgentDetailModalProps
             ))}
           </div>
         ) : isError ? (
-          <div className={styles.errorCard}>
-            <Text>{t('callcenter.settings.loadError', 'Failed to load data')}</Text>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => agent?.interface && fetchDetail({ interface: agent.interface })}
-            >
-              {t('callcenter.settings.retry', 'Retry')}
-            </Button>
-          </div>
+          <QueryErrorState message={t('callcenter.settings.loadError', 'Failed to load data')} onRetry={() => agent?.interface && fetchDetail({ interface: agent.interface })} retryLabel={t('callcenter.settings.retry', 'Retry')} />
         ) : detail ? (
           <>
             <div className={styles.statsGrid}>

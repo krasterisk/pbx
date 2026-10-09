@@ -152,6 +152,18 @@ describe('RouteTemplatesService', () => {
     );
   });
 
+
+  it('preserves Caller ID v2 through JSON export/import and template application', async () => {
+    const params = {version:2,number:{source:{source:'fixed',value:'302'},rewrite:{rules:[{id:'prefix',transform:{prefix:'9'}}]}},name:{source:{source:'fixed',value:'ООО "Тест", отдел'},onError:'hangup'}};
+    const exported = JSON.stringify({name:'CID round-trip',actions:[{id:'cid',type:'callerid',params,condition:{}}],slots:[]});
+    const created = await service.create(JSON.parse(exported),100);
+    const loaded = await service.findOne(created.uid,100);
+    expect(loaded.actions[0].params).toEqual(params);
+    const applied = await service.apply(created.uid,{slotValues:{},mode:'append'},100);
+    expect(applied.actions[0].params).toEqual(params);
+    expect(applied.actions[0].id).not.toBe('cid');
+  });
+
   it('lists built-ins plus the calling tenant rows only', async () => {
     await service.create(
       {

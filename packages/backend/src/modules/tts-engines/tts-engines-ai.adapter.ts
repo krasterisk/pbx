@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
+import { speechConfigurationTool } from '../ai-platform/speech-configuration.tool';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
   AiStateProvider,
@@ -61,7 +62,7 @@ export class TtsEnginesAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListTtsEngines()];
+    return [this.toolListTtsEngines(), speechConfigurationTool(this.providers, 'tts')];
   }
 
   getStateProvider(): AiStateProvider {

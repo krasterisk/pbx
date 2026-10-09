@@ -1,8 +1,10 @@
+import type { Transaction } from 'sequelize';
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { ensureCdrVpbxUserUidInDialplan } from '@krasterisk/shared';
+import { ensureCdrVpbxUserUidInDialplan, parseRouteDialPattern, validateRouteDialPatterns, routeExecutionContext, routeDialPatternKey } from '@krasterisk/shared';
 import type { CallValueSource, IDirectoryBehaviorParams, ITimeGroupInterval } from '@krasterisk/shared';
 import { Route } from './route.model';
+import { Context } from '../contexts/context.model';
 import { RouteDirectoryBinding } from '../directories/route-directory-binding.model';
 import { Directory } from '../directories/directory.model';
 import { DirectoryField } from '../directories/directory-field.model';
@@ -40,7 +42,8 @@ function collectBindingFieldUids(binding: RouteBindingInput): number[] {
 }
 
 function asPositiveInt(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
+  const parsed = typeof value === 'string' && /^[1-9]\d*$/.test(value) ? Number(value) : value;
+  if (typeof parsed === 'number' && Number.isSafeInteger(parsed) && parsed > 0) return parsed;
   return undefined;
 }
 
@@ -118,9 +121,10 @@ export class RoutesService {
   }
 
   /** Get a single route by ID */
-  async findOne(uid: number, vpbxUserUid: number): Promise<Route> {
+  async findOne(uid: number, vpbxUserUid: number, transaction?: Transaction): Promise<Route> {
     const route = await this.routeModel.findOne({
       where: { uid, user_uid: vpbxUserUid },
+      ...(transaction ? { transaction } : {}),
       include: [BINDING_INCLUDE],
       order: [BINDING_ORDER],
     });
@@ -173,6 +177,10 @@ export class RoutesService {
     }
   }
 
+  async validateCallerIdConfiguration(actions: unknown[], vpbxUserUid: number): Promise<void> {
+    await this.validateSavedActionOwnership(actions, undefined, vpbxUserUid);
+  }
+
   private async validateSavedActionOwnership(
     actions: unknown,
     bindings: RouteBindingInput[] | undefined,
@@ -187,15 +195,45 @@ export class RoutesService {
     }
     if (chains.length === 0) return;
     await this.validateActionDirectoryOwnership(chains, vpbxUserUid);
+    const walkLists = async (node: unknown): Promise<void> => {
+      if (Array.isArray(node)) { for (const item of node) await walkLists(item); return; }
+      if (!node || typeof node !== 'object') return;
+      const data = node as Record<string, unknown>;
+      if (data.type === 'directory_lookup') {
+        const params = data.params as {behavior?:string;behaviorParams?:{targetContext?:string}};
+        const target = params?.behavior === 'redirect' ? params.behaviorParams?.targetContext : undefined;
+        if (target) {
+          const contexts = await Context.findAll({where:{user_uid:vpbxUserUid}});
+          if (!contexts.some(context => context.name === target || this.buildContextName(context.name,vpbxUserUid) === target)) throw new BadRequestException('Directory redirect context is invalid or belongs to another tenant');
+        }
+      }
+      if (data.type === 'callerid' && (data.params as {version?:number})?.version === 2) {
+        const params = data.params as Record<string,{source?:{source?:string;directoryUid?:number;valueFieldUid?:number};clear?:boolean}>;
+        for (const target of ['number','name']) {
+          const source = params[target]?.source;
+          if (source?.source === 'directory' && !params[target]?.clear) {
+            const valid = await this.fieldModel.findOne({where:{uid:source.valueFieldUid,directory_uid:source.directoryUid,type:target === 'number'?'phone':'string'}});
+            if (!valid) throw new BadRequestException('Caller ID source field has an incompatible type');
+          }
+        }
+      }
+      if (data.source === 'number_list') {
+        const model = this.routeModel.sequelize?.models.NumberList;
+        if (!model || !await model.findOne({where:{id:data.listUid,user_uid:vpbxUserUid}})) {
+          throw new BadRequestException('Number list not found or belongs to another tenant');
+        }
+      }
+      for (const child of Object.values(data)) await walkLists(child);
+    };
+    await walkLists(chains);
   }
 
   /** Replace-all strategy for a route's directory policies. */
-  private async replaceBindings(routeUid: number, bindings: RouteBindingInput[], vpbxUserUid: number): Promise<void> {
+  private async replaceBindings(routeUid: number, bindings: RouteBindingInput[], vpbxUserUid: number, transaction?: Transaction): Promise<void> {
     await this.validateBindingsOwnership(bindings, vpbxUserUid);
-    await this.bindingModel.destroy({ where: { route_uid: routeUid, user_uid: vpbxUserUid } });
+    await this.bindingModel.destroy({ where: { route_uid: routeUid, user_uid: vpbxUserUid }, ...(transaction ? { transaction } : {}) });
     if (bindings.length > 0) {
-      await this.bindingModel.bulkCreate(
-        bindings.map((b, index) => ({
+      const records = bindings.map((b, index) => ({
           route_uid: routeUid,
           directory_uid: b.directory_uid,
           position: index,
@@ -205,20 +243,50 @@ export class RoutesService {
           behavior_params: b.behavior_params ?? null,
           actions: b.actions ?? null,
           user_uid: vpbxUserUid,
-        })),
-      );
+        }));
+      if (transaction) await this.bindingModel.bulkCreate(records, { transaction });
+      else await this.bindingModel.bulkCreate(records);
+    }
+  }
+
+  private validateCallerIdRaw(data: { extensions?: string[]; raw_dialplan?: string | null }): void {
+    if (data.raw_dialplan?.trim() && data.extensions?.some((value) => parseRouteDialPattern(value).callerId !== undefined)) throw new BadRequestException('Caller ID rules cannot be combined with raw dialplan');
+  }
+  private async validateRulePairs(values: unknown, contextUid: number, tenant: number, exceptUid?: number, transaction?: Transaction): Promise<void> {
+    if (values === undefined) return;
+    try { validateRouteDialPatterns(values); } catch (error) { throw new BadRequestException(error instanceof Error ? error.message : String(error)); }
+    const requested = new Set(values.map(routeDialPatternKey));
+    const rows = await this.routeModel.findAll({ where: { context_uid: contextUid, user_uid: tenant }, ...(transaction ? { transaction } : {}) });
+    for (const row of rows ?? []) {
+      if (row.uid === exceptUid) continue;
+      const conflict = (row.extensions ?? []).find((value) => requested.has(routeDialPatternKey(value)));
+      if (conflict) throw new BadRequestException('Dial rule already belongs to another route: ' + conflict);
     }
   }
 
   /** Create a new route */
-  async create(data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number): Promise<Route> {
+  async create(data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number, transaction?: Transaction): Promise<Route> {
+    if (!transaction && this.routeModel.sequelize) {
+      const db = this.routeModel.sequelize;
+      return db.transaction(async (tx) => {
+        // Same ordered context locks as context graph writes, preventing duplicate
+        // pairs even when two requests create/update concurrently.
+        const owned = await db.models.Context.findAll({ where: { user_uid: vpbxUserUid }, order: [['uid', 'ASC']], transaction: tx, lock: tx.LOCK.UPDATE });
+        if (data.context_uid !== undefined && !owned.some((context) => Number(context.get('uid')) === data.context_uid)) throw new NotFoundException('Context not found');
+        return this.create(data, vpbxUserUid, tx);
+      });
+    }
+
     const { bindings, ...rest } = data as any;
     throwIfInvalidActionPayload({ actions: rest.actions });
+    await this.validateRulePairs(rest.extensions, rest.context_uid, vpbxUserUid, undefined, transaction);
+    this.validateCallerIdRaw(rest);
     await this.validateSavedActionOwnership(rest.actions, bindings, vpbxUserUid);
 
     // Get the next priority
     const maxPriority = await this.routeModel.max('priority', {
       where: { context_uid: rest.context_uid, user_uid: vpbxUserUid },
+      ...(transaction ? { transaction } : {}),
     }) as number | null;
 
     const payload = { ...rest } as Partial<Route>;
@@ -230,36 +298,49 @@ export class RoutesService {
       ...payload,
       priority: (maxPriority || 0) + 1,
       user_uid: vpbxUserUid,
-    } as any);
+    } as any, transaction ? { transaction } : undefined);
 
     if (bindings !== undefined) {
-      await this.replaceBindings(route.uid, bindings, vpbxUserUid);
+      await this.replaceBindings(route.uid, bindings, vpbxUserUid, transaction);
     }
 
-    return this.findOne(route.uid, vpbxUserUid);
+    return this.findOne(route.uid, vpbxUserUid, transaction);
   }
 
   /** Update an existing route */
-  async update(uid: number, data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number): Promise<Route> {
-    const route = await this.findOne(uid, vpbxUserUid);
+  async update(uid: number, data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number, transaction?: Transaction): Promise<Route> {
+    if (!transaction && this.routeModel.sequelize) {
+      const db = this.routeModel.sequelize;
+      return db.transaction(async (tx) => {
+        // Same ordered context locks as context graph writes, preventing duplicate
+        // pairs even when two requests create/update concurrently.
+        const owned = await db.models.Context.findAll({ where: { user_uid: vpbxUserUid }, order: [['uid', 'ASC']], transaction: tx, lock: tx.LOCK.UPDATE });
+        if (data.context_uid !== undefined && !owned.some((context) => Number(context.get('uid')) === data.context_uid)) throw new NotFoundException('Context not found');
+        return this.update(uid, data, vpbxUserUid, tx);
+      });
+    }
+
+    const route = await this.findOne(uid, vpbxUserUid, transaction);
     const { bindings, ...rest } = data as any;
     if (rest.actions !== undefined) {
       throwIfInvalidActionPayload({ actions: rest.actions });
     }
     await this.validateSavedActionOwnership(rest.actions, bindings, vpbxUserUid);
+    if (rest.extensions !== undefined || rest.context_uid !== undefined || rest.active === 1) await this.validateRulePairs(rest.extensions ?? route.extensions, rest.context_uid ?? route.context_uid, vpbxUserUid, uid, transaction);
+    this.validateCallerIdRaw({ extensions: rest.extensions ?? route.extensions, raw_dialplan: rest.raw_dialplan === undefined ? route.raw_dialplan : rest.raw_dialplan });
     const payload = { ...rest } as Partial<Route>;
     if (payload.raw_dialplan?.trim()) {
       payload.raw_dialplan = ensureCdrVpbxUserUidInDialplan(payload.raw_dialplan, vpbxUserUid);
     } else if (payload.raw_dialplan !== undefined && !payload.raw_dialplan?.trim()) {
       payload.raw_dialplan = null;
     }
-    await route.update(payload);
+    if (transaction) await route.update(payload, { transaction }); else await route.update(payload);
 
     if (bindings !== undefined) {
-      await this.replaceBindings(uid, bindings, vpbxUserUid);
+      await this.replaceBindings(uid, bindings, vpbxUserUid, transaction);
     }
 
-    return this.findOne(uid, vpbxUserUid);
+    return this.findOne(uid, vpbxUserUid, transaction);
   }
 
   /** Delete a route */
@@ -314,12 +395,14 @@ export class RoutesService {
     vpbxUserUid: number,
     isAdmin: boolean = false,
     timeGroupIntervals: Map<number, string[]> = new Map(),
+    routeContext?: string,
   ): string {
     if (shouldUseStoredRawDialplan(route)) {
       return ensureCdrVpbxUserUidInDialplan(route.raw_dialplan as string, vpbxUserUid);
     }
 
     const lines: string[] = [];
+    const stepContexts = new Map<string, string>();
     const extensions = route.extensions || [];
     const actions = route.actions || [];
     const opts = route.options || {};
@@ -348,7 +431,12 @@ export class RoutesService {
     const orderedBindings = bindings.slice().sort((a, b) => a.position - b.position);
 
     for (const ext of extensions) {
-      lines.push(`exten => ${ext},1,NoOp(Route: ${route.name})`);
+      const rule = parseRouteDialPattern(ext);
+      if (rule.callerId !== undefined) {
+        lines.push(`exten => ${ext},1,Goto(${routeExecutionContext(route.uid, vpbxUserUid)},\${EXTEN},1)`);
+        continue;
+      }
+      lines.push(`exten => ${ext},1,NoOp(Route: ${route.name.replace(/[\r\n(),]/g, ' ')})`);
       lines.push(`same => n,Set(CDR(vpbx_user_uid)=${vpbxUserUid})`);
       lines.push(`same => n,Set(__HH_ROUTE_UID=${route.uid})`);
       lines.push('same => n,ExecIf($["${ORIGUNIQUEID}" = ""]?Set(__ORIGUNIQUEID=${UNIQUEID}))');
@@ -453,18 +541,28 @@ export class RoutesService {
         const dp = renderActionChain([action], {
           vpbxUserUid,
           host: 'route',
+          ownerId: route.uid,
+          routeContext,
           isAdmin,
           wh,
           timeGroup: hasTg ? `"\${WT_${tgUid}}"="1"` : undefined,
         });
         if (!dp) continue;
-        lines.push(prefixSamePriority(dp));
+        const extraIndex=dp.indexOf('\n[');
+        const main=extraIndex<0?dp:dp.slice(0,extraIndex);
+        if(extraIndex>=0) for(const category of dp.slice(extraIndex+1).split(/(?=^\[)/m).filter(Boolean)) {
+          const name=/^\[([^\]]+)\]/.exec(category)?.[1];if(name)stepContexts.set(name,category);
+        }
+        lines.push(prefixSamePriority(main));
       }
 
+      // Includes are searched again for subsequent priorities. Terminate a managed
+      // route explicitly instead of falling into another context's matching exten.
+      lines.push('same => n,Hangup()');
       lines.push(''); // blank line between extensions
     }
 
-    return lines.join('\n');
+    return [...lines,...stepContexts.values()].join('\n');
   }
 
   private buildContextName(contextName: string, vpbxUserUid: number): string {
@@ -492,14 +590,37 @@ export class RoutesService {
 
     if (includes.length > 0) lines.push('');
 
+    // Refuse duplicate pairs before emitting configuration.
+    const pairKeys = new Set<string>();
+    for (const route of routes.filter((row) => row.active)) for (const value of route.extensions ?? []) {
+      const key = routeDialPatternKey(value);
+      if (pairKeys.has(key)) throw new BadRequestException(`Duplicate dial rule: ${value}`);
+      pairKeys.add(key);
+    }
     // Routes
+    const privateLines: string[] = [];
+    const stepContexts = new Map<string,string>();
+    const routeBody = (route: Route): string => {
+      const dp=this.generateRouteDialplan(route,vpbxUserUid,isAdmin,timeGroupIntervals,tenantedContextName);
+      const index=dp.indexOf('\n[');if(index<0)return dp;
+      for(const category of dp.slice(index+1).split(/(?=^\[)/m).filter(Boolean)) {const name=/^\[([^\]]+)\]/.exec(category)?.[1];if(name)stepContexts.set(name,category);}
+      return dp.slice(0,index);
+    };
     for (const route of routes) {
       if (!route.active) continue;
-      lines.push(`; --- ${route.name} ---`);
-      lines.push(this.generateRouteDialplan(route, vpbxUserUid, isAdmin, timeGroupIntervals));
+      lines.push(`; --- ${route.name.replace(/[\r\n]/g, ' ')} ---`);
+      lines.push(routeBody(route));
+      if (!shouldUseStoredRawDialplan(route)) {
+        const restricted = (route.extensions ?? []).map(parseRouteDialPattern).filter((rule) => rule.callerId !== undefined);
+        if (restricted.length) {
+          const execution = { ...(typeof route.toJSON === 'function' ? route.toJSON() : route), extensions: [...new Set(restricted.map((rule) => rule.extension))], raw_dialplan: null } as Route;
+          privateLines.push('[' + routeExecutionContext(route.uid, vpbxUserUid) + ']');
+          privateLines.push(routeBody(execution));
+        }
+      }
     }
 
-    return lines.join('\n');
+    return [...lines, ...privateLines, ...stepContexts.values()].join('\n');
   }
 
   /** Bulk delete routes */

@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building2, Loader2, Plus, Star, Pencil, Trash2 } from 'lucide-react';
@@ -18,7 +19,7 @@ import cls from './SellersTable.module.scss';
 
 export const SellersTable = memo(function SellersTable() {
   const { t } = useTranslation();
-  const { data: sellers = [], isLoading } = useGetSellersQuery();
+  const { data: sellers = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetSellersQuery();
   const [deleteSeller] = useDeleteSellerMutation();
   const [setDefault] = useSetDefaultSellerMutation();
   const [modalOpen, setModalOpen] = useState(false);
@@ -121,6 +122,7 @@ export const SellersTable = memo(function SellersTable() {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   return (
     <VStack gap="20" max data-testid="sellers-table">
       <Card className={cls.card}>

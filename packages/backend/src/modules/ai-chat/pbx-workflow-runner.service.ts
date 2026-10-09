@@ -18,10 +18,13 @@ import {
   type DeclarativeWorkflowStep,
 } from './pbx-workflow-compiler.service';
 import type { ProposalContext } from './pbx-agent-diff.service';
+import { parseSecureConfirmationInputs, type SecureConfirmationInputs } from './dto/secure-confirmation.dto';
 
 const EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 export interface WorkflowStepView {
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
   stepKey: string;
   stepIndex: number;
   tool: string;
@@ -128,7 +131,7 @@ export class PbxWorkflowRunnerService {
    * Database claim spans workers. A durable write checkpoint allows reload-only
    * retries. An ambiguous write keeps the claim for operator reconciliation.
    */
-  async apply(workflowId: string, ctx: ProposalContext): Promise<WorkflowPlanView> {
+  async apply(workflowId: string, ctx: ProposalContext, secureInputs?: SecureConfirmationInputs): Promise<WorkflowPlanView> {
     if (this.locks.has(workflowId)) {
       throw new Error('WORKFLOW_BUSY');
     }
@@ -208,11 +211,13 @@ export class PbxWorkflowRunnerService {
           }
           const args = parseMutationArgs(tool.mutation, stripTenantAliasesDeep(resolvedArgs));
           const mutationCtx = {
+            secureInput: parseSecureConfirmationInputs(secureInputs)[step.step_key],
             vpbxUserUid: ctx.vpbxUserUid,
             userUid: ctx.userUid,
             role: ctx.role,
             isAdmin: ctx.role === UserLevel.ADMIN,
           };
+          if ((args as { requiresSecureInput?: boolean }).requiresSecureInput && !mutationCtx.secureInput) throw new Error('secure_input_required');
           const check = await tool.mutation.revalidate(args, mutationCtx);
           if (!check.ok) throw new Error(check.reason);
           const contextUid = tool.mutation.reload.kind === 'dialplan-context'
@@ -391,6 +396,8 @@ export class PbxWorkflowRunnerService {
         error: step.error,
         dependsOn: step.depends_on ?? [],
         requiresSecureInput: !!step.requires_secure_input,
+        before: step.before_json ?? null,
+        after: step.after_json ?? null,
       })),
     };
   }

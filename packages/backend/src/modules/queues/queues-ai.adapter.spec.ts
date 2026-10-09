@@ -120,7 +120,7 @@ describe('QueuesAiAdapter', () => {
   describe('tool declarations (D-18)', () => {
     it('exposes list, create, update and delete', () => {
       expect(adapter.getTools().map((tool) => tool.name)).toEqual([
-        'list_queues',
+        'list_queues', 'get_queue_configuration',
         'create_queue',
         'update_queue',
         'delete_queue',

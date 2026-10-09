@@ -23,6 +23,7 @@ const ALWAYS_AVAILABLE_TOOLS = new Set([
   'find_cdr_calls',
   'propose_plan',
   'list_dialplan_apps',
+  'get_configuration_capabilities',
 ]);
 
 /**
@@ -46,6 +47,7 @@ export class AgentIntentClassifierService {
     const bump = (name: string, weight: number) => {
       scores.set(name, (scores.get(name) ?? 0) + weight);
     };
+    if (/параметр|расширенн.*настрой|настройк.*систем|конфигурац/i.test(message)) bump('platform-configuration', 8);
 
     // Preserve the requested business action before incidental mentions of
     // existing numbers, contexts and subscribers consume the four-skill budget.

@@ -179,18 +179,18 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   'route-templates': { kind: 'covered', domain: 'route_templates', sharedSkill: 'routes', capability: 'read' },
   routes: { kind: 'covered', capability: 'configure' },
   'service-requests': { kind: 'covered', sharedSkill: 'operations', capability: 'operation' },
-  sms: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },
+  sms: { kind: 'covered', sharedSkill: 'messaging', capability: 'read' },
   'speech-analytics': { kind: 'covered', capability: 'configure' },
   'stt-engines': { kind: 'covered', sharedSkill: 'speech-engines', capability: 'configure' },
   'system-settings': { kind: 'covered', sharedSkill: 'settings', capability: 'immutable' },
-  telegram: { kind: 'covered', sharedSkill: 'messaging', capability: 'configure' },
+  telegram: { kind: 'covered', sharedSkill: 'messaging', capability: 'read' },
   'tenant-settings': { kind: 'covered', sharedSkill: 'settings', capability: 'configure' },
   'time-groups': { kind: 'covered', capability: 'configure' },
   trunks: { kind: 'covered', capability: 'configure' },
   'tts-engines': { kind: 'covered', sharedSkill: 'speech-engines', capability: 'configure' },
   users: { kind: 'covered', capability: 'immutable' },
-  'voice-robots': { kind: 'covered', capability: 'configure' },
-  voicemail: { kind: 'covered', capability: 'configure' },
+  'voice-robots': { kind: 'covered', capability: 'read' },
+  voicemail: { kind: 'covered', capability: 'read' },
 };
 
 export const BACKEND_MODULES_DIR = path.resolve(__dirname, '..');

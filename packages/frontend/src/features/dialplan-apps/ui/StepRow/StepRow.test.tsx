@@ -33,6 +33,17 @@ function action(partial: Partial<IRouteAction> = {}): IRouteAction {
 const noop = () => undefined;
 
 describe('StepRow', () => {
+ it('opens parameters from the row, hides raw statuses and puts operations in a menu',()=>{
+  const open=vi.fn(),duplicate=vi.fn();
+  render(<StepRow action={action({condition:{source:'queuestatus',values:['FULL']}})} index={0} onOpenStep={open} onDuplicate={duplicate} onToggleEnabled={noop} onRemove={noop} onCopy={noop}/>);
+  expect(screen.queryByRole('button',{name:'Настроить шаг'})).toBeNull();
+  expect(screen.queryByText('FULL')).toBeNull();
+  expect(screen.getByTestId('step-row-condition-badge')).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId('step-row'));expect(open).toHaveBeenCalledWith('step-1','params');open.mockClear();
+  fireEvent.pointerDown(screen.getByRole('button',{name:'Ещё действия'}),{button:0,ctrlKey:false});
+  fireEvent.click(screen.getByRole('menuitem',{name:'Дублировать действие'}));
+  expect(duplicate).toHaveBeenCalledWith('step-1');expect(open).not.toHaveBeenCalled();
+ });
   it('renders a toqueue route_pattern summary without key=value leftovers', () => {
     render(
       <StepRow
@@ -124,7 +135,8 @@ describe('StepRow', () => {
       </div>,
     );
     const scope = screen.getByTestId('row-scope');
-    expect(within(scope).queryAllByRole('button')).toEqual([]);
+    expect(within(scope).queryByRole('button',{name:'Ещё действия'})).toBeNull();
+    expect(within(scope).getByRole('button',{name:'Очередь'})).toHaveAttribute('tabindex','0');
     expect(screen.queryByLabelText(/перетащ/i)).toBeNull();
     expect(screen.queryByLabelText(/drag/i)).toBeNull();
   });
@@ -162,7 +174,7 @@ describe('StepRow', () => {
       />,
     );
     expect(screen.getByTestId('step-row')).toHaveAttribute('data-unreachable', 'true');
-    expect(screen.getByLabelText(/настроить/i)).not.toBeDisabled();
+    expect(screen.getByRole('button',{name:'Очередь'})).toHaveAttribute('tabindex','0');
   });
 
   it('applies density min-height variables', () => {
@@ -195,7 +207,7 @@ describe('StepRow', () => {
     expect(screen.getByTestId('step-row').style.getPropertyValue('--step-min-height')).toBe('56px');
   });
 
-  it('gives every icon-only action a title and aria-label', () => {
+  it('gives icon-only controls accessible names without native tooltip duplication', () => {
     render(
       <StepRow
         action={action({ condition: { dialstatus: 'BUSY' } })}
@@ -216,7 +228,7 @@ describe('StepRow', () => {
     iconButtons.forEach((btn) => {
       expect(btn.getAttribute('aria-label') || btn.getAttribute('title')).toBeTruthy();
       expect(btn.getAttribute('aria-label')).toBeTruthy();
-      expect(btn.getAttribute('title')).toBeTruthy();
+
     });
   });
 

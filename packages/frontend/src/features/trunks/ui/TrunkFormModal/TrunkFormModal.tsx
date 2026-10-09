@@ -17,8 +17,9 @@ import {
 } from '@/shared/api/endpoints/trunkApi';
 import { rtkApi } from '@/shared/api/rtkApi';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
-import { ADVANCED_PJSIP_FIELDS } from '../../../endpoints/config/pjsipAdvancedFields';
-import { AdvancedSettingsBuilder } from '../../../endpoints/ui/AdvancedSettingsBuilder';
+import { useDefaultContext } from '@/shared/lib/useDefaultContext';
+import { ADVANCED_PJSIP_FIELDS } from '@/shared/config/pjsipAdvancedFields';
+import { PjsipSettingsBuilder as AdvancedSettingsBuilder } from '@/shared/ui/PjsipSettingsBuilder';
 
 const CODEC_OPTIONS = [
   'ulaw', 'alaw', 'g722', 'g729', 'gsm', 'opus',
@@ -148,6 +149,8 @@ export const TrunkFormModal = () => {
     }
   }, [mode, selected, isOpen]);
 
+  const chooseContext = useDefaultContext(isOpen, mode === 'create', contexts, 'trunks', setContext);
+
   const handleClose = useCallback(() => {
     dispatch(trunksPageActions.closeModal());
   }, [dispatch]);
@@ -155,6 +158,7 @@ export const TrunkFormModal = () => {
   const isCreateMode = mode === 'create' || mode === 'copy';
 
   const handleSubmit = async () => {
+    if (!context.trim()) { setActiveTab('basic'); return; }
     try {
       if (isCreateMode) {
         await createTrunk({
@@ -354,12 +358,13 @@ export const TrunkFormModal = () => {
                 {/* Context */}
                 <VStack gap="4">
                   <label htmlFor="trunk-context" className="text-sm font-medium text-muted-foreground">
-                    {t('trunks.context', 'Контекст')}
+                    {t('trunks.context', 'Контекст')} *
                   </label>
                   <select
                     id="trunk-context"
                     value={context}
-                    onChange={(e) => setContext(e.target.value)}
+                    onChange={(e) => chooseContext(e.target.value)}
+                    required
                     className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
                   >
                     <option value="" disabled>{t('trunks.selectContext')}</option>

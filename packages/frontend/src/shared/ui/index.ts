@@ -61,7 +61,10 @@ export type { AudioPlayerProps } from './AudioPlayer';
 export { RecordingButton } from './RecordingButton';
 export type { RecordingButtonProps } from './RecordingButton';
 export { FileImportButton } from './FileImportButton';
+export { QueryErrorState } from './QueryErrorState';
+export type { QueryErrorStateProps } from './QueryErrorState';
 export type { FileImportButtonProps } from './FileImportButton';
 
 export { WebhookAuthConfig } from './WebhookAuthConfig/WebhookAuthConfig';
+export { SortableList } from './SortableList/SortableList';
 export type { AuthMode, WebhookHeader } from './WebhookAuthConfig/WebhookAuthConfig';

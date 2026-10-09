@@ -1,0 +1,63 @@
+{
+  "revision": "R11",
+  "coordinator": "/root",
+  "mode": "codex-direct",
+  "status": "implemented / automated-tests-passed / live-verified (isolated Asterisk)",
+  "gates": {
+    "lint": {
+      "status": "pass",
+      "command": "npm run lint",
+      "existingWarnings": {
+        "backend": 116,
+        "frontend": 85
+      }
+    },
+    "backend": {
+      "status": "pass_after_resolved_fixture",
+      "command": "npm run test:backend -- -- --runInBand",
+      "fullSummary": "Test Suites: 1 failed, 1 skipped, 386 passed, 387 of 388 total",
+      "testsSummary": "Tests:       1 failed, 11 skipped, 3637 passed, 3649 total",
+      "resolvedFailure": "directory-policy fixture updated to encoded protocol; root onlyFailures 1 suite / 7 pass",
+      "followup": "strict mapping final compiler/bridge suite 8 pass; template and dialplan 181 pass"
+    },
+    "frontend": {
+      "status": "pass",
+      "command": "VITEST_MAX_WORKERS=2 npm run test:frontend",
+      "files": 319,
+      "tests": 1665,
+      "batches": 8,
+      "exit": 0
+    },
+    "shared": {
+      "status": "pass",
+      "tests": 5
+    },
+    "types": {
+      "status": "pass",
+      "frontend": "npx tsc --noEmit",
+      "backend": "tsconfig.build.json via build",
+      "shared": "tsc via build"
+    },
+    "builds": {
+      "status": "pass",
+      "shared": true,
+      "backend": true
+    },
+    "live": {
+      "status": "pass",
+      "mainCases": 20,
+      "followupCases": 4,
+      "main": "callerid-app-v2-live.json",
+      "followup": "callerid-app-v2-mapping-live.json",
+      "cleanup": "DB/AMI/SSH confirmed zero owned records/files/state/processes and zero active channels"
+    },
+    "browser": {
+      "status": "unavailable",
+      "reason": "sandbox helper setup refresh failure; no browser verification claim"
+    },
+    "release": {
+      "status": "not-applicable",
+      "reason": "local source and isolated generated configurations verified; no full application deployment requested"
+    }
+  }
+}

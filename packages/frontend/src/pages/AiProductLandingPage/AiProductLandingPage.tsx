@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -49,11 +50,11 @@ function activationErrorCode(error: unknown): string {
 export const AiProductLandingPage = memo(({ product }: { product: AiProductCode }) => {
   const { t } = useTranslation();
   const isSuperAdmin = useAppSelector(selectIsSuperAdmin);
-  const { active, marketplace, isLoading: hubLoading } = useHubModules();
+  const { active, marketplace, isLoading: hubLoading, isError: hubError, refetch: retryHub } = useHubModules();
   const statusQuery = useGetAiProductsStatusQuery();
   const row = [...active, ...marketplace].find((item) => item.code === product);
   const decision = statusQuery.data?.find((item) => item.product === product);
-  const { data: providers = [] } = useGetAiProvidersQuery(undefined, {
+  const { data: providers = [], isError: providersLoadError, refetch: retryProviders } = useGetAiProvidersQuery(undefined, {
     skip: hubLoading || statusQuery.isLoading,
   });
   const [setActivation, activationState] = useSetProductActivationMutation();
@@ -77,6 +78,7 @@ export const AiProductLandingPage = memo(({ product }: { product: AiProductCode 
     || stateKey === 'disabled'
     || stateKey === 'unavailable';
 
+  if (hubError || statusQuery.isError || providersLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void (hubError ? retryHub?.() : statusQuery.isError ? statusQuery.refetch() : retryProviders())} />;
   return (
     <VStack gap="24" max className={cls.page} data-testid={`ai-product-landing-${product}`}>
       {stateKey === 'pending' ? (

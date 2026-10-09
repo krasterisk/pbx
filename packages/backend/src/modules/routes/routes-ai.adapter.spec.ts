@@ -96,6 +96,7 @@ describe('RoutesAiAdapter', () => {
   let routesService: {
     findAll: jest.Mock;
     findAllByContext: jest.Mock;
+    validateCallerIdConfiguration: jest.Mock;
     findOne: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
@@ -120,6 +121,7 @@ describe('RoutesAiAdapter', () => {
 
   beforeEach(() => {
     routesService = {
+      validateCallerIdConfiguration: jest.fn().mockResolvedValue(undefined),
       findAll: jest.fn(async (uid: number) => {
         if (uid === TENANT_A) return [{ ...ROUTE_A }, { ...ROUTE_CATCHALL }];
         if (uid === TENANT_B) return [{ ...ROUTE_B }];
@@ -297,6 +299,7 @@ describe('RoutesAiAdapter', () => {
         'describe_route_chain',
         'create_route',
         'delete_route',
+        'update_route',
         'list_route_analytics_projects',
         'set_route_analytics_project',
         'clear_route_analytics_project',
@@ -710,6 +713,34 @@ describe('RoutesAiAdapter', () => {
       expect(raw).toMatch(/list_dialplan_apps/);
     });
   });
+
+  it('normalizes structured Caller ID rules into the canonical confirmed payload', async () => {
+    routesService.findAll.mockResolvedValue([]);
+    const proposal = await getTool('create_route').handler({context_uid:3,name:'Caller route',dial_patterns:[{extension:'100',callerId:'201'},{extension:'200',callerId:''}],actions:[QUEUE_ACTION]},TENANT_A) as any;
+    expect(proposal.applyPayload.args.extensions).toEqual(['100/201','200/']);
+    expect(proposal.applyPayload.args).not.toHaveProperty('dial_patterns');
+    expect(routesService.create).not.toHaveBeenCalled();
+    await expect(getTool('create_route').handler({context_uid:3,dial_patterns:[{extension:'100',callerId:'201'},{extension:'100',callerId:'201'}],actions:[QUEUE_ACTION]},TENANT_A)).rejects.toThrow();
+  });
+  it('normalizes a structured update while preserving existing actions and context', async () => {
+    const proposal = await getTool('update_route').handler({id:11,dial_patterns:[{extension:'74951234567',callerId:'_2XX'}]},TENANT_A) as any;
+    expect(proposal.applyPayload.args.extensions).toEqual(['74951234567/_2XX']);
+    expect(proposal.applyPayload.args.context_uid).toBe(3);
+    expect(proposal.applyPayload.args).not.toHaveProperty('dial_patterns');
+    expect(routesService.update).not.toHaveBeenCalled();
+  });
+  it('preflights Caller ID v2 references before preparing the confirmed mutation', async () => {
+    routesService.findAll.mockResolvedValue([]);
+    const actions=[{type:'callerid',params:{version:2,number:{source:{source:'fixed',value:'302'}},name:{source:{source:'fixed',value:'Отдел'}}},condition:{}}];
+    const proposal=await getTool('create_route').handler({context_uid:3,name:'CID v2',extensions:['100'],actions},TENANT_A) as any;
+    expect(routesService.validateCallerIdConfiguration).toHaveBeenCalledWith(expect.any(Array),TENANT_A);
+    expect(proposal.applyPayload.args.actions[0].params.version).toBe(2);
+    expect(routesService.create).not.toHaveBeenCalled();
+    routesService.validateCallerIdConfiguration.mockRejectedValue(new Error('Number list belongs to another tenant'));
+    const refused=await getTool('create_route').handler({context_uid:3,name:'CID v2',extensions:['100'],actions},TENANT_A) as any;
+    expect(refused.refused).toBe(true);
+  });
+
 });
 
 function createMcp(registry: AiAdapterRegistryService): McpToolsService {

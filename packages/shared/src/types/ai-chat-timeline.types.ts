@@ -72,7 +72,7 @@ export function looksLikeUserConfirm(message: string): boolean {
   if (/\?/.test(text)) return false;
   // JS `\b` is ASCII-only — do not use it after Cyrillic verbs.
   const confirm =
-    /^(да[,!.\s]*)?(подтверждаю|подтвердить|подтвердите|согласен|согласна|делай|применяй|apply)([,!.\s]+(делай|применяй|план|карточку))*[,!.\s]*$/;
+    /^(да[,!.\s]*)?(подтверждаю|подтвердить|подтвердите|согласен|согласна|делай|применяй|примени|apply)([,!.\s]+(делай|применяй|примени|план|карточку))*[,!.\s]*$/;
   return confirm.test(text) || /^(ок|ok)[,!.\s]+делай[,!.\s]*$/.test(text);
 }
 

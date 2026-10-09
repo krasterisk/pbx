@@ -1,0 +1,36 @@
+{
+  "run": "cidapp_876e6177a4",
+  "tenant": 804507337,
+  "target": "ipbx.krasterisk.ru",
+  "checks": [
+    {
+      "case": "strict_mapping_missing_differs_from_first_number",
+      "pass": true
+    },
+    {
+      "case": "single_number_pool_never_fails_or_skips",
+      "pass": true
+    },
+    {
+      "case": "empty_catalog_pool_uses_missing_keep_policy",
+      "pass": true
+    },
+    {
+      "case": "plain_list_mapping_requires_exact_identity_key",
+      "pass": true
+    }
+  ],
+  "cleanup": true,
+  "pass": true,
+  "sip_invites": [],
+  "post_cleanup_database": {
+    "Context": 0,
+    "ContextInclude": 0,
+    "Route": 0,
+    "NumberList": 0,
+    "Directory": 0,
+    "TenantSetting": 0,
+    "cdr": 0
+  },
+  "post_cleanup_server": "0 results found.\n0 active channels\n0 active calls\n238 calls processed"
+}

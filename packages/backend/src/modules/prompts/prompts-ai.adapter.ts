@@ -1,4 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { z } from 'zod';
+import { defineMutationTool } from '../ai-platform/ai-mutation.contract';
 import { PromptsService } from './prompts.service';
 import { IvrsService } from '../ivrs/ivrs.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
@@ -58,7 +60,23 @@ export class PromptsAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListAudioPrompts()];
+    return [this.toolListAudioPrompts(), this.toolUpdateMetadata()];
+  }
+
+  private toolUpdateMetadata(): AiToolDefinition {
+    const schema = z.strictObject({ uid: z.number().int().positive(), comment: z.string().trim().min(1).max(128).optional(), description: z.string().max(2048).optional() });
+    return defineMutationTool({
+      name: 'update_audio_prompt', description: 'Изменить название или описание существующей аудиозаписи. Не меняет файл и не запускает платный синтез.',
+      entityType: 'prompt', schemaVersion: 'prompt-metadata-1', input: schema, args: schema, reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        if (Object.keys(input).length < 2) return { refused: true, message: 'Не указано изменение.' };
+        const current = await this.prompts.findOne(input.uid, ctx.vpbxUserUid);
+        const before = { comment: current.comment, description: current.description };
+        return { entityType: 'prompt', entityLabel: current.comment || String(current.uid), summary: ['Изменить название/описание аудиозаписи'], before, after: { ...before, ...input }, applyPayload: { tool: 'update_audio_prompt', args: input }, includesDialplanReload: false };
+      },
+      revalidate: async (args, ctx) => { await this.prompts.findOne(args.uid, ctx.vpbxUserUid); return { ok: true, args }; },
+      apply: async ({ uid, ...patch }, ctx) => { await this.prompts.update(uid, patch, ctx.vpbxUserUid); },
+    });
   }
 
   getStateProvider(): AiStateProvider {

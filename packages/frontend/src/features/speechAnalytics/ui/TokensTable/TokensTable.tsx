@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, KeyRound, Trash2 } from 'lucide-react';
@@ -123,17 +124,10 @@ export const TokensTable = memo(({
 
   if (isError) {
     return (
-      <VStack gap="12" max data-testid="tokens-table-error">
-        <Text>
-          {t(
+      <QueryErrorState message={t(
             'speechAnalytics.errorLoadTokens',
             'Не удалось загрузить токены. Повторите попытку.',
-          )}
-        </Text>
-        <Button type="button" variant="outline" onClick={() => onRetry?.()}>
-          {t('speechAnalytics.retry', 'Повторить')}
-        </Button>
-      </VStack>
+          )} onRetry={() => onRetry?.()} retryLabel={t('speechAnalytics.retry', 'Повторить')} data-testid="tokens-table-error" />
     );
   }
 

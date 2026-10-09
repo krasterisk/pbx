@@ -33,6 +33,8 @@ export interface ValueSourceFieldProps {
   readOnly?: boolean;
   /** Highlight incomplete required fields after a failed close/save attempt */
   showErrors?: boolean;
+  /** Server validation can reject an otherwise complete source. */
+  invalid?: boolean;
   /** Directory catalog from useSchemaRefs. DirectoryLookupField loads fields itself. */
   directories?: DirectoryCatalogItem[];
   /** Catalog from useSchemaRefs for queue-mode sources (queues, conference rooms). */
@@ -144,6 +146,7 @@ export function ValueSourceField({
   mode: modeProp,
   readOnly,
   showErrors = false,
+  invalid = false,
   directories = [],
   catalog: catalogProp,
   autodialFields = [],
@@ -187,7 +190,7 @@ export function ValueSourceField({
   const isLoading = catalogMode && catalogLoading;
   const isEmpty = catalogMode && !isLoading && catalogItems.length === 0;
   const complete = isValueSourceComplete(src);
-  const markError = Boolean(required && showErrors && !complete && !isLoading);
+  const markError = Boolean(invalid || (required && showErrors && !complete && !isLoading));
   const queueEmptyError = markError && src.source === 'fixed' && !src.value.trim();
   const variableError = markError && src.source === 'variable';
   const loadingLabel = t('routes.chain.catalog.loading', 'Загружаем список');

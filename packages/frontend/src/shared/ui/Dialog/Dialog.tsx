@@ -1,9 +1,10 @@
-import * as React from 'react';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { cva, type VariantProps } from 'class-variance-authority';
+import * as React from "react";
+import { useTranslation } from "react-i18next";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { cva, type VariantProps } from "class-variance-authority";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,8 +22,8 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 layer-modal bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-      className
+      "fixed inset-0 layer-modal bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className,
     )}
     {...props}
   />
@@ -30,63 +31,84 @@ const DialogOverlay = React.forwardRef<
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const dialogContentVariants = cva(
-  'fixed left-[50%] top-[50%] layer-modal w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-sm:max-h-[95dvh] max-sm:max-w-[calc(100vw-1rem)] max-sm:p-4 max-sm:rounded-lg',
+  "fixed left-[50%] top-[50%] layer-modal w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-sm:max-h-[95dvh] max-sm:max-w-[calc(100vw-1rem)] max-sm:p-4 max-sm:rounded-lg",
   {
     variants: {
       size: {
-        default: 'grid max-w-lg',
-        xl: 'grid max-w-xl max-h-[90vh] overflow-y-auto',
-        '2xl': 'grid max-w-2xl max-h-[90vh] overflow-y-auto',
-        '3xl': 'grid max-w-3xl max-h-[90vh] overflow-y-auto',
-        large: 'flex flex-col max-w-4xl h-[85vh] min-h-0 overflow-hidden max-sm:h-[90dvh]',
+        default: "grid max-w-lg",
+        xl: "grid max-w-xl max-h-[90vh] overflow-y-auto",
+        "2xl": "grid max-w-2xl max-h-[90vh] overflow-y-auto",
+        "3xl": "grid max-w-3xl max-h-[90vh] overflow-y-auto",
+        large:
+          "flex flex-col max-w-4xl h-[85vh] min-h-0 overflow-hidden max-sm:h-[90dvh]",
       },
     },
     defaultVariants: {
-      size: 'default',
+      size: "default",
     },
-  }
+  },
 );
 
 interface DialogContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
+  extends
+    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
     VariantProps<typeof dialogContentVariants> {}
 
 /** Portaled popovers (e.g. MultiSelect) live outside Dialog content; keep focus/pointer there. */
 function isPortaledSelectTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && Boolean(target.closest('[data-multiselect-dropdown]'));
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("[data-multiselect-dropdown]"))
+  );
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, size, children, onPointerDownOutside, onFocusOutside, onInteractOutside, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(dialogContentVariants({ size }), className)}
-      onPointerDownOutside={(e) => {
-        if (isPortaledSelectTarget(e.target)) e.preventDefault();
-        onPointerDownOutside?.(e);
-      }}
-      onFocusOutside={(e) => {
-        if (isPortaledSelectTarget(e.target)) e.preventDefault();
-        onFocusOutside?.(e);
-      }}
-      onInteractOutside={(e) => {
-        if (isPortaledSelectTarget(e.target)) e.preventDefault();
-        onInteractOutside?.(e);
-      }}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
+>(
+  (
+    {
+      className,
+      size,
+      children,
+      onPointerDownOutside,
+      onFocusOutside,
+      onInteractOutside,
+      ...props
+    },
+    ref,
+  ) => {
+    const { t } = useTranslation();
+    return (
+      <DialogPortal>
+        <DialogOverlay />
+        <DialogPrimitive.Content
+          ref={ref}
+          className={cn(dialogContentVariants({ size }), className)}
+          onPointerDownOutside={(e) => {
+            if (isPortaledSelectTarget(e.target)) e.preventDefault();
+            onPointerDownOutside?.(e);
+          }}
+          onFocusOutside={(e) => {
+            if (isPortaledSelectTarget(e.target)) e.preventDefault();
+            onFocusOutside?.(e);
+          }}
+          onInteractOutside={(e) => {
+            if (isPortaledSelectTarget(e.target)) e.preventDefault();
+            onInteractOutside?.(e);
+          }}
+          {...props}
+        >
+          {children}
+          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+            <X className="h-4 w-4" />
+            <span className="sr-only">{t("common.close")}</span>
+          </DialogPrimitive.Close>
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    );
+  },
+);
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({
@@ -95,13 +117,13 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col space-y-1.5 text-center sm:text-left',
-      className
+      "flex flex-col space-y-1.5 text-center sm:text-left",
+      className,
     )}
     {...props}
   />
 );
-DialogHeader.displayName = 'DialogHeader';
+DialogHeader.displayName = "DialogHeader";
 
 const DialogFooter = ({
   className,
@@ -109,13 +131,13 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
-      className
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      className,
     )}
     {...props}
   />
 );
-DialogFooter.displayName = 'DialogFooter';
+DialogFooter.displayName = "DialogFooter";
 
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
@@ -124,8 +146,8 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      'text-lg font-semibold leading-none tracking-tight',
-      className
+      "text-lg font-semibold leading-none tracking-tight",
+      className,
     )}
     {...props}
   />
@@ -138,7 +160,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn('text-sm text-muted-foreground', className)}
+    className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
 ));

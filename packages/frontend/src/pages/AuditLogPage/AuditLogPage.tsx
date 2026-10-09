@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -36,9 +37,9 @@ const AuditLogPage = memo(() => {
   };
   const whPage = Number(searchParams.get('whPage') || '1');
 
-  const { data: logs, isLoading: logsLoading, isFetching } = useGetAuditLogsQuery(filters);
+  const { data: logs, isLoading: logsLoading, isFetching, isError: logsLoadError, refetch: retryLogs } = useGetAuditLogsQuery(filters);
   const { data: stats, isLoading: statsLoading } = useGetAuditLogStatsQuery();
-  const { data: failures, isLoading: failuresLoading } = useGetWebhookFailuresQuery({
+  const { data: failures, isLoading: failuresLoading, isError: failuresLoadError, refetch: retryFailures } = useGetWebhookFailuresQuery({
     page: whPage, limit: PAGE_SIZE, resolved: false,
   });
 
@@ -105,10 +106,10 @@ const AuditLogPage = memo(() => {
           data-hybrid="overflow-x-auto"
         >
           {tab === 'system' && (
-            <AuditLogTable data={logs?.items ?? []} isLoading={logsLoading || isFetching} />
+            logsLoadError ? <QueryErrorState onRetry={() => void retryLogs()} /> : <AuditLogTable data={logs?.items ?? []} isLoading={logsLoading || isFetching} />
           )}
           {tab === 'webhooks' && (
-            <WebhookFailuresTable
+            failuresLoadError ? <QueryErrorState onRetry={() => void retryFailures()} /> : <WebhookFailuresTable
               data={failures?.items ?? []}
               isLoading={failuresLoading}
               total={failureCount}

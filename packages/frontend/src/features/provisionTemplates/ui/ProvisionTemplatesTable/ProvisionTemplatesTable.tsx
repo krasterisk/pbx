@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -34,7 +35,7 @@ export const ProvisionTemplatesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: templates = [], isLoading } = useGetProvisionTemplatesQuery();
+  const { data: templates = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetProvisionTemplatesQuery();
   const [deleteTemplate] = useDeleteProvisionTemplateMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteProvisionTemplatesMutation();
 
@@ -132,6 +133,7 @@ export const ProvisionTemplatesTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

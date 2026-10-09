@@ -1,0 +1,41 @@
+{
+  "run": "ctxaudit_d03cc8dcdc",
+  "tenant": 806232831,
+  "target": "ipbx.krasterisk.ru",
+  "checks": [
+    {
+      "case": "ownership_duplicates_cycle_and_atomic_rollback",
+      "pass": true
+    },
+    {
+      "case": "first_include",
+      "pass": true
+    },
+    {
+      "case": "reorder_changes_selected_route",
+      "pass": true
+    },
+    {
+      "case": "own_context_precedence_and_no_priority_leak",
+      "pass": true
+    },
+    {
+      "case": "transitive_include",
+      "pass": true
+    },
+    {
+      "case": "unreachable_extension",
+      "pass": true
+    },
+    {
+      "case": "concurrent_cycle_prevented",
+      "pass": true
+    },
+    {
+      "case": "deleted_context_reference_cleanup",
+      "pass": true
+    }
+  ],
+  "cleanup": true,
+  "pass": true
+}

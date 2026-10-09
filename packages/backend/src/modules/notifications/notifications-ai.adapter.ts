@@ -1,4 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { z } from 'zod';
+import { defineMutationTool } from '../ai-platform/ai-mutation.contract';
+import { redactSecrets } from '../ai-platform/ai-secret-redaction';
 import { NotificationsService } from './notifications.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
@@ -60,7 +63,30 @@ export class NotificationsAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListNotifications()];
+    return [this.toolListNotifications(), {
+      name: 'list_notification_integrations', description: 'Настроенные интеграции уведомлений: канал, имя, config; секреты скрыты. Это конфигурация, а не журнал доставок.',
+      inputSchema: {}, entityType: 'notification',
+      handler: async (_args, uid) => ({ integrations: redactSecrets(await this.notifications.findAll(uid)) }),
+    }, this.toolUpdateIntegration()];
+  }
+
+  private toolUpdateIntegration(): AiToolDefinition {
+    const schema = z.strictObject({ uid: z.number().int().positive(), name: z.string().trim().min(1).max(128).optional(), config: z.record(z.string(), z.unknown()).optional() });
+    return defineMutationTool({
+      name: 'update_notification_integration', description: 'Изменить имя или публичные настройки существующей интеграции уведомлений. Credentials и канал сохраняются; отправка сообщений не выполняется.',
+      entityType: 'notification', schemaVersion: 'notification-config-1', input: schema, args: schema, reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        if (Object.keys(input).length < 2) return { refused: true, message: 'Не указано изменение.' };
+        const current = await this.notifications.findOne(input.uid, ctx.vpbxUserUid);
+        const before = { name: String(current.name), config: redactSecrets((current.config ?? {}) as Record<string, unknown>) };
+        return { entityType: 'notification', entityLabel: String(current.name), summary: ['Изменить настройки интеграции уведомлений'], before, after: { ...before, ...input, config: { ...before.config, ...input.config } }, applyPayload: { tool: 'update_notification_integration', args: input }, includesDialplanReload: false };
+      },
+      revalidate: async (args, ctx) => { await this.notifications.findOne(args.uid, ctx.vpbxUserUid); return { ok: true, args }; },
+      apply: async ({ uid, ...patch }, ctx) => {
+        const current = await this.notifications.findOne(uid, ctx.vpbxUserUid);
+        await this.notifications.update(uid, { ...patch, ...(patch.config ? { config: { ...(current.config as Record<string, unknown>), ...patch.config } } : {}) }, ctx.vpbxUserUid);
+      },
+    });
   }
 
   getStateProvider(): AiStateProvider {
@@ -69,8 +95,8 @@ export class NotificationsAiAdapter implements DomainAiAdapter, OnModuleInit {
 
   getKnowledgeBlock(): string {
     return `## Уведомления
-- Список недавних исходящих уведомлений: канал, статус, время и превью текста.
-- Отправить уведомление агент не может.`;
+- list_notification_integrations читает конфигурацию интеграций, не историю доставок; list_notifications — совместимый старый каталог.
+- update_notification_integration меняет имя или публичный config с подтверждением, сохраняя credentials. Отправить уведомление этим инструментом нельзя.`;
   }
 
   private async buildSummary(vpbxUserUid: number): Promise<string> {
@@ -85,7 +111,7 @@ export class NotificationsAiAdapter implements DomainAiAdapter, OnModuleInit {
     return {
       name: 'list_notifications',
       description:
-        'Недавние уведомления тенанта: канал, статус, время и усечённое превью. Отправка недоступна.',
+        'Совместимый каталог интеграций уведомлений тенанта. Для полных настроек используй list_notification_integrations. Это не история доставок; отправка недоступна.',
       inputSchema: {
         date_from: { type: 'string', description: 'Начало диапазона (ISO или YYYY-MM-DD)' },
         date_to: { type: 'string', description: 'Конец диапазона (ISO или YYYY-MM-DD)' },

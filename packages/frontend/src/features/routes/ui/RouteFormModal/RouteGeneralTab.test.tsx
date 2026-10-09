@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { RouteGeneralTab, type RouteGeneralTabProps } from './RouteGeneralTab';
 
@@ -37,8 +37,6 @@ function baseProps(overrides: Partial<RouteGeneralTabProps> = {}): RouteGeneralT
     setExtensions: vi.fn(),
     active: true,
     setActive: vi.fn(),
-    routeType: 0,
-    setRouteType: vi.fn(),
     record: true,
     setRecord: vi.fn(),
     recordAll: false,
@@ -60,6 +58,21 @@ function baseProps(overrides: Partial<RouteGeneralTabProps> = {}): RouteGeneralT
 }
 
 describe('RouteGeneralTab analytics project Select (D-01, D-02)', () => {
+  it('puts Active in the identity header and collapses unset recording settings',()=>{
+    render(<RouteGeneralTab {...baseProps({record:false,analyticsProjectId:'',isCreateMode:true})}/>);
+    expect(screen.getByLabelText('Активен').parentElement?.parentElement).toHaveTextContent('Параметры маршрута');
+    const header=screen.getByRole('button',{name:'Запись и аналитика'});
+    expect(header).toHaveAttribute('aria-expanded','false');
+    expect(screen.queryByLabelText('Запись разговоров')).not.toBeInTheDocument();
+    fireEvent.click(header);expect(screen.getByLabelText('Запись разговоров')).toBeInTheDocument();
+    fireEvent.click(header);expect(header).toHaveAttribute('aria-expanded','false');
+  });
+  it('highlights and focuses the route field reported by save validation',()=>{
+    render(<RouteGeneralTab {...baseProps({fieldErrors:{name:'Обязательное поле'}})}/>);
+    expect(screen.getByLabelText('Наименование маршрута')).toHaveAttribute('aria-invalid','true');
+    expect(screen.getByLabelText('Наименование маршрута')).toHaveFocus();
+    expect(screen.getByRole('alert')).toHaveTextContent('Обязательное поле');
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });

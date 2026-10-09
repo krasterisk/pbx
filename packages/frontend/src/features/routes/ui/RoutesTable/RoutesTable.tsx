@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -37,7 +38,7 @@ export const RoutesTable = memo(() => {
   const isMobile = useIsMobile(768);
   const selectedContextUids = useAppSelector((s) => s.routes.selectedContextUids);
 
-  const { data: allRoutes = [], isLoading } = useGetAllRoutesQuery();
+  const { data: allRoutes = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetAllRoutesQuery();
   const { data: contexts = [] } = useGetContextsQuery();
   const [deleteRoute] = useDeleteRouteMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteRoutesMutation();
@@ -147,6 +148,7 @@ export const RoutesTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

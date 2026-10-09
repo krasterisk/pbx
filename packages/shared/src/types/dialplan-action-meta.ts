@@ -44,6 +44,6 @@ export const DIALPLAN_ACTION_META: Record<ActionType, IDialplanActionMeta> = {
   http_request: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'integration' },
   collect_input: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'control' },
   hangup: { terminal: 'always', allowedIn: ALL_HOSTS, family: 'control' },
-  directory_lookup: { terminal: 'never', allowedIn: ALL_HOSTS, family: 'integration' },
+  directory_lookup: { terminal: 'conditional', allowedIn: ALL_HOSTS, family: 'integration' },
   callback: { terminal: 'conditional', allowedIn: ROUTE_ONLY, family: 'integration' },
 };

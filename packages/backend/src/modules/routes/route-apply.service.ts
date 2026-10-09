@@ -67,12 +67,24 @@ export class RouteApplyService {
       contextUid, vpbxUserUid, context.name, includes, isAdmin,
     );
     const filename = `krasterisk/routes/extensions_${tenantedContextName}.conf`;
-    const result = await this.dialplanApplyService.applyCategories(
-      filename,
-      [{ name: tenantedContextName, lines: dialplan.split('\n') }],
-      { reload: true },
-    );
+    const categories: GeneratedDialplanCategory[] = [];
+    let current = { name: tenantedContextName, lines: [] as string[] };
+    for (const line of dialplan.split('\n')) {
+      const heading = /^\[([^\]]+)\]$/.exec(line.trim());
+      if (heading) {
+        if (current.lines.length || categories.length) categories.push(current);
+        current = { name: heading[1], lines: [] };
+      } else current.lines.push(line);
+    }
+    categories.push(current);
+    const result = await this.dialplanApplyService.applyCategories(filename, categories, { reload: true, replaceAll: true });
 
     return { success: result.success, filename, linesApplied: result.linesApplied };
+  }
+
+  /** Replace a deleted context's managed category with an empty, non-callable one. */
+  async clearContext(contextName: string, tenant: number): Promise<void> {
+    const name = this.buildContextName(contextName, tenant);
+    await this.dialplanApplyService.applyCategories(`krasterisk/routes/extensions_${name}.conf`, [{ name, lines: [] }], { reload: true, replaceAll: true });
   }
 }

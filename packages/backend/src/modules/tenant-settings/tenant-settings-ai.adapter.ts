@@ -26,6 +26,8 @@ export type TenantSettingAllowEntry = {
 export const TENANT_SETTINGS_ALLOW_LIST: readonly TenantSettingAllowEntry[] = [
   { key: 'routes.show_raw_dialplan', area: 'routes', kind: 'value' },
   { key: 'routes.show_flowchart', area: 'routes', kind: 'value' },
+  { key: 'tables.page_size', area: 'tables', kind: 'value' },
+  { key: 'endpoints.expert_mode', area: 'endpoints', kind: 'value' },
   { key: 'integrations.provider_token', area: 'integrations', kind: 'presence' },
 ];
 

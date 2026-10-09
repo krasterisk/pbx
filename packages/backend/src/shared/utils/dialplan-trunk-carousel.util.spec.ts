@@ -92,6 +92,15 @@ function directoryLookupCount(dp: string): number {
 }
 
 describe('buildTrunkCarousel (D-36)', () => {
+  it('preserves incoming CID and continues an inline chain without a Gosub stack', () => {
+    const solo=buildTrunkCarousel([staticItem('solo')]);
+    const multiple=buildTrunkCarousel([staticItem('first'),staticItem('second')]);
+    expect(solo).not.toContain('Set(CALLERID(num)=');
+    expect(solo).not.toContain('Return(');
+    expect(multiple).not.toContain('Return(');
+    expect(multiple).toContain('n(tc_done),NoOp(');
+    expect(multiple).toContain('?tc_done)');
+  });
   it('emits one start line for three trunks, not three', () => {
     const dp = buildTrunkCarousel(
       [staticItem('t1'), staticItem('t2'), staticItem('t3')],
@@ -218,7 +227,8 @@ describe('buildTrunkCarousel directory CallerID', () => {
 
   it('restores original CallerID on every attempt before applying the resolved value', () => {
     const dp = buildTrunkCarousel(trunks, DIR_CTX);
-    const restoreIdx = dp.indexOf('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
+    expect(dp).toContain('Set(TC_ORIG_NUM=${CALLERID(num)})');
+    const restoreIdx = dp.indexOf('Set(CALLERID(num)=${TC_ORIG_NUM})');
     const applyIdx = dp.indexOf('Set(CALLERID(num)=${${TC_VV}})');
     const dialIdx = dp.indexOf('Dial(PJSIP/${EXTEN}@${TC_TRUNK_ID}');
     expect(restoreIdx).toBeGreaterThan(-1);
@@ -234,8 +244,8 @@ describe('buildTrunkCarousel directory CallerID', () => {
   it('leaves original CallerID when status is NOT_FOUND or malformed', () => {
     const dp = buildTrunkCarousel(trunks, DIR_CTX);
     expect(dp).toContain('Set(KRSK_DL_TC7_STATUS=ERROR)');
-    expect(dp).toContain('"${CUT(KRSK_DL_TC7_RAW,|,2)}" = "NOT_FOUND"');
-    expect(dp).toContain('Set(CALLERID(num)=${KRSK_ORIG_CALLER_NUM})');
+    expect(dp).toContain('"${KRSK_DL_TC7_RAW_REMOTE_STATUS}" = "Tk9UX0ZPVU5E"');
+    expect(dp).toContain('Set(CALLERID(num)=${TC_ORIG_NUM})');
     expect(dp).not.toMatch(/ExecIf\(\$\["\$\{CUT\([^)]+\|,1\)}" = "1"\]\?Set\(CALLERID/);
     expect(dp).toContain(
       'ExecIf($["${${TC_ST}}" = "FOUND" & "${${TC_VV}}" != ""]?Set(CALLERID(num)=${${TC_VV}}))',

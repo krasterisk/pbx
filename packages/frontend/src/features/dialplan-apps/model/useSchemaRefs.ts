@@ -11,7 +11,6 @@ import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
 import { useGetAiVoiceRobotsQuery } from '@/shared/api/endpoints/aiVoiceRobotsApi';
 import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
-import { useGetNumbersQuery } from '@/shared/api/endpoints/numberApi';
 import { useGetNotificationsQuery } from '@/shared/api/endpoints/notificationApi';
 import { useGetConferenceRoomsQuery } from '@/shared/api/endpoints/conferenceRoomApi';
 import type { OptionsSource, SchemaRefs } from './schema.types';
@@ -40,7 +39,6 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
   const aiVoiceRobots = useGetAiVoiceRobotsQuery(undefined, { skip: !needs('aiVoiceRobots') });
   const contexts = useGetContextsQuery(undefined, { skip: !needs('contexts') });
   const endpoints = useGetEndpointsQuery(undefined, { skip: !needs('endpoints') });
-  const numberLists = useGetNumbersQuery(undefined, { skip: !needs('numberLists') });
   const notifications = useGetNotificationsQuery(undefined, { skip: !needs('notifications') });
   const conferenceRooms = useGetConferenceRoomsQuery(undefined, { skip: !needs('conferenceRooms') });
 
@@ -175,16 +173,6 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
         sectionKey: 'routes.chain.catalog.endpointsSection',
         sectionFallback: 'Абоненты',
       },
-      numberLists: {
-        items: (numberLists.data ?? []).map((list) => ({
-          value: String(list.id),
-          label: list.comment ? `${list.name} - ${list.comment}` : list.name,
-        })),
-        isLoading: numberLists.isLoading,
-        sectionHref: '/numbers',
-        sectionKey: 'routes.chain.catalog.numberListsSection',
-        sectionFallback: 'Списки доступа',
-      },
       notifications: {
         items: (notifications.data ?? []).map((integration) => ({
           value: String(integration.uid),
@@ -231,8 +219,6 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       contexts.isLoading,
       endpoints.data,
       endpoints.isLoading,
-      numberLists.data,
-      numberLists.isLoading,
       notifications.data,
       notifications.isLoading,
       conferenceRooms.data,

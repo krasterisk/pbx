@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
 import { Loader2, Pencil, Plug, Search, Trash2 } from 'lucide-react';
@@ -175,6 +176,7 @@ export const AiProvidersTable = memo(({ onEdit, scope = 'tenant', capability }: 
     </Flex>
   );
 
+  if (query.isError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void query.refetch()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

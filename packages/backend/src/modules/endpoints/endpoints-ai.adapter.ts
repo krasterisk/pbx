@@ -2,7 +2,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { toPublicExten } from '../../shared/utils/tenant-public-id.util';
 import { buildSipId } from './endpoint-ids.util';
+import { ContextsService } from '../contexts/contexts.service';
+import { selectConfigurationContext } from '../contexts/context-selection';
+import { endpointConfigurationShape } from '../ai-platform/pbx-configuration.schemas';
+import { redactSecrets } from '../ai-platform/ai-secret-redaction';
 import { EndpointsService } from './endpoints.service';
+import { PickupGroupsService } from './pickup-groups.service';
+import { ProvisionTemplatesService } from './provision-templates.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import {
   AiToolDefinition,
@@ -22,21 +28,23 @@ const DEFAULT_EXTENSION_START = 200;
 export const BULK_CREATE_CEILING = 50;
 const CREDENTIALS_NOTE =
   'Учётные данные доступны на экране абонента — пароль в переписку не попадает.';
-const SCHEMA_VERSION = 'endpoints-1';
+const SCHEMA_VERSION = 'endpoints-2';
 
-const natProfile = z.enum(['lan', 'nat', 'webrtc']);
+const natProfile = z.enum(['lan', 'nat']);
 
 const createInput = z.strictObject({
+  ...endpointConfigurationShape,
   extension: z.string().optional().describe('Номер абонента. Если не указан — следующий свободный у тенанта.'),
   name: z.string().optional().describe('Отображаемое имя'),
   displayName: z.string().optional().describe('Псевдоним для name'),
-  context: z.string().optional().describe('Контекст маршрутизации. Если не указан — контекст существующих абонентов.'),
+  context: endpointConfigurationShape.context.describe('Имя из list_contexts. Без значения используется основной для абонентов; иначе нужно уточнение.'),
   codecs: z.string().optional(),
   natProfile: natProfile.optional(),
   department: z.string().optional(),
 });
 
 const createArgs = z.strictObject({
+  ...endpointConfigurationShape,
   extension: z.string().min(1),
   context: z.string().min(1),
   displayName: z.string().min(1),
@@ -73,6 +81,8 @@ const deleteInput = z.strictObject({
   sipId: z.string().min(1).describe('Внутренний номер абонента, 2–8 цифр'),
 });
 const deleteArgs = deleteInput;
+const updateInput = z.strictObject({ sipId: z.string().min(1), ...endpointConfigurationShape });
+type UpdateInput = z.infer<typeof updateInput>;
 
 type CreateInput = z.infer<typeof createInput>;
 type CreateArgs = z.infer<typeof createArgs>;
@@ -94,6 +104,9 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
   constructor(
     private readonly endpointsService: EndpointsService,
     private readonly registry: AiAdapterRegistryService,
+    private readonly contextsService: ContextsService,
+    private readonly pickupGroups?: PickupGroupsService,
+    private readonly provisionTemplates?: ProvisionTemplatesService,
   ) {}
 
   onModuleInit(): void {
@@ -107,6 +120,10 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
       this.toolCreateEndpoint(),
       this.toolCreateEndpointsBulk(),
       this.toolDeleteEndpoint(),
+      this.toolGetEndpoint(),
+      this.toolUpdateEndpoint(),
+      { name: 'list_pickup_groups', description: 'Группы перехвата этого кабинета: UID, имя и slug для namedCallGroup/namedPickupGroup.', inputSchema: {}, entityType: 'pickup_group', handler: async (_args, uid) => ({ groups: (await this.pickupGroups!.findAll(uid)).map(row => ({ uid: row.uid, name: row.name, slug: row.slug })) }) },
+      { name: 'list_provision_templates', description: 'Шаблоны автопровижинга этого кабинета: UID, имя, производитель, модель. Содержимое и секреты не возвращаются.', inputSchema: {}, entityType: 'provision_template', handler: async (_args, uid) => ({ templates: (await this.provisionTemplates!.findAll(uid)).map(row => ({ uid: row.uid, name: row.name, vendor: row.vendor, model: row.model })) }) },
     ];
   }
 
@@ -168,21 +185,25 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
     return defineMutationTool<CreateInput, CreateArgs>({
       name: 'create_endpoint',
       description:
-        'Предлагает создать одного SIP-абонента. Номер и контекст по умолчанию берутся из абонентов тенанта. Пароль не возвращается.',
+        'Предлагает создать одного SIP-абонента. Без номера выбирает следующий свободный; без контекста использует только назначенный основной для абонентов. Пароль генерируется при подтверждении и не возвращается.',
       entityType: 'endpoint',
       schemaVersion: SCHEMA_VERSION,
       input: createInput,
       args: createArgs,
       reload: { kind: 'none' },
       propose: async (input, ctx) => {
+        const referenceError = await this.endpointReferenceError(input, ctx.vpbxUserUid);
+        if (referenceError) return { refused: true, message: referenceError };
         const existing = await this.endpointsService.findAll(ctx.vpbxUserUid);
         const extension = toPublicExten(
           input.extension ?? this.nextFreeExtension(existing),
           ctx.vpbxUserUid,
         );
-        const context = input.context ?? this.defaultContext(existing);
+        const context = await selectConfigurationContext(this.contextsService, input.context, 'endpoints', ctx);
+        if (!context) return { refused: true, message: 'Выберите контекст абонента из list_contexts или назначьте основной для абонентов.' };
         const displayName = input.name ?? input.displayName ?? `Абонент ${extension}`;
-        const applyArgs: CreateArgs = { extension, context, displayName };
+        const { name: _name, ...settings } = input;
+        const applyArgs: CreateArgs = { ...settings, extension, context, displayName };
         if (input.codecs) applyArgs.codecs = input.codecs;
         if (input.natProfile) applyArgs.natProfile = input.natProfile;
         if (input.department) applyArgs.department = input.department;
@@ -192,11 +213,14 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
           displayName,
           applyArgs,
           null,
-          { extension, context, displayName },
+          { ...applyArgs },
           [`Создать абонента ${extension} в контексте ${context}`, CREDENTIALS_NOTE],
         );
       },
       revalidate: async (args, ctx) => {
+        const referenceError = await this.endpointReferenceError(args, ctx.vpbxUserUid);
+        if (referenceError) return { ok: false, reason: referenceError };
+        if (!await selectConfigurationContext(this.contextsService, args.context, 'endpoints', ctx)) return { ok: false, reason: 'Контекст удалён или не принадлежит кабинету.' };
         const taken = await this.takenExtensions(ctx);
         if (taken.has(args.extension)) {
           return { ok: false, reason: `Номер ${args.extension} уже занят у тенанта` };
@@ -204,7 +228,8 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
         return { ok: true, args };
       },
       apply: async (args, ctx) => {
-        await this.endpointsService.createWithGeneratedCredentials(args as never, ctx.vpbxUserUid);
+        const { permit, deny, advanced, ...rest } = args;
+        await this.endpointsService.createWithGeneratedCredentials({ ...rest, advanced: { ...advanced, ...(permit === undefined ? {} : { permit }), ...(deny === undefined ? {} : { deny }) } } as never, ctx.vpbxUserUid);
       },
     });
   }
@@ -221,7 +246,8 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
       reload: { kind: 'none' },
       propose: async (input, ctx) => {
         const existing = await this.endpointsService.findAll(ctx.vpbxUserUid);
-        const context = input.context ?? this.defaultContext(existing);
+        const context = await selectConfigurationContext(this.contextsService, input.context, 'endpoints', ctx);
+        if (!context) return { refused: true, message: 'Выберите контекст абонентов из list_contexts.' };
         const pattern = this.bulkPatternFrom(input);
         const extensions = parseBulkExtensions(pattern);
         const refused = this.refuseBadBatch(extensions);
@@ -268,6 +294,7 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
         );
       },
       revalidate: async (args, ctx) => {
+        if (!await selectConfigurationContext(this.contextsService, args.context, 'endpoints', ctx)) return { ok: false, reason: 'Контекст удалён или не принадлежит кабинету.' };
         const extensions = parseBulkExtensions(args.extensionsPattern);
         if (this.refuseBadBatch(extensions)) {
           return { ok: false, reason: `Пакет вне допустимого размера (потолок ${BULK_CREATE_CEILING})` };
@@ -371,9 +398,65 @@ export class EndpointsAiAdapter implements DomainAiAdapter, OnModuleInit {
     return String(max + 1);
   }
 
-  private defaultContext(existing: Array<{ context?: string }>): string {
-    const fromTenant = existing.find((row) => row.context)?.context;
-    return fromTenant || 'from-internal';
+  private toolGetEndpoint(): AiToolDefinition {
+    return { name: 'get_endpoint_configuration', description: 'Полная текущая конфигурация абонента: endpoint и aor, без паролей. sipId — публичный номер из list_endpoints.',
+      inputSchema: { sipId: { type: 'string' } }, entityType: 'endpoint',
+      handler: async (args, uid) => {
+        const id = await this.resolveSipId(String(args.sipId ?? ''), uid);
+        const current = await this.endpointsService.findOne(id, uid);
+        return redactSecrets({ extension: current.extension, endpoint: current.endpoint, aor: current.aor });
+      } };
+  }
+
+  private toolUpdateEndpoint(): AiToolDefinition {
+    return defineMutationTool<UpdateInput, UpdateInput>({
+      name: 'update_endpoint', description: 'Изменить существующего абонента: контекст, имя, транспорт, кодеки, WebRTC, BLF, перехват, автопровижинг, ACL и advanced PJSIP. Не передавай неизменяемые поля и пароли.',
+      entityType: 'endpoint', schemaVersion: SCHEMA_VERSION, input: updateInput, args: updateInput, reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        if (Object.keys(input).length < 2) return { refused: true, message: 'Не указано ни одного изменения.' };
+        const referenceError = await this.endpointReferenceError(input, ctx.vpbxUserUid);
+        if (referenceError) return { refused: true, message: referenceError };
+        const sipId = await this.resolveSipId(input.sipId, ctx.vpbxUserUid);
+        const current = await this.endpointsService.findOne(sipId, ctx.vpbxUserUid);
+        if (input.context && !await selectConfigurationContext(this.contextsService, input.context, 'endpoints', ctx)) return { refused: true, message: 'Контекст не найден в этом кабинете.' };
+        return this.proposal('update_endpoint', String(current.extension), { ...input, sipId }, redactSecrets(current.endpoint), { ...redactSecrets(current.endpoint), ...this.endpointPatch(input, String(current.extension)) }, [`Изменить настройки абонента ${current.extension}`]);
+      },
+      revalidate: async (args, ctx) => {
+        await this.endpointsService.findOne(args.sipId, ctx.vpbxUserUid);
+        const referenceError = await this.endpointReferenceError(args, ctx.vpbxUserUid);
+        if (referenceError) return { ok: false, reason: referenceError };
+        if (args.context && !await selectConfigurationContext(this.contextsService, args.context, 'endpoints', ctx)) return { ok: false, reason: 'Контекст удалён или не принадлежит кабинету.' };
+        return { ok: true, args };
+      },
+      apply: async (args, ctx) => {
+        const current = await this.endpointsService.findOne(args.sipId, ctx.vpbxUserUid);
+        const patch = this.endpointPatch(args, String(current.extension));
+        await this.endpointsService.update(args.sipId, { endpoint: patch } as never, ctx.vpbxUserUid);
+      },
+    });
+  }
+
+  private endpointPatch(args: UpdateInput, extension: string): Record<string, unknown> {
+        const patch: Record<string, unknown> = { ...args.advanced };
+        const mapping: Record<string, string> = { context: 'context', transport: 'transport', codecs: 'allow', department: 'department', namedCallGroup: 'named_call_group', namedPickupGroup: 'named_pickup_group', provisionEnabled: 'provision_enabled', macAddress: 'mac_address', provisionTemplateId: 'provision_template_id', pvVars: 'pv_vars', permit: 'permit', deny: 'deny', webrtcEnabled: 'webrtc_enabled', blfEnabled: 'blf_enabled' };
+        const settings: Record<string, unknown> = args;
+        for (const [key, target] of Object.entries(mapping)) if (settings[key] !== undefined) patch[target] = settings[key];
+        if (args.displayName !== undefined) patch.callerid = `"${args.displayName}" <${extension}>`;
+        if (args.natProfile) Object.assign(patch, args.natProfile === 'lan' ? { direct_media: 'yes', force_rport: 'no', rtp_symmetric: 'no', rewrite_contact: 'no', ice_support: 'no' } : { direct_media: 'no', force_rport: 'yes', rtp_symmetric: 'yes', rewrite_contact: 'yes', ice_support: 'yes' });
+        return patch;
+  }
+
+  private async endpointReferenceError(args: { namedCallGroup?: string; namedPickupGroup?: string; provisionTemplateId?: number | null }, tenant: number): Promise<string | null> {
+    const names = [args.namedCallGroup, args.namedPickupGroup].flatMap(value => (value ?? '').split(',').map(name => name.trim()).filter(Boolean));
+    if (names.length) {
+      const groups = await this.pickupGroups!.findAll(tenant);
+      if (names.some(name => !groups.some(group => group.slug === name))) return 'Группа перехвата не найдена в этом кабинете.';
+    }
+    if (args.provisionTemplateId != null) {
+      const templates = await this.provisionTemplates!.findAll(tenant);
+      if (!templates.some(template => template.uid === args.provisionTemplateId)) return 'Шаблон автопровижинга не найден в этом кабинете.';
+    }
+    return null;
   }
 
   private proposal(

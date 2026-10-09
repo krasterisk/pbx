@@ -2,6 +2,8 @@ import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement } from 'seque
 
 @Table({ tableName: 'contexts', timestamps: false, freezeTableName: true })
 export class Context extends Model {
+  @Column({ type: DataType.VIRTUAL })
+  declare include_uids: number[];
   @PrimaryKey
   @AutoIncrement
   @Column({ type: DataType.INTEGER })
@@ -15,4 +17,10 @@ export class Context extends Model {
 
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare user_uid: number;
+
+  @Column({ type: DataType.VIRTUAL })
+  declare is_default_for_endpoints: boolean;
+
+  @Column({ type: DataType.VIRTUAL })
+  declare is_default_for_trunks: boolean;
 }

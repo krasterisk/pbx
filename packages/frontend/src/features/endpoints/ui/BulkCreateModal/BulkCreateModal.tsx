@@ -1,327 +1,396 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import * as Dialog from '@radix-ui/react-dialog';
-import { X, Layers } from 'lucide-react';
-import { Button, Input, Checkbox, Label, InfoTooltip } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
-import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
-import { selectEndpointIsBulkModalOpen } from '../../model/selectors/endpointsPageSelectors';
-import { endpointsPageActions } from '../../model/slice/endpointsPageSlice';
-import { useBulkCreateEndpointsMutation, useGetBulkJobStatusQuery, useGetActiveBulkJobQuery } from '@/shared/api/endpoints/endpointApi';
-import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
-import { PRIMARY_NAT_PROFILE_OPTIONS, type PrimaryNatProfileId } from '../../config/natProfiles';
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Layers, Loader2 } from "lucide-react";
+import {
+  Button,
+  Input,
+  PasswordInput,
+  Select,
+  Checkbox,
+  Label,
+  InfoTooltip,
+  Text,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Flex,
+  VStack,
+  HStack,
+} from "@/shared/ui";
+import { useAppSelector, useAppDispatch } from "@/shared/hooks/useAppStore";
+import { selectEndpointIsBulkModalOpen } from "../../model/selectors/endpointsPageSelectors";
+import { endpointsPageActions } from "../../model/slice/endpointsPageSlice";
+import {
+  useBulkCreateEndpointsMutation,
+  useGetBulkJobStatusQuery,
+  useGetActiveBulkJobQuery,
+} from "@/shared/api/endpoints/endpointApi";
+import { rtkApi } from "@/shared/api/rtkApi";
+import { useGetContextsQuery } from "@/shared/api/endpoints/contextApi";
+import {
+  PRIMARY_NAT_PROFILE_OPTIONS,
+  type PrimaryNatProfileId,
+} from "../../config/natProfiles";
+import {
+  apiErrorMessage,
+  parseExtensionPattern,
+  jobProgress,
+} from "../../lib/formValidation";
+import type { IBulkCreateResult } from "@krasterisk/shared";
+import cls from "./BulkCreateModal.module.scss";
+import { useDefaultContext } from "@/shared/lib/useDefaultContext";
 
 export const BulkCreateModal = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector(selectEndpointIsBulkModalOpen);
-
   const [bulkCreate, { isLoading }] = useBulkCreateEndpointsMutation();
   const { data: contexts = [] } = useGetContextsQuery();
-  
-  // Check for an active job seamlessly to resume state upon reloading/re-opening modal
-  const { data: activeJobData } = useGetActiveBulkJobQuery(undefined, { skip: !isOpen });
-
-  const [extensionsPattern, setExtensionsPattern] = useState('');
-  const [passwordPattern, setPasswordPattern] = useState('auto');
-  const [department, setDepartment] = useState('');
-  const [context, setContext] = useState('');
-  const [natProfile, setNatProfile] = useState<PrimaryNatProfileId>('nat');
+  const { data: activeJobData } = useGetActiveBulkJobQuery(undefined, {
+    skip: !isOpen,
+    refetchOnMountOrArgChange: true,
+  });
+  const [extensionsPattern, setExtensionsPattern] = useState("");
+  const [passwordPattern, setPasswordPattern] = useState("auto");
+  const [department, setDepartment] = useState("");
+  const [context, setContext] = useState("");
+  const [natProfile, setNatProfile] = useState<PrimaryNatProfileId>("nat");
   const [webrtcEnabled, setWebrtcEnabled] = useState(false);
-  const [codecs] = useState('ulaw,alaw,g722');
-  const [result, setResult] = useState<{ created?: string[]; skipped?: string[]; total: number } | null>(null);
+  const [result, setResult] = useState<IBulkCreateResult | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    data: jobStatus,
+    isError: isJobStatusError,
+    error: jobStatusError,
+  } = useGetBulkJobStatusQuery(jobId || "", {
+    skip: !isOpen || !jobId,
+    pollingInterval: 1000,
+  });
 
   useEffect(() => {
-    // If we just loaded the modal and discovered an active job, snap to it.
-    if (activeJobData?.jobId && !jobId && !result) {
+    if (isOpen && activeJobData?.jobId && !jobId && !result && !error)
       setJobId(activeJobData.jobId);
-    }
-  }, [activeJobData, jobId, result]);
-
-  const { data: jobStatus, isError: isJobStatusError, error: jobStatusError } = useGetBulkJobStatusQuery(jobId || '', {
-    skip: !jobId,
-    pollingInterval: jobId ? 3000 : 0,
-  });
+  }, [isOpen, activeJobData, jobId, result, error]);
 
   const handleClose = useCallback(() => {
     dispatch(endpointsPageActions.closeBulkModal());
     setResult(null);
     setJobId(null);
-    setError(null);
-    setIsSubmitting(false);
+    setError("");
+    setErrors({});
   }, [dispatch]);
 
   useEffect(() => {
-    if (jobStatus) {
-      if (jobStatus.status === 'completed' || jobStatus.status === 'error') {
-        setResult({
-          created: jobStatus.created,
-          skipped: jobStatus.skipped,
-          total: jobStatus.total,
-        });
-        if (jobStatus.status === 'error') {
-          console.error("Job error:", jobStatus.error);
-        }
-        setJobId(null);
-      }
+    if (!isOpen || !jobId || !jobStatus || jobStatus.id !== jobId) return;
+    if (jobStatus.status === "completed" || jobStatus.status === "error") {
+      setResult({
+        created: jobStatus.created,
+        skipped: jobStatus.skipped,
+        total: jobStatus.total,
+      });
+      setError(
+        jobStatus.status === "error"
+          ? jobStatus.error || t("endpoints.bulkError")
+          : "",
+      );
+      setJobId(null);
+      dispatch(rtkApi.util.invalidateTags([{ type: "Endpoints", id: "LIST" }]));
     }
-  }, [jobStatus]);
+  }, [isOpen, jobId, jobStatus, dispatch, t]);
 
   useEffect(() => {
-    if (!isJobStatusError || !jobId) return;
-
-    const status = (jobStatusError as { status?: number })?.status;
-    if (status === 404) {
-      setJobId(null);
-      setError('Задание не найдено. Возможно, сервер перезапускался. Проверьте список абонентов - они могли быть созданы.');
+    if (!isOpen || !jobId) return;
+    if (!isJobStatusError) {
+      if (
+        jobStatus?.id === jobId &&
+        jobStatus.status !== "error" &&
+        jobStatus.status !== "completed"
+      )
+        setError("");
+      return;
     }
-  }, [isJobStatusError, jobStatusError, jobId]);
+    const status =
+      jobStatusError && "status" in jobStatusError
+        ? jobStatusError.status
+        : undefined;
+    setError(
+      status === 404
+        ? t("endpoints.jobNotFound")
+        : apiErrorMessage(jobStatusError, t("endpoints.jobStatusError")),
+    );
+    if (status === 404) setJobId(null);
+  }, [isOpen, isJobStatusError, jobStatusError, jobStatus, jobId, t]);
+
+  const parsed = parseExtensionPattern(extensionsPattern);
+  const chooseContext = useDefaultContext(isOpen, true, contexts, "endpoints", setContext);
 
   const handleSubmit = async () => {
-    setError(null);
+    if (isSubmitting || isLoading || jobId) return;
+    const next: Record<string, string> = {};
+    if (parsed.error) next.pattern = parsed.error;
+    if (!context) next.context = "endpoints.required";
+    if (passwordPattern !== "auto" && passwordPattern.length < 4)
+      next.password = "endpoints.passwordMinimum";
+    setErrors(next);
+    setError("");
+    if (Object.keys(next).length) return;
     setIsSubmitting(true);
     try {
-      const res = await bulkCreate({
-        extensionsPattern,
+      const response = await bulkCreate({
+        extensionsPattern: extensionsPattern.trim(),
         passwordPattern,
         department: department || undefined,
-        context: context || undefined,
-        codecs,
+        context,
+        codecs: "ulaw,alaw,g722",
         natProfile,
         webrtcEnabled,
       }).unwrap();
-      
-      if (res.jobId) {
-        setJobId(res.jobId);
-      } else {
-        setResult(res);
-      }
-    } catch (e: any) {
-      console.error('Bulk create failed:', e);
-      setError(e?.data?.message || e?.message || 'Ошибка создания абонентов');
+      if (response.jobId) setJobId(response.jobId);
+      else setResult(response);
+    } catch (failure: unknown) {
+      setError(apiErrorMessage(failure, t("endpoints.bulkError")));
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const parsedExtensions = useCallback(() => {
-    const result = new Set<number>();
-    const parts = extensionsPattern.split(',').map(p => p.trim());
-    
-    for (const part of parts) {
-      if (!part) continue;
-      if (part.includes('-')) {
-        const [startStr, endStr] = part.split('-');
-        const start = parseInt(startStr, 10);
-        const end = parseInt(endStr, 10);
-        if (!isNaN(start) && !isNaN(end) && start <= end) {
-          // Limit UI parsing to a reasonable max like 5000 to prevent browser freeze
-          const maxEnd = Math.min(end, start + 5000);
-          for (let i = start; i <= maxEnd; i++) {
-            result.add(i);
-          }
-        }
-      } else {
-        const num = parseInt(part, 10);
-        if (!isNaN(num)) {
-          result.add(num);
-        }
-      }
-    }
-    return Array.from(result);
-  }, [extensionsPattern]);
-
-  const range = parsedExtensions().length;
+  const fieldError = (key: string) =>
+    errors[key] ? (
+      <Text id={`bulk-${key}-error`} className={cls.error} role="alert">
+        {t(errors[key])}
+      </Text>
+    ) : null;
+  const busy = isSubmitting || isLoading;
+  const progress = jobProgress(
+    jobStatus?.processed ?? 0,
+    jobStatus?.total ?? 0,
+  );
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl max-h-[85vh] overflow-y-auto">
-          <HStack justify="between" align="center" className="mb-6">
-            <HStack gap="8" align="center">
-              <Layers className="w-5 h-5 text-primary" />
-              <Dialog.Title className="text-xl font-bold">
-                {t('endpoints.bulkTitle')}
-              </Dialog.Title>
-            </HStack>
-            <Dialog.Close asChild>
-              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </Dialog.Close>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => !open && !busy && handleClose()}
+    >
+      <DialogContent
+        size="large"
+        className={cls.dialog}
+        aria-describedby={undefined}
+      >
+        <DialogHeader className={cls.header}>
+          <HStack gap="8">
+            <Layers size={20} className={cls.icon} />
+            <DialogTitle>{t("endpoints.bulkTitle")}</DialogTitle>
           </HStack>
-
-          {jobStatus && (jobStatus.status === 'pending' || jobStatus.status === 'processing') ? (
-            <VStack gap="16" className="py-8">
-              <HStack justify="center" align="center" className="mb-2">
-                <p className="text-base font-semibold text-primary">Создание абонентов...</p>
-              </HStack>
-              <div className="w-full bg-accent rounded-full h-6 overflow-hidden relative border border-border shadow-inner">
-                <div 
-                  className="bg-primary h-full transition-all duration-500 ease-out flex items-center justify-end"
-                  style={{ width: `${Math.max(5, Math.round((jobStatus.processed / jobStatus.total) * 100))}%` }}
+        </DialogHeader>
+        <Flex
+          as="form"
+          noValidate
+          direction="column"
+          align="stretch"
+          className={cls.form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit();
+          }}
+        >
+          <VStack gap="16" className={cls.body} max align="stretch">
+            {error && (
+              <Text role="alert" className={cls.error}>
+                {error}
+              </Text>
+            )}
+            {jobId ? (
+              <VStack gap="16" max align="stretch">
+                <Text className={cls.primary}>
+                  {t("endpoints.bulkWorking")}
+                </Text>
+                <Flex
+                  role="progressbar"
+                  aria-label={t("endpoints.bulkWorking")}
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className={cls.track}
                 >
-                  <div className="w-full h-full bg-white/20 animate-pulse" />
-                </div>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground drop-shadow-sm">
-                  {Math.round((jobStatus.processed / jobStatus.total) * 100)}% ({jobStatus.processed} / {jobStatus.total})
-                </span>
-              </div>
-              <p className="text-xs text-center text-muted-foreground mt-2">Процесс продолжится в фоне, даже если закрыть окно</p>
-            </VStack>
-          ) : result ? (
-            <VStack gap="16">
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
-                <p className="text-emerald-400 font-semibold text-lg mb-2">
-                  {t('common.success')}!
-                </p>
-                <p className="text-sm">{t('endpoints.bulkCreated', { count: result.total })}</p>
-                {(result.skipped?.length || 0) > 0 && (
-                  <p className="text-sm text-yellow-400 mt-1">
-                    {t('endpoints.bulkSkipped', { count: result.skipped?.length })}:{' '}
-                    {result.skipped?.join(', ')}
-                  </p>
-                )}
-              </div>
-              <Button onClick={handleClose} className="w-full">
-                {t('common.confirm')}
-              </Button>
-            </VStack>
-          ) : (
-            <VStack gap="16">
-              {/* Range */}
-              <VStack gap="4">
-                <label htmlFor="bulk-pattern" className="text-sm font-medium text-muted-foreground">{t('endpoints.bulkExtensionsPattern', 'Номера (например: 101,106,110-120)')}</label>
-                <Input
-                  id="bulk-pattern"
-                  value={extensionsPattern}
-                  onChange={(e) => setExtensionsPattern(e.target.value)}
-                  placeholder="101,106,110-120"
-                  className="font-mono"
-                />
+                  <Flex
+                    className={cls.fill}
+                    style={{ width: `${progress}%` }}
+                  />
+                </Flex>
+                <Text variant="muted">
+                  {progress}% ({jobStatus?.processed ?? 0} /{" "}
+                  {jobStatus?.total ?? 0})
+                </Text>
+                <InfoTooltip text={t("endpoints.bulkBackground")} />
               </VStack>
-
-              {!isNaN(range) && range > 0 && (
-                <VStack gap="4">
-                  <p className="text-xs text-muted-foreground">
-                    Будет создано: <span className="text-primary font-semibold">{range}</span> абонентов
-                  </p>
-                  {range > 500 && (
-                    <p className="text-xs text-blue-400">
-                      Большой объем данных. Операция будет выполнена в фоновом режиме (асинхронно).
-                    </p>
+            ) : result ? (
+              <VStack gap="12" max align="stretch">
+                {!error && (
+                  <Text className={cls.success}>{t("common.success")}</Text>
+                )}
+                <Text>
+                  {t("endpoints.bulkCreated", {
+                    count: result.created?.length ?? result.total,
+                  })}
+                </Text>
+                {!!result.skipped?.length && (
+                  <Text className={cls.warning}>
+                    {t("endpoints.bulkSkipped", {
+                      count: result.skipped.length,
+                    })}
+                  </Text>
+                )}
+              </VStack>
+            ) : (
+              <>
+                <VStack gap="8" max>
+                  <HStack gap="4">
+                    <Label htmlFor="bulk-pattern" className={cls.label}>
+                      {t("endpoints.bulkExtensionsPattern")} *
+                    </Label>
+                    <InfoTooltip text={t("endpoints.bulkRangeHint")} />
+                  </HStack>
+                  <Input
+                    id="bulk-pattern"
+                    className={cls.mono}
+                    value={extensionsPattern}
+                    onChange={(event) =>
+                      setExtensionsPattern(event.target.value)
+                    }
+                    placeholder="101,106,110-120"
+                    aria-invalid={!!errors.pattern}
+                    aria-describedby={
+                      errors.pattern ? "bulk-pattern-error" : undefined
+                    }
+                  />
+                  {fieldError("pattern")}
+                  {!parsed.error && (
+                    <Text variant="muted">
+                      {t("endpoints.bulkPlanned", {
+                        count: parsed.extensions.length,
+                      })}
+                    </Text>
                   )}
                 </VStack>
-              )}
-
-              {/* Password pattern */}
-              <VStack gap="4">
-                <label htmlFor="bulk-password" className="text-sm font-medium text-muted-foreground">{t('endpoints.bulkPasswordPattern')}</label>
-                <Input
-                  id="bulk-password"
-                  value={passwordPattern}
-                  onChange={(e) => setPasswordPattern(e.target.value)}
-                  placeholder="auto"
-                  className="font-mono"
-                />
-                <p className="text-xs text-muted-foreground">{t('endpoints.bulkPasswordAuto')}</p>
-              </VStack>
-
-
-              {/* Department */}
-              <VStack gap="4">
-                <label htmlFor="bulk-dept" className="text-sm font-medium text-muted-foreground">{t('endpoints.department', 'Отдел')}</label>
-                <Input
-                  id="bulk-dept"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="Бухгалтерия"
-                />
-                <p className="text-xs text-muted-foreground">Одинаковый для всех созданных абонентов</p>
-              </VStack>
-
-              {/* Context */}
-              <VStack gap="4">
-                <label htmlFor="bulk-ctx" className="text-sm font-medium text-muted-foreground">{t('endpoints.context')}</label>
-                <select
-                  id="bulk-ctx"
-                  value={context}
-                  onChange={(e) => setContext(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
-                >
-                  <option value="">- Default -</option>
-                  {contexts.map((c) => (
-                    <option key={c.uid} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </VStack>
-
-              {/* NAT Profile */}
-              <VStack gap="4">
-                <label className="text-sm font-medium text-muted-foreground">{t('endpoints.natProfile')}</label>
-                <HStack gap="8">
-                  {PRIMARY_NAT_PROFILE_OPTIONS.map((p) => (
-                    <button
-                      key={p.value}
-                      type="button"
-                      onClick={() => setNatProfile(p.value)}
-                      className={`px-3 py-1.5 rounded-lg text-sm border transition-all ${
-                        natProfile === p.value
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                      }`}
-                    >
-                      {t(p.labelKey)}
-                    </button>
-                  ))}
-                </HStack>
-              </VStack>
-
-              <HStack align="center" justify="between" className="border border-border p-3 rounded bg-background w-full">
-                <HStack gap="4" align="center">
-                  <Label className="cursor-pointer" htmlFor="bulk-webrtc">
-                    {t('endpoints.webrtcClient', 'WebRTC-клиент')}
+                <VStack gap="8" max>
+                  <HStack gap="4">
+                    <Label htmlFor="bulk-password" className={cls.label}>
+                      {t("endpoints.bulkPasswordPattern")} *
+                    </Label>
+                    <InfoTooltip text={t("endpoints.bulkPasswordAuto")} />
+                  </HStack>
+                  <PasswordInput
+                    id="bulk-password"
+                    value={passwordPattern}
+                    onChange={(event) => setPasswordPattern(event.target.value)}
+                    placeholder="auto"
+                    aria-invalid={!!errors.password}
+                    aria-describedby={
+                      errors.password ? "bulk-password-error" : undefined
+                    }
+                  />
+                  {fieldError("password")}
+                </VStack>
+                <VStack gap="8" max>
+                  <HStack gap="4">
+                    <Label htmlFor="bulk-dept" className={cls.label}>
+                      {t("endpoints.department")}
+                    </Label>
+                    <InfoTooltip text={t("endpoints.bulkDepartmentHint")} />
+                  </HStack>
+                  <Input
+                    id="bulk-dept"
+                    value={department}
+                    onChange={(event) => setDepartment(event.target.value)}
+                    placeholder={t("endpoints.departmentPlaceholder")}
+                  />
+                </VStack>
+                <VStack gap="8" max>
+                  <HStack gap="4">
+                    <Label htmlFor="bulk-context" className={cls.label}>
+                      {t("endpoints.context")} *
+                    </Label>
+                    <InfoTooltip text={t("endpoints.contextDesc")} />
+                  </HStack>
+                  <Select
+                    id="bulk-context"
+                    value={context}
+                    onChange={(event) => chooseContext(event.target.value)}
+                    required
+                    aria-invalid={!!errors.context}
+                    aria-describedby={
+                      errors.context ? "bulk-context-error" : undefined
+                    }
+                    options={[
+                      { value: "", label: t("endpoints.selectContext"), disabled: true },
+                      ...contexts.map((item) => ({
+                        value: item.name,
+                        label: item.name,
+                      })),
+                    ]}
+                  />
+                  {fieldError("context")}
+                </VStack>
+                <VStack gap="8" max>
+                  <HStack gap="4">
+                    <Text className={cls.label}>
+                      {t("endpoints.natProfile")}
+                    </Text>
+                    <InfoTooltip text={t("endpoints.natDesc")} />
+                  </HStack>
+                  <HStack gap="8" wrap="wrap">
+                    {PRIMARY_NAT_PROFILE_OPTIONS.map((profile) => (
+                      <Button
+                        type="button"
+                        key={profile.value}
+                        variant={
+                          natProfile === profile.value ? "default" : "outline"
+                        }
+                        aria-pressed={natProfile === profile.value}
+                        onClick={() => setNatProfile(profile.value)}
+                      >
+                        {t(profile.labelKey)}
+                      </Button>
+                    ))}
+                  </HStack>
+                </VStack>
+                <HStack gap="8" className={cls.toggle}>
+                  <Checkbox
+                    id="bulk-webrtc"
+                    checked={webrtcEnabled}
+                    onChange={(event) => setWebrtcEnabled(event.target.checked)}
+                  />
+                  <Label htmlFor="bulk-webrtc">
+                    {t("endpoints.webrtcClient")}
                   </Label>
-                  <InfoTooltip text={t('endpoints.webrtcClientHint', 'Позволяет принимать и совершать звонки через браузер (в том числе softphone в call-центре). Звонки на номер идут параллельно на телефон и в браузер.')} />
+                  <InfoTooltip text={t("endpoints.webrtcClientHint")} />
                 </HStack>
-                <Checkbox
-                  id="bulk-webrtc"
-                  checked={webrtcEnabled}
-                  onChange={(e) => setWebrtcEnabled(e.target.checked)}
-                />
-              </HStack>
-
-              {/* Error */}
-              {error && (
-                <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3">
-                  <p className="text-sm text-destructive">{error}</p>
-                </div>
-              )}
-
-              {/* Actions */}
-              <HStack gap="8" justify="end" className="mt-4">
-                <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
-                  {t('common.cancel')}
-                </Button>
-                <Button onClick={handleSubmit} disabled={isSubmitting || isLoading || isNaN(range) || range <= 0 || !context}>
-                  {isSubmitting ? (
-                    <><span className="animate-spin mr-2">⏳</span> Отправка...</>
-                  ) : (
-                    `${t('common.add')} (${range})`
-                  )}
-                </Button>
-              </HStack>
-            </VStack>
-          )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+              </>
+            )}
+          </VStack>
+          <DialogFooter className={cls.footer}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={busy}
+            >
+              {t(result || jobId ? "common.close" : "common.cancel")}
+            </Button>
+            {!result && !jobId && (
+              <Button type="submit" disabled={busy}>
+                {busy && <Loader2 size={16} className={cls.spinner} />}
+                {busy ? t("common.loading") : t("common.add")} (
+                {parsed.extensions.length})
+              </Button>
+            )}
+          </DialogFooter>
+        </Flex>
+      </DialogContent>
+    </Dialog>
   );
 };
-

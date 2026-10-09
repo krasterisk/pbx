@@ -1,0 +1,106 @@
+{
+  "recordedAt": "2026-10-09T10:43:46.477Z",
+  "coordinator": "/root",
+  "mode": "codex-direct",
+  "plan": ".planning/ROUTES-CONTEXTS-REFACTOR-PLAN.md",
+  "revisions": [
+    "R12",
+    "R13",
+    "R14"
+  ],
+  "status": "implemented / automated-tests-passed",
+  "behavior": {
+    "accessLists": "Removed from all dialplan application source/catalog controls. NumberList is for access control. Manual pools and manual dial destinations remain separate.",
+    "compatibility": "Saved obsolete access-list sources remain readable/executable; editing requires explicit supported replacement. No automatic database rewrite.",
+    "errors": "Structured action IDs, index fallback IDs, Nest message arrays/bracket paths and nested validator responses map to step/schema fields. Localized field feedback, invalid step opening, collapsed-section reveal and control focus. Top-level route fields also focus. Raw messages/regexes are not shown.",
+    "rawMode": "Error navigation changes presentation without changing stored execution-source mode."
+  },
+  "gates": {
+    "rootLint": {
+      "status": "pass",
+      "command": "npm run lint",
+      "log": "TEMP/r14-lint.log",
+      "notes": "Existing warnings; a new unused Text import was removed and final scoped lint passed."
+    },
+    "backend": {
+      "status": "pass",
+      "command": "npm run test:backend -- -- --runInBand",
+      "suites": 387,
+      "passed": 3641,
+      "skipped": 11,
+      "log": "TEMP/r14-backend-full.log"
+    },
+    "frontend": {
+      "status": "pass-after-repair",
+      "command": "npm run test:frontend",
+      "files": 322,
+      "tests": 1692,
+      "initialCommandExit": 1,
+      "initialFailedTests": 1,
+      "initialFailure": "New complete-source regression used a single-element query for a field containing two comboboxes. Selector corrected to the invalid source control.",
+      "repair": {
+        "files": 40,
+        "tests": 286,
+        "status": "pass",
+        "log": "TEMP/r14-batch4-repaired.log"
+      },
+      "notes": "All 9 original batches completed. Only failing batch repeated in full with final code; no unresolved failure."
+    },
+    "targeted": {
+      "files": 11,
+      "tests": 108,
+      "initialPassed": 107,
+      "initialFailure": "same fixture ambiguity",
+      "repair": {
+        "files": 3,
+        "tests": 18,
+        "status": "pass",
+        "log": "TEMP/r14-repaired-tests.log"
+      }
+    },
+    "types": {
+      "status": "pass",
+      "command": "npx tsc --noEmit",
+      "log": "TEMP/r14-types-accepted.log"
+    },
+    "finalScopedLint": {
+      "status": "pass",
+      "warnings": 7,
+      "notes": "Existing warnings only",
+      "log": "TEMP/r14-lint-accepted.log"
+    },
+    "diffCheck": {
+      "status": "pass"
+    },
+    "browser": {
+      "status": "unavailable",
+      "attempt": "cua.getBrowser({url: localhost:3010/routes})",
+      "reason": "node_repl kernel exited: windows sandbox helper_unknown_error, setup refresh had errors",
+      "verified": false
+    },
+    "livePBX": {
+      "status": "not-applicable",
+      "reason": "R14 changes application source UX and save-error handling; existing R11 runtime evidence remains historical. No server configuration or live notification was changed."
+    }
+  },
+  "sourceAudit": {
+    "productionFiles": 81,
+    "accessCatalogImportsOrOptions": [],
+    "compatibilityOnly": "number_list comparisons display replacement notice; no selectable access-list option."
+  },
+  "baseline": {
+    "R13": {
+      "rootLint": "pass",
+      "backendSuites": 387,
+      "backendTests": 3641,
+      "frontendFiles": 321,
+      "frontendTests": 1678,
+      "frontendCommandExit": 0
+    }
+  },
+  "handoff": {
+    "writers": [],
+    "requiredPendingGates": [],
+    "nextAction": "Only new user assignment; optionally verify real form Save/field focus when browser automation becomes available. No deployment/release claim."
+  }
+}

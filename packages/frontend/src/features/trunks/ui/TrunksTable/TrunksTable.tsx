@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -36,7 +37,7 @@ export const TrunksTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data, isLoading, isError } = useGetTrunksQuery(undefined, {
+  const { data, isLoading, isError, refetch: retryListLoad } = useGetTrunksQuery(undefined, {
     pollingInterval: 15000,
     refetchOnMountOrArgChange: true,
   });
@@ -150,6 +151,7 @@ export const TrunksTable = memo(() => {
     </Flex>
   );
 
+  if (isError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

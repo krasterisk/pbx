@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -198,10 +199,7 @@ export const ConferencesTable = memo(() => {
       <Card className={cls.card}>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
-          <VStack gap="12" align="center" className={cls.error}>
-            <Text>{t('conferences.loadFailed')}</Text>
-            <Button onClick={() => void refetch()}>{t('conferences.retryLoad')}</Button>
-          </VStack>
+          <QueryErrorState message={t('conferences.loadFailed')} onRetry={() => void refetch()} retryLabel={t('conferences.retryLoad')} />
         </CardContent>
       </Card>
     );

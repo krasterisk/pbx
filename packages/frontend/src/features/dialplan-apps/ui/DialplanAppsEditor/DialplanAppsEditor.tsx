@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, LayoutTemplate, ListPlus, MoreVertical, Plus, Save } from 'lucide-react';
 import {
@@ -37,10 +37,10 @@ import {
   Text,
   Tooltip,
 } from '@/shared/ui';
-import { Flex, VStack } from '@/shared/ui/Stack';
+import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import { selectCurrentUser } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
-import { copyStep, hasStep } from '../../model/clipboard';
+import { copyStep } from '../../model/clipboard';
 import { createActionId } from '../../model/actionIds';
 import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
 import { useGetTrunksQuery } from '@/shared/api/endpoints/trunkApi';
@@ -56,11 +56,11 @@ import type { DialplanHost } from '../../model/types';
 import { StepRow, type StepSection } from '../StepRow/StepRow';
 import { StepSheet } from '../StepSheet/StepSheet';
 import { allowedTypesForHost } from '../../model/hostTypes';
+import { localizeStepError } from '../../model/stepErrors';
 import type { MappedStepErrors } from '../../model/stepErrors';
 import { UnknownActionCard } from '../UnknownActionCard/UnknownActionCard';
 import { ApplyTemplateDialog } from '@/features/route-templates/ui/ApplyTemplateDialog';
 import { SaveAsTemplateDialog } from '@/features/route-templates/ui/SaveAsTemplateDialog';
-import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import styles from './DialplanAppsEditor.module.scss';
 
 export interface DialplanAppsEditorProps {
@@ -138,20 +138,18 @@ function typesForHost(host: DialplanHost): ActionType[] {
 
 function firstAlwaysTerminalIndex(actions: IRouteAction[]): number {
   return actions.findIndex((action) => {
-    if (!action.type) return false;
+    if (!action.type || action.enabled === false) return false;
     return DIALPLAN_ACTION_META[action.type]?.terminal === 'always';
   });
 }
 
 function firstMenuPlaybackIndex(actions: IRouteAction[]): number {
-  return actions.findIndex((action) => (
-    action.type === 'playback' && action.params?.mode === 'menu'
-  ));
+  return actions.findIndex(
+    (action) => action.enabled !== false && action.type === 'playback' && action.params?.mode === 'menu',
+  );
 }
 
-function SortableStepRow(
-  props: React.ComponentProps<typeof StepRow> & { id: string },
-) {
+function SortableStepRow(props: React.ComponentProps<typeof StepRow> & { id: string }) {
   const { id, style, ...rest } = props;
   const sortable = useSortable({ id });
   return (
@@ -193,12 +191,15 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const tenantUid = currentUser?.vpbx_user_uid ?? 0;
   const [removedStack, setRemovedStack] = useState<RemovedEntry[]>([]);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
-  const [, setSelectedSection] = useState<StepSection>('params');
+  useEffect(() => {
+    const first = stepErrors?.byStep.keys().next().value;
+    if (first) setSelectedStepId(first);
+  }, [stepErrors]);
+  const [selectedSection, setSelectedSection] = useState<StepSection>('params');
   const [undoVisible, setUndoVisible] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const undoTimer = useRef<number | null>(null);
-  const isMobile = useIsMobile(768);
   const templateActionsEnabled = showTemplateActions && host === 'route' && !readOnly;
 
   const resolvedAllowed = allowedTypes ?? typesForHost(host);
@@ -206,17 +207,22 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const hasTrunk = actions.some((action) => action.type === 'totrunk');
   const { data: trunks = [] } = useGetTrunksQuery(undefined, { skip: !hasTrunk });
   const { data: voiceRobots = [] } = useGetVoiceRobotsQuery(undefined, { skip: !hasVoiceRobot });
-  const rowRefs = useMemo(() => ({
-    trunkIds: { items: trunks.map((trunk) => ({ value: trunk.id, label: trunk.name || trunk.id })) },
-    voiceRobots: { items: voiceRobots.map((robot) => ({ value: String(robot.uid), label: robot.name })) },
-  }), [voiceRobots, trunks]);
+  const rowRefs = useMemo(
+    () => ({
+      trunkIds: {
+        items: trunks.map((trunk) => ({ value: trunk.id, label: trunk.name || trunk.id })),
+      },
+      voiceRobots: {
+        items: voiceRobots.map((robot) => ({ value: String(robot.uid), label: robot.name })),
+      },
+    }),
+    [voiceRobots, trunks],
+  );
   const atLimit = maxSteps != null && actions.length >= maxSteps;
   const terminalIndex = firstAlwaysTerminalIndex(actions);
-  const unreachableCount =
-    terminalIndex >= 0 ? Math.max(0, actions.length - terminalIndex - 1) : 0;
+  const unreachableCount = terminalIndex >= 0 ? Math.max(0, actions.length - terminalIndex - 1) : 0;
   const menuIndex = firstMenuPlaybackIndex(actions);
-  const maybeSkipCount =
-    menuIndex >= 0 ? Math.max(0, actions.length - menuIndex - 1) : 0;
+  const maybeSkipCount = menuIndex >= 0 ? Math.max(0, actions.length - menuIndex - 1) : 0;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -299,353 +305,323 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
 
   return (
     <ChainLabelsProvider labels={collectChainLabelNames(actions)}>
-    <VStack gap="12" className={styles.root}>
-      {readOnly ? (
-        <Text variant="muted" className={styles.readOnlyBar}>
-          {t('routes.chain.readOnly', 'Просмотр без изменений')}
-        </Text>
-      ) : null}
-
-      {undoVisible && removedStack.length > 0 && !readOnly ? (
-        <Flex className={styles.undoBar} justify="between" align="center">
-          <Text>{t('routes.chain.undo.deleted', 'Действие удалено')}</Text>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              apply({ type: 'undoRemove' });
-              setUndoVisible(false);
-            }}
-          >
-            {t('routes.chain.undo.restore', 'Вернуть шаг')}
-          </Button>
-        </Flex>
-      ) : null}
-
-      {unreachableCount > 0 ? (
-        <Flex className={styles.unreachable} gap="8" align="start">
-          <AlertTriangle size={16} />
-          <VStack gap="4">
-            <Text>
-              {unreachableCount === 1
-                ? t('routes.chain.unreachable.title_one', 'Шаг ниже не выполнится')
-                : t('routes.chain.unreachable.title_other', 'Шаги ниже не выполнятся')}
-            </Text>
-            <Text variant="muted">
-              {(unreachableCount === 1
-                ? t(
-                    'routes.chain.unreachable.body_one',
-                    'Действие {{index}} завершает цепочку. Перенесите его вниз или удалите действие после него',
-                  )
-                : t(
-                    'routes.chain.unreachable.body_other',
-                    'Действие {{index}} завершает цепочку. Перенесите его вниз или удалите действия после него',
-                  )
-              ).replace('{{index}}', String(terminalIndex + 1))}
-            </Text>
-          </VStack>
-        </Flex>
-      ) : null}
-
-      {maybeSkipCount > 0 && unreachableCount === 0 ? (
-        <Flex className={styles.unreachable} gap="8" align="start">
-          <AlertTriangle size={16} />
-          <VStack gap="4">
-            <Text>
-              {maybeSkipCount === 1
-                ? t('routes.chain.maybeUnreachable.title_one', 'Шаг ниже может не выполниться')
-                : t('routes.chain.maybeUnreachable.title_other', 'Шаги ниже могут не выполниться')}
-            </Text>
-            <Text variant="muted">
-              {(maybeSkipCount === 1
-                ? t(
-                    'routes.chain.maybeUnreachable.body_one',
-                    'Действие {{index}} может увести вызов из цепочки, тогда следующее действие пропускается',
-                  )
-                : t(
-                    'routes.chain.maybeUnreachable.body_other',
-                    'Действие {{index}} может увести вызов из цепочки, тогда следующие действия пропускаются',
-                  )
-              ).replace('{{index}}', String(menuIndex + 1))}
-            </Text>
-          </VStack>
-        </Flex>
-      ) : null}
-
-      {actions.length === 0 ? (
-        <VStack gap="12" align="center" className={styles.empty}>
-          <ListPlus size={28} className={styles.emptyIcon} data-testid="chain-empty-icon" />
-          <Text variant="h4">
-            {labels?.emptyTitle ?? t('routes.chain.empty.title', 'Цепочка действий пуста')}
+      <VStack gap="12" className={styles.root}>
+        {readOnly ? (
+          <Text variant="muted" className={styles.readOnlyBar}>
+            {t('routes.chain.readOnly', 'Просмотр без изменений')}
           </Text>
-          <Text variant="muted">
-            {labels?.emptyBody
-              ?? t(
-                'routes.chain.empty.bodyRoute',
-                'Добавьте первое действие: звонок в очередь, на внутренний номер, в IVR или уведомление',
-              )}
-          </Text>
-          {!readOnly ? (
-            <VStack gap="8" align="center">
-              <Button type="button" onClick={addAction}>
-                {addLabel}
-              </Button>
-              {templateActionsEnabled ? (
-                <Tooltip content={atLimit ? limitTooltip : undefined}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={atLimit}
-                    onClick={() => setApplyOpen(true)}
-                  >
-                    <LayoutTemplate size={16} />
-                    {t('routes.templates.fromTemplate', 'Из шаблона')}
-                  </Button>
-                </Tooltip>
-              ) : null}
-            </VStack>
-          ) : (
-            <Text variant="muted">{t('routes.chain.empty.readOnly', 'Действий нет')}</Text>
-          )}
-        </VStack>
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          modifiers={[restrictToVerticalAxisLocal]}
-          accessibility={{ announcements }}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext items={actions.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-            <VStack gap="8" className={styles.list} role="list">
-              {actions.map((action, idx) => (
-                <VStack key={action.id} gap="0" max>
-                  <SortableStepRow
-                    id={action.id}
-                    action={action}
-                    refs={rowRefs}
-                    index={idx}
-                    density={density}
-                    readOnly={readOnly}
-                    slots={slots}
-                    unreachable={terminalIndex >= 0 && idx > terminalIndex}
-                    allowedTypes={resolvedAllowed}
-                    onOpenStep={(id, section) => {
-                      setSelectedStepId(id);
-                      setSelectedSection(section ?? 'params');
-                    }}
-                    onDuplicate={(id) => apply({ type: 'duplicate', id })}
-                    onToggleEnabled={(id) => apply({ type: 'toggleEnabled', id })}
-                    onRemove={(id) => {
-                      apply({ type: 'remove', id });
-                      showUndo();
-                    }}
-                    onCopy={(id) => {
-                      const current = actions.find((item) => item.id === id);
-                      if (current) copyStep(current);
-                    }}
-                    onTypeChange={handleTypeChange}
-                  />
-                  {!readOnly && idx < actions.length - 1 ? (
-                    <Flex className={styles.gap}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={styles.gapButton}
-                        title={t('routes.chain.insertHere', 'Вставить действие сюда')}
-                        aria-label={t('routes.chain.insertHere', 'Вставить действие сюда')}
-                        disabled={atLimit}
-                        onClick={() => {
-                          const id = makeId();
-                          apply({
-                            type: 'insertAt',
-                            index: idx + 1,
-                            action: {
-                              id,
-                              type: '' as ActionType,
-                              params: {},
-                              condition: {},
-                              enabled: true,
-                            },
-                          });
-                          setSelectedStepId(id);
-                        }}
-                      >
-                        <Plus size={16} />
-                      </Button>
-                    </Flex>
-                  ) : null}
-                </VStack>
-              ))}
-            </VStack>
-          </SortableContext>
-        </DndContext>
-      )}
+        ) : null}
 
-      {!readOnly && actions.length > 0 ? (
-        <Flex className={styles.footer} gap="8" align="center">
-          <Tooltip content={atLimit ? limitTooltip : t('routes.chain.orderHint', 'Действия выполняются сверху вниз')}>
+        {undoVisible && removedStack.length > 0 && !readOnly ? (
+          <Flex className={styles.undoBar} justify="between" align="center">
+            <Text>{t('routes.chain.undo.deleted', 'Действие удалено')}</Text>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={addAction}
-              disabled={atLimit}
-              aria-label={addLabel}
+              onClick={() => {
+                apply({ type: 'undoRemove' });
+                setUndoVisible(false);
+              }}
             >
-              <Plus size={16} />
-              {addLabel}
+              {t('routes.chain.undo.restore', 'Вернуть шаг')}
             </Button>
-          </Tooltip>
-          {maxSteps != null ? (
-            <Text className={styles.counter}>{`${actions.length} / ${maxSteps}`}</Text>
-          ) : null}
-          {isMobile && templateActionsEnabled ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={t('common.actions', 'Действия')}
-                >
-                  <MoreVertical size={16} />
+          </Flex>
+        ) : null}
+
+        {unreachableCount > 0 ? (
+          <Flex className={styles.unreachable} gap="8" align="start">
+            <AlertTriangle size={16} />
+            <VStack gap="4">
+              <Text>
+                {unreachableCount === 1
+                  ? t('routes.chain.unreachable.title_one', 'Шаг ниже не выполнится')
+                  : t('routes.chain.unreachable.title_other', 'Шаги ниже не выполнятся')}
+              </Text>
+              <Text variant="muted">
+                {(unreachableCount === 1
+                  ? t(
+                      'routes.chain.unreachable.body_one',
+                      'Действие {{index}} завершает цепочку. Перенесите его вниз или удалите действие после него',
+                    )
+                  : t(
+                      'routes.chain.unreachable.body_other',
+                      'Действие {{index}} завершает цепочку. Перенесите его вниз или удалите действия после него',
+                    )
+                ).replace('{{index}}', String(terminalIndex + 1))}
+              </Text>
+            </VStack>
+          </Flex>
+        ) : null}
+
+        {maybeSkipCount > 0 && unreachableCount === 0 ? (
+          <Flex className={styles.unreachable} gap="8" align="start">
+            <AlertTriangle size={16} />
+            <VStack gap="4">
+              <Text>
+                {maybeSkipCount === 1
+                  ? t('routes.chain.maybeUnreachable.title_one', 'Шаг ниже может не выполниться')
+                  : t(
+                      'routes.chain.maybeUnreachable.title_other',
+                      'Шаги ниже могут не выполниться',
+                    )}
+              </Text>
+              <Text variant="muted">
+                {(maybeSkipCount === 1
+                  ? t(
+                      'routes.chain.maybeUnreachable.body_one',
+                      'Действие {{index}} может увести вызов из цепочки, тогда следующее действие пропускается',
+                    )
+                  : t(
+                      'routes.chain.maybeUnreachable.body_other',
+                      'Действие {{index}} может увести вызов из цепочки, тогда следующие действия пропускаются',
+                    )
+                ).replace('{{index}}', String(menuIndex + 1))}
+              </Text>
+            </VStack>
+          </Flex>
+        ) : null}
+
+        {actions.length === 0 ? (
+          <VStack gap="12" align="center" className={styles.empty}>
+            <ListPlus size={28} className={styles.emptyIcon} data-testid="chain-empty-icon" />
+            <Text variant="h4">
+              {labels?.emptyTitle ?? t('routes.chain.empty.title', 'Цепочка действий пуста')}
+            </Text>
+            <Text variant="muted">
+              {labels?.emptyBody ??
+                t(
+                  'routes.chain.empty.bodyRoute',
+                  'Добавьте первое действие: звонок в очередь, на внутренний номер, в IVR или уведомление',
+                )}
+            </Text>
+            {!readOnly ? (
+              <VStack gap="8" align="center">
+                <Button type="button" onClick={addAction}>
+                  {addLabel}
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  disabled={!hasStep() || atLimit}
-                  onClick={() => apply({ type: 'paste', index: actions.length })}
-                >
-                  {t('routes.chain.pasteCopied', 'Вставить скопированный шаг')}
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={atLimit} onClick={() => setApplyOpen(true)}>
-                  {t('routes.templates.fromTemplate', 'Из шаблона')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSaveAsOpen(true)}>
-                  {t('routes.templates.saveAsTemplate', 'Сохранить как шаблон')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <>
+                {templateActionsEnabled && <DropdownMenu>
+                  <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={t('routes.templates.menu', 'Операции с шаблонами')}><MoreVertical size={18}/></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end"><DropdownMenuItem disabled={atLimit} onClick={()=>setApplyOpen(true)}><LayoutTemplate size={16}/>{t('routes.templates.fromTemplate', 'Из шаблона')}</DropdownMenuItem></DropdownMenuContent>
+                </DropdownMenu>}
+              </VStack>
+            ) : (
+              <Text variant="muted">{t('routes.chain.empty.readOnly', 'Действий нет')}</Text>
+            )}
+          </VStack>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxisLocal]}
+            accessibility={{ announcements }}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={actions.map((item) => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <VStack gap="8" className={styles.list} role="list">
+                {actions.map((action, idx) => (
+                  <VStack key={action.id} gap="0" max>
+                    <SortableStepRow
+                      id={action.id}
+                      action={action}
+                      refs={rowRefs}
+                      index={idx}
+                      density={density}
+                      readOnly={readOnly}
+                      slots={slots}
+                      unreachable={terminalIndex >= 0 && idx > terminalIndex}
+                      allowedTypes={resolvedAllowed}
+                      onOpenStep={(id, section) => {
+                        setSelectedStepId(id);
+                        setSelectedSection(section ?? 'params');
+                      }}
+                      onDuplicate={(id) => apply({ type: 'duplicate', id })}
+                      onToggleEnabled={(id) => apply({ type: 'toggleEnabled', id })}
+                      onRemove={(id) => {
+                        apply({ type: 'remove', id });
+                        showUndo();
+                      }}
+                      onCopy={(id) => {
+                        const current = actions.find((item) => item.id === id);
+                        if (current) copyStep(current);
+                      }}
+                      onTypeChange={handleTypeChange}
+                    />
+                    {stepErrors?.byStep.has(action.id) && (
+                      <HStack gap="8" align="center" wrap="wrap">
+                        <Text variant="error" role="alert">
+                          {Object.entries(stepErrors.byStep.get(action.id) ?? {})
+                            .map(([field, message]) => {
+                              const definition = dialplanAppsRegistry[action.type]?.schema?.find(
+                                (item) => item.key === field,
+                              );
+                              const reason = localizeStepError(action.type, field, message, t);
+                              return definition
+                                ? t(definition.labelKey, definition.label ?? definition.labelKey) +
+                                    ': ' +
+                                    reason
+                                : reason;
+                            })
+                            .join('; ')}
+                        </Text>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedStepId(action.id)}
+                        >
+                          {t('routes.chain.fixStep').replace('{{n}}', String(idx + 1))}
+                        </Button>
+                      </HStack>
+                    )}
+                    {!readOnly && idx < actions.length - 1 ? (
+                      <Flex className={styles.gap}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={styles.gapButton}
+                          title={t('routes.chain.insertHere', 'Вставить действие сюда')}
+                          aria-label={t('routes.chain.insertHere', 'Вставить действие сюда')}
+                          disabled={atLimit}
+                          onClick={() => {
+                            const id = makeId();
+                            apply({
+                              type: 'insertAt',
+                              index: idx + 1,
+                              action: {
+                                id,
+                                type: '' as ActionType,
+                                params: {},
+                                condition: {},
+                                enabled: true,
+                              },
+                            });
+                            setSelectedStepId(id);
+                          }}
+                        >
+                          <Plus size={16} />
+                        </Button>
+                      </Flex>
+                    ) : null}
+                  </VStack>
+                ))}
+              </VStack>
+            </SortableContext>
+          </DndContext>
+        )}
+
+        {!readOnly && actions.length > 0 ? (
+          <Flex className={styles.footer} gap="8" align="center">
+            <Tooltip
+              content={
+                atLimit
+                  ? limitTooltip
+                  : t('routes.chain.orderHint', 'Действия выполняются сверху вниз')
+              }
+            >
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                disabled={!hasStep() || atLimit}
-                title={t('routes.chain.pasteCopied', 'Вставить скопированный шаг')}
-                onClick={() => apply({ type: 'paste', index: actions.length })}
+                onClick={addAction}
+                disabled={atLimit}
+                aria-label={addLabel}
               >
-                {t('routes.chain.pasteCopied', 'Вставить скопированный шаг')}
+                <Plus size={16} />
+                {addLabel}
               </Button>
-              {templateActionsEnabled ? (
-                <>
-                  <Tooltip content={atLimit ? limitTooltip : undefined}>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={atLimit}
-                      onClick={() => setApplyOpen(true)}
-                    >
-                      <LayoutTemplate size={16} />
-                      {t('routes.templates.fromTemplate', 'Из шаблона')}
-                    </Button>
-                  </Tooltip>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSaveAsOpen(true)}
-                  >
-                    <Save size={16} />
-                    {t('routes.templates.saveAsTemplate', 'Сохранить как шаблон')}
-                  </Button>
-                </>
-              ) : null}
-            </>
-          )}
-        </Flex>
-      ) : null}
-
-      {isUnknownType(selectedAction) ? (
-        <Sheet
-          open={!!selectedStepId && !!selectedAction}
-          onOpenChange={(next) => {
-            if (!next) setSelectedStepId(null);
-          }}
-        >
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>
-                <Text variant="h4">
-                  {t('routes.chain.badge.unknown', 'Неизвестное действие')}
-                </Text>
-              </SheetTitle>
-            </SheetHeader>
-            {selectedAction ? (
-              <UnknownActionCard
-                type={selectedAction.type}
-                params={selectedAction.params ?? {}}
-                onDelete={() => {
-                  apply({ type: 'remove', id: selectedAction.id });
-                  setSelectedStepId(null);
-                }}
-                onReplaceType={(type) => handleTypeChange(selectedAction.id, type)}
-              />
+            </Tooltip>
+            {maxSteps != null ? (
+              <Text className={styles.counter}>{`${actions.length} / ${maxSteps}`}</Text>
             ) : null}
-          </SheetContent>
-        </Sheet>
-      ) : (
-        <StepSheet
-          open={!!selectedStepId && !!selectedAction && !isEmptyType(selectedAction)}
-          stepId={selectedStepId}
-          action={selectedAction}
-          tenantUid={tenantUid}
-          stepIndex={selectedIndex}
-          previewPatterns={previewPatterns}
-          autodialFields={autodialFields}
-          onOpenChange={(next) => {
-            if (!next) setSelectedStepId(null);
-          }}
-          onChange={(patch) => {
-            if (selectedStepId) apply({ type: 'patchParams', id: selectedStepId, patch });
-          }}
-          onTypeChange={(type) => {
-            if (selectedStepId) handleTypeChange(selectedStepId, type);
-          }}
-          fieldErrors={selectedStepId ? stepErrors?.byStep.get(selectedStepId) : undefined}
-          onConditionChange={(condition) => {
-            if (!selectedStepId) return;
-            onChange(
-              actions.map((item) =>
-                item.id === selectedStepId ? { ...item, condition } : item,
-              ),
-            );
-          }}
-        />
-      )}
-      {templateActionsEnabled ? (
-        <>
-          <ApplyTemplateDialog
-            open={applyOpen}
-            onOpenChange={setApplyOpen}
-            currentActionCount={actions.length}
-            onApply={(next, mode) => {
-              onChange(mode === 'replace' ? next : [...actions, ...next]);
+            {templateActionsEnabled && <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={t('routes.templates.menu', 'Операции с шаблонами')}><MoreVertical size={18}/></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem disabled={atLimit} onClick={()=>setApplyOpen(true)}><LayoutTemplate size={16}/>{t('routes.templates.fromTemplate', 'Из шаблона')}</DropdownMenuItem>
+                <DropdownMenuItem onClick={()=>setSaveAsOpen(true)}><Save size={16}/>{t('routes.templates.saveAsTemplate', 'Сохранить как шаблон')}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>}
+          </Flex>
+        ) : null}
+
+        {isUnknownType(selectedAction) ? (
+          <Sheet
+            open={!!selectedStepId && !!selectedAction}
+            onOpenChange={(next) => {
+              if (!next) setSelectedStepId(null);
+            }}
+          >
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>
+                  <Text as="span" variant="h4">
+                    {t('routes.chain.badge.unknown', 'Неизвестное действие')}
+                  </Text>
+                </SheetTitle>
+              </SheetHeader>
+              {selectedAction ? (
+                <UnknownActionCard
+                  type={selectedAction.type}
+                  params={selectedAction.params ?? {}}
+                  onDelete={() => {
+                    apply({ type: 'remove', id: selectedAction.id });
+                    setSelectedStepId(null);
+                  }}
+                  onReplaceType={(type) => handleTypeChange(selectedAction.id, type)}
+                />
+              ) : null}
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <StepSheet
+            open={!!selectedStepId && !!selectedAction && !isEmptyType(selectedAction)}
+            stepId={selectedStepId}
+            initialSection={selectedSection}
+            action={selectedAction}
+            tenantUid={tenantUid}
+            stepIndex={selectedIndex}
+            previewPatterns={previewPatterns}
+            autodialFields={autodialFields}
+            onOpenChange={(next) => {
+              if (!next) setSelectedStepId(null);
+            }}
+            onChange={(patch) => {
+              if (selectedStepId) apply({ type: 'patchParams', id: selectedStepId, patch });
+            }}
+            onTypeChange={(type) => {
+              if (selectedStepId) handleTypeChange(selectedStepId, type);
+            }}
+            fieldErrors={selectedStepId ? stepErrors?.byStep.get(selectedStepId) : undefined}
+            onConditionChange={(condition) => {
+              if (!selectedStepId) return;
+              onChange(
+                actions.map((item) => (item.id === selectedStepId ? { ...item, condition } : item)),
+              );
             }}
           />
-          <SaveAsTemplateDialog
-            open={saveAsOpen}
-            onOpenChange={setSaveAsOpen}
-            actions={actions}
-          />
-        </>
-      ) : null}
-    </VStack>
+        )}
+        {templateActionsEnabled ? (
+          <>
+            <ApplyTemplateDialog
+              open={applyOpen}
+              onOpenChange={setApplyOpen}
+              currentActionCount={actions.length}
+              onApply={(next, mode) => {
+                onChange(mode === 'replace' ? next : [...actions, ...next]);
+              }}
+            />
+            <SaveAsTemplateDialog
+              open={saveAsOpen}
+              onOpenChange={setSaveAsOpen}
+              actions={actions}
+            />
+          </>
+        ) : null}
+      </VStack>
     </ChainLabelsProvider>
   );
 });

@@ -120,6 +120,14 @@ function Harness(props: React.ComponentProps<typeof DialplanAppsEditor>) {
 }
 
 describe('DialplanAppsEditor', () => {
+  it('opens the invalid notification and shows localized field feedback',()=>{
+    const action=step('n','notify',{params:{integration_uid:'1',message:'Legacy text'}});
+    render(<Harness actions={[action]} onChange={vi.fn()} stepErrors={{byStep:new Map([['n',{body:'body must be a string'}]]),orphans:[]}}/>);
+    expect(screen.getByLabelText(/Текст сообщения/)).toHaveValue('Legacy text');
+    expect(screen.getAllByText('routes.chain.notify.bodyRequired').length).toBeGreaterThan(0);
+    expect(screen.getByText('routes.chain.fixStep')).toBeInTheDocument();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -255,8 +263,9 @@ describe('DialplanAppsEditor', () => {
         showTemplateActions
       />,
     );
-    expect(screen.getByRole('button', { name: /из шаблона/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /сохранить как шаблон/i })).toBeInTheDocument();
+    fireEvent.pointerDown(screen.getByRole('button',{name:'Операции с шаблонами'}),{button:0,ctrlKey:false});
+    expect(screen.getByRole('menuitem', { name: /из шаблона/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /сохранить как шаблон/i })).toBeInTheDocument();
 
     rerender(
       <Harness
@@ -272,7 +281,8 @@ describe('DialplanAppsEditor', () => {
 
   it('offers From a template in the empty state only for the route host', () => {
     render(<Harness actions={[]} onChange={vi.fn()} host="route" showTemplateActions />);
-    expect(screen.getByRole('button', { name: /из шаблона/i })).toBeInTheDocument();
+    fireEvent.pointerDown(screen.getByRole('button',{name:'Операции с шаблонами'}),{button:0,ctrlKey:false});
+    expect(screen.getByRole('menuitem',{name:/из шаблона/i})).toBeInTheDocument();
   });
 
   it('round-trips an unknown action type without rewriting params', () => {
@@ -290,7 +300,7 @@ describe('DialplanAppsEditor', () => {
     }
     render(<RoundTrip />);
     expect(screen.getByText('legacy_widget')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText(/настроить/i));
+    fireEvent.click(screen.getByRole('button',{name:'legacy_widget'}));
     expect(JSON.parse(screen.getByTestId('payload').textContent ?? '[]')).toEqual([unknown]);
   });
 });

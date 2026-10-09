@@ -1,147 +1,193 @@
-import { memo, useState, useCallback, KeyboardEvent, useRef } from 'react';
-import { X, HelpCircle } from 'lucide-react';
+import { memo, useEffect, useId, useRef, useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Tooltip } from '@/shared/ui';
+import {
+  isDialPattern,
+  isRouteDialPattern,
+  parseRouteDialPattern,
+  routeDialPatternKey,
+  serializeRouteDialPattern,
+} from '@krasterisk/shared';
+import { Button, Input, Label, InfoTooltip, Text } from '@/shared/ui';
+import { HStack, VStack } from '@/shared/ui/Stack';
 import styles from './ExtensionChips.module.scss';
 
 interface ExtensionChipsProps {
   value: string[];
   onChange: (extensions: string[]) => void;
   disabled?: boolean;
+  onDraftChange?: (pending: boolean) => void;
 }
-
-/**
- * Asterisk pattern matching reference (per official docs).
- * @see https://docs.asterisk.org/Configuration/Dialplan/Pattern-Matching/
- */
-const PATTERN_HELP = [
-  { pattern: '_', desc: 'Префикс шаблона (обязателен)' },
-  { pattern: 'X', desc: 'Любая цифра 0-9' },
-  { pattern: 'Z', desc: 'Любая цифра 1-9' },
-  { pattern: 'N', desc: 'Любая цифра 2-9' },
-  { pattern: '[15-9]', desc: 'Набор символов: 1, 5, 6, 7, 8, 9' },
-  { pattern: '.', desc: 'Один или более любых символов (в конце)' },
-];
-
-const PATTERN_EXAMPLES = [
-  { pattern: '_XXXXXXX', desc: '7 любых цифр' },
-  { pattern: '_8XXXXXXXXXX', desc: 'Россия: 8 + 10 цифр' },
-  { pattern: '_[2-9]NXXXXXXX', desc: 'NANP: 10 цифр без 0/1' },
-];
-
-function PatternHelpContent() {
-  return (
-    <div className={styles.tooltipContent}>
-      <div className={styles.tooltipSection}>
-        <div className={styles.tooltipTitle}>Спецсимволы</div>
-        <table className={styles.helpTable}>
-          <tbody>
-            {PATTERN_HELP.map((h) => (
-              <tr key={h.pattern}>
-                <td className={styles.helpPattern}>{h.pattern}</td>
-                <td className={styles.helpDesc}>{h.desc}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className={styles.tooltipSection}>
-        <div className={styles.tooltipTitle}>Примеры</div>
-        <table className={styles.helpTable}>
-          <tbody>
-            {PATTERN_EXAMPLES.map((h) => (
-              <tr key={h.pattern}>
-                <td className={styles.helpPattern}>{h.pattern}</td>
-                <td className={styles.helpDesc}>{h.desc}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+interface RuleRow {
+  extension: string;
+  callerId: string;
 }
+const readRows = (value: string[]): RuleRow[] =>
+  value.length
+    ? value.map((raw) => {
+        const rule = isRouteDialPattern(raw) ? parseRouteDialPattern(raw) : null;
+        return { extension: rule?.extension ?? raw, callerId: rule?.callerId ?? '' };
+      })
+    : [{ extension: '', callerId: '' }];
+const serializeRows = (rows: RuleRow[]) =>
+  rows
+    .filter((row) => isDialPattern(row.extension) && (!row.callerId || isDialPattern(row.callerId)))
+    .map(({ extension, callerId }) =>
+      serializeRouteDialPattern({ extension, ...(callerId ? { callerId } : {}) }),
+    );
+const invalidRows = (rows: RuleRow[]) => {
+  const keys = new Set<string>();
+  return rows.map(({ extension, callerId }) => {
+    if (!extension && !callerId) return false;
+    if (!isDialPattern(extension) || (callerId && !isDialPattern(callerId))) return true;
+    const key = routeDialPatternKey(
+      serializeRouteDialPattern({ extension, ...(callerId ? { callerId } : {}) }),
+    );
+    const duplicate = keys.has(key);
+    keys.add(key);
+    return duplicate;
+  });
+};
 
-export const ExtensionChips = memo(({ value, onChange, disabled }: ExtensionChipsProps) => {
-  const { t } = useTranslation();
-  const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const addExtension = useCallback(() => {
-    const trimmed = inputValue.trim();
-    if (trimmed && !value.includes(trimmed)) {
-      onChange([...value, trimmed]);
-      setInputValue('');
-    }
-  }, [inputValue, value, onChange]);
-
-  const removeExtension = useCallback((ext: string) => {
-    onChange(value.filter((e) => e !== ext));
-  }, [value, onChange]);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      e.preventDefault();
-      addExtension();
-    }
-    if (e.key === 'Backspace' && !inputValue && value.length > 0) {
-      onChange(value.slice(0, -1));
-    }
-  }, [addExtension, inputValue, value, onChange]);
-
-  return (
-    <div className={styles.wrapper}>
-      <div className={styles.label}>
-        <span>{t('routes.extensions', 'Правила набора (Extensions)')}</span>
-        <Tooltip content={<PatternHelpContent />} side="right" contentClassName="max-w-[360px]">
-          <button
-            type="button"
-            className={styles.helpBtn}
-            title={t('routes.extensionHelp', 'Справка по шаблонам')}
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-        </Tooltip>
-      </div>
-
-      <div
-        className={styles.chipsContainer}
-        onClick={() => inputRef.current?.focus()}
-      >
-        {value.map((ext) => (
-          <span key={ext} className={styles.chip}>
-            <code>{ext}</code>
-            {!disabled && (
-              <button
-                type="button"
-                className={styles.chipRemove}
-                onClick={(e) => { e.stopPropagation(); removeExtension(ext); }}
-              >
-                <X className="w-3 h-3" />
-              </button>
+export const ExtensionChips = memo(
+  ({ value, onChange, disabled, onDraftChange }: ExtensionChipsProps) => {
+    const { t } = useTranslation();
+    const id = useId();
+    const [rows, setRows] = useState(() => readRows(value));
+    const published = useRef(JSON.stringify(value));
+    useEffect(() => {
+      const incoming = JSON.stringify(value);
+      if (incoming !== published.current) {
+        published.current = incoming;
+        setRows(readRows(value));
+      }
+      // In this editor a blank Caller ID always means any caller, including legacy rows.
+      const normalized = value.map((raw) => {
+        if (!isRouteDialPattern(raw)) return raw;
+        const rule = parseRouteDialPattern(raw);
+        return rule.callerId === '' ? rule.extension : raw;
+      });
+      const serialized = JSON.stringify(normalized);
+      if (serialized !== incoming) {
+        published.current = serialized;
+        onChange(normalized);
+      }
+    }, [value, onChange]);
+    const errors = invalidRows(rows);
+    const invalid = errors.some(Boolean);
+    useEffect(() => {
+      onDraftChange?.(invalid);
+    }, [invalid, onDraftChange]);
+    const update = (next: RuleRow[]) => {
+      setRows(next);
+      const serialized = serializeRows(next);
+      published.current = JSON.stringify(serialized);
+      onChange(serialized);
+    };
+    const change = (index: number, field: keyof RuleRow, text: string) => {
+      update(rows.map((row, position) => (position === index ? { ...row, [field]: text } : row)));
+    };
+    return (
+      <VStack gap="8" max className={styles.editor}>
+        <HStack
+          gap="8"
+          align="start"
+          max
+          data-testid="dial-rule-headings"
+          className={[styles.headers, !disabled && rows.length > 1 ? styles.withRemove : ''].join(
+            ' ',
+          )}
+        >
+          <HStack gap="4" align="center" className={styles.field}>
+            <Label id={id + '-destination-heading'}>{t('routes.destinationPattern')}</Label>
+            <InfoTooltip text={t('routes.dialRulesHint')} />
+          </HStack>
+          <HStack gap="4" align="center" className={styles.field}>
+            <Label id={id + '-caller-heading'}>{t('routes.callerNumberPattern')}</Label>
+            <InfoTooltip text={t('routes.callerMatchHint')} />
+          </HStack>
+          {!disabled && rows.length > 1 && (
+            <HStack className={styles.removeSpace} aria-hidden="true" />
+          )}
+        </HStack>
+        {rows.map((row, index) => (
+          <VStack key={index} gap="4" max>
+            <HStack
+              gap="8"
+              align="end"
+              max
+              className={[styles.row, !disabled && rows.length > 1 ? styles.withRemove : ''].join(
+                ' ',
+              )}
+            >
+              <VStack gap="4" className={styles.field}>
+                <HStack gap="4" className={styles.mobileLabel}>
+                  <Label htmlFor={id + '-destination-' + index}>
+                    {t('routes.destinationPattern')}
+                  </Label>
+                  <InfoTooltip text={t('routes.dialRulesHint')} />
+                </HStack>
+                <Input
+                  id={id + '-destination-' + index}
+                  aria-labelledby={id + '-destination-heading'}
+                  maxLength={79}
+                  value={row.extension}
+                  disabled={disabled}
+                  onChange={(event) => change(index, 'extension', event.target.value)}
+                  placeholder="_8XXXXXXXXXX"
+                  aria-invalid={errors[index]}
+                />
+              </VStack>
+              <VStack gap="4" className={styles.field}>
+                <HStack gap="4" className={styles.mobileLabel}>
+                  <Label htmlFor={id + '-caller-' + index}>{t('routes.callerNumberPattern')}</Label>
+                  <InfoTooltip text={t('routes.callerMatchHint')} />
+                </HStack>
+                <Input
+                  id={id + '-caller-' + index}
+                  aria-labelledby={id + '-caller-heading'}
+                  maxLength={79}
+                  value={row.callerId}
+                  disabled={disabled}
+                  onChange={(event) => change(index, 'callerId', event.target.value)}
+                  placeholder={t('routes.callerAny')}
+                  aria-invalid={errors[index]}
+                />
+              </VStack>
+              {!disabled && rows.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={styles.removeRule}
+                  aria-label={t('routes.removeDialRule', { rule: row.extension })}
+                  onClick={() => update(rows.filter((_, position) => position !== index))}
+                >
+                  <X size={16} />
+                </Button>
+              )}
+            </HStack>
+            {errors[index] && (
+              <Text variant="error" role="alert">
+                {t('routes.invalidDialRule')}
+              </Text>
             )}
-          </span>
+          </VStack>
         ))}
         {!disabled && (
-          <input
-            ref={inputRef}
-            className={styles.input}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={addExtension}
-            placeholder={value.length === 0 ? t('routes.extensionPlaceholder', '_XXXXXXXXXX') : ''}
-          />
+          <Button
+            type="button"
+            variant="ghost"
+            className={styles.addRule}
+            disabled={rows.length >= 100}
+            onClick={() => setRows([...rows, { extension: '', callerId: '' }])}
+          >
+            <Plus size={16} />
+            {t('routes.addDialRule')}
+          </Button>
         )}
-      </div>
-
-      {!disabled && value.length === 0 && (
-        <p className={styles.hint}>
-          {t('routes.extensionHint', 'Введите правило набора и нажмите Enter. Можно добавить несколько.')}
-        </p>
-      )}
-    </div>
-  );
-});
-
+      </VStack>
+    );
+  },
+);
 ExtensionChips.displayName = 'ExtensionChips';

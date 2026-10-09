@@ -478,7 +478,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
 
   const routeReferencesService = { findUsage: async () => ({ references: [] }) };
   new AgentSkillRegistryService(registry).onModuleInit();
-  new EndpointsAiAdapter(endpointsService as never, registry).onModuleInit();
+  new EndpointsAiAdapter(endpointsService as never, registry, contextsService as never).onModuleInit();
   new DirectoriesAiAdapter(directoriesService as never, registry).onModuleInit();
   new QueuesAiAdapter(
     queuesService as never,
@@ -489,7 +489,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   ).onModuleInit();
   new ReportsAiAdapter(cdrService as never, registry).onModuleInit();
   new PbxStateAiAdapter(builder, registry).onModuleInit();
-  new TrunksAiAdapter(trunksService as never, routesService as never, registry).onModuleInit();
+  new TrunksAiAdapter(trunksService as never, routesService as never, registry, contextsService as never).onModuleInit();
   new CallGroupsAiAdapter(
     callGroupsService as never,
     registry,

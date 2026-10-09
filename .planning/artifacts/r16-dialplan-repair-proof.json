@@ -1,0 +1,30 @@
+{
+  "prefixPreserved": true,
+  "originalCompleteTailPreserved": true,
+  "allActionHandlersPreserved": true,
+  "allExportsPreserved": true,
+  "parseErrors": 0,
+  "members": [
+    "backendBaseUrl",
+    "dialplanApiKey",
+    "callbackPolicy",
+    "hasCallbackStep",
+    "recordsBasePath",
+    "sanitizeShellInput",
+    "sanitizeDialplanInput",
+    "pjsipDialTarget",
+    "sanitizeFilePath",
+    "sanitizeTemplate",
+    "actionToDialplan",
+    "curlCtx",
+    "emitCallbackEnqueue",
+    "voicemailRecordsBase",
+    "emitVoicemailDialplan",
+    "emitNotifyDialplan",
+    "ttsSettingsQuery",
+    "emitSetclidCurl",
+    "buildDialOptions"
+  ],
+  "removedMalformedInsertion": "      case 'directory_lookup': {\n        if (params.behavior) {\n          const uid='S'+createHash('sha256').update(callerIdScope+'|'+String(action.id??action.uid??'DL')).digest('hex').slice(0,20);\n          const contextName='dir_policy_'+uid+'_'+vpbxUserUid;\n          const category=compileDirectoryPolicy({binding:{uid,directory_uid:Number(params.directoryUid),position:0,key_source:params.keySource,match_mode:params.matchMode??'on_match',behavior_type:params.behavior,behavior_params:params.behaviorParams,actions:params.actions},directory:{uid:Number(params.directoryUid)},vpbxUserUid,routeTenantedContext:routeContext??'\n",
+  "removedTrailingCharacters": 40810
+}

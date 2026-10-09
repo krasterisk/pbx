@@ -4,6 +4,8 @@ import * as path from 'path';
 import { wrapUntrustedData } from '../../shared/utils/prompt-injection.util';
 import { AiAdapterRegistryService } from './ai-adapter-registry.service';
 import { AiToolDefinition, DomainAiAdapter } from './ai-adapter.types';
+import { jsonSchemaOf } from './ai-mutation.contract';
+import { MODULE_COVERAGE, adapterDomainOf } from './module-coverage.registry';
 
 export const SKILL_BODY_MAX_CHARS = 8000;
 export const SKILL_BULK_READ_MAX = 4;
@@ -171,7 +173,49 @@ export class AgentSkillRegistryService implements DomainAiAdapter, OnModuleInit 
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListSkills(), this.toolReadSkill()];
+    return [this.toolListSkills(), this.toolReadSkill(), this.toolConfigurationCapabilities()];
+  }
+
+  private toolConfigurationCapabilities(): AiToolDefinition {
+    return {
+      name: 'get_configuration_capabilities',
+      description: 'Фактические возможности помощника по модулю/домену: операции, обязательные параметры, строгая схема конкретного инструмента, навыки и ограничения. Без домена — компактный каталог всех модулей. Используй перед настройкой неизвестного параметра.',
+      entityType: 'configuration',
+      inputSchema: { domain: { type: 'string' }, tool: { type: 'string' }, field: { type: 'string', description: 'Точная схема одного параметра, например advanced.dtmf_mode. Используй для больших схем.' } },
+      handler: async (args) => {
+        const tools = this.registry.getAllTools();
+        if (typeof args.tool === 'string') {
+          const tool = tools.find((entry) => entry.name === args.tool);
+          if (!tool) return { error: 'Unknown tool', tool: args.tool };
+          const raw = tool.inputSchema;
+          const schema = tool.mutation ? jsonSchemaOf(tool.mutation.input)
+            : raw.type === 'object' ? raw : { type: 'object', properties: raw };
+          if (typeof args.field === 'string') {
+            let fieldSchema: Record<string, any> = schema;
+            for (const part of args.field.split('.')) {
+              if (!fieldSchema.properties || !Object.hasOwn(fieldSchema.properties, part)) return { error: 'Unknown field', tool: tool.name, field: args.field };
+              fieldSchema = fieldSchema.properties[part];
+            }
+            return { name: tool.name, field: args.field, schema: fieldSchema, confirmationRequired: !!tool.mutation || tool.proposes === true };
+          }
+          return { name: tool.name, description: tool.description, schema, mutation: !!tool.mutation,
+            confirmationRequired: !!tool.mutation || tool.proposes === true,
+            destructive: tool.destructive === true };
+        }
+        const domains = this.registry.getDomains();
+        const requested = typeof args.domain === 'string' ? args.domain : null;
+        const covered = Object.entries(MODULE_COVERAGE).filter(([module, entry]) => !requested || module === requested || adapterDomainOf(module, entry) === requested);
+        return { modules: covered.map(([module, entry]) => ({ module, ...entry,
+          registered: entry.kind === 'covered' && domains.includes(adapterDomainOf(module, entry)),
+          skills: entry.kind === 'covered' ? [...new Set([...this.findByDomain(adapterDomainOf(module, entry)).map((skill) => skill.name), ...(entry.sharedSkill && this.getSkill(entry.sharedSkill) ? [entry.sharedSkill] : [])])] : [],
+        })), tools: requested ? tools.filter((tool) => {
+          const entry = MODULE_COVERAGE[requested];
+          const adapter = this.registry.getAdapter(entry ? adapterDomainOf(requested, entry) : requested);
+          return adapter?.getTools().some((candidate) => candidate.name === tool.name);
+        }).map((tool) => ({ name: tool.name, description: tool.description, confirmationRequired: !!tool.mutation || tool.proposes === true })) : [],
+        rule: 'Read the exact schema with tool=<name>. Configurations use a proposal and fresh tenant revalidation. Secrets are entered through a secure form, never chat. Missing capability is a limitation, not permission to invent an HTTP/SQL tool.' };
+      },
+    };
   }
 
   private formatBody(name: string, body: string): string {

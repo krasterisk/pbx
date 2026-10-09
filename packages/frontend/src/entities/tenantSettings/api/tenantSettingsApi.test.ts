@@ -8,6 +8,7 @@ const INITIAL: TenantSettings = {
   'routes.show_raw_dialplan': true,
   'routes.show_flowchart': true,
   'tables.page_size': 50,
+  'endpoints.expert_mode': false,
 };
 
 function createStore() {
@@ -93,6 +94,7 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
       'routes.show_raw_dialplan': false,
       'routes.show_flowchart': true,
       'tables.page_size': 50,
+      'endpoints.expert_mode': false,
     });
 
     putGate.resolve(jsonResponse({
@@ -100,6 +102,18 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
       'routes.show_flowchart': true,
     }));
     await pending;
+  });
+
+  it('updates expert mode immediately and undoes a rejected global toggle', async () => {
+    const store = createStore();
+    await seedCache(store);
+    const pending = store.dispatch(
+      tenantSettingsApi.endpoints.updateVpbxTenantSettings.initiate({ 'endpoints.expert_mode': true }),
+    );
+    expect(selectCached(store)?.['endpoints.expert_mode']).toBe(true);
+    putGate.resolve(jsonResponse({ message: 'Rejected' }, 400));
+    await pending;
+    expect(selectCached(store)?.['endpoints.expert_mode']).toBe(false);
   });
 
   it('undo() restores the pre-mutation cache snapshot when PUT is rejected', async () => {
@@ -129,6 +143,7 @@ describe('tenantSettingsApi (D-19, D-17)', () => {
       'routes.show_raw_dialplan': true,
       'routes.show_flowchart': false,
       'tables.page_size': 50,
+      'endpoints.expert_mode': false,
     };
 
     const pending = store.dispatch(

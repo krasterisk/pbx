@@ -73,6 +73,8 @@ export class DialplanBridgeService {
     @InjectModel(Route) private readonly routeModel: typeof Route,
   ) {}
 
+  callerIdNumbers(): NumbersService { return this.numbers; }
+
   async setclid(body: SetclidDialplanDto): Promise<{ callerid: string }> {
     const listUid = Number(body.list_uid);
     const tenant = Number(body.vpbx_user_uid);

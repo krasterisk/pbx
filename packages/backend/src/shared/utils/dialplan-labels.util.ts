@@ -6,6 +6,7 @@ export type LabelRefError = {
 
 type ActionLike = {
   id?: unknown;
+  enabled?: unknown;
   type?: unknown;
   params?: {
     label_name?: unknown;
@@ -27,6 +28,7 @@ export function collectLabels(actions: unknown[]): Map<string, number> {
   (Array.isArray(actions) ? actions : []).forEach((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return;
     const action = item as ActionLike;
+    if (action.enabled === false) return;
     if (action.type !== 'label') return;
     const name = labelName(action.params?.label_name);
     if (!name || map.has(name)) return;
@@ -47,6 +49,7 @@ export function validateLabelRefs(actions: unknown[]): LabelRefError[] {
   list.forEach((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return;
     const action = item as ActionLike;
+    if (action.enabled === false) return;
     if (action.type !== 'label') return;
     const name = labelName(action.params?.label_name);
     if (!name) return;
@@ -65,6 +68,7 @@ export function validateLabelRefs(actions: unknown[]): LabelRefError[] {
   list.forEach((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return;
     const action = item as ActionLike;
+    if (action.enabled === false) return;
     const actionId = actionIdOf(action, index);
     const refs: Array<{ path: string; name: string }> = [];
     if (action.type === 'goto') {

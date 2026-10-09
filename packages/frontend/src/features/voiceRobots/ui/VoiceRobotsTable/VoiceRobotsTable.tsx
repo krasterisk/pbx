@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +31,7 @@ export const VoiceRobotsTable = memo(() => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isMobile = useIsMobile(768);
-  const { data: robots = [], isLoading } = useGetVoiceRobotsQuery();
+  const { data: robots = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetVoiceRobotsQuery();
   const [deleteRobot] = useDeleteVoiceRobotMutation();
   const [globalFilter, setGlobalFilter] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -180,6 +181,7 @@ export const VoiceRobotsTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

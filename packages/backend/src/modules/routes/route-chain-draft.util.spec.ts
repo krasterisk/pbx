@@ -12,6 +12,10 @@ const REFS: TenantEntityRefs = {
 };
 
 describe('validateRouteChainDraft', () => {
+ it('retains an explicit disabled flag in AI route drafts',()=>{
+   const result=validateRouteChainDraft([{type:'hangup',enabled:false,params:{signal:'hangup'},condition:{}}],REFS);
+   expect(result.ok).toBe(true);if(result.ok)expect(result.chain[0].enabled).toBe(false);
+ });
   it('accepts a typed chain the route editor can open', () => {
     const result = validateRouteChainDraft(
       [

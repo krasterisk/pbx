@@ -17,10 +17,6 @@ export const useContextsTableColumns = () => {
 
   return useMemo(
     () => [
-      columnHelper.accessor('uid', {
-        header: 'ID',
-        cell: (info) => <Text className={cls.uid}>{info.getValue()}</Text>,
-      }),
       columnHelper.accessor('name', {
         header: t('contexts.name', 'Имя'),
         cell: (info) => <Text className={cls.name}>{info.getValue()}</Text>,
@@ -28,6 +24,14 @@ export const useContextsTableColumns = () => {
       columnHelper.accessor('comment', {
         header: t('contexts.description', 'Описание'),
         cell: (info) => <Text variant="muted">{info.getValue() || '-'}</Text>,
+      }),
+      columnHelper.accessor((row) => [
+        row.is_default_for_trunks && t('contexts.defaultForTrunks'),
+        row.is_default_for_endpoints && t('contexts.defaultForEndpoints'),
+      ].filter(Boolean).join(', '), {
+        id: 'defaults',
+        header: t('contexts.purpose'),
+        cell: (info) => info.getValue() ? <Text>{info.getValue()}</Text> : null,
       }),
       columnHelper.display({
         id: 'actions',

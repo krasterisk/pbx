@@ -7,47 +7,51 @@
 
 @theme {
   /* Colors - Premium dark palette */
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-card: #0a0a0f;
-  --color-card-foreground: #fafafa;
-  --color-popover: #0a0a0f;
-  --color-popover-foreground: #fafafa;
+  --color-background: var(--bg-redesigned);
+  --color-foreground: var(--text-redesigned);
+  --color-card: var(--light-bg-redesigned);
+  --color-card-foreground: var(--text-redesigned);
+  --color-popover: var(--light-bg-redesigned);
+  --color-popover-foreground: var(--text-redesigned);
   
-  --color-primary: #6366f1;
-  --color-primary-foreground: #ffffff;
-  --color-primary-hover: #818cf8;
+  --color-primary: var(--accent-redesigned);
+  --color-primary-foreground: var(--dark-bg-redesigned);
+  --color-primary-hover: var(--accent-dark-redesigned);
+  --color-button-primary: color-mix(in srgb, var(--color-primary) 10%, var(--dark-bg-redesigned));
+  --color-button-primary-hover: color-mix(in srgb, var(--color-primary) 15%, var(--dark-bg-redesigned));
+  --color-button-primary-foreground: var(--color-primary);
+  --color-button-primary-border: color-mix(in srgb, var(--color-primary) 25%, transparent);
   
-  --color-secondary: #1e1e2e;
-  --color-secondary-foreground: #a1a1aa;
+  --color-secondary: var(--light-bg-redesigned);
+  --color-secondary-foreground: var(--text-redesigned);
   
-  --color-muted: #18181b;
-  --color-muted-foreground: #71717a;
+  --color-muted: var(--light-bg-redesigned);
+  --color-muted-foreground: var(--icon-redesigned);
   
-  --color-accent: #1e1e2e;
-  --color-accent-foreground: #fafafa;
+  --color-accent: color-mix(in srgb, var(--icon-redesigned) 16%, var(--bg-redesigned));
+  --color-accent-foreground: var(--text-redesigned);
   
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #fafafa;
+  --color-destructive: var(--cancel-redesigned);
+  --color-destructive-foreground: var(--dark-bg-redesigned);
   
-  --color-success: #22c55e;
+  --color-success: var(--save-redesigned);
   --color-warning: #f59e0b;
-  --color-info: #3b82f6;
+  --color-info: var(--accent-redesigned);
   
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-ring: #6366f1;
+  --color-border: color-mix(in srgb, var(--hint-redesigned) 65%, var(--light-bg-redesigned));
+  --color-input: color-mix(in srgb, var(--hint-redesigned) 65%, var(--light-bg-redesigned));
+  --color-ring: var(--accent-redesigned);
   
-  --color-sidebar: #121218;
-  --color-sidebar-foreground: #a1a1aa;
-  --color-sidebar-accent: #18181b;
-  --color-sidebar-border: #27272a;
+  --color-sidebar: var(--dark-bg-redesigned);
+  --color-sidebar-foreground: var(--icon-redesigned);
+  --color-sidebar-accent: var(--light-bg-redesigned);
+  --color-sidebar-border: var(--color-border);
   
   /* Radius */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
 
   /* Z-Index Layers */
   --z-index-dropdown: 20;
@@ -97,38 +101,38 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: var(--color-border);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--color-muted-foreground);
 }
 
 /* Glass card effect */
 .glass {
-  background: rgba(10, 10, 15, 0.7);
+  background: var(--glass-bg-primary);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: var(--glass-border-primary);
 }
 
 /* Glow effects */
 .glow-primary {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15),
-              0 0 60px rgba(99, 102, 241, 0.05);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 15%, transparent),
+              0 0 60px color-mix(in srgb, var(--color-primary) 5%, transparent);
 }
 
 .glow-success {
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-success) 30%, transparent);
 }
 
 .glow-destructive {
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-destructive) 30%, transparent);
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-muted-foreground), var(--color-success));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -151,13 +155,29 @@ body {
 }
 
 .shimmer {
-  background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
+  background: linear-gradient(90deg, var(--color-muted) 25%, var(--color-border) 50%, var(--color-muted) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 /* LIGHT THEME OVERRIDES */
 .light {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --color-primary: #6366f1;
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #818cf8;
+  --color-button-primary: var(--color-primary);
+  --color-button-primary-hover: var(--color-primary-hover);
+  --color-button-primary-foreground: var(--color-primary-foreground);
+  --color-button-primary-border: transparent;
+  --color-ring: #6366f1;
+  --color-success: #22c55e;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #fafafa;
+  --color-info: #3b82f6;
   --color-background: #ffffff;
   --color-foreground: #09090b;
   --color-card: #ffffff;

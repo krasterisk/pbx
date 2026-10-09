@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -135,12 +136,7 @@ export function OperatorSettingsForm() {
 
   if (isError) {
     return (
-      <div className={styles.errorCard}>
-        <Text>{t('callcenter.settings.loadError')}</Text>
-        <Button type="button" variant="outline" onClick={() => refetch()}>
-          {t('callcenter.settings.retry')}
-        </Button>
-      </div>
+      <QueryErrorState message={t('callcenter.settings.loadError')} onRetry={() => refetch()} retryLabel={t('callcenter.settings.retry')} />
     );
   }
 

@@ -36,7 +36,7 @@ export function renderTemplateActions(
       <Tooltip content={builtin ? args.builtinHint : undefined}>
         <Flex>
           <TableRowAction
-            title={args.editLabel}
+            title={builtin ? undefined : args.editLabel}
             aria-label={args.editLabel}
             disabled={builtin}
             onClick={() => args.onEdit(row)}
@@ -52,7 +52,7 @@ export function renderTemplateActions(
         <Flex>
           <TableRowAction
             danger
-            title={args.deleteLabel}
+            title={builtin ? undefined : args.deleteLabel}
             aria-label={args.deleteLabel}
             disabled={builtin}
             onClick={() => args.onDelete(row)}

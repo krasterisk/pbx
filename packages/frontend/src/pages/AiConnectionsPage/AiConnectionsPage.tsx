@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { Plug, Plus } from 'lucide-react';
@@ -206,7 +207,7 @@ export const AiConnectionsPage = memo(({ product }: { product: AiProductCode }) 
       ) : null}
 
       {loading ? <Text variant="muted">{t('aiProducts.connections.loading')}</Text> : null}
-      {errorKind ? <Text variant="error">{t(`aiProducts.connections.${errorKind}`)}</Text> : null}
+      {errorKind ? <QueryErrorState message={t(`aiProducts.connections.${errorKind}`)} onRetry={reload} /> : null}
       {!loading && !errorKind && items.length === 0 ? (
         <VStack gap="12" max align="center" className={cls.emptyPanel} data-testid="connections-empty">
           <Text variant="h2" as="h2">

@@ -13,6 +13,7 @@ import {
   coerceDialTargetRewrite,
   createEmptyRewriteRule,
   evaluateDialTargetRewrite,
+  evaluateCallerIdName,
 } from '@krasterisk/shared';
 import { Button, Input, Label, Select, Switch, Text, InfoTooltip } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
@@ -40,6 +41,7 @@ const CONDITION_KINDS: DialRewriteConditionKind[] = [
 ];
 
 export interface DialTargetRewriteEditorProps {
+  textMode?: boolean;
   rewrite?: DialTargetRewrite | unknown;
   onRewriteChange: (next: DialTargetRewrite) => void;
   source?: ValueSource | string | number;
@@ -75,6 +77,7 @@ export function DialTargetRewriteEditor({
   readOnly,
   showSource = false,
   hidePreview = false,
+  textMode = false,
 }: DialTargetRewriteEditorProps) {
   const { t } = useTranslation();
   const rewrite = asRewrite(rewriteProp);
@@ -82,8 +85,8 @@ export function DialTargetRewriteEditor({
   const [sample, setSample] = useState('79001234567');
 
   const preview = useMemo(
-    () => evaluateDialTargetRewrite(sample, rewrite, charset),
-    [sample, rewrite, charset],
+    () => textMode ? evaluateCallerIdName(sample, rewrite) : evaluateDialTargetRewrite(sample, rewrite, charset),
+    [sample, rewrite, charset, textMode],
   );
 
   const matchedRuleN = useMemo(() => {
@@ -192,8 +195,8 @@ export function DialTargetRewriteEditor({
 
           <Text variant="muted">
             {(rule.conditions ?? []).length === 0
-              ? t('routes.chain.rewrite.anyNumber', 'Для любого номера')
-              : t('routes.chain.rewrite.when', 'Когда номер')}
+              ? textMode ? t('routes.apps.calleridV2.anyName') : t('routes.chain.rewrite.anyNumber', 'Для любого номера')
+              : textMode ? t('routes.apps.calleridV2.whenName') : t('routes.chain.rewrite.when', 'Когда номер')}
           </Text>
           {(rule.conditions ?? []).map((condition, cIndex) => (
             <HStack gap="8" align="end" max key={`${rule.id}-c-${cIndex}`}>
@@ -207,7 +210,7 @@ export function DialTargetRewriteEditor({
                   updateRule(index, { conditions: next });
                 }}
               >
-                {CONDITION_KINDS.map((kind) => (
+                {CONDITION_KINDS.filter(kind => !textMode || !['regex','digitMask'].includes(kind)).map((kind) => (
                   <option key={kind} value={kind}>
                     {t(`routes.chain.rewrite.cond.${kind}`, kind)}
                   </option>

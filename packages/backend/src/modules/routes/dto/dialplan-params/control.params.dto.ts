@@ -1,3 +1,5 @@
+import { callerIdV2Errors, type CallerIdField } from '@krasterisk/shared';
+import { Allow, Validate, ValidatorConstraint, type ValidatorConstraintInterface, type ValidationArguments } from 'class-validator';
 import {
   ArrayMinSize,
   Equals,
@@ -34,28 +36,51 @@ const CALLERID_MODES: CallerIdMode[] = ['static', 'directory', 'number_list', 'c
 const HANGUP_SIGNALS: HangupSignal[] = ['busy', 'congestion', 'hangup'];
 const CALLERID_ON_MISSING = ['keep', 'empty', 'skip'] as const;
 
+@ValidatorConstraint({ name: 'callerIdV2', async: false })
+class CallerIdV2Constraint implements ValidatorConstraintInterface {
+  validate(_value: unknown, args: ValidationArguments) {
+    const data = Object.fromEntries(Object.entries(args.object).filter(([,value]) => value !== undefined));
+    return callerIdV2Errors(data).length === 0;
+  }
+  defaultMessage() { return 'Invalid Caller ID v2 configuration'; }
+}
 export class CallerIdParamsDto {
+  @ValidateIf((o) => o.version !== undefined)
+  @Validate(CallerIdV2Constraint)
+  version?: 2;
+
+  @Allow()
+  number?: CallerIdField;
+
+
+  @ValidateIf((o) => o.version !== 2)
   @IsIn(CALLERID_MODES)
   mode: CallerIdMode;
 
+  @ValidateIf((o) => o.version !== 2)
   @IsOptional()
+  @ValidateIf((o) => o.version !== 2)
   @IsString()
   @Matches(SAFE_DIAL)
   callerid?: string;
 
+  @ValidateIf((o) => o.version !== 2)
   @IsOptional()
+  @ValidateIf((o) => o.version !== 2)
   @IsString()
   @Matches(SAFE_DIAL)
-  name?: string;
+  name?: string | CallerIdField;
 
   @ValidateIf((o) => o.mode === 'directory')
   @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @ValidateIf((o) => o.version !== 2)
   @IsInt()
   @Min(1)
   directoryUid?: number;
 
   @ValidateIf((o) => o.mode === 'directory')
   @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @ValidateIf((o) => o.version !== 2)
   @IsInt()
   @Min(1)
   valueFieldUid?: number;
@@ -66,6 +91,7 @@ export class CallerIdParamsDto {
   keySource?: CallValueSourceDto;
 
   @ValidateIf((o) => o.mode === 'directory')
+  @ValidateIf((o) => o.version !== 2)
   @IsIn(CALLERID_ON_MISSING)
   onMissing?: (typeof CALLERID_ON_MISSING)[number];
 
@@ -73,14 +99,19 @@ export class CallerIdParamsDto {
   @Equals(undefined, { message: 'phonebook_uid is not allowed' })
   phonebook_uid?: never;
 
+  @ValidateIf((o) => o.version !== 2)
   @IsOptional()
   @Transform(({ value }) => (value === '' || value == null ? undefined : Number(value)))
+  @ValidateIf((o) => o.version !== 2)
   @IsInt()
   @Min(1)
   list_uid?: number;
 
+  @ValidateIf((o) => o.version !== 2)
   @IsOptional()
+  @ValidateIf((o) => o.version !== 2)
   @IsArray()
+  @ValidateIf((o) => o.version !== 2)
   @IsString({ each: true })
   pool?: string[];
 }

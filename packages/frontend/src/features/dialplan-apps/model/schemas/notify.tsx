@@ -1,3 +1,4 @@
+import { normalizeNotifyParams } from '@krasterisk/shared';
 import type { FieldSchema } from '../schema.types';
 
 type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
@@ -50,5 +51,20 @@ export function summarizeNotify(params: Record<string, unknown>, t: TFn): string
   if (!uid) {
     return t('routes.chain.notify.summaryEmpty', 'Уведомление: интеграция не выбрана');
   }
-  return t('routes.chain.notify.summary', 'Уведомление через интеграцию #{{uid}}').replace('{{uid}}', String(uid));
+  return t('routes.chain.notify.summary', 'Уведомление через интеграцию #{{uid}}').replace(
+    '{{uid}}',
+    String(uid),
+  );
+}
+
+export function notifyFieldErrors(params: Record<string, unknown>): Record<string, string> {
+  const normalized = normalizeNotifyParams(params);
+  const errors: Record<string, string> = {};
+  const integration = Number(normalized.integration_uid);
+  if (!Number.isSafeInteger(integration) || integration < 1)
+    errors.integration_uid = 'notify-integration-required';
+  if (typeof normalized.body !== 'string' || !normalized.body.trim())
+    errors.body = 'notify-body-required';
+  else if (/[\n\r;]/.test(normalized.body)) errors.body = 'notify-body-invalid';
+  return errors;
 }

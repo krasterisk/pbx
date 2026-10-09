@@ -38,3 +38,10 @@
 
 ---
 *Этот файл — единый индекс. В каждой фазе discuss копирует релевантные строки в `*-CONTEXT.md` → `<canonical_refs>`.*
+
+Текущее bounded assignment: [Context defaults / AiChat EXECUTION](CONTEXT-DEFAULTS-AICHAT-EXECUTION.md),
+codex-direct `/root`; [фактический аудит возможностей](AICHAT-CAPABILITY-AUDIT.md).
+
+Текущее поручение маршрутов/контекстов: [PLAN / EXECUTION](ROUTES-CONTEXTS-REFACTOR-PLAN.md),
+codex-direct `/root`, ordered includes + live Asterisk validation; replaces prior
+context UI follow-up as the current assignment in this chat.

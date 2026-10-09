@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -37,7 +38,7 @@ export const SttEnginesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: engines = [], isLoading } = useGetSttEnginesQuery();
+  const { data: engines = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetSttEnginesQuery();
   const [deleteEngine] = useDeleteSttEngineMutation();
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteSttEnginesMutation();
   const isModalOpen = useAppSelector(getSttEnginesIsModalOpen);
@@ -172,6 +173,7 @@ export const SttEnginesTable = memo(() => {
     />
   ) : null;
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>

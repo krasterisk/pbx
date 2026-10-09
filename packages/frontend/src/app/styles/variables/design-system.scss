@@ -1,43 +1,56 @@
 /**
  * Design System Variables for Krasterisk v4
- * Adapting aiPBX patterns for Indigo/Dark theme
+ * aiPBX redesigned palette. Semantic UI colors map to it in globals.css.
  */
 
 :root {
+    // Source: aiPBX .app_dark_theme redesigned, not the legacy green theme.
+    --dark-bg-redesigned: #090f11;
+    --bg-redesigned: #0c1214;
+    --light-bg-redesigned: #151c1f;
+    --text-redesigned: #dbdbdb;
+    --hint-redesigned: #555555;
+    --icon-redesigned: #74a2b2;
+    --accent-redesigned: #5ed3f3;
+    --accent-dark-redesigned: #3aa8c2;
+    --save-redesigned: #6cd98b;
+    --cancel-redesigned: #d95757;
     // ========================================
     // COLORS (Tailwind + SCSS)
     // ========================================
-    --primary: #6366f1;
-    --primary-hover: #4f46e5;
+    --primary: var(--color-primary);
+    --primary-hover: var(--color-primary-hover);
     
-    --bg-main: #09090b;
-    --bg-card: rgba(255, 255, 255, 0.03);
+    --bg-main: var(--color-background);
+    --bg-card: var(--color-card);
     
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
+    --text-main: var(--color-foreground);
+    --text-muted: var(--color-muted-foreground);
     
-    --border-color: rgba(255, 255, 255, 0.1);
+    --border-color: var(--color-border);
 
     // ========================================
     // GLASSMORPHISM EFFECTS
     // ========================================
-    --glass-bg-primary: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
-    --glass-bg-secondary: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%);
+    --glass-bg-primary: color-mix(in srgb, var(--color-card) 85%, transparent);
+    --glass-bg-secondary: color-mix(in srgb, var(--color-card) 60%, transparent);
     
-    --glass-border-primary: 1px solid rgba(255, 255, 255, 0.1);
-    --glass-border-accent: 1px solid rgba(99, 102, 241, 0.3);
+    --glass-border-primary: 1px solid var(--color-border);
+    --glass-border-accent: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
 
     // ========================================
     // SHADOWS & GLOW
     // ========================================
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 24px -1px rgba(0, 0, 0, 0.3);
-    --glow-primary: 0 0 15px rgba(99, 102, 241, 0.3);
+    --glow-primary: 0 0 15px color-mix(in srgb, var(--color-primary) 30%, transparent);
+    --shadow-accent: 0 12px 32px color-mix(in srgb, var(--color-primary) 18%, transparent);
 
     // ========================================
     // ANIMATIONS (from aiPBX)
     // ========================================
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
     --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
     
     --duration-fast: 0.15s;

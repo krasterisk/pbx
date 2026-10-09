@@ -12,6 +12,7 @@ import { AmiModule } from '../ami/ami.module';
 import { LoggerModule } from '../logger/logger.module';
 import { RoutesModule } from '../routes/routes.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { ContextsModule } from '../contexts/contexts.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AiPlatformModule } from '../ai-platform/ai-platform.module';
     LoggerModule,
     forwardRef(() => RoutesModule),
     AiPlatformModule,
+    ContextsModule,
   ],
   providers: [TrunksService, TrunksAiAdapter],
   controllers: [TrunksController],

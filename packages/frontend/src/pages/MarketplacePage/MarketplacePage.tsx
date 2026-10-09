@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Package, CheckCircle, Lock, Zap, BarChart2, PhoneCall, Settings2, Plug } from 'lucide-react';
@@ -30,7 +31,7 @@ export const MarketplacePage = memo(() => {
   const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<Category>('all');
 
-  const { data: catalog, isLoading } = useGetModuleCatalogQuery();
+  const { data: catalog, isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetModuleCatalogQuery();
 
   const categories: Category[] = ['all', 'pbx', 'calls', 'analytics', 'integrations', 'admin'];
 
@@ -38,6 +39,7 @@ export const MarketplacePage = memo(() => {
     (m) => activeCategory === 'all' || m.category === activeCategory,
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">

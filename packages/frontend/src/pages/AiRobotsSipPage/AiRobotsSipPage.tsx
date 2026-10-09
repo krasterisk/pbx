@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Text } from '@/shared/ui';
@@ -6,9 +7,10 @@ import { useCreateAiSipConnectionMutation, useGetAiSipConnectionsQuery } from '@
 
 export const AiRobotsSipPage = memo(() => {
   const { t } = useTranslation();
-  const { data = [] } = useGetAiSipConnectionsQuery();
+  const { data = [], isError: isListLoadError, refetch: retryListLoad } = useGetAiSipConnectionsQuery();
   const [create] = useCreateAiSipConnectionMutation();
   const [name, setName] = useState('External PBX');
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   return (
     <VStack gap="16" max data-testid="ai-robots-sip">
       <Text variant="h1" as="h1">{t('aiRobots.sip')}</Text>

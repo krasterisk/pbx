@@ -121,9 +121,9 @@ describe('read-adapters-operations — notifications (D-12, D-15)', () => {
     expect(views[0]).not.toHaveProperty('body');
   });
 
-  it('declares no mutating tool', () => {
+  it('keeps the read tools nonmutating', () => {
     expect(adapter.getTools().length).toBeGreaterThan(0);
-    for (const tool of adapter.getTools()) {
+    for (const tool of adapter.getTools().filter((tool) => !tool.mutation)) {
       expect(tool.name).not.toMatch(/send|create|dispatch|update|delete/i);
       expect(isMutating(tool)).toBe(false);
     }
@@ -274,9 +274,9 @@ describe('read-adapters-operations — audio prompts (D-15, media boundary)', ()
     expect(result).not.toEqual(expect.objectContaining({ filePath: expect.anything() }));
   });
 
-  it('declares no mutating tool', () => {
+  it('keeps the read tools nonmutating', () => {
     expect(adapter.getTools().length).toBeGreaterThan(0);
-    for (const tool of adapter.getTools()) {
+    for (const tool of adapter.getTools().filter((tool) => !tool.mutation)) {
       expect(tool.name).not.toMatch(/create|upload|delete|update|synthesize/i);
       expect(isMutating(tool)).toBe(false);
     }
@@ -341,8 +341,8 @@ describe('read-adapters-operations — service requests (D-15, content boundary)
     expect(JSON.stringify(result)).not.toMatch(/79001112233|secret street|Internal production/);
   });
 
-  it('declares no mutating tool', () => {
-    for (const tool of adapter.getTools()) {
+  it('keeps the read tools nonmutating', () => {
+    for (const tool of adapter.getTools().filter((tool) => !tool.mutation)) {
       expect(tool.name).not.toMatch(/create|update|delete|send/i);
       expect(isMutating(tool)).toBe(false);
     }
@@ -411,8 +411,8 @@ describe('read-adapters-operations — claims (D-15, content boundary)', () => {
     expect(JSON.stringify(result)).not.toMatch(/79001112233|a-secret@example/);
   });
 
-  it('declares no mutating tool', () => {
-    for (const tool of adapter.getTools()) {
+  it('keeps the read tools nonmutating', () => {
+    for (const tool of adapter.getTools().filter((tool) => !tool.mutation)) {
       expect(tool.name).not.toMatch(/create|update|delete|send/i);
       expect(isMutating(tool)).toBe(false);
     }
@@ -495,8 +495,8 @@ describe('read-adapters-operations — per-tool and registry-enumerated isolatio
 
   it('proves per-tool cross-tenant isolation and forged-key ignore for every operations adapter tool', async () => {
     const tools = [
-      ...notificationsAdapter.getTools(),
-      ...promptsAdapter.getTools(),
+      ...notificationsAdapter.getTools().filter((tool) => tool.name === 'list_notifications'),
+      ...promptsAdapter.getTools().filter((tool) => !tool.mutation),
       ...requestsAdapter.getTools(),
       ...claimsAdapter.getTools(),
     ];

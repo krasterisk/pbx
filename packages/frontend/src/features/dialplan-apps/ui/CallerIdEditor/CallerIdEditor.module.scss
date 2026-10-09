@@ -1,0 +1,6 @@
+.helpContent {
+  max-width: min(28rem, calc(100vw - 2rem));
+  max-height: min(34rem, var(--radix-tooltip-content-available-height, calc(100dvh - 2rem)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

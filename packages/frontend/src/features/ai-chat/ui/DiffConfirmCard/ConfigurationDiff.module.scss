@@ -1,0 +1,3 @@
+.root { max-height: 20rem; overflow-y: auto; }
+.row { padding: 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.value { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }

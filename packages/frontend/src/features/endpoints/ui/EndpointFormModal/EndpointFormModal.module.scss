@@ -1,3 +1,88 @@
+.securityTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.form {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.header {
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+  padding-right: 2rem;
+}
+.dialogTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.fieldLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+}
+.fieldError {
+  font-size: 0.75rem;
+  color: var(--color-destructive);
+  overflow-wrap: anywhere;
+}
+.mono {
+  font-family: ui-monospace, monospace;
+}
+.mac {
+  composes: mono;
+  text-transform: uppercase;
+}
+.variables {
+  composes: mono;
+  min-height: 6.25rem;
+}
+.toggleRow {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  gap: 0.75rem;
+  > * {
+    min-width: 0;
+  }
+}
+.toggleLabel {
+  cursor: pointer;
+}
+.generate {
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.passwordControl {
+  flex: 1;
+  min-width: 0;
+  > * {
+    width: 100%;
+  }
+}
+.warning {
+  font-size: 0.75rem;
+  color: var(--color-warning);
+}
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.securityLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+}
+
 .tabs {
   display: flex;
   flex-direction: column;
@@ -5,6 +90,11 @@
   min-height: 0;
   min-width: 0;
   width: 100%;
+}
+
+.expertToggle {
+  flex-shrink: 0;
+  padding-bottom: 0.75rem;
 }
 
 .formBody {
@@ -15,6 +105,9 @@
   overflow-x: hidden;
   overscroll-behavior: contain;
   padding-right: 0.25rem;
+  > * {
+    flex-shrink: 0;
+  }
 }
 
 .footer {

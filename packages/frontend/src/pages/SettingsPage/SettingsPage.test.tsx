@@ -48,6 +48,10 @@ vi.mock('@/features/tenant-settings/ui/TablePageSizeSetting/TablePageSizeSetting
   TablePageSizeSetting: () => <div data-testid="table-page-size-stub">tables</div>,
 }));
 
+vi.mock('@/features/tenant-settings/ui/EndpointExpertModeSetting/EndpointExpertModeSetting', () => ({
+  EndpointExpertModeSetting: () => <div data-testid="endpoint-expert-mode-stub">endpoint expert mode</div>,
+}));
+
 vi.mock('@/features/tenant-settings/ui/TenantSettingsSection', () => ({
   TenantSettingsSection: () => <div data-testid="tenant-settings-section-stub">tenant</div>,
 }));
@@ -77,6 +81,8 @@ describe('SettingsPage stacked forms (D-29 / D-27 wave D)', () => {
     expect(screen.getByTestId('redis-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('ai-chat-card-stub')).toBeInTheDocument();
     expect(screen.getByTestId('table-page-size-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('endpoint-expert-mode-stub')).toBeInTheDocument();
+    expect(screen.getByText('endpoints.title')).toBeInTheDocument();
     expect(screen.getByTestId('tenant-settings-section-stub')).toBeInTheDocument();
   });
 

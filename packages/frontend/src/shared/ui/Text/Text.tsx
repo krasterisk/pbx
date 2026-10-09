@@ -2,7 +2,7 @@ import { ElementType, ReactNode, HTMLAttributes } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { classNames } from '@/shared/lib/classNames/classNames';
 
-const textVariants = cva('text-foreground', {
+const textVariants = cva('text-inherit', {
   variants: {
     variant: {
       default: 'text-base',
@@ -14,8 +14,8 @@ const textVariants = cva('text-foreground', {
       small: 'text-sm font-medium leading-none',
       muted: 'text-sm text-muted-foreground',
       xs: 'text-xs text-muted-foreground',
-      error: 'text-sm text-red-500',
-      success: 'text-sm text-green-500',
+      error: 'text-sm text-destructive',
+      success: 'text-sm text-success',
     },
     align: {
       left: 'text-left',

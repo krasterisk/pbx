@@ -65,6 +65,7 @@ export interface IRouteActionCondition {
 
 interface BaseRouteAction {
   id: string;
+  enabled?: boolean;
   condition: IRouteActionCondition;
 }
 
@@ -126,6 +127,7 @@ export function assertNeverAction(x: never): never {
 /** Helper generic type, backwards compatible with older references if needed */
 export interface IRouteAction {
   id: string;
+  enabled?: boolean;
   type: ActionType;
   params: Record<string, any>;
   condition: IRouteActionCondition;
@@ -137,7 +139,8 @@ export interface IRouteOptions {
   /** Stereo interleaved recording (MixMonitor D) — RX/TX on separate channels */
   record_stereo?: boolean;
   pre_command?: string;
-  route_type?: number; // outbound type (1-5)
+  /** @deprecated Historical metadata only; permissions use context reachability. */
+  route_type?: number;
   /** Table chain vs Dialplan tab. Missing + non-empty actions → generate from actions. */
   dialplan_source?: 'actions' | 'raw';
   /** Selected analytics project. Missing or empty projectId means no auto analysis (D-01, D-02). */

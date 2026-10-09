@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -206,17 +207,10 @@ export const SpeechAnalyticsJournalPage = memo(() => {
       </Flex>
 
       {journalQuery.isError ? (
-        <VStack gap="12" max data-testid="journal-error">
-          <Text>
-            {t(
+        <QueryErrorState message={t(
               'speechAnalytics.errorLoadJournal',
               'Не удалось загрузить журнал. Обновите страницу или повторите позже.',
-            )}
-          </Text>
-          <Button type="button" variant="outline" onClick={() => void journalQuery.refetch()}>
-            {t('common.retry', 'Повторить')}
-          </Button>
-        </VStack>
+            )} onRetry={() => void journalQuery.refetch()} retryLabel={t('common.retry', 'Повторить')} data-testid="journal-error" />
       ) : null}
 
       {isEmpty ? (

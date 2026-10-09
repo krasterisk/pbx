@@ -1,3 +1,4 @@
+import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Table } from '@tanstack/react-table';
@@ -31,7 +32,7 @@ export const DirectoriesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: directories = [], isLoading } = useGetDirectoriesQuery();
+  const { data: directories = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetDirectoriesQuery();
   const [deleteDirectory] = useDeleteDirectoryMutation();
 
   const [globalFilter, setGlobalFilter] = useState('');
@@ -163,6 +164,7 @@ export const DirectoriesTable = memo(() => {
     </Flex>
   );
 
+  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
   if (isLoading) {
     return (
       <Card className={cls.card}>
