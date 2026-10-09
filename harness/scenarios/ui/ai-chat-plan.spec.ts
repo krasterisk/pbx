@@ -13,7 +13,7 @@ test('several changes arrive as one plan card', async ({ authenticatedPage, llmS
   await chat.startNewConversation();
   await chat.send(PLAN_PROMPT);
   await expect(chat.cards).toHaveCount(1);
-  await expect(chat.cards.first().getByTestId('ai-agent-workflow-steps').getByRole('listitem')).toHaveCount(3);
+  await expect(chat.cards.first().getByTestId('ai-agent-workflow-steps').locator(':scope > [role="listitem"]')).toHaveCount(3);
 });
 
 test('the panel shows no technical data', async ({ authenticatedPage, llmStub, stubProvider }) => {

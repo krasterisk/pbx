@@ -33,7 +33,7 @@ test('horns-and-hooves IVR shows useful steps once and one plan card', async ({
 
   const card = chat.cards.first();
   await expect(card).toContainText(HORNS_TITLE);
-  const stepCount = await card.getByTestId('ai-agent-workflow-steps').getByRole('listitem').count();
+  const stepCount = await card.getByTestId('ai-agent-workflow-steps').locator(':scope > [role="listitem"]').count();
   expect(stepCount).toBeGreaterThanOrEqual(2);
   expect(stepCount).toBeLessThanOrEqual(3);
   await expect(card).toContainText(HORNS_GREETING);

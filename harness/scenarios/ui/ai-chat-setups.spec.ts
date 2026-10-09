@@ -7,7 +7,7 @@ async function expectPlan(chat: AiChatPage, title: string, labels: string[]): Pr
   await expect(chat.cards).toHaveCount(1);
   const card = chat.cards.first();
   await expect(card).toContainText(title);
-  await expect(card.getByTestId('ai-agent-workflow-steps').getByRole('listitem')).toHaveCount(3);
+  await expect(card.getByTestId('ai-agent-workflow-steps').locator(':scope > [role="listitem"]')).toHaveCount(3);
   for (const label of labels) {
     await expect(card).toContainText(new RegExp(label, 'i'));
   }
