@@ -42,25 +42,30 @@ export const test = base.extend<{ stubProvider: { uid: number } }>({
     });
     let createdContextUid: number | undefined;
     try {
-      // Endpoint plans require an explicit tenant-owned default context. CI seed
+      // Endpoint and trunk plans require tenant-owned default contexts. CI seed
       // deliberately contains no PBX contexts; do not bypass production validation.
-      const contexts = await apiJson<Array<{ uid: number; is_default_for_endpoints?: boolean }>>(
+      const contexts = await apiJson<Array<{ uid: number; is_default_for_endpoints?: boolean; is_default_for_trunks?: boolean }>>(
         authSession.accessToken, '/contexts',
       );
-      if (!contexts.some((context) => context.is_default_for_endpoints)) {
+      const needsEndpoints = !contexts.some((context) => context.is_default_for_endpoints);
+      const needsTrunks = !contexts.some((context) => context.is_default_for_trunks);
+      if (needsEndpoints || needsTrunks) {
         const context = await apiJson<{ uid: number }>(authSession.accessToken, '/contexts', {
           method: 'POST',
           body: JSON.stringify({
             name: 'harness-ai-' + uid,
             comment: 'Isolated AI plan fixture',
-            is_default_for_endpoints: true,
+            is_default_for_endpoints: needsEndpoints,
+            is_default_for_trunks: needsTrunks,
           }),
         });
         createdContextUid = context.uid;
-        const configured = await apiJson<Array<{ uid: number; is_default_for_endpoints?: boolean }>>(
+        const configured = await apiJson<Array<{ uid: number; is_default_for_endpoints?: boolean; is_default_for_trunks?: boolean }>>(
           authSession.accessToken, '/contexts',
         );
-        if (!configured.some((row) => row.uid === context.uid && row.is_default_for_endpoints)) {
+        if (!configured.some((row) => row.uid === context.uid
+          && (!needsEndpoints || row.is_default_for_endpoints)
+          && (!needsTrunks || row.is_default_for_trunks))) {
           throw new Error('AI fixture default context was not persisted');
         }
       }
