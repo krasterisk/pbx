@@ -1,16 +1,17 @@
+import { ModalTabs } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { isRouteDialPattern, normalizeNotifyParams, directoryBindingsToSteps } from '@krasterisk/shared';
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
   Button,
   Text,
 } from '@/shared/ui';
-import { VStack, HStack } from '@/shared/ui/Stack';
 import {
   useCreateRouteMutation,
   useUpdateRouteMutation,
@@ -382,7 +383,7 @@ export const RouteFormModal = memo(() => {
 
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent size="large" className={styles.modal} aria-describedby={undefined}>
+      <FormDialogContent size="large" className={styles.modal} aria-describedby={undefined}>
         <DialogHeader className={styles.modalHeader}>
           <DialogTitle className={styles.modalTitle}>
             {modalMode === 'edit'
@@ -399,28 +400,10 @@ export const RouteFormModal = memo(() => {
           </Text>
         )}
         {/* Tabs */}
-        <VStack className={styles.tabBar} max>
-          <HStack
-            gap="8"
-            className={styles.tabs}
-            max
-          >
-            {tabs.map((tab) => (
-              <Button
-                key={tab}
-                variant="ghost"
-                onClick={() => setActiveTab(tab)}
-                aria-pressed={activeTab === tab}
-                className={[styles.tab, activeTab === tab ? styles.tabActive : ''].join(' ')}
-              >
-                {t(`routes.tab.${tab}`, TAB_FALLBACKS[tab])}
+        <ModalTabs items={tabs.map(tab=>({id:tab,label:t(`routes.tab.${tab}`, TAB_FALLBACKS[tab])}))} value={activeTab} onChange={(value)=>setActiveTab(value as RouteTab)} label={t("common.settings")} />
 
-              </Button>
-            ))}
-          </HStack>
-        </VStack>
+        <ModalBody className={styles.body}  >
 
-        <VStack className={styles.body} align="stretch" max>
           {activeTab === 'general' && (
             <RouteGeneralTab
               fieldErrors={routeFieldErrors}
@@ -484,7 +467,8 @@ export const RouteFormModal = memo(() => {
           {activeTab === 'flowchart' && showFlowchart && (
             <RouteFlowchartTab actions={actions} routeName={name} extensions={extensions} />
           )}
-        </VStack>
+
+</ModalBody>
 
         <DialogFooter className={styles.modalFooter}>
           <Button variant="outline" onClick={handleClose}>
@@ -505,7 +489,7 @@ export const RouteFormModal = memo(() => {
             {t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

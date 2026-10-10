@@ -73,7 +73,7 @@ vi.mock("@/shared/ui", async (importOriginal) => {
       open?: boolean;
       children: React.ReactNode;
     }) => (open ? <div data-testid="dialog">{children}</div> : null),
-    DialogContent: ({
+    FormDialogContent: ({
       children,
       size,
       ...props
@@ -178,7 +178,7 @@ describe("EndpointFormModal", () => {
     );
     await user.click(screen.getByRole("switch", { name: "endpoints.expertMode" }));
     await user.click(screen.getByTestId("endpoint-tab-calls"));
-    const blf = screen.getByRole("checkbox", { name: "endpoints.blfEnabled" });
+    const blf = screen.getByRole("switch", { name: "endpoints.blfEnabled" });
     expect(blf).not.toBeChecked();
     await user.click(blf);
     await user.click(screen.getByTestId("endpoint-save"));
@@ -205,7 +205,7 @@ describe("EndpointFormModal", () => {
     render(<EndpointFormModal />);
     expect(screen.getByRole("switch", { name: "endpoints.expertMode" })).toBeChecked();
     await user.click(screen.getByTestId("endpoint-tab-calls"));
-    const blf = screen.getByRole("checkbox", { name: "endpoints.blfEnabled" });
+    const blf = screen.getByRole("switch", { name: "endpoints.blfEnabled" });
     expect(blf).toBeChecked();
     await user.click(blf);
     await user.click(screen.getByTestId("endpoint-save"));

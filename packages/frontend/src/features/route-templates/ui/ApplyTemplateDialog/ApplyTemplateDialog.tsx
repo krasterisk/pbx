@@ -1,3 +1,5 @@
+import { DialogContent } from '@/shared/ui';
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, LayoutTemplate } from 'lucide-react';
@@ -6,7 +8,7 @@ import {
   Badge,
   Button,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -169,7 +171,7 @@ export function ApplyTemplateDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent size="large" className={styles.dialog} aria-describedby={undefined}>
+        <FormDialogContent size="large" className={styles.dialog} aria-describedby={undefined}>
           <DialogHeader className={styles.header}>
             <DialogTitle>
               <HStack gap="8" align="center">
@@ -179,9 +181,10 @@ export function ApplyTemplateDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <Flex className={styles.scrollBody}>
+          <ModalBody className={styles.scrollBody}>
+<ModalSection>
             {step === 'choose' ? (
-              <VStack gap="12" max>
+              <VStack align="stretch" gap="12" max>
                 <SegmentedControl
                   ariaLabel={t('routes.templates.filterAll', 'Все')}
                   value={filter}
@@ -200,16 +203,16 @@ export function ApplyTemplateDialog({
                   autoFocus
                 />
                 <Flex className={styles.columns}>
-                  <VStack gap="8" className={styles.listPane}>
+                  <VStack align="stretch" gap="8" className={styles.listPane}>
                     {isLoading ? (
                       <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text>
                     ) : templates.length === 0 ? (
-                      <VStack gap="8">
+                      <VStack align="stretch" gap="8">
                         <Text variant="h4">{t('routes.templates.emptyTitle', 'Шаблонов пока нет')}</Text>
                         <Text variant="muted">{t('routes.templates.emptyBody', 'Соберите цепочку в маршруте и сохраните её как шаблон, чтобы переиспользовать')}</Text>
                       </VStack>
                     ) : filtered.length === 0 ? (
-                      <VStack gap="8">
+                      <VStack align="stretch" gap="8">
                         <Text variant="h4">{t('routes.templates.searchEmptyTitle', 'Ничего не найдено')}</Text>
                         <Text variant="muted">{t('routes.templates.searchEmptyBody', 'Попробуйте другое название')}</Text>
                       </VStack>
@@ -250,7 +253,7 @@ export function ApplyTemplateDialog({
                       ))
                     )}
                   </VStack>
-                  <VStack gap="8" className={styles.previewPane}>
+                  <VStack align="stretch" gap="8" className={styles.previewPane}>
                     {selected ? (
                       <TemplateActionPreview actions={selected.actions} slots={selected.slots} />
                     ) : (
@@ -262,7 +265,7 @@ export function ApplyTemplateDialog({
             ) : null}
 
             {step === 'fill' && selected ? (
-              <VStack gap="16" max>
+              <VStack align="stretch" gap="16" max>
                 {slots.map((slot) => (
                   <SlotSelect
                     key={slot.id}
@@ -279,7 +282,7 @@ export function ApplyTemplateDialog({
             ) : null}
 
             {step === 'mode' ? (
-              <VStack gap="16" max>
+              <VStack align="stretch" gap="16" max>
                 <RadioCards
                   ariaLabel={t('routes.templates.applyTitle', 'Как применить шаблон')}
                   value={mode}
@@ -312,7 +315,8 @@ export function ApplyTemplateDialog({
             ) : null}
 
             {error ? <Text variant="error">{error}</Text> : null}
-          </Flex>
+          </ModalSection>
+</ModalBody>
 
           <DialogFooter className={styles.footer}>
             {step !== 'choose' ? (
@@ -338,7 +342,7 @@ export function ApplyTemplateDialog({
               </Button>
             </Tooltip>
           </DialogFooter>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
 
       <Dialog open={confirmReplace} onOpenChange={setConfirmReplace}>

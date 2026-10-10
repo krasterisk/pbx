@@ -1,9 +1,11 @@
+import { ModalSection } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { useState, useRef, DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileAudio, X } from 'lucide-react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/shared/ui/Dialog';
+  Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/shared/ui';
 import { Button, Input, Textarea, VStack } from '@/shared/ui';
 import { useUploadPromptMutation } from '@/shared/api/endpoints/promptsApi';
 import cls from './PromptUploadModal.module.scss';
@@ -85,7 +87,7 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
       onClose();
     } catch (err) {
       console.error('Upload failed', err);
-      setError('Upload failed');
+      setError(t('modal.errors.upload'));
     }
   };
 
@@ -97,12 +99,14 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <FormDialogContent  aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{t('promptsPage.upload.title', 'Загрузка аудио-записи')}</DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16">
+        <ModalBody>
+<ModalSection title={t("modal.sections.settings")}>
+<VStack align="stretch" gap="16">
           {!file ? (
             <div
               className={`${cls.dropzone} ${dragOver ? cls.dragOver : ''}`}
@@ -146,7 +150,7 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
 
           {error && <span className={cls.errorText}>{error}</span>}
 
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <label className="text-sm font-medium text-muted-foreground">
               {t('promptsPage.upload.nameLabel', 'Название записи')} *
             </label>
@@ -157,7 +161,7 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
             />
           </VStack>
 
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <label className="text-sm font-medium text-muted-foreground">
               {t('promptsPage.upload.descriptionLabel', 'Комментарий')}
             </label>
@@ -170,13 +174,16 @@ export function PromptUploadModal({ isOpen, onClose }: PromptUploadModalProps) {
           </VStack>
         </VStack>
 
-        <DialogFooter>
+
+</ModalSection>
+</ModalBody>
+<DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('common.cancel', 'Отмена')}</Button>
           <Button onClick={handleSubmit} disabled={!file || !comment.trim() || isLoading}>
             {isLoading ? t('common.loading', 'Загрузка...') : t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

@@ -1,3 +1,4 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
@@ -5,7 +6,7 @@ import { AUTODIAL_DIAL_MODES } from "@krasterisk/shared";
 import {
   Button,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -170,11 +171,11 @@ export const CampaignFormModal = memo(() => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
-      <DialogContent
+      <FormDialogContent
         size="large"
         className={cls.dialog}
         data-testid="autodial-campaign-form-modal"
-      >
+       aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -197,13 +198,14 @@ export const CampaignFormModal = memo(() => {
               ))}
             </TabsList>
 
-            <div
+            <ModalBody
               className={cls.body}
               data-testid="autodial-campaign-form-body"
               data-viewport="360,768,1440"
               data-overflow="y"
             >
               <TabsContent value="general">
+<ModalSection>
                 <CampaignGeneralTab
                   draft={draft}
                   onChange={setDraft}
@@ -213,41 +215,54 @@ export const CampaignFormModal = memo(() => {
                     label: autodialDialModeLabel(m, t),
                   }))}
                 />
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
               <TabsContent value="pacing">
+<ModalSection>
                 <CampaignPacingTab
                   draft={draft}
                   onChange={setDraft}
                   errors={showErrors ? errors : {}}
                 />
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
               <TabsContent value="retry">
+<ModalSection>
                 <CampaignRetryTab draft={draft} onChange={setDraft} />
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
               <TabsContent value="trunks">
+<ModalSection>
                 <CampaignTrunksTab
                   draft={draft}
                   onChange={setDraft}
                   errors={showErrors ? errors : {}}
                 />
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
               <TabsContent value="schedule">
+<ModalSection>
                 <CampaignScheduleTab draft={draft} onChange={setDraft} />
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
               <TabsContent value="scenario">
+<ModalSection>
                 <CampaignScenarioTab
                   draft={draft}
                   onChange={setDraft}
                   errors={showErrors ? errors : {}}
                 />
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
               <TabsContent value="dnc">
+<ModalSection>
                 <CampaignDncTab
                   campaignUid={mode === "edit" ? uid : null}
                   baseUid={draft.base_uid}
                 />
-              </TabsContent>
-            </div>
+              </ModalSection>
+</TabsContent>
+            </ModalBody>
           </Tabs>
         )}
 
@@ -276,7 +291,7 @@ export const CampaignFormModal = memo(() => {
             </HStack>
           </VStack>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

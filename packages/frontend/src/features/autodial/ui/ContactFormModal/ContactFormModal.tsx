@@ -1,3 +1,5 @@
+import { Switch } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +9,7 @@ import {
   Button,
   Checkbox,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -150,7 +152,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && close()}>
-      <DialogContent size="large" className={cls.dialog} data-testid="autodial-contact-form-modal">
+      <FormDialogContent size="large" className={cls.dialog} data-testid="autodial-contact-form-modal" aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>
             {contactUid !== null
@@ -159,9 +161,9 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
           </DialogTitle>
         </DialogHeader>
 
-        <VStack
-          gap="16"
-          max
+        <ModalBody
+
+
           className={cls.body}
           data-testid="autodial-contact-form-body"
           data-viewport="360,768,1440"
@@ -170,11 +172,11 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
           {loadError ? (
             <QueryErrorState message={t('autodial.common.loadFailed')} onRetry={() => { void refetchBase(); if (contactUid !== null) void refetchContact(); }} retryLabel={t('autodial.common.retry')} />
           ) : !isReady ? <Loader2 aria-label={t('common.loading')} /> : null}
-          <VStack gap="8" max inert={!isReady || isSaving}>
+          <VStack align="stretch" gap="8" max inert={!isReady || isSaving}>
             <Text className={cls.sectionTitle}>{t('autodial.contacts.phones')}</Text>
             {phones.map((phone, index) => (
               <HStack key={index} gap="8" align="end" max wrap="wrap" className={cls.phoneRow}>
-                <VStack gap="4" className={cls.grow}>
+                <VStack align="stretch" gap="4" className={cls.grow}>
                   <Label htmlFor={`autodial-contact-phone-${index}`}>
                     {t('autodial.contacts.phone')}
                   </Label>
@@ -185,7 +187,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
                     onChange={(e) => setPhone(index, { ...phone, raw: e.target.value })}
                   />
                 </VStack>
-                <VStack gap="4" className={cls.narrow}>
+                <VStack align="stretch" gap="4" className={cls.narrow}>
                   <Label htmlFor={`autodial-contact-tz-${index}`}>
                     {t('autodial.contacts.tzOffset')}
                   </Label>
@@ -236,11 +238,11 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
             <Text className={cls.hint}>{t('autodial.contacts.tzHint')}</Text>
           </VStack>
 
-          <VStack gap="8" max inert={!isReady || isSaving}>
+          <VStack align="stretch" gap="8" max inert={!isReady || isSaving}>
             <Text className={cls.sectionTitle}>{t('autodial.contacts.fieldsSection')}</Text>
             <div className={cls.grid}>
               {fields.map((field) => (
-                <VStack gap="4" key={field.uid}>
+                <VStack align="stretch" gap="4" key={field.uid}>
                   <Label htmlFor={`autodial-contact-field-${field.key}`}>
                     {field.label || field.key}
                     {field.required ? ' *' : ''}
@@ -262,11 +264,10 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
                     </Select>
                   ) : field.type === 'boolean' ? (
                     <HStack gap="4" align="center">
-                      <Checkbox
+                      <Switch
                         id={`autodial-contact-field-${field.key}`}
                         checked={values[field.key] === true}
-                        onChange={(e) =>
-                          setValues({ ...values, [field.key]: e.target.checked })
+                        onCheckedChange={(checked) => setValues({ ...values, [field.key]: checked })
                         }
                       />
                       <Label htmlFor={`autodial-contact-field-${field.key}`}>
@@ -298,7 +299,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
                 </VStack>
               ))}
 
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label htmlFor="autodial-contact-external">
                   {t('autodial.contacts.externalId')}
                 </Label>
@@ -309,7 +310,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
                 />
               </VStack>
 
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label htmlFor="autodial-contact-comment">{t('autodial.contacts.comment')}</Label>
                 <Input
                   id="autodial-contact-comment"
@@ -319,7 +320,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
               </VStack>
             </div>
           </VStack>
-        </VStack>
+        </ModalBody>
 
         <DialogFooter className={cls.footer} data-testid="autodial-contact-form-footer">
           <VStack gap="8" max align="end">
@@ -335,7 +336,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
             </HStack>
           </VStack>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

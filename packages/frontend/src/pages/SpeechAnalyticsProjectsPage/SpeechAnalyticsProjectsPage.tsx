@@ -525,7 +525,7 @@ export const SpeechAnalyticsProjectsPage = memo(() => {
               void onCopy();
             }}
           >
-            <VStack gap="12" max className={cls.formBody}>
+            <VStack gap="12" max className={cls.formBody} align="stretch">
               <Label htmlFor="sa-project-copy-name">{t('speechAnalytics.projectName', 'Название проекта')}</Label>
               <Input
                 id="sa-project-copy-name"

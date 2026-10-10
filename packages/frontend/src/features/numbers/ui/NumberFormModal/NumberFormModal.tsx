@@ -1,9 +1,11 @@
+import { toast } from 'react-toastify';
+import { ModalBody, ModalSection, Flex } from '@/shared/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -379,6 +381,7 @@ export const NumberFormModal = () => {
       onClose();
     } catch (err) {
       console.error('Failed to save number list:', err);
+      toast.error(t("modal.errors.save"));
     }
   };
 
@@ -389,19 +392,19 @@ export const NumberFormModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}
-      >
+      <FormDialogContent
+        className={styles.dialogContent}
+       aria-describedby={undefined}>
         <DialogHeader className={`shrink-0 ${styles.header}`}>
           <DialogTitle>
             {isEditing ? t('numbers.edit') : t('numbers.add')}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className={styles.form} autoComplete="off">
-          <div className={styles.formBody}>
-            <VStack gap="16" max>
-              <VStack gap="8" max className={styles.field}>
+        <Flex as="form" direction="column" align="stretch" onSubmit={handleSubmit} className={styles.form} autoComplete="off">
+          <ModalBody className={styles.formBody}>
+            <VStack align="stretch" gap="16" max>
+              <VStack align="stretch" gap="8" max className={styles.field}>
                 <Label htmlFor="numbers-name" className={styles.fieldLabel}>
                   {t('numbers.name')} *
                 </Label>
@@ -413,7 +416,7 @@ export const NumberFormModal = () => {
                 />
               </VStack>
 
-              <VStack gap="8" max className={styles.field}>
+              <VStack align="stretch" gap="8" max className={styles.field}>
                 <Label htmlFor="numbers-comment" className={styles.fieldLabel}>
                   {t('numbers.comment')}
                 </Label>
@@ -424,7 +427,7 @@ export const NumberFormModal = () => {
                 />
               </VStack>
 
-              <VStack gap="12" max className={styles.scopeGroup}>
+              <VStack align="stretch" gap="12" max className={styles.scopeGroup}>
                 <HStack gap="4" align="center" className={styles.scopeTitleRow}>
                   <Text className={styles.scopeTitle}>
                     {t('numbers.scopeTitle', 'Что видно в списке')}
@@ -438,7 +441,7 @@ export const NumberFormModal = () => {
                 </HStack>
 
                 <Tabs value={tab} onValueChange={setTab}>
-                  <VStack className={styles.tabsWrap} max>
+                  <VStack align="stretch" className={styles.tabsWrap} max>
                     <TabsList className={styles.tabsList}>
                       <TabsTrigger value="operators" className={styles.tab}>
                         {t('numbers.tabOperators', 'Операторы')}
@@ -466,6 +469,7 @@ export const NumberFormModal = () => {
                   </VStack>
 
                   <TabsContent value="operators" className={styles.tabPanel}>
+<ModalSection>
                     <MultiSelect
                       {...selectProps}
                       value={numbers.operators}
@@ -473,9 +477,11 @@ export const NumberFormModal = () => {
                       options={operatorOptions}
                       placeholder={t('numbers.pickOperators', 'Выберите пользователей…')}
                     />
-                  </TabsContent>
+                  </ModalSection>
+</TabsContent>
 
                   <TabsContent value="queues" className={styles.tabPanel}>
+<ModalSection>
                     <MultiSelect
                       {...selectProps}
                       value={numbers.queues}
@@ -483,9 +489,11 @@ export const NumberFormModal = () => {
                       options={queueOptions}
                       placeholder={t('numbers.pickQueues', 'Выберите очереди…')}
                     />
-                  </TabsContent>
+                  </ModalSection>
+</TabsContent>
 
                   <TabsContent value="routes" className={styles.tabPanel}>
+<ModalSection>
                     <MultiSelect
                       {...selectProps}
                       value={numbers.routes}
@@ -493,10 +501,12 @@ export const NumberFormModal = () => {
                       options={routeOptions}
                       placeholder={t('numbers.pickRoutes', 'Выберите маршруты…')}
                     />
-                  </TabsContent>
+                  </ModalSection>
+</TabsContent>
 
                   <TabsContent value="cdr" className={styles.tabPanel}>
-                    <VStack gap="12" max>
+<ModalSection>
+                    <VStack align="stretch" gap="12" max>
                       <HStack gap="4" align="center">
                         <Text className={styles.subFieldLabel}>
                           {t('numbers.cdrOperators', 'Операторы в CDR')}
@@ -526,10 +536,12 @@ export const NumberFormModal = () => {
                         placeholder={t('numbers.pickQueues', 'Выберите очереди…')}
                       />
                     </VStack>
-                  </TabsContent>
+                  </ModalSection>
+</TabsContent>
 
                   <TabsContent value="ai-threads" className={styles.tabPanel}>
-                    <VStack gap="12" max>
+<ModalSection>
+                    <VStack align="stretch" gap="12" max>
                       <HStack gap="4" align="center">
                         <Text className={styles.subFieldLabel}>
                           {t('numbers.pickThreadUsers')}
@@ -544,11 +556,12 @@ export const NumberFormModal = () => {
                         placeholder={t('numbers.pickThreadUsers')}
                       />
                     </VStack>
-                  </TabsContent>
+                  </ModalSection>
+</TabsContent>
                 </Tabs>
               </VStack>
             </VStack>
-          </div>
+          </ModalBody>
 
           <DialogFooter className={styles.footer}>
             <HStack gap="8" justify="end" max>
@@ -561,8 +574,8 @@ export const NumberFormModal = () => {
               </Button>
             </HStack>
           </DialogFooter>
-        </form>
-      </DialogContent>
+        </Flex>
+      </FormDialogContent>
     </Dialog>
   );
 };

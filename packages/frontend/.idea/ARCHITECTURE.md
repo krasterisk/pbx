@@ -157,6 +157,38 @@ import { Pencil, Copy, Trash2 } from 'lucide-react';
 
 ---
 
+
+### Общие паттерны модалок сущностей (2026-10-10)
+
+Памятка сценариев и оформления: [backend ARCHITECTURE §10](../../backend/.idea/ARCHITECTURE.md#10-паттерны-модалок-настройки). Канонические ограничения frontend и правила доступности задаются этим документом; backend-памятка ссылается на них.
+
+**Публичная реализация:** `@/shared/ui/ModalLayout` (также экспортируется из `@/shared/ui`). В новых редакторах и при модернизации существующих использовать общие компоненты, а не копировать shell и карточки из RouteFormModal:
+
+| Компонент | Назначение |
+|---|---|
+| `FormDialogContent` | Оболочка формы: стабильная высота, видимые header/footer, общие поверхности и отступы. Для крупных/tabbed форм `size="large"`; компактные редакторы сохраняют свой size |
+| `FormSheetContent` | Та же оболочка формы в боковой панели; `SheetHeader`, `ModalBody` и `SheetFooter` остаются отдельными частями |
+| `ModalBody` | Единственный прокручиваемый контейнер формы: flex, min-height: 0, min-width: 0, выравнивание stretch и адаптивные отступы |
+| `ModalSection` | Логическая карточка; title, Lucide icon, tooltip и action в шапке. Для optional секций collapsible и явный defaultExpanded |
+| `ModalToggle` | Label + Switch + tooltip, локальное checked/onCheckedChange. compact подходит для статуса в шапке |
+| `ModalTabs` | Общая навигация кнопками с aria-pressed и одним индикатором активного состояния. Для связанного ARIA tablist/tabpanel использовать существующий shared Tabs |
+
+FormDialogContent содержит DialogHeader/DialogTitle, навигацию вне ModalBody, тело и DialogFooter. Form wrapper (`Flex as="form"`) имеет flex: 1/min-height: 0; footer остаётся внутри формы, но вне ModalBody. Сохранение, черновик, API-запросы и ошибки принадлежат родительской фиче. Вкладки и сворачивание не запускают mutation и не удаляют значения; опции не сбрасываются при размонтировании панели.
+
+**Боковые формы:** используйте `FormSheetContent` из `shared/ui/ModalLayout` вместе с `SheetHeader`, `ModalBody` и `SheetFooter`. Прокручивается только тело; подписи и кнопки остаются видимыми. Небольшие формы ограничиваются `max-height` и подстраиваются под содержимое. Полноценные редакторы используют `size="large"`. Пример: `features/callcenter/ui/ContactBookForm/ContactBookForm.tsx`.
+
+Типовые смысловые группы: основные сведения, учётные данные, подключение, права доступа, таймеры, запись и аналитика. Заголовок карточки описывает группу; не повторять имя каждого поля. Маленькому подтверждению или read-only viewer не добавлять ненужные табы и переключатели: они используют общий Dialog/Sheet и подходящий существующий сценарий.
+
+Boolean-состояния «Активен», WebRTC, BLF, provisioning и аналогичные настройки оформляются Switch. Checkbox остаётся для выбора строк, элементов списков, грантов прав и подтверждений. При общей кнопке Save сохраняется локальный черновик; для immediate RTK toggle остаётся обязательным optimistic patch + undo.
+
+Для карточек шагов Dialplan одна иконка Info объединяет условия и все применимые статусы (завершает цепочку, может выйти, выключен, недостижим, неизвестен/недоступен). Tooltip выводит их отдельными строками, открывается по наведению, фокусу и нажатию. Клик Info не открывает StepSheet. Меню ⋮ содержит вторичные операции; клик строки открывает основную настройку.
+
+**Новые формы не должны повторять legacy-антипаттерны:** прямой @radix-ui/react-dialog в features; ручной overlay без focus trap/Esc; feature-level Tailwind/native layout; полная прокрутка оболочки вместе с footer; двойная линия табов; отдельная иконка для каждого статуса; HTML title вместе с Tooltip; console.error как единственный ответ на неудачное сохранение. В source error state или toast выводить локализованное понятное сообщение, сохранять черновик и показывать/фокусировать поле, если API/валидация позволяет сопоставить ошибку.
+
+Для мобильного viewport сохранять видимость действий, min-width: 0 у полей, перенос/scroll только у полосы вкладок и переход многоколоночных групп в одну колонку. Общая поверхность Dialog/Sheet и muted-акценты Tabs/Switch задаются в shared UI. Feature SCSS отвечает за специфические поля; не копировать палитру и размеры общей оболочки.
+
+Эталоны с общими компонентами: EndpointFormModal, TrunkFormModal, QueueFormModal, UserFormModal, IvrFormModal/IvrMainTab, ContextFormModal, DirectoryFormModal. Regression-контракт общего каркаса: `shared/ui/ModalLayout/ModalLayout.test.tsx` (Save вне скролла, Label/Switch, сохранение черновика при смене панели и сворачивании).
+
 ### Система дизайн-токенов и стилизация через SCSS-модули
 
 #### Источник токенов
@@ -1833,4 +1865,4 @@ Three-level stack `RouteFormModal` → `RoutePhonebooksTab` → step `Sheet` was
 
 ---
 
-*Last updated: 2026-09-17 (modal static shell height + mobile grids)*
+*Last updated: 2026-10-10 (shared modal layout, entity forms, drawer forms)*

@@ -1,7 +1,9 @@
+import { Switch } from '@/shared/ui';
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo, useEffect, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter,
   Button, Input, Label, Text,
 } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
@@ -83,7 +85,7 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent size="xl" data-testid="seller-form-modal">
+      <FormDialogContent size="xl" data-testid="seller-form-modal" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {seller
@@ -92,14 +94,15 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="20" className={cls.scrollBody}>
-          <VStack gap="12">
+        <ModalBody  className={cls.scrollBody}>
+<ModalSection>
+          <VStack align="stretch" gap="12">
             <Text variant="muted">
               {t('cloudAdmin.settings.seller.sectionOrg', 'ОРГАНИЗАЦИЯ').toUpperCase()}
             </Text>
             <div className={cls.grid}>
               <div className={cls.fieldFull}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-name">
                     {t('cloudAdmin.settings.seller.name', 'Наименование организации')} *
                   </Label>
@@ -107,25 +110,25 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
                 </VStack>
               </div>
               <div className={cls.field}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-inn">{t('cloudAdmin.settings.seller.inn', 'ИНН')}</Label>
                   <Input id="seller-inn" value={form.inn} onChange={set('inn')} />
                 </VStack>
               </div>
               <div className={cls.field}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-kpp">{t('cloudAdmin.settings.seller.kpp', 'КПП')}</Label>
                   <Input id="seller-kpp" value={form.kpp} onChange={set('kpp')} />
                 </VStack>
               </div>
               <div className={cls.field}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-ogrn">{t('cloudAdmin.settings.seller.ogrn', 'ОГРН')}</Label>
                   <Input id="seller-ogrn" value={form.ogrn} onChange={set('ogrn')} />
                 </VStack>
               </div>
               <div className={cls.fieldFull}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-address">
                     {t('cloudAdmin.settings.seller.address', 'Юридический адрес')}
                   </Label>
@@ -135,13 +138,13 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
             </div>
           </VStack>
 
-          <VStack gap="12">
+          <VStack align="stretch" gap="12">
             <Text variant="muted">
               {t('cloudAdmin.settings.seller.sectionBank', 'БАНКОВСКИЕ РЕКВИЗИТЫ').toUpperCase()}
             </Text>
             <div className={cls.grid}>
               <div className={cls.fieldFull}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-bank-name">
                     {t('cloudAdmin.settings.seller.bankName', 'Наименование банка')}
                   </Label>
@@ -149,13 +152,13 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
                 </VStack>
               </div>
               <div className={cls.field}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-bik">{t('cloudAdmin.settings.seller.bankBik', 'БИК')}</Label>
                   <Input id="seller-bik" value={form.bankBik} onChange={set('bankBik')} />
                 </VStack>
               </div>
               <div className={cls.field}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-corr">
                     {t('cloudAdmin.settings.seller.corrAccount', 'Корр. счёт')}
                   </Label>
@@ -163,7 +166,7 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
                 </VStack>
               </div>
               <div className={cls.fieldFull}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-account">
                     {t('cloudAdmin.settings.seller.bankAccount', 'Расчётный счёт')}
                   </Label>
@@ -173,13 +176,13 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
             </div>
           </VStack>
 
-          <VStack gap="12">
+          <VStack align="stretch" gap="12">
             <Text variant="muted">
               {t('cloudAdmin.settings.seller.sectionService', 'ОПИСАНИЕ УСЛУГИ В АКТАХ').toUpperCase()}
             </Text>
             <div className={cls.grid}>
               <div className={cls.fieldFull}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-service-desc">
                     {t('cloudAdmin.settings.seller.serviceDescription', 'Наименование услуги')}
                   </Label>
@@ -191,7 +194,7 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
                 </VStack>
               </div>
               <div className={cls.field}>
-                <VStack gap="6">
+                <VStack align="stretch" gap="6">
                   <Label htmlFor="seller-service-code">
                     {t('cloudAdmin.settings.seller.serviceCode', 'Код предмета расчёта')}
                   </Label>
@@ -203,18 +206,14 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
 
           {!seller?.isDefault && (
             <HStack gap="8" align="center">
-              <input
-                id="seller-is-default"
-                type="checkbox"
-                checked={form.isDefault}
-                onChange={set('isDefault')}
-              />
+              <Switch id="seller-is-default" checked={form.isDefault} onCheckedChange={(checked)=>setForm(prev=>({...prev,isDefault:checked}))} />
               <Label htmlFor="seller-is-default">
                 {t('cloudAdmin.sellers.makeDefault', 'Сделать по умолчанию')}
               </Label>
             </HStack>
           )}
-        </VStack>
+        </ModalSection>
+</ModalBody>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
@@ -224,7 +223,7 @@ export const SellerFormModal = memo(function SellerFormModal({ open, seller, onC
             {t('common.save')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

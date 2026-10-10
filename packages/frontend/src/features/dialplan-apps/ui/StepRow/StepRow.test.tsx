@@ -38,7 +38,7 @@ describe('StepRow', () => {
   render(<StepRow action={action({condition:{source:'queuestatus',values:['FULL']}})} index={0} onOpenStep={open} onDuplicate={duplicate} onToggleEnabled={noop} onRemove={noop} onCopy={noop}/>);
   expect(screen.queryByRole('button',{name:'Настроить шаг'})).toBeNull();
   expect(screen.queryByText('FULL')).toBeNull();
-  expect(screen.getByTestId('step-row-condition-badge')).toBeInTheDocument();
+  expect(screen.getByTestId('step-row-info')).toBeInTheDocument();
   fireEvent.click(screen.getByTestId('step-row'));expect(open).toHaveBeenCalledWith('step-1','params');open.mockClear();
   fireEvent.pointerDown(screen.getByRole('button',{name:'Ещё действия'}),{button:0,ctrlKey:false});
   fireEvent.click(screen.getByRole('menuitem',{name:'Дублировать действие'}));
@@ -141,7 +141,7 @@ describe('StepRow', () => {
     expect(screen.queryByLabelText(/drag/i)).toBeNull();
   });
 
-  it('opens the conditions section when the condition badge is clicked', () => {
+  it('shows all step statuses in one tooltip without opening the step', async () => {
     const onOpenStep = vi.fn();
     render(
       <StepRow
@@ -155,8 +155,14 @@ describe('StepRow', () => {
         onCopy={noop}
       />,
     );
-    fireEvent.click(screen.getByTestId('step-row-condition-badge'));
-    expect(onOpenStep).toHaveBeenCalledWith('step-1', 'conditions');
+    fireEvent.click(screen.getByTestId('step-row-info'));
+    expect(onOpenStep).not.toHaveBeenCalled();
+    const info = screen.getByTestId('step-row-info');
+    expect(info.querySelectorAll('svg')).toHaveLength(1);
+    expect(info).toHaveAttribute('aria-label', 'Информация о шаге');
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent('Условие по результату звонка:');
+    expect(tooltip).toHaveTextContent('Может выйти из цепочки');
   });
 
   it('marks a step after hangup as unreachable without blocking save', () => {
@@ -235,6 +241,6 @@ describe('StepRow', () => {
   it('declares aria-label on every icon-only control in source', () => {
     const src = readFileSync(join(specDir, 'StepRow.tsx'), 'utf8');
     const ariaCount = (src.match(/aria-label/g) ?? []).length;
-    expect(ariaCount).toBeGreaterThanOrEqual(5);
+    expect(ariaCount).toBeGreaterThanOrEqual(4);
   });
 });

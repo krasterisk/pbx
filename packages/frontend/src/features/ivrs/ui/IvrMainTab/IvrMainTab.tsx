@@ -1,6 +1,8 @@
+import { ModalSection, ModalToggle } from '@/shared/ui';
+import { Switch } from '@/shared/ui';
 import { useTranslation } from 'react-i18next';
 import { VStack, HStack } from '@/shared/ui/Stack';
-import { Input, Label, Checkbox, Text } from '@/shared/ui';
+import { Input, Label } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import cls from './IvrMainTab.module.scss';
 
@@ -41,27 +43,9 @@ export function IvrMainTab(props: IvrMainTabProps) {
   } = props;
 
   return (
-    <VStack gap="16" max className={cls.form}>
-      <HStack justify="between" align="center" className={cls.activePanel}>
-        <HStack gap="4" align="center">
-          <Label htmlFor="ivr-active" className={cls.activeLabel}>
-            {t('ivrs.fields.active', 'Активно')}
-          </Label>
-          <InfoTooltip
-            text={t(
-              'ivrs.tooltips.active',
-              'Включает/отключает обработку вызовов в данном IVR. Отключённое меню будет пропускать вызовы',
-            )}
-          />
-        </HStack>
-        <Checkbox
-          id="ivr-active"
-          checked={active}
-          onChange={(e) => onActiveChange(e.target.checked)}
-        />
-      </HStack>
-
-      <VStack gap="4" max className={cls.field}>
+    <VStack align="stretch" gap="16" max>
+<ModalSection title={t("modal.sections.identity")} action={<ModalToggle compact id="ivr-active" label={t("ivrs.fields.active")} tooltip={t("ivrs.tooltips.active")} checked={active} onCheckedChange={onActiveChange} />}>
+<VStack gap="4" max className={cls.field}>
         <Label htmlFor="ivr-name">{t('ivrs.fields.name', 'Системное имя')}</Label>
         <Input
           id="ivr-name"
@@ -70,13 +54,9 @@ export function IvrMainTab(props: IvrMainTabProps) {
           onChange={(e) => onNameChange(e.target.value)}
         />
       </VStack>
-
-      <VStack gap="12" max className={cls.timeoutsSection}>
-        <Text variant="small" className={cls.timeoutsHeading}>
-          {t('ivrs.fields.timeoutsSection', 'Таймауты DTMF')}
-        </Text>
-
-        <VStack gap="4" max className={cls.field}>
+</ModalSection>
+<ModalSection title={t("ivrs.fields.timeoutsSection")}>
+<VStack gap="4" max className={cls.field}>
           <HStack gap="4" align="center" className={cls.labelRow}>
             <Label htmlFor="ivr-wait-exten">
               {t('ivrs.fields.waitExten', 'Ожидание выбора после фразы (сек)')}
@@ -97,8 +77,7 @@ export function IvrMainTab(props: IvrMainTabProps) {
             onChange={(e) => onWaitExtenChange(e.target.value)}
           />
         </VStack>
-
-        <VStack gap="4" max className={cls.field}>
+<VStack gap="4" max className={cls.field}>
           <HStack gap="4" align="center" className={cls.labelRow}>
             <Label htmlFor="ivr-timeout-response">
               {t('ivrs.fields.timeoutResponse', 'Таймаут первой цифры (сек)')}
@@ -119,8 +98,7 @@ export function IvrMainTab(props: IvrMainTabProps) {
             onChange={(e) => onTimeoutResponseChange(e.target.value)}
           />
         </VStack>
-
-        <VStack gap="4" max className={cls.field}>
+<VStack gap="4" max className={cls.field}>
           <HStack gap="4" align="center" className={cls.labelRow}>
             <Label htmlFor="ivr-timeout-digit">
               {t('ivrs.fields.timeoutDigit', 'Пауза между цифрами (сек)')}
@@ -141,9 +119,7 @@ export function IvrMainTab(props: IvrMainTabProps) {
             onChange={(e) => onTimeoutDigitChange(e.target.value)}
           />
         </VStack>
-      </VStack>
-
-      <VStack gap="4" max className={cls.field}>
+<VStack gap="4" max className={cls.field}>
         <HStack gap="4" align="center" className={cls.labelRow}>
           <Label htmlFor="ivr-max-count">
             {t('ivrs.fields.maxCount', 'Ограничение переходов (0 - без предела)')}
@@ -163,8 +139,9 @@ export function IvrMainTab(props: IvrMainTabProps) {
           onChange={(e) => onMaxCountChange(parseInt(e.target.value, 10) || 0)}
         />
       </VStack>
-
-      <HStack justify="between" align="center" className={cls.toggleRow}>
+</ModalSection>
+<ModalSection title={t("modal.sections.settings")}>
+<HStack justify="between" align="center" className={cls.toggleRow}>
         <HStack gap="4" align="center">
           <Label htmlFor="ivr-direct-dial" className={cls.toggleLabel}>
             {t('ivrs.fields.directDial', 'Прямой донабор')}
@@ -176,12 +153,13 @@ export function IvrMainTab(props: IvrMainTabProps) {
             )}
           />
         </HStack>
-        <Checkbox
+        <Switch
           id="ivr-direct-dial"
           checked={directDial}
-          onChange={(e) => onDirectDialChange(e.target.checked)}
+          onCheckedChange={(checked) => onDirectDialChange(checked)}
         />
       </HStack>
-    </VStack>
+</ModalSection>
+</VStack>
   );
 }

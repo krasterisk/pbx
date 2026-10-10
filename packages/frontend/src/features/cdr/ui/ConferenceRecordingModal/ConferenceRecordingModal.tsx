@@ -1,3 +1,4 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download } from 'lucide-react';
@@ -10,10 +11,10 @@ import { Button, Text } from '@/shared/ui';
 import { AudioPlayer } from '@/shared/ui/AudioPlayer';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/shared/ui/Dialog';
+} from '@/shared/ui';
 import cls from './ConferenceRecordingModal.module.scss';
 
 export interface ConferenceRecordingModalProps {
@@ -53,14 +54,15 @@ export const ConferenceRecordingModal = memo(({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent size="large">
+      <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {t('conferences.cdr.detailsTitle', 'Запись конференции')}
           </DialogTitle>
         </DialogHeader>
 
-        <div className={cls.scrollBody}>
+        <ModalBody className={cls.scrollBody}>
+<ModalSection>
           {match ? (
             <div className={cls.playerRow}>
               <AudioPlayer src={playSrc} />
@@ -78,8 +80,9 @@ export const ConferenceRecordingModal = memo(({
               {t('conferences.cdr.empty', 'Запись конференции недоступна')}
             </Text>
           )}
-        </div>
-      </DialogContent>
+        </ModalSection>
+</ModalBody>
+      </FormDialogContent>
     </Dialog>
   );
 });

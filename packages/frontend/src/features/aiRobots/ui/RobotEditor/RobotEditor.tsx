@@ -1,8 +1,9 @@
+import { ModalBody } from '@/shared/ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { AI_VOICE_ROBOT_DEFAULTS, validateAiVoiceConfig, type AiVoiceRobot, type AiVoiceConfigIssue } from '@krasterisk/shared';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Text, VStack } from '@/shared/ui';
+import { Button, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Text } from '@/shared/ui';
 import { useSaveAiVoiceRobotMutation } from '@/shared/api/endpoints/aiVoiceRobotsApi';
 import { RobotSettingsForm } from '../RobotSettingsForm';
 import cls from './RobotEditor.module.scss';
@@ -43,16 +44,16 @@ export function RobotEditor({ robot, copy = false, onClose }: { robot?: AiVoiceR
     }
   };
   return <Dialog open onOpenChange={open => { if (!open) requestClose(); }}>
-    <DialogContent size="large" className={cls.dialog}>
+    <FormDialogContent size="large" className={cls.dialog}>
       <DialogHeader className={cls.header}>
         <DialogTitle>{t(`aiVoiceDesigner.${copy ? 'copy' : robot ? 'edit' : 'create'}`)}</DialogTitle>
         <DialogDescription>{t('aiVoiceDesigner.saveHint')}</DialogDescription>
       </DialogHeader>
-      <VStack gap="12" max className={cls.body}>
+      <ModalBody className={cls.body}>
         {error ? <Text role="alert" variant="error">{error}</Text> : null}
         <RobotSettingsForm value={config} issues={issues} disabled={isLoading}
           onChange={next => { setConfig(next); setIssues([]); }} />
-      </VStack>
+      </ModalBody>
       <DialogFooter className={cls.footer}>
         {confirmDiscard ? <>
           <Text role="alert">{t('aiVoiceDesigner.unsaved')}</Text>
@@ -63,6 +64,6 @@ export function RobotEditor({ robot, copy = false, onClose }: { robot?: AiVoiceR
           <Button disabled={isLoading} onClick={() => void submit()}>{t(isLoading ? 'common.saving' : 'common.save')}</Button>
         </>}
       </DialogFooter>
-    </DialogContent>
+    </FormDialogContent>
   </Dialog>;
 }

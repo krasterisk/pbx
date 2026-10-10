@@ -1,0 +1,3059 @@
+[
+  {
+    "file": "packages/frontend/src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "Checkbox",
+        "props": "id=\"sa-projects-archived\" checked={showArchived} onChange={() => setShowArchived((value) => !value)}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialogContent}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialogContent}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className={cls.dialogContent}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialogContent}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialogContent}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className={cls.dialogContent}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/pages/SpeechAnalyticsProjectPage/SpeechAnalyticsProjectPage.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog}"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/shared/ui/Sheet/Sheet.tsx",
+    "rawRadix": true,
+    "jsx": [],
+    "status": "implemented",
+    "currentJsx": [],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Общая инфраструктура: визуальная оболочка Dialog/Sheet, специализированные подтверждения и навигация. ModalLayout даёт общие компоненты форм.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/pages/SpeechAnalyticsDashboardPage/DashboardDrillSheet.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": "side={isMobile ? 'bottom' : 'right'} className={cls.sheet} aria-describedby={undefined} style={isMobile ? undefined : { width: '40vw', maxWidth: '100%' }}"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": "side={isMobile ? 'bottom' : 'right'}\r\n        className={cls.sheet}\r\n        aria-describedby={undefined}\r\n        style={isMobile ? undefined : { width: '40vw', maxWidth: '100%' }}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/widgets/MobileBottomBar/MobileBottomBar.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": "side=\"bottom\" data-testid={sheet.type === 'pages' ? 'bottom-bar-pages-sheet' : 'bottom-bar-catalog-sheet'} data-nav-view={sheet.type === 'closed' ? undefined : sheet.type} classNam"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": "side=\"bottom\"\r\n          data-testid={sheet.type === 'pages' ? 'bottom-bar-pages-sheet' : 'bottom-bar-catalog-sheet'}\r\n          data-nav-view={sheet.type === 'closed' ? undefined : sheet.type}\r\n          className={cls.sheetConte"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/shared/ui/Dialog/Dialog.tsx",
+    "rawRadix": true,
+    "jsx": [],
+    "status": "implemented",
+    "currentJsx": [],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Общая инфраструктура: визуальная оболочка Dialog/Sheet, специализированные подтверждения и навигация. ModalLayout даёт общие компоненты форм.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/shared/ui/CommandPalette/CommandPalette.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className={cls.dialog} data-testid=\"command-palette\" aria-describedby={undefined} onKeyDown={onKeyDown}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className={cls.dialog}\r\n        data-testid=\"command-palette\"\r\n        aria-describedby={undefined}\r\n        onKeyDown={onKeyDown}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Общая инфраструктура: визуальная оболочка Dialog/Sheet, специализированные подтверждения и навигация. ModalLayout даёт общие компоненты форм.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/shared/ui/BulkDeleteDialog/BulkDeleteDialog.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Общая инфраструктура: визуальная оболочка Dialog/Sheet, специализированные подтверждения и навигация. ModalLayout даёт общие компоненты форм.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/pages/CallCenterSupervisorPage/CallCenterSupervisorPage.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "Checkbox",
+        "props": "checked={showActiveOnly} onChange={(e) => setShowActiveOnly(e.target.checked)}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      },
+      {
+        "tag": "input",
+        "props": "type=\"checkbox\" checked={checked} onChange={() => toggleDraftUser(c.userId)}"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/pages/CallCenterSettingsPage/ui/CardTemplatesTab/CardTemplatesTab.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/pages/AiConnectionsPage/AiConnectionsPage.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.settings')}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/prompts/ui/PromptUploadModal/PromptUploadModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-lg\""
+      },
+      {
+        "tag": "input",
+        "props": "ref={inputRef} type=\"file\" accept=\"audio/*\" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.settings\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/voiceRobots/ui/VoiceRobotForm/VoiceRobotKeywordsTab.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-sm\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-sm\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-sm\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-sm\""
+      },
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/prompts/ui/PromptSynthesizeModal/PromptSynthesizeModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-lg\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.settings\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/prompts/ui/PromptRecordModal/PromptRecordModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.settings\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/prompts/ui/PromptEditModal/PromptEditModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-lg\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.settings\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/voiceRobots/ui/KeywordEditDialog/KeywordEditDialog.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/voiceRobots/ui/DataListEditor/DataListEditor.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "input",
+        "props": "ref={csvInputRef} type=\"file\" accept=\".csv,.txt\" style={{ display: 'none' }} onChange={handleCsvImport}"
+      },
+      {
+        "tag": "input",
+        "props": "ref={csvAppendRef} type=\"file\" accept=\".csv,.txt\" style={{ display: 'none' }} onChange={handleCsvAppend}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-sm\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-3xl max-h-[85vh] overflow-y-auto\""
+      },
+      {
+        "tag": "Checkbox",
+        "props": "checked={col.searchable} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateColumn(idx, 'searchable', e.target.checked)}"
+      },
+      {
+        "tag": "input",
+        "props": "value={row[col.key] || ''} onChange={(e) => updateRowCell(rowIdx, col.key, e.target.value)} placeholder=\"-\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-sm\""
+      },
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.identity')}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/platform-admin/ui/PlatformCatalogEditor.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/aiRobots/ui/RobotEditor/RobotEditor.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={cls.dialog}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/numbers/ui/NumberFormModal/NumberFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}"
+      },
+      {
+        "tag": "TabsList",
+        "props": "className={styles.tabsList}"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"operators\" className={styles.tab}"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"queues\" className={styles.tab}"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"routes\" className={styles.tab}"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"cdr\" className={styles.tab}"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"ai-threads\" className={styles.tab}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "className={styles.dialogContent}\n       aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.formBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/ai-providers/ui/AiProviderModal/AiProviderModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "aria-describedby={undefined} className={`flex h-[min(44rem,90dvh)] max-h-[min(44rem,90dvh)] flex-col gap-0 overflow-hidden ${styles.dialogContent}`}"
+      },
+      {
+        "tag": "Switch",
+        "props": "id=\"ai-provider-enabled\" checked={enabled} onCheckedChange={setEnabled}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}\n        className={styles.dialogContent}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.formBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/voiceRobotCdr/ui/VoiceRobotCdrDetailModal/VoiceRobotCdrDetailModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/ai-chat/ui/ThreadList/ThreadList.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "TabsList",
+        "props": ""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"mine\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"shared\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "data-testid=\"ai-agent-delete-dialog\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "data-testid=\"ai-agent-delete-dialog\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/users/ui/UserFormModal/UserFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}"
+      },
+      {
+        "tag": "input",
+        "props": "ref={fileRef} type=\"file\" accept=\"image/jpeg,image/png,image/webp,image/gif\" className={styles.hiddenFile} onChange={(e) => void handleAvatarPick(e)}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "className={styles.dialogContent}\n       aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.formBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.identity\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.account\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.access\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/notifications/ui/NotificationIntegrationFormModal/NotificationIntegrationFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"xl\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"xl\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/tts-engines/ui/TtsEngineFormModal/TtsEngineFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.settings\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/endpoints/ui/SipCredentialsModal/SipCredentialsModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog} ref={contentRef} aria-describedby={undefined}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\"\n        className={cls.dialog}\n        ref={contentRef}\n        aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/endpoints/ui/EndpointFormModal/EndpointFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" aria-describedby={undefined} data-testid=\"endpoint-form-modal\""
+      },
+      {
+        "tag": "Switch",
+        "props": "id=\"ep-expert-mode\" checked={expertMode} onCheckedChange={changeExpertMode} disabled={isLoading || globalExpertMode}"
+      },
+      {
+        "tag": "TabsList",
+        "props": "aria-label={ mode === \"create\" ? t(\"endpoints.addEndpoint\") : t(\"endpoints.editEndpoint\") }"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "key={tab.id} value={tab.id} data-testid={`endpoint-tab-${tab.id}`}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id=\"ep-webrtc\" checked={webrtcEnabled} onChange={(e) => setWebrtcEnabled(e.target.checked)}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id=\"ep-blf\" checked={blfEnabled} onChange={(event) => setBlfEnabled(event.target.checked) }"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id=\"ep-provision\" checked={provisionEnabled} onChange={(event) => setProvisionEnabled(event.target.checked) }"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\"\n        aria-describedby={undefined}\n        data-testid=\"endpoint-form-modal\""
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.formBody}\n              data-testid=\"endpoint-form-body\"\n              data-viewport=\"360,768,1440\"\n              data-overflow=\"y\""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.identity\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.connection\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/endpoints/ui/BulkCreateModal/BulkCreateModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id=\"bulk-webrtc\" checked={webrtcEnabled} onChange={(event) => setWebrtcEnabled(event.target.checked)}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\"\n        className={cls.dialog}\n        aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/moh/ui/MohFormModal/MohFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"xl\" className={cls.dialogContent}"
+      },
+      {
+        "tag": "input",
+        "props": "type=\"radio\" value=\"random\" checked={field.value === 'random'} onChange={() => field.onChange('random')} className={cls.radioInput}"
+      },
+      {
+        "tag": "input",
+        "props": "type=\"radio\" value=\"alpha\" checked={field.value === 'alpha'} onChange={() => field.onChange('alpha')} className={cls.radioInput}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"xl\" className={cls.dialogContent} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/trunks/ui/TrunkFormModal/TrunkFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "Dialog.Content",
+        "props": "className=\"fixed top-[5%] left-1/2 -translate-x-1/2 w-full max-w-xl bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl max-h-[90vh] overflow-y-auto f"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalTabs",
+        "props": "items={[\n                { id: 'basic', label: t('trunks.tabBasic', 'Основные') },\n                { id: 'auth', label: t('trunks.tabAuth', 'Подключение') },\n                { id: 'network', label: t('trunks.tabNetwork', 'Сеть') }"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.identity\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.connection\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.connection\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/timeGroups/ui/TimeGroupFormModal/TimeGroupFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.scrollBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/modules/ui/CheckoutSheet/CheckoutSheet.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": "data-testid=\"checkout-surface-sheet\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "data-testid=\"checkout-surface-dialog\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": "data-testid=\"checkout-surface-sheet\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "data-testid=\"checkout-surface-dialog\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/directories/ui/DirectoryFormModal/DirectoryFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      },
+      {
+        "tag": "TabsList",
+        "props": "aria-label={title}"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"general\" data-testid=\"directory-tab-general\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"fields\" data-testid=\"directory-tab-fields\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"records\" data-testid=\"directory-tab-records\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"test\" data-testid=\"directory-tab-test\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"usage\" data-testid=\"directory-tab-usage\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.formBody}\n          data-testid=\"directory-form-body\"\n          data-viewport=\"360,768,1440\"\n          data-overflow=\"y\""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/dialplan-apps/ui/StepSheet/StepSheet.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": "side={side} className={`${styles.panel} ${side === 'bottom' ? styles.panelBottom : ''}`}"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": "side={side}\n        className={`${styles.panel} ${side === 'bottom' ? styles.panelBottom : ''}`}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/komandorClaims/ui/KomandorClaimModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className=\"min-w-0\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "checked={sendToStore} onChange={(e) => setSendToStore(e.target.checked)}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "checked={sendSms} onChange={(e) => setSendSms(e.target.checked)} disabled={stripPhone(clientPhone).length < 12}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} disabled={clientEmails.length === 0}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\"  aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/stt-engines/ui/SttEngineFormModal/SttEngineFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.settings\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/speechAnalytics/ui/UploadForm/UploadForm.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"xl\" className={cls.dialog} data-testid=\"upload-form\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "input",
+        "props": "ref={fileInputRef} id=\"sa-upload-files\" type=\"file\" accept=\".mp3,.wav,.ogg,.m4a,audio/mpeg,audio/wav,audio/ogg,audio/mp4\" multiple className={cls.hiddenFile} data-testid=\"upload-fi"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"xl\"\n        className={cls.dialog}\n        data-testid=\"upload-form\"\n        aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={isSubmitting ? `${cls.body} ${cls.formDisabled}` : cls.body}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.settings')}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/speechAnalytics/ui/TokensTable/TokensTable.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\" aria-describedby={undefined}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.settings')}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\" aria-describedby={undefined}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/dialplan-apps/ui/DialModifyField/DialModifyField.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "Switch",
+        "props": "id=\"dial-modify-expert\" checked={expert} disabled={readOnly} aria-label={t('routes.chain.modify.expert', 'Экспертный режим')} onCheckedChange={toggleExpert}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/speechAnalytics/ui/ProjectWizard/ProjectWizard.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "Checkbox",
+        "props": "checked disabled aria-label={row.label}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "checked={visible.includes(id)} onChange={() => toggleScale(id)} aria-label={copy.label}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/speechAnalytics/ui/ProjectSettingsForm/ProjectSettingsForm.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "TabsList",
+        "props": "aria-label={t('speechAnalytics.settingsTitle', 'Настройки проекта')}"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"general\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"metrics\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"topics\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"webhook\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"notifications\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"versions\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"models\""
+      },
+      {
+        "tag": "Switch",
+        "props": "checked={insights.summary.enabled} aria-label={t('speechAnalytics.insightEnabled', 'Включена')} onClick={(event) => event.stopPropagation()} onCheckedChange={(checked) => setInsigh"
+      },
+      {
+        "tag": "Switch",
+        "props": "checked={insights.csat.enabled} aria-label={t('speechAnalytics.insightEnabled', 'Включена')} onClick={(event) => event.stopPropagation()} onCheckedChange={(checked) => setInsights("
+      },
+      {
+        "tag": "Switch",
+        "props": "checked={insights.sentiment.enabled} aria-label={t('speechAnalytics.insightEnabled', 'Включена')} onClick={(event) => event.stopPropagation()} onCheckedChange={(checked) => setInsi"
+      },
+      {
+        "tag": "Switch",
+        "props": "checked={insights.success.enabled} aria-label={t('speechAnalytics.insightEnabled', 'Включена')} onClick={(event) => event.stopPropagation()} onCheckedChange={(checked) => setInsigh"
+      },
+      {
+        "tag": "Switch",
+        "props": "checked={notice.enabled} aria-label={t('speechAnalytics.insightEnabled', 'Включена')} onClick={(event) => event.stopPropagation()} onCheckedChange={(checked) => patch({ enabled: ch"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "checked={blocks[key]} onChange={() => patch({ blocks: { ...blocks, [key]: !blocks[key] } })}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id=\"sa-settings-skip-publish\" checked={skipPublish} onChange={() => setSkipPublish((value) => !value)}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "FormDialogContent",
+        "props": ""
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/speechAnalytics/ui/ConversationsTable/ConversationsTable.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/ivrs/ui/IvrFormModal/IvrFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalTabs",
+        "props": "items={tabs} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={title}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/serviceRequests/ui/ServiceRequestModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={`max-h-[90vh] flex flex-col ${isMobile ? 'h-[100dvh] max-h-[100dvh] min-h-0 rounded-none p-4' : ''}`} aria-describedby={undefined}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "checked={sendSms && !!scheduleComment.trim()} onChange={(e) => setSendSms(e.target.checked)} disabled={!scheduleComment.trim()}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={isMobile ? 'h-[100dvh] max-h-[100dvh] min-h-0 rounded-none p-4' : ''} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/route-templates/ui/SaveAsTemplateDialog/SaveAsTemplateDialog.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={styles.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={item.id} checked={checked.includes(item.id)} onChange={(e) => { const on = e.currentTarget.checked; setChecked((prev) => on ? [...prev, item.id] : prev.filter((id) => id !== it"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={styles.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.scrollBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/routes/ui/RouteFormModal/RouteFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={styles.modal} aria-describedby={undefined}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={styles.modal} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalTabs",
+        "props": "items={tabs.map(tab=>({id:tab,label:t(`routes.tab.${tab}`, TAB_FALLBACKS[tab])}))} value={activeTab} onChange={(value)=>setActiveTab(value as RouteTab)} label={t(\"common.settings\")}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.body}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/contexts/ui/ContextFormModal/ContextFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className={cls.dialog}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={`context-default-${kind}`} checked={formData[`is_default_for_${kind}`]} onChange={(event) => setFormData({ ...formData, [`is_default_for_${kind}`]: event.target.checked })}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "className={cls.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.identity\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.settings\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/route-templates/ui/RouteTemplateFormModal/RouteTemplateFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={styles.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={`existing-${slot.id}`} checked readOnly"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={item.id} checked={checked.includes(item.id)} onChange={(e) => { const on = e.currentTarget.checked; setChecked((prev) => on ? [...prev, item.id] : prev.filter((id) => id !== it"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={styles.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.scrollBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/route-templates/ui/ApplyTemplateDialog/ApplyTemplateDialog.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={styles.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "aria-describedby={undefined}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={styles.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.scrollBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "aria-describedby={undefined}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/roles/ui/RoleFormModal/RoleFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "className={styles.checkbox} checked={allChecked} onChange={(e) => setGrants( toggleModuleGrant( grants, mod.code, pageIds, e.target.checked, ), ) } aria-label={t('roles.selectModul"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "className={styles.checkbox} checked={isPageGranted(grants, mod.code, page.id)} onChange={(e) => setGrants( togglePageGrant( grants, mod.code, page.id, e.target.checked, ), ) }"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "className={styles.dialogContent}\n       aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.formBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/route-references/ui/DeleteBlockedDialog/DeleteBlockedDialog.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "data-testid=\"delete-blocked-dialog\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "data-testid=\"delete-blocked-dialog\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/cloud-admin/ui/TenantFormModal/TenantFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"tenant-form-modal\""
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id=\"tenant-own-models\" checked={ownModels} onChange={(event) => setOwnModels(event.target.checked)}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"tenant-form-modal\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.scrollBody}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/cloud-admin/ui/SellerFormModal/SellerFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"xl\" data-testid=\"seller-form-modal\""
+      },
+      {
+        "tag": "input",
+        "props": "id=\"seller-is-default\" type=\"checkbox\" checked={form.isDefault} onChange={set('isDefault')}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"xl\" data-testid=\"seller-form-modal\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.scrollBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/cdr/ui/VoicemailDetailsModal/VoicemailDetailsModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.scrollBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/cdr/ui/ConferenceRecordingModal/ConferenceRecordingModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.scrollBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/queues/ui/QueueFormModal/QueueFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "input",
+        "props": "type=\"checkbox\" checked={checked} onChange={e => onChange(e.target.checked)} className=\"w-4 h-4 text-primary rounded\""
+      },
+      {
+        "tag": "Dialog.Content",
+        "props": "className=\"fixed top-[5%] left-1/2 -translate-x-1/2 w-full max-w-2xl bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl max-h-[90vh] overflow-y-auto "
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "ModalToggle",
+        "props": "checked={checked} onCheckedChange={onChange} label={label} tooltip={desc}"
+      },
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalTabs",
+        "props": "items={[\n                { id: 'general', label: t('queues.tabGeneral') },\n                { id: 'members', label: `${t('queues.tabMembers')} (${members.length})` },\n                { id: 'announcements', label: t('queues.tabAnnou"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.identity\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.identity\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.identity\")}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t(\"modal.sections.settings\")}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/cdr/ui/CdrTable/CdrTable.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/cdr/ui/CdrLegsModal/CdrLegsModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"3xl\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"3xl\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/cdr/ui/CdrDrilldownModal/CdrDrilldownModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"3xl\" className=\"max-h-[90vh] flex flex-col\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"3xl\"  aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/provisionTemplates/ui/ProvisionTemplateFormModal/ProvisionTemplateFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"sm:max-w-[700px] flex flex-col max-h-[90vh]\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/BulkActionsBar/BulkActionsBar.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"default\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/AgentDetailModal/AgentDetailModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"xl\" className={styles.content}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"xl\" className={styles.content} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/conferences/ui/LiveRoom/RoomControlBar.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/conferences/ui/LiveRoom/ParticipantRow.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/conferences/ui/LiveRoom/ParticipantList.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": "id={panelId}"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": "id={panelId}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/conferences/ui/LiveRoom/InviteSheet.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/conferences/ui/ConferencesTable/ConferencesTable.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/conferences/ui/ConferenceRoomFormModal/ConferenceRoomFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\""
+      },
+      {
+        "tag": "Switch",
+        "props": "id=\"conference-room-announce\" checked={announceJoinLeave} onCheckedChange={setAnnounceJoinLeave}"
+      },
+      {
+        "tag": "Switch",
+        "props": "id=\"conference-room-wait\" checked={waitMarked} onCheckedChange={setWaitMarked}"
+      },
+      {
+        "tag": "Switch",
+        "props": "id=\"conference-room-end\" checked={endMarked} onCheckedChange={setEndMarked}"
+      },
+      {
+        "tag": "Switch",
+        "props": "id=\"conference-room-notify\" checked={notifyRecording} onCheckedChange={setNotifyRecording}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\""
+      },
+      {
+        "tag": "ModalTabs",
+        "props": "items={tabs} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={title}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.scrollBody}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/ShiftLoginModal/ShiftLoginModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"xl\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"xl\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.body}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/ReportSchedulesManager/ReportSchedulesManager.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "Switch",
+        "props": "checked={row.original.enabled} onCheckedChange={(v) => handleToggle(row.original, v)} aria-label={t('callcenter.settings.reportSchedules.colEnabled')}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-2xl max-h-[90vh] overflow-y-auto\""
+      },
+      {
+        "tag": "Switch",
+        "props": "id=\"rs-enabled\" checked={form.enabled} onCheckedChange={(v) => setForm((f) => ({ ...f, enabled: v }))}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.report')} action={<ModalToggle compact label={t('callcenter.settings.reportSchedules.colEnabled')} id=\"rs-enabled\" checked={form.enabled} onCheckedChange={(enabled)=>setForm(f=>({...f,enabled}))} />}"
+      },
+      {
+        "tag": "ModalToggle",
+        "props": "compact label={t('callcenter.settings.reportSchedules.colEnabled')} id=\"rs-enabled\" checked={form.enabled} onCheckedChange={(enabled)=>setForm(f=>({...f,enabled}))}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.timing')}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.filters')}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.delivery')}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/QueueManagementModal/QueueManagementModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "input",
+        "props": "type=\"number\" className={styles.penaltyInput} value={penalty ?? 0} min={0} onChange={(e) => onPenaltyChange?.(Number(e.target.value))} onBlur={(e) => onPenaltyCommit?.(Number(e.tar"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={styles.dialog}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={styles.dialog} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={styles.body}"
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/DragTransfer/DragTransfer.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/PermissionsMatrix/OperatorPermissionsForm.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": "className=\"sm:max-w-md\""
+      },
+      {
+        "tag": "Switch",
+        "props": "checked={form[key]} disabled={locked || saving} onCheckedChange={setBool(key)}"
+      },
+      {
+        "tag": "Switch",
+        "props": "checked={form.spy_modes.includes(mode)} disabled={!!locks.spy_modes || !form.can_spy || saving} onCheckedChange={(next) => toggleSpy(mode, next)}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormSheetContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "data-testid=\"operator-permissions-form\""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.access')}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/DisplayTokensManager/DisplayTokensManager.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/PauseReasonsManager/PauseReasonsManager.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      },
+      {
+        "tag": "input",
+        "props": "id=\"pr-color\" type=\"color\" className={styles.colorPicker} value={form.color || DEFAULT_COLOR} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}"
+      },
+      {
+        "tag": "Switch",
+        "props": "id=\"pr-paid\" checked={form.is_paid} onCheckedChange={(checked) => setForm((f) => ({ ...f, is_paid: checked }))}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.settings')}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/CoworkersTab/CoworkersTab.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/call-groups/ui/CallGroupFormModal/CallGroupFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"2xl\" className={cls.dialogContent}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"2xl\" className={cls.dialogContent} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/ContactBookForm/ContactBookForm.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": "className=\"max-w-md\""
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormSheetContent",
+        "props": "aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": "title={t('modal.sections.identity')}"
+      },
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/autodial/ui/StartCampaignDialog/StartCampaignDialog.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={`autodial-redial-${disposition}`} checked={selected.includes(disposition)} onChange={() => toggle(disposition)}"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/autodial/ui/ImportWizard/ImportWizard.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"autodial-import-wizard\""
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id=\"autodial-import-header\" checked={hasHeader} disabled={isBusy} onChange={(e) => setHasHeader(e.target.checked)}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id=\"autodial-import-replace\" checked={replace} disabled={isBusy} onChange={(e) => setReplace(e.target.checked)}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"autodial-import-wizard\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}\n          data-testid=\"autodial-import-body\"\n          data-viewport=\"360,768,1440\"\n          data-overflow=\"y\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/CallControlBar/CallControlBar.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "className=\"max-w-md\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/CallCardPopup/CallCardPopup.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "SheetContent",
+        "props": "className={isVip ? styles.vipBorder : undefined}"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": "className={isVip ? styles.vipBorder : undefined}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/autodial/ui/ContactFormModal/ContactFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"autodial-contact-form-modal\""
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={`autodial-contact-primary-${index}`} checked={phone.is_primary} onChange={() => markPrimary(index)}"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={`autodial-contact-field-${field.key}`} checked={values[field.key] === true} onChange={(e) => setValues({ ...values, [field.key]: e.target.checked }) }"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"autodial-contact-form-modal\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}\n          data-testid=\"autodial-contact-form-body\"\n          data-viewport=\"360,768,1440\"\n          data-overflow=\"y\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/autodial/ui/CampaignsTable/CampaignsTable.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/autodial/ui/CampaignFormModal/CampaignFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"autodial-campaign-form-modal\""
+      },
+      {
+        "tag": "TabsList",
+        "props": ""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "key={id} value={id}"
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\"\n        className={cls.dialog}\n        data-testid=\"autodial-campaign-form-modal\"\n       aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}\n              data-testid=\"autodial-campaign-form-body\"\n              data-viewport=\"360,768,1440\"\n              data-overflow=\"y\""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/callcenter/ui/SoftphoneWidget/SoftphoneWidget.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "input",
+        "props": "className={styles.dialInput} value={dialNumber} onChange={(e) => { setDialNumber(e.target.value.replace(/[^\\d+*#]/g, '')); setDialError(null); }} placeholder={t('callcenter.softpho"
+      },
+      {
+        "tag": "TabsList",
+        "props": "aria-label={t('callcenter.softphone.tabsLabel', 'Softphone sections')}"
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"dial\" data-testid=\"softphone-tab-dial\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"journal\" data-testid=\"softphone-tab-journal\""
+      },
+      {
+        "tag": "TabsTrigger",
+        "props": "value=\"contacts\" data-testid=\"softphone-tab-contacts\""
+      },
+      {
+        "tag": "SheetContent",
+        "props": "className={styles.conferenceSheet}"
+      },
+      {
+        "tag": "SheetContent",
+        "props": "className={styles.mobileDialSheet}"
+      }
+    ],
+    "status": "covered",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": "className={styles.conferenceSheet}"
+      },
+      {
+        "tag": "SheetContent",
+        "props": "className={styles.mobileDialSheet}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Использует общую визуальную оболочку Dialog/Sheet. Сохранён существующий специализированный scroll/компактный выбор/подтверждение; ненужные вкладки и карточки не добавлялись.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/autodial/ui/BaseFormModal/BaseFormModal.tsx",
+    "rawRadix": false,
+    "jsx": [
+      {
+        "tag": "DialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"autodial-base-form-modal\""
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={`autodial-field-required-${index}`} checked={field.required} onChange={(e) => updateField(index, { ...field, required: e.target.checked }) }"
+      },
+      {
+        "tag": "Checkbox",
+        "props": "id={`autodial-field-phone-${index}`} checked={field.is_phone || field.type === 'phone'} disabled={field.type === 'phone'} onChange={(e) => updateField(index, { ...field, is_phone: "
+      }
+    ],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" className={cls.dialog} data-testid=\"autodial-base-form-modal\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}\n            data-testid=\"autodial-base-form-body\"\n            data-viewport=\"360,768,1440\"\n            data-overflow=\"y\""
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/ai-agents/ui/AiAgentModal/AiAgentModal.tsx",
+    "rawRadix": false,
+    "jsx": [],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "FormDialogContent",
+        "props": "size=\"large\" aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalTabs",
+        "props": "items={[{id:\"general\", label:t(\"aiAgents.tab.general\")},{id:\"pipeline\", label:t(\"aiAgents.tab.pipeline\")},{id:\"routing\", label:t(\"aiAgents.tab.routing\")}]} value={tab} onChange={(value)=>setTab(value as Tab)} label={t(\"common.sett"
+      },
+      {
+        "tag": "ModalBody",
+        "props": ""
+      },
+      {
+        "tag": "ModalSection",
+        "props": ""
+      },
+      {
+        "tag": "ModalToggle",
+        "props": "label={t(\"aiAgents.field.enabled\")} checked={enabled} onCheckedChange={setEnabled}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/features/cloud-admin/ui/TenantDrawer/TenantDrawer.tsx",
+    "rawRadix": false,
+    "jsx": [],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "SheetContent",
+        "props": "className={cls.surface} aria-describedby={undefined}"
+      },
+      {
+        "tag": "ModalTabs",
+        "props": "items={TABS.map(({key,label})=>({id:key,label}))} value={tab} onChange={(value)=>setTab(value as DrawerTab)} label={t(\"common.settings\")}"
+      },
+      {
+        "tag": "ModalBody",
+        "props": "className={cls.body}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "coverageNote": "Редактор/просмотр перенесён на общую оболочку и отдельную прокрутку; компактные вложенные подтверждения сохранены.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/shared/ui/ModalLayout/ModalLayout.tsx",
+    "jsx": [],
+    "status": "implemented",
+    "currentJsx": [
+      {
+        "tag": "DialogContent",
+        "props": "ref={ref} size={size} data-form-modal data-modal-size={size}\n      className={cn(styles.formModal, className)} {...props}"
+      },
+      {
+        "tag": "SheetContent",
+        "props": "ref={ref} data-form-modal className={cn(styles.formSheet, className)} {...props}"
+      }
+    ],
+    "tooltipTitleDuplicates": [],
+    "rawRadix": false,
+    "coverageNote": "Общая инфраструктура: визуальная оболочка Dialog/Sheet, специализированные подтверждения и навигация. ModalLayout даёт общие компоненты форм.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  },
+  {
+    "file": "packages/frontend/src/widgets/AssistantPanel/AssistantPanel.tsx",
+    "jsx": [],
+    "status": "not-applicable",
+    "currentJsx": [],
+    "tooltipTitleDuplicates": [],
+    "rawRadix": false,
+    "coverageNote": "Немодальная рабочая панель/overlay плана чата. Не форма сущности; её resize/dock сценарий сохранён.",
+    "visual": "tool-unavailable",
+    "nativeAlerts": []
+  }
+]

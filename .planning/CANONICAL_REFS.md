@@ -45,3 +45,5 @@ codex-direct `/root`; [фактический аудит возможносте�
 Текущее поручение маршрутов/контекстов: [PLAN / EXECUTION](ROUTES-CONTEXTS-REFACTOR-PLAN.md),
 codex-direct `/root`, ordered includes + live Asterisk validation; replaces prior
 context UI follow-up as the current assignment in this chat.
+
+Поручение этого чата реализовано, автоматические проверки пройдены, visual tool-unavailable: [унификация модалок / EXECUTION](modal-ui-standardization/EXECUTION.md), [PLAN](modal-ui-standardization/PLAN.md), codex-direct /root, 2026-10-10-r1. Маршруты/контексты остаются baseline завершённого предыдущего scope.

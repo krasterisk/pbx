@@ -1,9 +1,11 @@
+import { toast } from 'react-toastify';
+import { ModalBody, Flex, ModalSection } from '@/shared/ui';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -84,24 +86,26 @@ export const RoleFormModal = () => {
       onClose();
     } catch (err) {
       console.error('Failed to save role:', err);
+      toast.error(t("modal.errors.save"));
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}
-      >
+      <FormDialogContent
+        className={styles.dialogContent}
+       aria-describedby={undefined}>
         <DialogHeader className={`shrink-0 ${styles.header}`}>
           <DialogTitle>
             {isEditing ? t('roles.edit') : t('roles.add')}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className={styles.form} autoComplete="off">
-          <div className={styles.formBody}>
-            <VStack gap="16" max>
-              <VStack gap="8" max className={styles.field}>
+        <Flex as="form" direction="column" align="stretch" onSubmit={handleSubmit} className={styles.form} autoComplete="off">
+          <ModalBody className={styles.formBody}>
+<ModalSection>
+            <VStack align="stretch" gap="16" max>
+              <VStack align="stretch" gap="8" max className={styles.field}>
                 <Label htmlFor="role-name" className={styles.fieldLabel}>
                   {t('roles.name')} *
                 </Label>
@@ -113,7 +117,7 @@ export const RoleFormModal = () => {
                 />
               </VStack>
 
-              <VStack gap="8" max className={styles.field}>
+              <VStack align="stretch" gap="8" max className={styles.field}>
                 <Label htmlFor="role-comment" className={styles.fieldLabel}>
                   {t('roles.comment')}
                 </Label>
@@ -124,7 +128,7 @@ export const RoleFormModal = () => {
                 />
               </VStack>
 
-              <VStack
+              <VStack align="stretch"
                 gap={grantsOpen ? '12' : '0'}
                 max
                 className={styles.grantsGroup}
@@ -149,14 +153,14 @@ export const RoleFormModal = () => {
                 </HStack>
 
                 {grantsOpen && (
-                  <VStack gap="12" max id="role-grants-editor" data-testid="role-grants-editor">
+                  <VStack align="stretch" gap="12" max id="role-grants-editor" data-testid="role-grants-editor">
                     {BASELINE_MODULES.map((mod) => {
                       const pageIds = mod.pages.map((p) => p.id);
                       const allChecked =
                         pageIds.length > 0 &&
                         pageIds.every((id) => isPageGranted(grants, mod.code, id));
                       return (
-                        <VStack key={mod.code} gap="8" max className={styles.moduleBlock} data-module={mod.code}>
+                        <VStack align="stretch" key={mod.code} gap="8" max className={styles.moduleBlock} data-module={mod.code}>
                           <HStack
                             justify="between"
                             align="center"
@@ -213,7 +217,8 @@ export const RoleFormModal = () => {
                 )}
               </VStack>
             </VStack>
-          </div>
+          </ModalSection>
+</ModalBody>
 
           <DialogFooter className={styles.footer}>
             <HStack gap="8" justify="end" max>
@@ -226,8 +231,8 @@ export const RoleFormModal = () => {
               </Button>
             </HStack>
           </DialogFooter>
-        </form>
-      </DialogContent>
+        </Flex>
+      </FormDialogContent>
     </Dialog>
   );
 };

@@ -1,3 +1,4 @@
-.dialog {
-  /* Add component-specific styles here if needed */
-}
+.surface { border-radius: var(--radius-xl); background: var(--color-card); color: var(--color-foreground); box-shadow: var(--shadow-md); }
+.header { min-width: 0; flex-shrink: 0; }
+.title { font-size: 1.25rem; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.footer { flex-shrink: 0; gap: 8px; }

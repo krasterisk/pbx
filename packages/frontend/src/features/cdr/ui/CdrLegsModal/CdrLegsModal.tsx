@@ -1,7 +1,8 @@
+import { ModalBody } from '@/shared/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, Table, TableBody, TableCell,
+  Dialog, FormDialogContent, DialogHeader, DialogTitle, Table, TableBody, TableCell,
   TableHead, TableHeader, TableRow, Text, RecordingButton, ScrollArea,
 } from '@/shared/ui';
 import { useGetCdrTimelineQuery, CDR_DISPOSITION_LABELS } from '@/shared/api/endpoints/cdrApi';
@@ -33,11 +34,12 @@ export const CdrLegsModal = memo(({ linkedid, isOpen, onClose }: CdrLegsModalPro
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent size="3xl">
+      <FormDialogContent size="3xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{t('cdr.legs.details', 'Детализация звонка')}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh]">
+        <ModalBody>
+<ScrollArea className="max-h-[70vh]">
           {isLoading ? <Text variant="muted">{t('common.loading', 'Загрузка...')}</Text> : null}
           {isError ? <Text variant="muted">{t('cdr.legs.loadError', 'Не удалось загрузить историю звонка')}</Text> : null}
           {data ? (
@@ -92,7 +94,9 @@ export const CdrLegsModal = memo(({ linkedid, isOpen, onClose }: CdrLegsModalPro
             </>
           ) : null}
         </ScrollArea>
-      </DialogContent>
+
+</ModalBody>
+</FormDialogContent>
     </Dialog>
   );
 });

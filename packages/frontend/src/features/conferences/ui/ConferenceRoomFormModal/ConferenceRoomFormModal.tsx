@@ -1,10 +1,13 @@
+import { DialogContent } from '@/shared/ui';
+import { ModalTabs } from '@/shared/ui';
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
   Button,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -230,39 +233,25 @@ export const ConferenceRoomFormModal = memo(() => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
-      <DialogContent size="large">
+      <FormDialogContent size="large">
         <DialogHeader>
           <DialogTitle className={cls.title}>{title}</DialogTitle>
           <DialogDescription className={cls.srOnly}>{title}</DialogDescription>
         </DialogHeader>
 
-        <div className={cls.tabsWrap}>
-          <div className={cls.tabsRow} role="tablist">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={activeTab === tab.id ? cls.tabActive : cls.tab}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <ModalTabs items={tabs} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={title} />
 
-        <div className={cls.scrollBody}>
+        <ModalBody className={cls.scrollBody}>
+<ModalSection>
           {needsRoom && isFetching ? (
-            <VStack gap="8" max>
+            <VStack align="stretch" gap="8" max>
               <Skeleton className={cls.empty} />
               <Skeleton className={cls.empty} />
             </VStack>
           ) : null}
 
           {activeTab === 'general' && !isFetching ? (
-            <VStack gap="16" max>
+            <VStack align="stretch" gap="16" max>
               <div className={cls.field}>
                 <HStack gap="4" align="center">
                   <Label htmlFor="conference-room-number">{t('conferences.number', 'Номер комнаты')}</Label>
@@ -330,7 +319,7 @@ export const ConferenceRoomFormModal = memo(() => {
           ) : null}
 
           {activeTab === 'access' && !isFetching ? (
-            <VStack gap="16" max>
+            <VStack align="stretch" gap="16" max>
               <div className={cls.field}>
                 <HStack gap="4" align="center">
                   <Label htmlFor="conference-room-strictness">{t('conferences.strictness', 'Строгость входа')}</Label>
@@ -392,7 +381,7 @@ export const ConferenceRoomFormModal = memo(() => {
           ) : null}
 
           {activeTab === 'roles' && !isFetching ? (
-            <VStack gap="16" max>
+            <VStack align="stretch" gap="16" max>
               <div className={cls.field}>
                 <HStack gap="4" align="center">
                   <Label>{t('conferences.tabRoles', 'Роли')}</Label>
@@ -411,7 +400,7 @@ export const ConferenceRoomFormModal = memo(() => {
           ) : null}
 
           {activeTab === 'record' && !isFetching ? (
-            <VStack gap="16" max>
+            <VStack align="stretch" gap="16" max>
               <div className={cls.field}>
                 <HStack gap="4" align="center">
                   <Label htmlFor="conference-room-record">{t('conferences.tabRecord', 'Запись')}</Label>
@@ -442,7 +431,7 @@ export const ConferenceRoomFormModal = memo(() => {
           ) : null}
 
           {activeTab === 'links' && isEdit && selectedUid != null ? (
-            <VStack gap="16" max>
+            <VStack align="stretch" gap="16" max>
               {links.length === 0 ? (
                 <VStack gap="12" align="center" className={cls.empty}>
                   <Text>{t('conferences.links.noLinks')}</Text>
@@ -466,7 +455,7 @@ export const ConferenceRoomFormModal = memo(() => {
                     const label = link.invite_name || t('conferences.links.shared');
                     return (
                       <HStack key={link.uid} justify="between" align="center" max className={cls.linkRow}>
-                        <VStack gap="4">
+                        <VStack align="stretch" gap="4">
                           <Text>{label}</Text>
                           {link.expires_at ? (
                             <Text variant="muted">
@@ -505,7 +494,8 @@ export const ConferenceRoomFormModal = memo(() => {
           {activeTab === 'history' && isEdit && selectedUid != null ? (
             <ConferenceHistoryTab roomUid={selectedUid} />
           ) : null}
-        </div>
+        </ModalSection>
+</ModalBody>
 
         <DialogFooter className={cls.footer}>
           <Button type="button" variant="outline" onClick={close}>
@@ -517,7 +507,7 @@ export const ConferenceRoomFormModal = memo(() => {
               : t('conferences.createRoom', 'Создать комнату')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
 
       <Dialog open={Boolean(pendingRevoke)} onOpenChange={(open) => !open && setPendingRevoke(null)}>
         <DialogContent>

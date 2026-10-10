@@ -1,10 +1,11 @@
+import { ModalBody, Flex, ModalSection } from '@/shared/ui';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import {
   Button,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -286,9 +287,9 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
+      <FormDialogContent
         aria-describedby={undefined}
-        className={`flex h-[min(44rem,90dvh)] max-h-[min(44rem,90dvh)] flex-col gap-0 overflow-hidden ${styles.dialogContent}`}
+        className={styles.dialogContent}
       >
         <DialogHeader className={styles.header}>
           <DialogTitle>
@@ -296,10 +297,11 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={(event) => void handleSubmit(event)} className={styles.form} autoComplete="off">
-          <div className={styles.formBody}>
-            <VStack gap="16" max>
-              <VStack gap="8" max className={styles.field}>
+        <Flex as="form" direction="column" align="stretch" onSubmit={(event) => void handleSubmit(event)} className={styles.form} autoComplete="off">
+          <ModalBody className={styles.formBody}>
+<ModalSection>
+            <VStack align="stretch" gap="16" max>
+              <VStack align="stretch" gap="8" max className={styles.field}>
                 <Label htmlFor="ai-provider-name" className={styles.fieldLabel}>
                   {t('aiProviders.field.name')} *
                 </Label>
@@ -311,7 +313,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
               </VStack>
 
               {!pinnedSpeechPage && (
-                <VStack gap="8" max className={styles.field}>
+                <VStack align="stretch" gap="8" max className={styles.field}>
                   <HStack gap="4" align="center">
                     <Label htmlFor="ai-provider-capability" className={styles.fieldLabel}>
                       {t('aiProviders.field.capabilities')}
@@ -331,7 +333,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
               )}
 
               <HStack gap="16" className={speechMode ? undefined : styles.row} max>
-                <VStack gap="8" max className={styles.field}>
+                <VStack align="stretch" gap="8" max className={styles.field}>
                   <HStack gap="4" align="center">
                     <Label htmlFor="ai-provider-vendor" className={styles.fieldLabel}>
                       {t('aiProviders.field.vendor')}
@@ -373,7 +375,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
                   )}
                 </VStack>
                 {!speechMode && (
-                  <VStack gap="8" max className={styles.field}>
+                  <VStack align="stretch" gap="8" max className={styles.field}>
                     <HStack gap="4" align="center">
                       <Label htmlFor="ai-provider-kind" className={styles.fieldLabel}>
                         {t('aiProviders.field.kind')}
@@ -393,7 +395,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
                 )}
               </HStack>
 
-              <VStack gap="8" max className={styles.field}>
+              <VStack align="stretch" gap="8" max className={styles.field}>
                 <HStack gap="4" align="center">
                   <Label htmlFor="ai-provider-endpoint" className={styles.fieldLabel}>
                     {t('aiProviders.field.endpoint')} *
@@ -409,7 +411,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
               </VStack>
 
               {(!speechMode || customSpeech) && (
-                <VStack gap="8" max className={styles.field}>
+                <VStack align="stretch" gap="8" max className={styles.field}>
                   <HStack gap="4" align="center">
                     <Label htmlFor="ai-provider-auth" className={styles.fieldLabel}>
                       {t('aiProviders.field.authType')}
@@ -429,7 +431,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
               )}
 
               {(speechMode && !customSpeech || authType === 'bearer') && (
-                <VStack gap="8" max className={styles.field}>
+                <VStack align="stretch" gap="8" max className={styles.field}>
                   <HStack gap="4" align="center">
                     <Label htmlFor="ai-provider-key" className={styles.fieldLabel}>
                       {t('aiProviders.field.apiKey')}
@@ -447,7 +449,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
               )}
 
               {(!speechMode || customSpeech) && authType === 'custom' && (
-                <VStack gap="8" max className={styles.field}>
+                <VStack align="stretch" gap="8" max className={styles.field}>
                   <Label className={styles.fieldLabel}>{t('webhookAuth.customHeaders')}</Label>
                   {authHeaders.map((header, index) => (
                     <HStack key={index} gap="8" align="center" max>
@@ -508,7 +510,7 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
               />
 
               {cap === 'llm' && (
-                <VStack gap="8" max className={styles.field}>
+                <VStack align="stretch" gap="8" max className={styles.field}>
                   <HStack gap="4" align="center">
                     <Label htmlFor="ai-provider-model" className={styles.fieldLabel}>
                       {t('aiProviders.field.model')}
@@ -536,7 +538,8 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
                 <Text className={styles.fieldError} role="alert">{error}</Text>
               )}
             </VStack>
-          </div>
+          </ModalSection>
+</ModalBody>
 
           <DialogFooter className={styles.footer}>
             <HStack gap="8" justify="end" max>
@@ -549,8 +552,8 @@ export function AiProviderModal({ provider, onClose, scope = 'tenant', requiredC
               </Button>
             </HStack>
           </DialogFooter>
-        </form>
-      </DialogContent>
+        </Flex>
+      </FormDialogContent>
     </Dialog>
   );
 }

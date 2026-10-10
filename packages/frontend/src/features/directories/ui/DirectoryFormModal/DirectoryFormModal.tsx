@@ -1,3 +1,4 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DirectoryKeyNormalization, IDirectory } from '@krasterisk/shared';
@@ -9,7 +10,7 @@ import {
   InfoTooltip,
   RadioCards,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -371,35 +372,17 @@ export const DirectoryFormModal = memo(() => {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent size="large">
+      <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <div
-          className={cls.formBody}
-          data-testid="directory-form-body"
-          data-viewport="360,768,1440"
-          data-overflow="y"
-        >
-          <VStack gap="16" max>
-            {referenceLocations.length > 0 && (
-              <VStack gap="8" className={cls.referenceError} data-testid="directory-reference-error">
-                <Text variant="error">
-                  {t('directories.referenceError', 'This field is used in routes and cannot be deleted.')}
-                </Text>
-                {referenceLocations.map((location) => (
-                  <Text key={location} variant="small">{location}</Text>
-                ))}
-              </VStack>
-            )}
-
-            <Tabs
+        <Tabs
               value={tab}
               onValueChange={(value) => setTab(value as DirectoryTab)}
               className={cls.tabs}
             >
-              <TabsList aria-label={title}>
+<TabsList aria-label={title}>
                 <TabsTrigger value="general" data-testid="directory-tab-general">
                   {t('directories.tabs.general', 'General')}
                 </TabsTrigger>
@@ -420,11 +403,27 @@ export const DirectoryFormModal = memo(() => {
                   </TabsTrigger>
                 )}
               </TabsList>
-
-              <TabsContent value="general">
-                <VStack gap="16" max>
+<ModalBody
+          className={cls.formBody}
+          data-testid="directory-form-body"
+          data-viewport="360,768,1440"
+          data-overflow="y"
+        >
+{referenceLocations.length > 0 && (
+              <VStack align="stretch" gap="8" className={cls.referenceError} data-testid="directory-reference-error">
+                <Text variant="error">
+                  {t('directories.referenceError', 'This field is used in routes and cannot be deleted.')}
+                </Text>
+                {referenceLocations.map((location) => (
+                  <Text key={location} variant="small">{location}</Text>
+                ))}
+              </VStack>
+            )}
+<TabsContent value="general">
+<ModalSection>
+                <VStack align="stretch" gap="16" max>
                   <HStack className={cls.formGrid} max>
-                    <VStack gap="4" className={cls.field}>
+                    <VStack align="stretch" gap="4" className={cls.field}>
                       <Label htmlFor="directory-name">{t('directories.name', 'Name')} *</Label>
                       <Input
                         id="directory-name"
@@ -434,7 +433,7 @@ export const DirectoryFormModal = memo(() => {
                         autoFocus
                       />
                     </VStack>
-                    <VStack gap="4" className={cls.field}>
+                    <VStack align="stretch" gap="4" className={cls.field}>
                       <Label htmlFor="directory-description">{t('directories.description', 'Description')}</Label>
                       <Input
                         id="directory-description"
@@ -444,7 +443,7 @@ export const DirectoryFormModal = memo(() => {
                     </VStack>
                   </HStack>
 
-                  <VStack gap="8" max className={cls.normalization} data-testid="directory-normalization">
+                  <VStack align="stretch" gap="8" max className={cls.normalization} data-testid="directory-normalization">
                     <HStack gap="4" align="center">
                       <Text variant="h4">{t('directories.keyNormalization', 'Key comparison')}</Text>
                       <InfoTooltip text={t('directories.keyNormalizationHint', 'Applies to exact numbers only. Patterns that start with _ are not rewritten.')} />
@@ -485,9 +484,10 @@ export const DirectoryFormModal = memo(() => {
                     />
                   </VStack>
                 </VStack>
-              </TabsContent>
-
-              <TabsContent value="fields">
+              </ModalSection>
+</TabsContent>
+<TabsContent value="fields">
+<ModalSection>
                 <DirectorySchemaEditor
                   fields={draft.fields}
                   lookupFieldKey={draft.lookupFieldKey}
@@ -495,10 +495,11 @@ export const DirectoryFormModal = memo(() => {
                   onLookupFieldKeyChange={handleLookupFieldKeyChange}
                   lockedKeys={lockedKeys}
                 />
-              </TabsContent>
-
-              <TabsContent value="records">
-                <VStack gap="16" max>
+              </ModalSection>
+</TabsContent>
+<TabsContent value="records">
+<ModalSection>
+                <VStack align="stretch" gap="16" max>
                   <DirectoryCsvPanel
                     directoryUid={savedUid}
                     directoryName={draft.name}
@@ -515,27 +516,29 @@ export const DirectoryFormModal = memo(() => {
                     onRecordsChange={handleRecordsChange}
                   />
                 </VStack>
-              </TabsContent>
-
-              {savedUid && (
+              </ModalSection>
+</TabsContent>
+{savedUid && (
                 <TabsContent value="test">
+<ModalSection>
                   <DirectoryLookupTest directoryUid={savedUid} fieldUids={fieldUids} />
-                </TabsContent>
+                </ModalSection>
+</TabsContent>
               )}
-
-              {savedUid && (
+{savedUid && (
                 <TabsContent value="usage">
+<ModalSection>
                   <UsageTab kind="directory" uid={savedUid} />
-                </TabsContent>
+                </ModalSection>
+</TabsContent>
               )}
-            </Tabs>
-          </VStack>
-        </div>
+</ModalBody>
+</Tabs>
 
         <DialogFooter className={cls.footer} data-testid="directory-form-footer">
-          <VStack gap="8" max>
+          <VStack align="stretch" gap="8" max>
             {!canSave && (
-              <VStack gap="4" max data-testid="directory-save-blocked">
+              <VStack align="stretch" gap="4" max data-testid="directory-save-blocked">
                 <Text variant="muted">{t('directories.saveBlocked.title', 'Save is unavailable')}</Text>
                 {blockingReasons.map((reason) => (
                   <Text key={reason} variant="small">{reason}</Text>
@@ -560,7 +563,7 @@ export const DirectoryFormModal = memo(() => {
             </HStack>
           </VStack>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

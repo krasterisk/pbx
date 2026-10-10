@@ -1,3 +1,4 @@
+import { FormDialogContent, ModalBody, ModalSection } from "@/shared/ui";
 import { memo, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Text, Input, Label, Checkbox } from '@/shared/ui';
@@ -565,7 +566,7 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
               <VStack className={cls.testSection} id={`test-panel-${list.uid}`}>
                 <Text variant="h4">{t('voiceRobots.dataLists.testSearch', 'Тест поиска')}</Text>
                 <HStack className={cls.testRow}>
-                  <VStack>
+                  <VStack align="stretch">
                     <Label>{t('voiceRobots.dataLists.testQuery', 'Запрос')}</Label>
                     <Input
                       value={testQuery}
@@ -573,7 +574,7 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
                       placeholder={t('voiceRobots.dataLists.testQueryPlaceholder', 'Введите текст для поиска...')}
                     />
                   </VStack>
-                  <VStack>
+                  <VStack align="stretch">
                     <Label>{t('voiceRobots.dataLists.returnField', 'Поле результата')}</Label>
                     <Input
                       value={testField}
@@ -635,7 +636,7 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
 
       {/* ─── Create/Edit Dialog ─── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <FormDialogContent size="large" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
               {editingList
@@ -644,21 +645,16 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
             </DialogTitle>
           </DialogHeader>
 
-          <VStack className={cls.formFields}>
-            {/* Name */}
-            <VStack gap="4">
+          <ModalBody>
+<ModalSection title={t('modal.sections.identity')}><VStack align="stretch" gap="4">
               <Label>{t('voiceRobots.dataLists.name', 'Название')}</Label>
               <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder={t('voiceRobots.dataLists.namePlaceholder', 'Менеджеры, Районы...')} />
             </VStack>
-
-            {/* Description */}
-            <VStack gap="4">
+<VStack align="stretch" gap="4">
               <Label>{t('voiceRobots.dataLists.description', 'Описание')}</Label>
               <Input value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder={t('voiceRobots.dataLists.descriptionPlaceholder', 'Необязательно')} />
-            </VStack>
-
-            {/* Columns */}
-            <VStack className={cls.columnsSection}>
+            </VStack></ModalSection>
+<ModalSection><VStack align="stretch" className={cls.columnsSection}>
               <HStack justify="between" max>
                 <Label>{t('voiceRobots.dataLists.columns', 'Колонки')}</Label>
                 <Button variant="ghost" size="sm" onClick={addColumn}>
@@ -693,10 +689,8 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
                   </Button>
                 </HStack>
               ))}
-            </VStack>
-
-            {/* Data Rows */}
-            <VStack className={cls.rowsSection}>
+            </VStack></ModalSection>
+<ModalSection><VStack align="stretch" className={cls.rowsSection}>
               <HStack justify="between" max>
                 <Label>{t('voiceRobots.dataLists.rows', 'Данные')} ({formRows.length})</Label>
                 <Button variant="ghost" size="sm" onClick={addRow} disabled={resolvedColumns.length === 0}>
@@ -706,7 +700,7 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
               </HStack>
 
               {resolvedColumns.length > 0 && formRows.length > 0 && (
-                <VStack className={cls.tableWrapper}>
+                <VStack align="stretch" className={cls.tableWrapper}>
                   <table className={cls.dataTable}>
                     <thead>
                       <tr>
@@ -752,8 +746,8 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
                   {t('voiceRobots.dataLists.addColumnsFirst', 'Сначала добавьте колонки')}
                 </Text>
               )}
-            </VStack>
-          </VStack>
+            </VStack></ModalSection>
+</ModalBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -763,7 +757,7 @@ export const DataListEditor = memo(({ robotId }: DataListEditorProps) => {
               {t('common.save', 'Сохранить')}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
     </VStack>
   );

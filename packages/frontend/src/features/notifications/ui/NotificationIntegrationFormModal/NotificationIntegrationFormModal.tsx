@@ -1,10 +1,12 @@
+import { toast } from 'react-toastify';
+import { ModalBody } from '@/shared/ui';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NotificationChannel } from '@krasterisk/shared';
 import { packNotificationDestinations, readNotificationDestinations } from '@krasterisk/shared';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -256,7 +258,7 @@ export const NotificationIntegrationFormModal = () => {
 
     const { config, credentials, error } = buildIntegrationSubmitPayload(channel, fieldValues, lists);
     if (error === 'payload_template_invalid') {
-      alert(t('notifications.payloadTemplateInvalid'));
+      toast.error(t('notifications.payloadTemplateInvalid'));
       return;
     }
     const isCreateMode = mode === 'create' || mode === 'copy';
@@ -296,12 +298,8 @@ export const NotificationIntegrationFormModal = () => {
         }).unwrap();
       }
       handleClose();
-    } catch (e: unknown) {
-      const message =
-        e && typeof e === 'object' && 'data' in e
-          ? String((e as { data?: { message?: string } }).data?.message ?? 'Error')
-          : 'Error';
-      alert(message);
+    } catch {
+      toast.error(t('modal.errors.save'));
     }
   };
 
@@ -317,12 +315,13 @@ export const NotificationIntegrationFormModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent size="xl">
+      <FormDialogContent size="xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{modalTitle}</DialogTitle>
         </DialogHeader>
 
-        {mode === 'edit' && selectedUid != null && (
+        <ModalBody>
+{mode === 'edit' && selectedUid != null && (
           <div className="border-b border-border/50 mb-6">
             <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {[
@@ -350,8 +349,8 @@ export const NotificationIntegrationFormModal = () => {
         {activeTab === 'usage' && mode === 'edit' && selectedUid != null ? (
           <UsageTab kind="integration" uid={selectedUid} />
         ) : (
-        <VStack gap="16" className="py-2">
-          <VStack gap="4">
+        <VStack align="stretch" gap="16" className="py-2">
+          <VStack align="stretch" gap="4">
             <Label>{t('notifications.name')}</Label>
             <Input
               value={name}
@@ -360,7 +359,7 @@ export const NotificationIntegrationFormModal = () => {
             />
           </VStack>
 
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <div className={cls.fieldLabel}>
               <Label>{t('notifications.channel')}</Label>
             </div>
@@ -381,7 +380,7 @@ export const NotificationIntegrationFormModal = () => {
           </VStack>
 
           {fields.map((field) => (
-            <VStack key={field.key} gap="4" className={cls.fieldRow}>
+            <VStack align="stretch" key={field.key} gap="4" className={cls.fieldRow}>
               <div className={cls.fieldLabel}>
                 <Label>{t(field.labelKey)}</Label>
                 <InfoTooltip text={t(field.hintKey)} />
@@ -395,7 +394,7 @@ export const NotificationIntegrationFormModal = () => {
                   spellCheck={false}
                 />
               ) : field.multiple ? (
-                <VStack gap="8">
+                <VStack align="stretch" gap="8">
                   {(lists[field.key]?.length ? lists[field.key] : ['']).map((value, index, rows) => (
                     <HStack key={`${field.key}-${index}`} gap="8" align="center">
                       <Input
@@ -451,7 +450,7 @@ export const NotificationIntegrationFormModal = () => {
           ))}
 
           {channel === 'webhook' && (
-            <VStack gap="12" className={cls.fieldRow}>
+            <VStack align="stretch" gap="12" className={cls.fieldRow}>
               <div className={cls.fieldLabel}>
                 <Label>{t('notifications.webhookAuthTitle', 'Авторизация вебхука')}</Label>
                 <InfoTooltip text={t('notifications.webhookAuthHint', 'Заголовки авторизации хранятся в зашифрованном виде и добавляются сервером при отправке запроса на ваш URL.')} />
@@ -472,7 +471,9 @@ export const NotificationIntegrationFormModal = () => {
         </VStack>
         )}
 
-        <DialogFooter className="mt-4">
+
+</ModalBody>
+<DialogFooter className="mt-4">
           <HStack gap="8" justify="end">
             <Button variant="outline" onClick={handleClose} disabled={isLoading}>
               {t('common.cancel')}
@@ -482,7 +483,7 @@ export const NotificationIntegrationFormModal = () => {
             </Button>
           </HStack>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 };

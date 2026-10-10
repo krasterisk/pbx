@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { cva, type VariantProps } from "class-variance-authority";
+import styles from "./Dialog.module.scss";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -49,7 +50,7 @@ const dialogContentVariants = cva(
   },
 );
 
-interface DialogContentProps
+export interface DialogContentProps
   extends
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
     VariantProps<typeof dialogContentVariants> {}
@@ -84,7 +85,8 @@ const DialogContent = React.forwardRef<
         <DialogOverlay />
         <DialogPrimitive.Content
           ref={ref}
-          className={cn(dialogContentVariants({ size }), className)}
+          data-modal-shell
+          className={cn(dialogContentVariants({ size }), styles.surface, className)}
           onPointerDownOutside={(e) => {
             if (isPortaledSelectTarget(e.target)) e.preventDefault();
             onPointerDownOutside?.(e);
@@ -116,8 +118,10 @@ const DialogHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
+    data-modal-slot="header"
     className={cn(
       "flex flex-col space-y-1.5 text-center sm:text-left",
+      styles.header,
       className,
     )}
     {...props}
@@ -130,8 +134,10 @@ const DialogFooter = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
+    data-modal-slot="footer"
     className={cn(
       "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      styles.footer,
       className,
     )}
     {...props}
@@ -147,6 +153,7 @@ const DialogTitle = React.forwardRef<
     ref={ref}
     className={cn(
       "text-lg font-semibold leading-none tracking-tight",
+      styles.title,
       className,
     )}
     {...props}

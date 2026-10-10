@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { IvrFormModal } from './IvrFormModal';
 import type { IIvr } from '@/entities/ivr';
@@ -87,7 +87,7 @@ describe('IvrFormModal flowchart tab (D-05)', () => {
   it('appends Schema before Usage and shows digit branches from the draft', () => {
     render(<IvrFormModal isOpen onClose={vi.fn()} ivr={ivr} mode="edit" />);
 
-    const schema = screen.getByRole('tab', { name: 'Схема' });
+    const schema = screen.getByRole('button', { name: 'Схема' });
     expect(schema).toBeInTheDocument();
     fireEvent.click(schema);
 
@@ -104,12 +104,12 @@ describe('IvrFormModal usage tab (D-48 / Surface O)', () => {
   it('appends Usage last in edit mode only', () => {
     const { rerender } = render(<IvrFormModal isOpen onClose={vi.fn()} ivr={ivr} mode="edit" />);
 
-    const tabs = screen.getAllByRole('tab');
+    const tabs = within(screen.getByRole('navigation')).getAllByRole('button');
     expect(tabs[tabs.length - 1]).toHaveTextContent('Где используется');
     fireEvent.click(tabs[tabs.length - 1]);
     expect(screen.getByTestId('usage-tab')).toBeInTheDocument();
 
     rerender(<IvrFormModal isOpen onClose={vi.fn()} ivr={null} mode="create" />);
-    expect(screen.queryByRole('tab', { name: 'Где используется' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Где используется' })).toBeNull();
   });
 });

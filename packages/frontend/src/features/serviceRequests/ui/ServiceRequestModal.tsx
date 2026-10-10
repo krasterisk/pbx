@@ -1,9 +1,10 @@
+import { ModalBody } from '@/shared/ui';
 import { useState, useEffect, useMemo } from 'react';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -257,7 +258,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent size="large" className={`max-h-[90vh] flex flex-col ${isMobile ? 'h-[100dvh] max-h-[100dvh] min-h-0 rounded-none p-4' : ''}`} aria-describedby={undefined}>
+      <FormDialogContent size="large" className={isMobile ? 'h-[100dvh] max-h-[100dvh] min-h-0 rounded-none p-4' : ''} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
@@ -270,7 +271,8 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
         </DialogHeader>
 
         {/* ═══ Tabs menu (FSD standard) ═══ */}
-        <VStack className="border-b border-border/50 mb-0 shrink-0" max>
+        <ModalBody>
+<VStack align="stretch" className="border-b border-border/50 mb-0 shrink-0" max>
           <HStack gap="8" className="-mb-[1px] overflow-x-auto">
             {tabs.map((tab) => (
               <Button
@@ -282,7 +284,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                 <tab.icon className="w-4 h-4 mr-2" />
                 <Text variant="small" className="font-medium">{tab.label}</Text>
                 {activeTab === tab.key && (
-                  <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
+                  <VStack align="stretch" className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
                 )}
               </Button>
             ))}
@@ -291,7 +293,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
 
         {/* ═══ TAB 1: Заявка ═══ */}
         {activeTab === 'request' && (
-          <VStack className="flex-1 overflow-y-auto pr-1 pt-4 gap-5">
+          <VStack align="stretch" className="flex-1 overflow-y-auto pr-1 pt-4 gap-5">
 
             {isEdit && record?.call_uniqueid && (
               <HStack gap="8" align="center" className="p-3 rounded-lg border border-border/50 bg-muted/20">
@@ -302,10 +304,10 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
             )}
 
             {/* Контрагент - 3 per row responsive */}
-            <VStack gap="8">
+            <VStack align="stretch" gap="8">
               <SectionHeader icon={User} title={t('serviceRequests.section.counterparty', 'Контрагент')} />
               <HStack gap="12" className="flex-wrap">
-                <VStack gap="4" className={fieldClass}>
+                <VStack align="stretch" gap="4" className={fieldClass}>
                   <Label className="text-xs">{t('serviceRequests.counterpartyType', 'Тип контрагента')}</Label>
                   <Select value={counterpartyType} onChange={(e) => setCounterpartyType(e.target.value)}>
                     {COUNTERPARTY_TYPE_OPTIONS.map((opt) => (
@@ -313,7 +315,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     ))}
                   </Select>
                 </VStack>
-                <VStack gap="4" className={fieldClass}>
+                <VStack align="stretch" gap="4" className={fieldClass}>
                   <RequiredLabel>{counterpartyType === 'individual' ? t('serviceRequests.fullName', 'ФИО') : t('serviceRequests.companyName', 'Наименование')}</RequiredLabel>
                   <Input
                     value={counterpartyName}
@@ -321,13 +323,13 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     placeholder={counterpartyType === 'individual' ? t('serviceRequests.placeholder.fullName', 'Иванов Иван Иванович') : t('serviceRequests.placeholder.companyName', 'ООО «Компания»')}
                   />
                 </VStack>
-                <VStack gap="4" className={fieldClass}>
+                <VStack align="stretch" gap="4" className={fieldClass}>
                   <Label className="text-xs">{counterpartyType === 'individual' ? t('serviceRequests.personalAccount', 'Лицевой счёт') : t('serviceRequests.inn', 'ИНН')}</Label>
                   <Input value={accountOrInn} onChange={(e) => setAccountOrInn(e.target.value)} />
                 </VStack>
               </HStack>
               <HStack gap="12" className="flex-wrap">
-                <VStack gap="4" className={fieldClass}>
+                <VStack align="stretch" gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.phone', 'Телефон')}</RequiredLabel>
                   <HStack className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -340,7 +342,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     />
                   </HStack>
                 </VStack>
-                <VStack gap="4" className={fieldClass}>
+                <VStack align="stretch" gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.topic', 'Тема обращения')}</RequiredLabel>
                   <Select value={topic} onChange={(e) => setTopic(e.target.value)}>
                     <option value="">{t('serviceRequests.placeholder.selectTopic', 'Выберите тему')}</option>
@@ -353,10 +355,10 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
             </VStack>
 
             {/* Территория - 3 per row responsive */}
-            <VStack gap="8">
+            <VStack align="stretch" gap="8">
               <SectionHeader icon={MapPin} title={t('serviceRequests.section.territory', 'Территория')} />
               <HStack gap="12" className="flex-wrap">
-                <VStack gap="4" className={fieldClass}>
+                <VStack align="stretch" gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.territorialZone', 'Территориальная зона')}</RequiredLabel>
                   <Select value={territorialZone} onChange={(e) => setTerritorialZone(e.target.value)}>
                     <option value="">{t('serviceRequests.placeholder.selectZone', 'Выберите зону')}</option>
@@ -365,7 +367,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     ))}
                   </Select>
                 </VStack>
-                <VStack gap="4" className={fieldClass}>
+                <VStack align="stretch" gap="4" className={fieldClass}>
                   <RequiredLabel>{t('serviceRequests.district', 'Район')}</RequiredLabel>
                   <Select value={district} onChange={(e) => setDistrict(e.target.value)} disabled={!territorialZone}>
                     <option value="">{territorialZone ? t('serviceRequests.placeholder.selectDistrict', 'Выберите район') : t('serviceRequests.placeholder.selectZoneFirst', '← Сначала выберите зону')}</option>
@@ -374,13 +376,13 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                     ))}
                   </Select>
                 </VStack>
-                <VStack gap="4" className={fieldClass}>
+                <VStack align="stretch" gap="4" className={fieldClass}>
                   <Label className="text-xs">{t('serviceRequests.locality', 'Населённый пункт')}</Label>
                   <Input value={locality} onChange={(e) => setLocality(e.target.value)} placeholder={t('serviceRequests.placeholder.locality', 'Красноярск')} />
                 </VStack>
               </HStack>
               <HStack gap="12" className="flex-wrap">
-                <VStack gap="4" className="flex-1 min-w-[200px]">
+                <VStack align="stretch" gap="4" className="flex-1 min-w-[200px]">
                   <RequiredLabel>{t('serviceRequests.address', 'Адрес')}</RequiredLabel>
                   <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t('serviceRequests.placeholder.address', 'ул. Ленина, д. 1, кв. 10')} />
                 </VStack>
@@ -388,9 +390,9 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
             </VStack>
 
             {/* Суть обращения - full width */}
-            <VStack gap="8">
+            <VStack align="stretch" gap="8">
               <SectionHeader icon={MessageSquare} title={t('serviceRequests.section.requestDetails', 'Суть обращения')} />
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label className="text-xs">{t('serviceRequests.comment', 'Комментарий к заявке')}</Label>
                 <Textarea
                   value={comment}
@@ -405,7 +407,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
 
         {/* ═══ TAB 2: Комментарии производства ═══ */}
         {activeTab === 'production' && (
-          <VStack className="flex-1 overflow-y-auto pr-1 pt-4 gap-5">
+          <VStack align="stretch" className="flex-1 overflow-y-auto pr-1 pt-4 gap-5">
 
             {/* Номер заявки + Статус */}
             <HStack gap="12" align="end" className="flex-wrap">
@@ -415,7 +417,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
                   <Text className="font-semibold text-primary">{record.request_number}</Text>
                 </HStack>
               )}
-              <VStack gap="4" className="min-w-[200px] flex-1">
+              <VStack align="stretch" gap="4" className="min-w-[200px] flex-1">
                 <Label className="text-xs">{t('serviceRequests.status.label', 'Статус заявки')}</Label>
                 <Select value={requestStatus} onChange={(e) => setRequestStatus(e.target.value)}>
                   {REQUEST_STATUS_OPTIONS.map((opt) => (
@@ -425,9 +427,9 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
               </VStack>
             </HStack>
 
-            <VStack gap="8">
+            <VStack align="stretch" gap="8">
               <SectionHeader icon={Factory} title={t('serviceRequests.section.production', 'Производство')} />
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label className="text-xs">{t('serviceRequests.productionComment', 'Комментарий производства')}</Label>
                 <Textarea
                   value={productionComment}
@@ -438,9 +440,9 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
               </VStack>
             </VStack>
 
-            <VStack gap="8">
+            <VStack align="stretch" gap="8">
               <SectionHeader icon={MessageSquare} title={t('serviceRequests.section.clientResponse', 'Ответ клиенту')} />
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label className="text-xs">{t('serviceRequests.scheduleCommentPreset', 'Готовый ответ')}</Label>
                 <Select
                   value={scheduleCommentPreset}
@@ -464,7 +466,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
             </VStack>
 
             {/* СМС блок */}
-            <VStack gap="8" className="bg-muted/30 p-4 rounded-lg border border-border">
+            <VStack align="stretch" gap="8" className="bg-muted/30 p-4 rounded-lg border border-border">
               <HStack justify="between" align="center">
                 <Label className={`flex items-center gap-2 m-0 ${!scheduleComment.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                   <Checkbox
@@ -483,12 +485,12 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
               </HStack>
 
               {sendSms && scheduleComment.trim() && (
-                <VStack gap="4" className="p-3 bg-background border border-border rounded-md animate-in fade-in slide-in-from-top-2">
+                <VStack align="stretch" gap="4" className="p-3 bg-background border border-border rounded-md animate-in fade-in slide-in-from-top-2">
                   <Text variant="small" className="font-semibold text-foreground">{t('serviceRequests.sms.preview', 'Предпросмотр:')}</Text>
                   <Text variant="small" className="text-muted-foreground italic leading-relaxed">
                     {t('serviceRequests.sms.previewText', { number: record?.request_number || 'КЦ-...', comment: scheduleComment, defaultValue: 'По вашему обращению № {{number}}, сообщаем: {{comment}}' })}
                   </Text>
-                  <VStack className="border-t border-border pt-2 mt-1">
+                  <VStack align="stretch" className="border-t border-border pt-2 mt-1">
                     <Text variant="small" className="text-muted-foreground">
                       {t('serviceRequests.sms.phoneLabel', 'Номер:')} <Text variant="small" className="font-medium text-foreground inline">{phone || t('serviceRequests.sms.phoneNotSet', '(не указан)')}</Text>
                     </Text>
@@ -499,7 +501,9 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
           </VStack>
         )}
 
-        <DialogFooter className={`mt-4 shrink-0 pt-3 border-t border-border ${isMobile ? 'gap-2' : ''}`}>
+
+</ModalBody>
+<DialogFooter className={`mt-4 shrink-0 pt-3 border-t border-border ${isMobile ? 'gap-2' : ''}`}>
           <Button variant="outline" onClick={onClose} disabled={isLoading} className={isMobile ? 'w-full' : ''}>
             {t('common.cancel', 'Отмена')}
           </Button>
@@ -507,7 +511,7 @@ export function ServiceRequestModal({ isOpen, onClose, record }: ServiceRequestM
             {isLoading ? t('common.saving', 'Сохранение...') : t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

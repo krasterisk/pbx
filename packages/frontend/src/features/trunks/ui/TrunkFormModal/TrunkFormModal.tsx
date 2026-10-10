@@ -1,8 +1,10 @@
+import { PasswordInput } from '@/shared/ui';
+import { toast } from 'react-toastify';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import * as Dialog from '@radix-ui/react-dialog';
-import { X, Key, Globe } from 'lucide-react';
-import { Button, Input, InfoTooltip } from '@/shared/ui';
+
+import { Key, Globe } from 'lucide-react';
+import { Button, Input, InfoTooltip, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, ModalBody, ModalSection, ModalTabs, Label, Text, Select } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import {
@@ -20,6 +22,8 @@ import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useDefaultContext } from '@/shared/lib/useDefaultContext';
 import { ADVANCED_PJSIP_FIELDS } from '@/shared/config/pjsipAdvancedFields';
 import { PjsipSettingsBuilder as AdvancedSettingsBuilder } from '@/shared/ui/PjsipSettingsBuilder';
+
+import cls from './TrunkFormModal.module.scss';
 
 const CODEC_OPTIONS = [
   'ulaw', 'alaw', 'g722', 'g729', 'gsm', 'opus',
@@ -208,7 +212,7 @@ export const TrunkFormModal = () => {
       scheduleDelayedRefetch();
       handleClose();
     } catch (e: any) {
-      alert(e.data?.message || 'Error saving trunk');
+      toast.error(t("modal.errors.save"));
     }
   };
 
@@ -221,120 +225,89 @@ export const TrunkFormModal = () => {
   const isLoading = isCreating || isUpdating;
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed top-[5%] left-1/2 -translate-x-1/2 w-full max-w-xl bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col">
-          <HStack justify="between" align="center" className="mb-4 shrink-0">
-            <Dialog.Title className="text-xl font-bold">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+
+
+        <FormDialogContent size="large" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle >
               {mode === 'edit'
                 ? t('trunks.editTrunk')
                 : mode === 'copy'
                   ? t('trunks.copyTrunk', 'Копировать транк')
                   : t('trunks.addTrunk')}
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </Dialog.Close>
-          </HStack>
+            </DialogTitle>
+
+          </DialogHeader>
 
           {/* Tabs */}
-          <VStack className="border-b border-border/50 mb-6 shrink-0" max>
-            <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              {[
+          <ModalTabs items={[
                 { id: 'basic', label: t('trunks.tabBasic', 'Основные') },
                 { id: 'auth', label: t('trunks.tabAuth', 'Подключение') },
                 { id: 'network', label: t('trunks.tabNetwork', 'Сеть') },
                 { id: 'advanced', label: t('trunks.tabAdvanced', 'Расширенные') },
-              ].map(tab => (
-                <Button
-                  key={tab.id}
-                  variant="ghost"
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative py-3 px-1 rounded-none text-sm font-medium transition-colors whitespace-nowrap shrink-0 outline-none ${
-                    activeTab === tab.id
-                      ? 'text-primary bg-transparent hover:bg-transparent hover:text-primary'
-                      : 'text-muted-foreground bg-transparent hover:text-foreground hover:bg-transparent'
-                  }`}
-                >
-                  {tab.label}
-                  {activeTab === tab.id && (
-                    <VStack className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]">{''}</VStack>
-                  )}
-                </Button>
-              ))}
-            </HStack>
-          </VStack>
+              ]} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={t("trunks.tabGeneral", t("common.settings"))} />
 
-          <div className="flex-1 overflow-y-auto pr-1">
+          <ModalBody>
             {activeTab === 'basic' && (
-              <VStack gap="16">
+              <ModalSection title={t("modal.sections.identity")}>
+
                 {/* Trunk Name */}
-                <VStack gap="4">
-                  <label htmlFor="trunk-name" className="text-sm font-medium text-muted-foreground">
+                <VStack align="stretch" gap="4">
+                  <Label htmlFor="trunk-name" className={cls.fieldLabel}>
                     {t('trunks.name')}
-                  </label>
+                  </Label>
                   <Input
                     id="trunk-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t('trunks.namePlaceholder', 'my-provider')}
                     disabled={mode === 'edit'}
-                    className="font-mono"
+                    className={cls.mono}
                   />
                 </VStack>
 
                 {/* Trunk Type */}
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <Label className={cls.fieldLabel}>
                       {t('trunks.type')}
-                    </label>
+                    </Label>
                     <InfoTooltip text={t('trunks.typeDesc', 'По логину: Asterisk будет отправлять запросы на сервер провайдера. По IP: Asterisk будет ждать звонков от провайдера, авторизуя их по источнику.')} />
                   </HStack>
                   <HStack gap="8">
-                    <button
+                    <Button
                       type="button"
                       disabled={!isCreateMode}
                       onClick={() => setTrunkType('auth')}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-all ${
-                        trunkType === 'auth'
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                      } ${!isCreateMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className={[cls.typeChoice, trunkType === 'auth' && cls.selected].filter(Boolean).join(" ")}
                     >
-                      <Key className="w-4 h-4 shrink-0" />
+                      <Key className={cls.icon} />
                       {t('trunks.typeAuth')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       disabled={!isCreateMode}
                       onClick={() => setTrunkType('ip')}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-all ${
-                        trunkType === 'ip'
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                      } ${!isCreateMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className={[cls.typeChoice, trunkType === 'ip' && cls.selected].filter(Boolean).join(" ")}
                     >
-                      <Globe className="w-4 h-4 shrink-0" />
+                      <Globe className={cls.icon} />
                       {t('trunks.typeIp')}
-                    </button>
+                    </Button>
                   </HStack>
-                  <p className="text-[11px] text-muted-foreground">
+                  <Text className={cls.hintText}>
                     {trunkType === 'auth'
                       ? t('trunks.typeAuthHint')
                       : t('trunks.typeIpHint')}
-                  </p>
+                  </Text>
                 </VStack>
 
                 {/* Host */}
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
-                    <label htmlFor="trunk-host" className="text-sm font-medium text-muted-foreground">
+                    <Label htmlFor="trunk-host" className={cls.fieldLabel}>
                       {t('trunks.host')}
-                    </label>
+                    </Label>
                     <InfoTooltip text={t('trunks.hostDesc', 'Адрес (IP или домен) сервера провайдера, на который будут отправляться ваши звонки и SIP REGISTER запросы.')} />
                   </HStack>
                   <HStack gap="8">
@@ -343,29 +316,29 @@ export const TrunkFormModal = () => {
                       value={host}
                       onChange={(e) => setHost(e.target.value)}
                       placeholder={t('trunks.hostPlaceholder', 'sip.provider.com')}
-                      className="font-mono flex-1"
+                      className={cls.mono}
                     />
                     <Input
                       id="trunk-port"
                       value={port}
                       onChange={(e) => setPort(e.target.value.replace(/\D/g, ''))}
                       placeholder={t('trunks.portPlaceholder', '5060')}
-                      className="font-mono w-24"
+                      className={cls.portControl}
                     />
                   </HStack>
                 </VStack>
 
                 {/* Context */}
-                <VStack gap="4">
-                  <label htmlFor="trunk-context" className="text-sm font-medium text-muted-foreground">
+                <VStack align="stretch" gap="4">
+                  <Label htmlFor="trunk-context" className={cls.fieldLabel}>
                     {t('trunks.context', 'Контекст')} *
-                  </label>
-                  <select
+                  </Label>
+                  <Select
                     id="trunk-context"
                     value={context}
                     onChange={(e) => chooseContext(e.target.value)}
                     required
-                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
+                    className={cls.control}
                   >
                     <option value="" disabled>{t('trunks.selectContext')}</option>
                     {contexts.map((c) => (
@@ -373,14 +346,14 @@ export const TrunkFormModal = () => {
                         {c.name} {c.comment ? `(${c.comment})` : ''}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </VStack>
 
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
-                    <label htmlFor="trunk-max-channels" className="text-sm font-medium text-muted-foreground">
+                    <Label htmlFor="trunk-max-channels" className={cls.fieldLabel}>
                       {t('trunks.maxChannels', 'Лимит каналов')}
-                    </label>
+                    </Label>
                     <InfoTooltip
                       text={t(
                         'trunks.maxChannelsDesc',
@@ -395,75 +368,76 @@ export const TrunkFormModal = () => {
                     value={maxChannels}
                     onChange={(e) => setMaxChannels(e.target.value.replace(/\D/g, ''))}
                     placeholder={t('trunks.maxChannelsPlaceholder', 'без ограничения')}
-                    className="font-mono w-40"
+                    className={cls.narrowControl}
                   />
                 </VStack>
-              </VStack>
+
+</ModalSection>
             )}
 
             {activeTab === 'auth' && (
-              <VStack gap="16">
+              <ModalSection title={t("modal.sections.connection")}>
+
                 {trunkType === 'auth' ? (
                   <>
                     {/* Auth trunk fields */}
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-2">
-                      <h4 className="text-sm font-semibold text-blue-400 mb-1">
+                    <VStack align="stretch" max className={cls.hintCard}>
+                      <h4 className={cls.hintTitle}>
                         {t('trunks.authTitle', 'Outbound Registration')}
                       </h4>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
+                      <Text className={cls.hintText}>
                         {t('trunks.authDesc')}
-                      </p>
-                    </div>
+                      </Text>
+                    </VStack>
 
-                    <VStack gap="4">
-                      <label htmlFor="trunk-username" className="text-sm font-medium text-muted-foreground">
+                    <VStack align="stretch" gap="4">
+                      <Label htmlFor="trunk-username" className={cls.fieldLabel}>
                         {t('trunks.username')}
-                      </label>
+                      </Label>
                       <Input
                         id="trunk-username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder={t('trunks.usernamePlaceholder', 'sip_login')}
-                        className="font-mono"
+                        className={cls.mono}
                       />
                     </VStack>
 
-                    <VStack gap="4">
-                      <label htmlFor="trunk-password" className="text-sm font-medium text-muted-foreground">
+                    <VStack align="stretch" gap="4">
+                      <Label htmlFor="trunk-password" className={cls.fieldLabel}>
                         {t('trunks.password', 'Пароль')}
-                      </label>
-                      <Input
+                      </Label>
+                      <PasswordInput
                         id="trunk-password"
-                        type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder={mode === 'edit' ? t('users.passwordUnchanged') : '••••••••'}
-                        className="font-mono"
+                        className={cls.mono}
                       />
                     </VStack>
 
-                    <VStack gap="4">
-                      <label htmlFor="trunk-contact-user" className="text-sm font-medium text-muted-foreground">
-                        {t('trunks.contactUser', 'Contact User')} <span className="text-muted-foreground/60 font-normal">{t('trunks.contactUserLabelExtra', '(DID / B-номер)')}</span>
-                      </label>
+                    <VStack align="stretch" gap="4">
+                      <Label htmlFor="trunk-contact-user" className={cls.fieldLabel}>
+                        {t('trunks.contactUser', 'Contact User')} <Text className={cls.muted}>{t('trunks.contactUserLabelExtra', '(DID / B-номер)')}</Text>
+                      </Label>
                       <Input
                         id="trunk-contact-user"
                         value={contactUser}
                         onChange={(e) => setContactUser(e.target.value)}
                         placeholder={t('trunks.contactUserPlaceholder', 'Например: 5551234')}
-                        className="font-mono"
+                        className={cls.mono}
                       />
-                      <p className="text-[11px] text-muted-foreground">
+                      <Text className={cls.hintText}>
                         {t('trunks.contactUserHintLong', 'Номер, на который будут приходить звонки от провайдера. Вам потребуется создать правило во входящей маршрутизации для обработки этого номера.')}
-                      </p>
+                      </Text>
                     </VStack>
 
                     <HStack gap="16" align="start">
-                      <VStack gap="4" className="flex-1 relative focus-within:z-10">
+                      <VStack align="stretch" gap="4" className={cls.control}>
                         <HStack gap="4" align="center">
-                          <label htmlFor="trunk-from-user" className="text-sm font-medium text-muted-foreground">
+                          <Label htmlFor="trunk-from-user" className={cls.fieldLabel}>
                             {t('trunks.fromUser', 'From User')}
-                          </label>
+                          </Label>
                           <InfoTooltip text={t('trunks.fromUserDesc', 'Устанавливает имя пользователя (CallerID) в заголовке From. Если не заполнено, будет использован Логин.')} />
                         </HStack>
                         <Input
@@ -471,15 +445,15 @@ export const TrunkFormModal = () => {
                           value={fromUser}
                           onChange={(e) => setFromUser(e.target.value)}
                           placeholder={t('trunks.fromUserHint', 'Обычно совпадает с логином')}
-                          className="font-mono bg-background"
+                          className={cls.mono}
                         />
                       </VStack>
 
-                      <VStack gap="4" className="flex-1 relative focus-within:z-10">
+                      <VStack align="stretch" gap="4" className={cls.control}>
                         <HStack gap="4" align="center">
-                          <label htmlFor="trunk-from-domain" className="text-sm font-medium text-muted-foreground">
+                          <Label htmlFor="trunk-from-domain" className={cls.fieldLabel}>
                             {t('trunks.fromDomain', 'From Domain')}
-                          </label>
+                          </Label>
                           <InfoTooltip text={t('trunks.fromDomainDesc', 'Устанавливает домен в заголовках SIP. Заполняйте только если провайдер требует регистрации в определённом домене, который отличается от Host (как у Beeline/Rostelecom).')} />
                         </HStack>
                         <Input
@@ -487,16 +461,16 @@ export const TrunkFormModal = () => {
                           value={fromDomain}
                           onChange={(e) => setFromDomain(e.target.value)}
                           placeholder={t('trunks.fromDomainPlaceholder', 'sip.provider.com')}
-                          className="font-mono bg-background"
+                          className={cls.mono}
                         />
                       </VStack>
                     </HStack>
 
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <HStack gap="4" align="center">
-                        <label htmlFor="trunk-match-ip-auth" className="text-sm font-medium text-muted-foreground">
+                        <Label htmlFor="trunk-match-ip-auth" className={cls.fieldLabel}>
                           {t('trunks.matchIp', 'IP / Подсеть провайдера')}
-                        </label>
+                        </Label>
                         <InfoTooltip text={t('trunks.matchIpAuthDesc', '**Пусто** - берётся Хост\n**IP или подсети** - входящие с этих адресов идут на этот транк\nБез совпадения вызов не попадёт на транк')} />
                       </HStack>
                       <Input
@@ -504,92 +478,90 @@ export const TrunkFormModal = () => {
                         value={matchIp}
                         onChange={(e) => setMatchIp(e.target.value)}
                         placeholder={host || t('trunks.matchIpPlaceholder', '203.0.113.0/24')}
-                        className="font-mono"
+                        className={cls.mono}
                       />
                     </VStack>
                   </>
                 ) : (
                   <>
                     {/* IP trunk fields */}
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-2">
-                      <h4 className="text-sm font-semibold text-amber-400 mb-1">
+                    <VStack align="stretch" max className={cls.warningCard}>
+                      <h4 className={cls.hintTitle}>
                         {t('trunks.ipTitle', 'Identify by IP')}
                       </h4>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
+                      <Text className={cls.hintText}>
                         {t('trunks.ipDesc')}
-                      </p>
-                    </div>
+                      </Text>
+                    </VStack>
 
-                    <VStack gap="4">
-                      <label htmlFor="trunk-match-ip" className="text-sm font-medium text-muted-foreground">
+                    <VStack align="stretch" gap="4">
+                      <Label htmlFor="trunk-match-ip" className={cls.fieldLabel}>
                         {t('trunks.matchIp', 'IP / Подсеть провайдера')}
-                      </label>
+                      </Label>
                       <Input
                         id="trunk-match-ip"
                         value={matchIp}
                         onChange={(e) => setMatchIp(e.target.value)}
                         placeholder={t('trunks.matchIpPlaceholder', '203.0.113.0/24')}
-                        className="font-mono"
+                        className={cls.mono}
                       />
-                      <p className="text-[10px] text-muted-foreground">
+                      <Text className={cls.hintText}>
                         {t('trunks.matchIpHint')}
-                      </p>
+                      </Text>
                     </VStack>
                   </>
                 )}
-              </VStack>
+
+</ModalSection>
             )}
 
             {activeTab === 'network' && (
-              <VStack gap="16">
+              <ModalSection title={t("modal.sections.connection")}>
+
                 {/* Transport */}
-                <VStack gap="4">
-                  <label htmlFor="trunk-transport" className="text-sm font-medium text-muted-foreground">
+                <VStack align="stretch" gap="4">
+                  <Label htmlFor="trunk-transport" className={cls.fieldLabel}>
                     {t('trunks.transport', 'Транспорт')}
-                  </label>
-                  <select
+                  </Label>
+                  <Select
                     id="trunk-transport"
                     value={transport}
                     onChange={(e) => setTransport(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
+                    className={cls.control}
                   >
                     {TRANSPORT_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {opt.value ? opt.label : t("modal.defaultOption")}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </VStack>
 
                 {/* Codecs */}
-                <VStack gap="4">
-                  <label className="text-sm font-medium text-muted-foreground">
+                <VStack align="stretch" gap="4">
+                  <Label className={cls.fieldLabel}>
                     {t('trunks.codecs', 'Кодеки')}
-                  </label>
+                  </Label>
                   <Flex wrap="wrap" gap="8">
                     {CODEC_OPTIONS.map((codec) => (
-                      <button
+                      <Button
                         key={codec}
                         type="button"
                         onClick={() => toggleCodec(codec)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-mono transition-all ${
-                          codecs.includes(codec)
-                            ? 'bg-primary/10 text-primary border border-primary/40 dark:border-primary/20'
-                            : 'bg-background/50 text-muted-foreground border border-border hover:bg-accent hover:text-accent-foreground'
-                        }`}
+                        className={[cls.codec, codecs.includes(codec) && cls.selected].filter(Boolean).join(" ")}
                       >
                         {codec}
-                      </button>
+                      </Button>
                     ))}
                   </Flex>
                 </VStack>
 
                 <HStack gap="16" align="start">
-                  <VStack gap="4" className="flex-1 relative focus-within:z-10">
+                  <VStack align="stretch" gap="4" className={cls.control}>
                     <HStack gap="4" align="center">
-                      <label htmlFor="trunk-qualify" className="text-sm font-medium text-muted-foreground">
+                      <Label htmlFor="trunk-qualify" className={cls.fieldLabel}>
                         {t('trunks.qualifyFrequency')}
-                      </label>
+                      </Label>
                       <InfoTooltip text={t('trunks.qualifyFrequencyDesc')} />
                     </HStack>
                     <Input
@@ -600,16 +572,16 @@ export const TrunkFormModal = () => {
                       value={qualifyFrequency}
                       onChange={(e) => setQualifyFrequency(e.target.value)}
                       placeholder={t('trunks.qualifyFrequencyPlaceholder')}
-                      className="font-mono"
+                      className={cls.mono}
                     />
                   </VStack>
 
                   {trunkType === 'auth' && (
-                    <VStack gap="4" className="flex-1 relative focus-within:z-10">
+                    <VStack align="stretch" gap="4" className={cls.control}>
                       <HStack gap="4" align="center">
-                        <label htmlFor="trunk-reg-exp" className="text-sm font-medium text-muted-foreground">
+                        <Label htmlFor="trunk-reg-exp" className={cls.fieldLabel}>
                           {t('trunks.registrationExpiration')}
-                        </label>
+                        </Label>
                         <InfoTooltip text={t('trunks.registrationExpirationDesc')} />
                       </HStack>
                       <Input
@@ -620,12 +592,13 @@ export const TrunkFormModal = () => {
                         value={registrationExpiration}
                         onChange={(e) => setRegistrationExpiration(e.target.value)}
                         placeholder={t('trunks.registrationExpirationPlaceholder')}
-                        className="font-mono"
+                        className={cls.mono}
                       />
                     </VStack>
                   )}
                 </HStack>
-              </VStack>
+
+</ModalSection>
             )}
 
             {activeTab === 'advanced' && (
@@ -635,10 +608,10 @@ export const TrunkFormModal = () => {
                 excludeFields={['from_user', 'from_domain', 'contact_user']}
               />
             )}
-          </div>
+          </ModalBody>
 
           {/* Actions */}
-          <HStack gap="8" justify="end" className="mt-8 pt-4 border-t border-border shrink-0">
+          <DialogFooter>
             <Button variant="outline" onClick={handleClose} disabled={isLoading}>
               {t('common.cancel')}
             </Button>
@@ -654,9 +627,9 @@ export const TrunkFormModal = () => {
             >
               {isLoading ? t('common.loading') : t('common.save')}
             </Button>
-          </HStack>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          </DialogFooter>
+        </FormDialogContent>
+
+    </Dialog>
   );
 };

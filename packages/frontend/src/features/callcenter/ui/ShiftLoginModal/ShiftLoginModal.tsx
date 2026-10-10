@@ -1,10 +1,11 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import { Phone, MonitorSmartphone } from 'lucide-react';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -379,12 +380,13 @@ export function ShiftLoginModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="xl">
+      <FormDialogContent size="xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{title || t('callcenter.softphone.startShift')}</DialogTitle>
         </DialogHeader>
 
-        <div className={styles.body}>
+        <ModalBody className={styles.body}>
+<ModalSection>
           {subtitle && (
             <Text variant="muted" className="text-xs">
               {subtitle}
@@ -503,7 +505,8 @@ export function ShiftLoginModal({
           {micError && (
             <Text className={styles.error}>{micError}</Text>
           )}
-        </div>
+        </ModalSection>
+</ModalBody>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
@@ -513,7 +516,7 @@ export function ShiftLoginModal({
             {t('callcenter.softphone.startShift')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

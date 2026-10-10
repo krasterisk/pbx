@@ -1,11 +1,12 @@
+import { toast } from 'react-toastify';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import * as Dialog from '@radix-ui/react-dialog';
+
 import {
   X, Phone, Hash, Trash2, Pause, Play, Volume2,
   Users, Headphones,
 } from 'lucide-react';
-import { Button, Input, InfoTooltip, MultiSelect, SegmentedControl, Tooltip } from '@/shared/ui';
+import { Button, Input, InfoTooltip, MultiSelect, SegmentedControl, Tooltip, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, ModalBody, ModalSection, ModalTabs, ModalToggle, Label, Text, Select } from '@/shared/ui';
 import type { MultiSelectOption } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
@@ -163,7 +164,7 @@ export const QueueFormModal = () => {
       setLeavewhenempty(queueData.leavewhenempty || '');
       setRinginuse(!!queueData.ringinuse);
       setAutofill(queueData['autofill'] !== false && queueData['autofill'] !== 'no');
-      
+
       // Announcements
       setAnnounce(queueData.announce || '');
       setAnnounceFrequency(String(queueData.announce_frequency || ''));
@@ -371,8 +372,8 @@ export const QueueFormModal = () => {
       if (isCreateMode) await createQueue(dto).unwrap();
       else await updateQueue({ name: queueData?.name || '', data: dto }).unwrap();
       handleClose();
-    } catch (e: any) {
-      alert(e.data?.message || 'Error saving queue');
+    } catch {
+      toast.error(t('modal.errors.save'));
     }
   };
 
@@ -380,21 +381,21 @@ export const QueueFormModal = () => {
 
   // Helper: Prompt select
   const PromptSelect = ({ value, onChange, label, tooltip }: { value: string; onChange: (v: string) => void; label: string; tooltip?: string }) => (
-    <VStack gap="4">
+    <VStack align="stretch" gap="4">
       <HStack gap="4" align="center">
-        <span className="text-sm font-medium text-muted-foreground">{label}</span>
+        <Text className={cls.fieldLabel}>{label}</Text>
         {tooltip && <InfoTooltip text={tooltip} />}
       </HStack>
-      <select
+      <Select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
+        className={cls.control}
       >
         <option value="">{t('queues.defaultPrompt')}</option>
         {prompts.map((p: any) => (
           <option key={p.uid} value={p.filename || p.comment}>{p.comment || p.filename}</option>
         ))}
-      </select>
+      </Select>
     </VStack>
   );
 
@@ -415,72 +416,60 @@ export const QueueFormModal = () => {
     };
 
     return (
-      <VStack gap="4">
+      <VStack align="stretch" gap="4">
         <HStack gap="4" align="center">
-          <span className="text-sm font-medium text-muted-foreground">{label}</span>
+          <Text className={cls.fieldLabel}>{label}</Text>
           {tooltip && <InfoTooltip text={tooltip} />}
         </HStack>
         {selected.length > 0 && (
-          <div className={cls.flagGrid}>
+          <VStack align="stretch" max className={cls.flagGrid}>
             {selected.map((file, idx) => (
-              <span key={`${file}-${idx}`} className={cls.promptChip}>
-                <span className="truncate max-w-[180px]">{getDisplayName(file)}</span>
-                <button type="button" className={cls.promptChipRemove} onClick={() => removePrompt(file)}>
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
+              <Text key={`${file}-${idx}`} className={cls.promptChip}>
+                <Text className={cls.truncate}>{getDisplayName(file)}</Text>
+                <Button type="button" className={cls.promptChipRemove} onClick={() => removePrompt(file)}>
+                  <X className={cls.icon} />
+                </Button>
+              </Text>
             ))}
-          </div>
+          </VStack>
         )}
-        <select
+        <Select
           value=""
           onChange={e => { addPrompt(e.target.value); e.target.value = ''; }}
-          className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
+          className={cls.control}
         >
           <option value="">{t('queues.addPromptPlaceholder')}</option>
           {prompts.filter((p: any) => !selected.includes(p.filename || p.comment)).map((p: any) => (
             <option key={p.uid} value={p.filename || p.comment}>{p.comment || p.filename}</option>
           ))}
-        </select>
+        </Select>
       </VStack>
     );
   };
 
   // Helper: toggle with description
   const ToggleField = ({ checked, onChange, label, desc }: { checked: boolean; onChange: (v: boolean) => void; label: string; desc: string }) => (
-    <label className={cls.toggleField}>
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="w-4 h-4 text-primary rounded" />
-      <VStack gap="2">
-        <span className="text-sm font-medium">{label}</span>
-        <span className="text-xs text-muted-foreground leading-snug">{desc}</span>
-      </VStack>
-    </label>
+    <ModalToggle checked={checked} onCheckedChange={onChange} label={label} tooltip={desc} />
   );
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed top-[5%] left-1/2 -translate-x-1/2 w-full max-w-2xl bg-card text-card-foreground border border-border rounded-2xl p-6 z-50 shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col">
-          <HStack justify="between" align="center" className="mb-4 shrink-0">
-            <Dialog.Title className="text-xl font-bold">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+
+
+        <FormDialogContent size="large" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle >
               {mode === 'edit'
                 ? t('queues.editQueue')
                 : mode === 'copy'
                   ? t('queues.copyQueue', 'Копировать очередь')
                   : t('queues.createQueue')}
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </Dialog.Close>
-          </HStack>
+            </DialogTitle>
+
+          </DialogHeader>
 
           {/* Tabs */}
-          <div className="border-b border-border/50 mb-6">
-            <HStack gap="8" className="-mb-[1px] flex overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              {[
+          <ModalTabs items={[
                 { id: 'general', label: t('queues.tabGeneral') },
                 { id: 'members', label: `${t('queues.tabMembers')} (${members.length})` },
                 { id: 'announcements', label: t('queues.tabAnnouncements') },
@@ -488,164 +477,152 @@ export const QueueFormModal = () => {
                 ...(mode === 'edit' && selectedName
                   ? [{ id: 'usage', label: t('references.tab', 'Где используется') }]
                   : []),
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative py-3 text-sm font-medium transition-colors whitespace-nowrap shrink-0 bg-transparent outline-none ${
-                    activeTab === tab.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {tab.label}
-                  {activeTab === tab.id && (
-                    <div className="absolute left-0 right-0 bottom-0 h-[2px] bg-primary rounded-t-[1px]" />
-                  )}
-                </button>
-              ))}
-            </HStack>
-          </div>
+              ]} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={t("queues.tabGeneral", t("common.settings"))} />
 
-          <div className="flex-1 overflow-y-auto pr-1">
+          <ModalBody>
             {/* ═══════════ GENERAL TAB ═══════════ */}
             {activeTab === 'general' && (
-              <VStack gap="16">
+              <ModalSection title={t("modal.sections.identity")}>
+
                 {/* Queue extension */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <VStack gap="4">
+                <VStack align="stretch" max className={cls.gridTwo}>
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.exten')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.exten')}</Label>
                       <InfoTooltip text={t('queues.extenDesc')} />
                     </HStack>
-                    <Input value={exten} onChange={e => setExten(e.target.value)} placeholder="700" className="font-mono" />
+                    <Input value={exten} onChange={e => setExten(e.target.value)} placeholder="700" className={cls.mono} />
                   </VStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.displayName')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.displayName')}</Label>
                       <InfoTooltip text={t('queues.displayNameDesc')} />
                     </HStack>
                     <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={t('queues.displayNamePlaceholder')} />
                   </VStack>
-                </div>
+                </VStack>
 
                 {/* Strategy select */}
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
-                    <label className="text-sm font-medium text-muted-foreground">{t('queues.strategy')}</label>
+                    <Label className={cls.fieldLabel}>{t('queues.strategy')}</Label>
                     <InfoTooltip text={`${t('queues.strategyDesc')}\n\n${STRATEGY_VALUES.map(s => `• ${t(`queues.strategy.${s}`)}: ${t(`queues.strategy.${s}Desc`)}`).join('\n')}`} />
                   </HStack>
-                  <select
+                  <Select
                     value={strategy}
                     onChange={e => setStrategy(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
+                    className={cls.control}
                   >
                     {STRATEGY_VALUES.map(s => (
                       <option key={s} value={s}>{t(`queues.strategy.${s}`)}</option>
                     ))}
-                  </select>
+                  </Select>
                 </VStack>
 
                 {/* Timing row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <VStack gap="4">
+                <VStack align="stretch" max className={cls.gridThree}>
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.timeout')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.timeout')}</Label>
                       <InfoTooltip text={t('queues.timeoutDesc')} />
                     </HStack>
                     <Input type="number" value={timeout} onChange={e => setTimeout(e.target.value)} />
                   </VStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.retry')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.retry')}</Label>
                       <InfoTooltip text={t('queues.retryDesc')} />
                     </HStack>
                     <Input type="number" value={retry} onChange={e => setRetry(e.target.value)} />
                   </VStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.wrapuptime')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.wrapuptime')}</Label>
                       <InfoTooltip text={t('queues.wrapuptimeDesc')} />
                     </HStack>
                     <Input type="number" value={wrapuptime} onChange={e => setWrapuptime(e.target.value)} />
                   </VStack>
-                </div>
+                </VStack>
 
                 {/* Limits row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <VStack gap="4">
+                <VStack align="stretch" max className={cls.gridThree}>
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.maxlen')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.maxlen')}</Label>
                       <InfoTooltip text={t('queues.maxlenDesc')} />
                     </HStack>
                     <Input type="number" value={maxlen} onChange={e => setMaxlen(e.target.value)} />
                   </VStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.weight')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.weight')}</Label>
                       <InfoTooltip text={t('queues.weightDesc')} />
                     </HStack>
                     <Input type="number" value={weight} onChange={e => setWeight(e.target.value)} />
                   </VStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.servicelevel')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.servicelevel')}</Label>
                       <InfoTooltip text={t('queues.servicelevelDesc')} />
                     </HStack>
                     <Input type="number" value={servicelevel} onChange={e => setServicelevel(e.target.value)} />
                   </VStack>
-                </div>
+                </VStack>
 
                 {/* joinempty / leavewhenempty: multi-selects */}
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
-                    <label className="text-sm font-medium text-muted-foreground">{t('queues.joinempty')}</label>
+                    <Label className={cls.fieldLabel}>{t('queues.joinempty')}</Label>
                     <InfoTooltip text={t('queues.joinemptyDesc')} />
                   </HStack>
                   <MultiSelect value={joinempty ? joinempty.split(',').filter(Boolean) : []} onChange={(values) => setJoinempty(values.join(','))} options={emptyFlagOptions} placeholder={t('common.select')} />
                 </VStack>
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
-                    <label className="text-sm font-medium text-muted-foreground">{t('queues.leavewhenempty')}</label>
+                    <Label className={cls.fieldLabel}>{t('queues.leavewhenempty')}</Label>
                     <InfoTooltip text={t('queues.leavewhenemptyDesc')} />
                   </HStack>
                   <MultiSelect value={leavewhenempty ? leavewhenempty.split(',').filter(Boolean) : []} onChange={(values) => setLeavewhenempty(values.join(','))} options={emptyFlagOptions} placeholder={t('common.select')} />
                 </VStack>
 
                 {/* MOH & Context */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <VStack gap="4">
+                <VStack align="stretch" max className={cls.gridTwo}>
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.musiconhold')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.musiconhold')}</Label>
                       <InfoTooltip text={t('queues.musiconholdDesc')} />
                     </HStack>
-                    <select value={musiconhold} onChange={e => setMusiconhold(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent">
+                    <Select value={musiconhold} onChange={e => setMusiconhold(e.target.value)} className={cls.control}>
                       <option value="">default</option>
                       {mohClasses.map((m: any) => <option key={m.name} value={m.name}>{m.name}</option>)}
-                    </select>
+                    </Select>
                   </VStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
-                      <label className="text-sm font-medium text-muted-foreground">{t('queues.context')}</label>
+                      <Label className={cls.fieldLabel}>{t('queues.context')}</Label>
                       <InfoTooltip text={t('queues.contextDesc')} />
                     </HStack>
-                    <select value={context} onChange={e => setContext(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent">
+                    <Select value={context} onChange={e => setContext(e.target.value)} className={cls.control}>
                       <option value="">{t('common.notSelected', 'Не выбрано')}</option>
                       {contexts.map((c: { uid: number; name: string; comment?: string }) => (
                         <option key={c.uid} value={c.name}>
                           {c.comment?.trim() ? `${c.name} (${c.comment.trim()})` : c.name}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </VStack>
-                </div>
-              </VStack>
+                </VStack>
+
+</ModalSection>
             )}
 
             {/* ═══════════ MEMBERS TAB ═══════════ */}
             {activeTab === 'members' && (
-              <VStack gap="16">
-                <VStack gap="8">
+              <ModalSection title={t("modal.sections.identity")}>
+
+                <VStack align="stretch" gap="8">
                   <HStack gap="4" align="center">
-                    <span className="text-sm font-medium text-muted-foreground">{t('queues.addMember')}</span>
+                    <Text className={cls.fieldLabel}>{t('queues.addMember')}</Text>
                   </HStack>
 
                   <SegmentedControl<'endpoint' | 'custom'>
@@ -659,28 +636,28 @@ export const QueueFormModal = () => {
                   />
 
                   {memberMode === 'endpoint' && (
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t('queues.searchEndpoint')} />
                       {filteredEndpoints.length > 0 && (
-                        <VStack gap="2" className="border border-border rounded-lg p-2 max-h-40 overflow-y-auto">
+                        <VStack align="stretch" gap="2" className={cls.catalogList}>
                           {filteredEndpoints.map((ep: { id: string; extension?: string; callerid?: string }) => {
                             const sipId = ep.id;
                             const ext = ep.extension || extractExtension(sipId) || sipId;
                             const match = (ep.callerid || '').match(/^"(.+?)"/);
                             const displayName = match ? match[1] : ext;
                             return (
-                              <button
+                              <Button
                                 key={sipId}
                                 type="button"
-                                className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-accent text-sm text-left"
+                                className={cls.catalogOption}
                                 onClick={() => addEndpointMember(sipId, displayName)}
                               >
-                                <Phone className="w-3.5 h-3.5 text-primary" />
-                                <span className="font-mono">{ext}</span>
+                                <Phone className={cls.icon} />
+                                <Text className={cls.mono}>{ext}</Text>
                                 {displayName !== ext && (
-                                  <span className="text-muted-foreground">{displayName}</span>
+                                  <Text className={cls.muted}>{displayName}</Text>
                                 )}
-                              </button>
+                              </Button>
                             );
                           })}
                         </VStack>
@@ -689,19 +666,19 @@ export const QueueFormModal = () => {
                   )}
 
                   {memberMode === 'custom' && (
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <HStack gap="8">
                         <Input
-                          className="flex-1"
+                          className={cls.control}
                           value={customNumber}
                           onChange={e => setCustomNumber(e.target.value)}
                           placeholder={t('queues.customNumber')}
                           onKeyDown={e => e.key === 'Enter' && addCustomMember()}
                         />
-                        <select
+                        <Select
                           value={customContext}
                           onChange={e => setCustomContext(e.target.value)}
-                          className="flex h-9 w-40 rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent"
+                          className={cls.narrowControl}
                         >
                           <option value="">{t('queues.selectContext', 'Выберите контекст')}</option>
                           {contexts.map((c: { uid: number; name: string; comment?: string }) => (
@@ -709,7 +686,7 @@ export const QueueFormModal = () => {
                               {c.comment?.trim() ? `${c.name} (${c.comment.trim()})` : c.name}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                         <Button
                           variant="outline"
                           size="sm"
@@ -724,9 +701,9 @@ export const QueueFormModal = () => {
                 </VStack>
 
                 {members.length > 0 && (
-                  <VStack gap="8">
-                    <span className="text-sm font-medium text-muted-foreground">{t('queues.currentMembers')} ({members.length}):</span>
-                    <VStack gap="4">
+                  <VStack align="stretch" gap="8">
+                    <Text className={cls.fieldLabel}>{t('queues.currentMembers')} ({members.length}):</Text>
+                    <VStack align="stretch" gap="4">
                       {members.map(m => {
                         const ext = m.extension || (m.type === 'endpoint' ? interfaceToExtension(m.interface) : '');
                         const name = (m.membername || '').trim();
@@ -737,63 +714,65 @@ export const QueueFormModal = () => {
                           ? `${ext} (${m.context})`
                           : ext;
                         return (
-                          <div key={m.id} className={cls.memberRow}>
-                            {m.type === 'endpoint' ? <Phone className={cls.memberIcon} /> : <Hash className="w-5 h-5 text-muted-foreground flex-shrink-0" />}
-                            <span className={cls.memberInfo}>
+                          <VStack align="stretch" max key={m.id} className={cls.memberRow}>
+                            {m.type === 'endpoint' ? <Phone className={cls.memberIcon} /> : <Hash className={cls.icon} />}
+                            <Text className={cls.memberInfo}>
                               {m.type === 'endpoint' ? endpointLabel : customLabel}
-                            </span>
+                            </Text>
                             <HStack gap="4" align="center">
-                              <span className="text-xs text-muted-foreground">P:</span>
+                              <Text className={cls.hintText}>P:</Text>
                               <Input className={cls.penaltyInput} type="number" min={0} value={m.penalty} onChange={e => updateMemberPenalty(m.id, Number(e.target.value) || 0)} />
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleMemberPause(m.id)} title={m.paused ? t('queues.unpause') : t('queues.pause')}>
-                                {m.paused ? <Play className="w-3.5 h-3.5 text-green-500" /> : <Pause className="w-3.5 h-3.5 text-amber-500" />}
+                              <Button variant="ghost" size="icon" className={cls.iconButton} onClick={() => toggleMemberPause(m.id)} title={m.paused ? t('queues.unpause') : t('queues.pause')}>
+                                {m.paused ? <Play className={cls.icon} /> : <Pause className={cls.icon} />}
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeMember(m.id)}>
-                                <Trash2 className="w-3.5 h-3.5" />
+                              <Button variant="ghost" size="icon" className={cls.iconButton} onClick={() => removeMember(m.id)}>
+                                <Trash2 className={cls.icon} />
                               </Button>
                             </HStack>
-                          </div>
+                          </VStack>
                         );
                       })}
                     </VStack>
-                    <span className="text-xs text-muted-foreground">{t('queues.penaltyHint')}</span>
+                    <Text className={cls.hintText}>{t('queues.penaltyHint')}</Text>
                   </VStack>
                 )}
 
                 {members.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground text-sm">{t('queues.noMembers')}</div>
+                  <VStack align="stretch" max className={cls.emptyState}>{t('queues.noMembers')}</VStack>
                 )}
-              </VStack>
+
+</ModalSection>
             )}
 
             {/* ═══════════ ANNOUNCEMENTS TAB ═══════════ */}
             {activeTab === 'announcements' && (
-              <VStack gap="16">
+              <ModalSection title={t("modal.sections.identity")}>
+
                 {/* Section 1: Caller Position & Holdtime */}
-                <div className={cls.announcementSection}>
-                  <div className={cls.announcementTitle}>
-                    <Users className="w-4 h-4" />
+                <VStack align="stretch" max className={cls.announcementSection}>
+                  <VStack align="stretch" max className={cls.announcementTitle}>
+                    <Users className={cls.icon} />
                     {t('queues.callerAnnouncements')}
-                  </div>
-                  <VStack gap="12">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  </VStack>
+                  <VStack align="stretch" gap="12">
+                    <VStack align="stretch" max className={cls.gridThree}>
                       {/* Column 1: Hold Time & Round Seconds */}
-                      <VStack gap="6">
-                        <VStack gap="4">
+                      <VStack align="stretch" gap="6">
+                        <VStack align="stretch" gap="4">
                           <HStack gap="4" align="center">
-                            <label className="text-sm font-medium text-muted-foreground">{t('queues.announceHoldtime')}</label>
+                            <Label className={cls.fieldLabel}>{t('queues.announceHoldtime')}</Label>
                             <InfoTooltip text={t('queues.announceHoldtimeDesc')} />
                           </HStack>
-                          <select value={announceHoldtime} onChange={e => setAnnounceHoldtime(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent">
+                          <Select value={announceHoldtime} onChange={e => setAnnounceHoldtime(e.target.value)} className={cls.control}>
                             <option value="">{t('common.notSelected', 'Не выбрано')}</option>
                             <option value="yes">{t('common.yes')}</option>
                             <option value="no">{t('common.no')}</option>
                             <option value="once">{t('queues.once')}</option>
-                          </select>
+                          </Select>
                         </VStack>
-                        <VStack gap="4">
+                        <VStack align="stretch" gap="4">
                           <HStack gap="4" align="center">
-                            <label className="text-sm font-medium text-muted-foreground">{t('queues.announceRound')}</label>
+                            <Label className={cls.fieldLabel}>{t('queues.announceRound')}</Label>
                             <InfoTooltip text={t('queues.announceRoundDesc')} />
                           </HStack>
                           <Input type="number" value={announceRoundSeconds} onChange={e => setAnnounceRoundSeconds(e.target.value)} placeholder="10" />
@@ -801,23 +780,23 @@ export const QueueFormModal = () => {
                       </VStack>
 
                       {/* Column 2: Position & Position Limit */}
-                      <VStack gap="6">
-                        <VStack gap="4">
+                      <VStack align="stretch" gap="6">
+                        <VStack align="stretch" gap="4">
                           <HStack gap="4" align="center">
-                            <label className="text-sm font-medium text-muted-foreground">{t('queues.announcePosition')}</label>
+                            <Label className={cls.fieldLabel}>{t('queues.announcePosition')}</Label>
                             <InfoTooltip text={t('queues.announcePositionDesc')} />
                           </HStack>
-                          <select value={announcePosition} onChange={e => setAnnouncePosition(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent">
+                          <Select value={announcePosition} onChange={e => setAnnouncePosition(e.target.value)} className={cls.control}>
                             <option value="">{t('common.notSelected', 'Не выбрано')}</option>
                             <option value="yes">{t('common.yes')}</option>
                             <option value="no">{t('common.no')}</option>
                             <option value="limit">{t('queues.posLimit')}</option>
                             <option value="more">{t('queues.posMore')}</option>
-                          </select>
+                          </Select>
                         </VStack>
-                        <VStack gap="4">
+                        <VStack align="stretch" gap="4">
                           <HStack gap="4" align="center">
-                            <label className="text-sm font-medium text-muted-foreground">{t('queues.announcePositionLimit')}</label>
+                            <Label className={cls.fieldLabel}>{t('queues.announcePositionLimit')}</Label>
                             <InfoTooltip text={t('queues.announcePositionLimitDesc')} />
                           </HStack>
                           <Input type="number" value={announcePositionLimit} onChange={e => setAnnouncePositionLimit(e.target.value)} placeholder="5" />
@@ -825,70 +804,70 @@ export const QueueFormModal = () => {
                       </VStack>
 
                       {/* Column 3: Frequency & Min Frequency */}
-                      <VStack gap="6">
-                        <VStack gap="4">
+                      <VStack align="stretch" gap="6">
+                        <VStack align="stretch" gap="4">
                           <HStack gap="4" align="center">
-                            <label className="text-sm font-medium text-muted-foreground">{t('queues.announceFrequency')}</label>
+                            <Label className={cls.fieldLabel}>{t('queues.announceFrequency')}</Label>
                             <InfoTooltip text={t('queues.announceFrequencyDesc')} />
                           </HStack>
                           <Input type="number" value={announceFrequency} onChange={e => setAnnounceFrequency(e.target.value)} placeholder="0" />
                         </VStack>
-                        <VStack gap="4">
+                        <VStack align="stretch" gap="4">
                           <HStack gap="4" align="center">
-                            <label className="text-sm font-medium text-muted-foreground">{t('queues.minAnnounceFrequency')}</label>
+                            <Label className={cls.fieldLabel}>{t('queues.minAnnounceFrequency')}</Label>
                             <InfoTooltip text={t('queues.minAnnounceFrequencyDesc')} />
                           </HStack>
                           <Input type="number" value={minAnnounceFrequency} onChange={e => setMinAnnounceFrequency(e.target.value)} placeholder="15" />
                         </VStack>
                       </VStack>
-                    </div>
+                    </VStack>
                   </VStack>
-                </div>
+                </VStack>
 
                 {/* Section 2: Periodic announcements */}
-                <div className={cls.announcementSection}>
-                  <div className={cls.announcementTitle}>
-                    <Volume2 className="w-4 h-4" />
+                <VStack align="stretch" max className={cls.announcementSection}>
+                  <VStack align="stretch" max className={cls.announcementTitle}>
+                    <Volume2 className={cls.icon} />
                     {t('queues.periodicAnnouncements')}
-                  </div>
-                  <VStack gap="12">
+                  </VStack>
+                  <VStack align="stretch" gap="12">
                     <MultiPromptSelect label={t('queues.periodicAnnounce')} value={periodicAnnounce} onChange={setPeriodicAnnounce} tooltip={t('queues.periodicAnnounceDesc')} />
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <HStack gap="4" align="center">
-                        <label className="text-sm font-medium text-muted-foreground">{t('queues.periodicFrequency')}</label>
+                        <Label className={cls.fieldLabel}>{t('queues.periodicFrequency')}</Label>
                         <InfoTooltip text={t('queues.periodicFrequencyDesc')} />
                       </HStack>
                       <Input type="number" value={periodicAnnounceFrequency} onChange={e => setPeriodicAnnounceFrequency(e.target.value)} placeholder="60" />
                     </VStack>
                   </VStack>
-                </div>
+                </VStack>
 
                 {/* Section 3: Agent-facing */}
-                <div className={cls.announcementSection}>
-                  <div className={cls.announcementTitle}>
-                    <Headphones className="w-4 h-4" />
+                <VStack align="stretch" max className={cls.announcementSection}>
+                  <VStack align="stretch" max className={cls.announcementTitle}>
+                    <Headphones className={cls.icon} />
                     {t('queues.agentAnnouncements')}
-                  </div>
-                  <VStack gap="12">
+                  </VStack>
+                  <VStack align="stretch" gap="12">
                     <PromptSelect label={t('queues.announce')} value={announce} onChange={setAnnounce} tooltip={t('queues.announceDesc')} />
                     <ToggleField checked={reportholdtime} onChange={setReportholdtime} label={t('queues.reportholdtime')} desc={t('queues.reportholdtimeDesc')} />
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <HStack gap="4" align="center">
-                        <label className="text-sm font-medium text-muted-foreground">{t('queues.memberdelay')}</label>
+                        <Label className={cls.fieldLabel}>{t('queues.memberdelay')}</Label>
                         <InfoTooltip text={t('queues.memberdelayDesc')} />
                       </HStack>
                       <Input type="number" value={memberdelay} onChange={e => setMemberdelay(e.target.value)} placeholder="0" />
                     </VStack>
                   </VStack>
-                </div>
+                </VStack>
 
                 {/* Section 4: Sound file overrides */}
-                <div className={cls.announcementSection}>
-                  <div className={cls.announcementTitle}>
-                    <Volume2 className="w-4 h-4" />
+                <VStack align="stretch" max className={cls.announcementSection}>
+                  <VStack align="stretch" max className={cls.announcementTitle}>
+                    <Volume2 className={cls.icon} />
                     {t('queues.soundOverrides')}
-                  </div>
-                  <VStack gap="12">
+                  </VStack>
+                  <VStack align="stretch" gap="12">
                     <PromptSelect label={t('queues.youarenext')} value={queueYouarenext} onChange={setQueueYouarenext} tooltip={t('queues.youarenextDesc')} />
                     <PromptSelect label={t('queues.thereare')} value={queueThereare} onChange={setQueueThereare} tooltip={t('queues.thereareDesc')} />
                     <PromptSelect label={t('queues.callswaiting')} value={queueCallswaiting} onChange={setQueueCallswaiting} />
@@ -898,8 +877,9 @@ export const QueueFormModal = () => {
                     <PromptSelect label={t('queues.lessthan')} value={queueLessthan} onChange={setQueueLessthan} />
                     <PromptSelect label={t('queues.thankyou')} value={queueThankyou} onChange={setQueueThankyou} />
                   </VStack>
-                </div>
-              </VStack>
+                </VStack>
+
+</ModalSection>
             )}
 
             {/* ═══════════ ADVANCED TAB ═══════════ */}
@@ -908,9 +888,10 @@ export const QueueFormModal = () => {
             )}
 
             {activeTab === 'advanced' && (
-              <VStack gap="16">
+              <ModalSection title={t("modal.sections.settings")}>
+
                 {/* Toggles moved from General */}
-                <VStack gap="8">
+                <VStack align="stretch" gap="8">
                   <ToggleField checked={autofill} onChange={setAutofill} label={t('queues.autofill')} desc={t('queues.autofillDesc')} />
                   <ToggleField checked={ringinuse} onChange={setRinginuse} label={t('queues.ringinuse')} desc={t('queues.ringinuseDesc')} />
                 </VStack>
@@ -921,15 +902,16 @@ export const QueueFormModal = () => {
                   title={t('queues.advancedTitle')}
                   description={t('queues.advancedDesc')}
                 />
-              </VStack>
+
+</ModalSection>
             )}
-          </div>
+          </ModalBody>
 
           {/* Actions */}
-          <HStack gap="8" justify="end" className="mt-8 pt-4 border-t border-border shrink-0">
+          <DialogFooter>
             {mode === 'edit' && selectedName && (
               <Tooltip content={deleteHint}>
-                <span>
+                <Text>
                   <Button
                     type="button"
                     variant="destructive"
@@ -942,15 +924,15 @@ export const QueueFormModal = () => {
                   >
                     {t('common.delete', 'Удалить')}
                   </Button>
-                </span>
+                </Text>
               </Tooltip>
             )}
             <Button variant="outline" onClick={handleClose} disabled={isLoading}>{t('common.cancel')}</Button>
             <Button onClick={handleSubmit} disabled={isLoading || !exten.trim()}>
               {isLoading ? t('common.loading') : t('common.save')}
             </Button>
-          </HStack>
-        </Dialog.Content>
+          </DialogFooter>
+        </FormDialogContent>
       {mode === 'edit' && selectedName && (
         <DeleteBlockedDialog
           open={deleteOpen}
@@ -961,7 +943,7 @@ export const QueueFormModal = () => {
           isDeleting={isDeleting}
         />
       )}
-      </Dialog.Portal>
-    </Dialog.Root>
+
+    </Dialog>
   );
 };

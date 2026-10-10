@@ -1,6 +1,9 @@
+import { toast } from 'react-toastify';
+import { ModalSection } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/Dialog';
+import { Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui';
 import { Button, Input, VStack, HStack, WebhookAuthConfig, type AuthMode, Label, Select } from '@/shared/ui';
 import { ISttEngine } from '@/entities/engines';
 import {
@@ -81,26 +84,29 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
       if (engine) { await updateEngine({ uid: engine.uid, data: payload }).unwrap(); }
       else { await createEngine(payload as any).unwrap(); }
       onClose();
-    } catch (err) { console.error('Failed to save STT engine', err); }
+    } catch (err) { console.error('Failed to save STT engine', err);
+      toast.error(t("modal.errors.save")); }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent size="large">
+      <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {engine ? t('sttEngines.edit', 'Редактировать движок') : t('sttEngines.add', 'Добавить движок')}
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16" className="py-4">
-          <VStack gap="4">
+        <ModalBody>
+<ModalSection title={t("modal.sections.settings")}>
+<VStack align="stretch" gap="16" className="py-4">
+          <VStack align="stretch" gap="4">
             <Label>{t('sttEngines.name', 'Название')}</Label>
             <Input placeholder={t('sttEngines.namePlaceholder', 'Google ASR')} value={name} onChange={e => setName(e.target.value)} />
           </VStack>
 
           {/* Type selector */}
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <Label>{t('sttEngines.type', 'Тип')}</Label>
             <Select value={type} onChange={(e) => setType(e.target.value as EngineType)}>
               <option value="google">{t('sttEngines.typeGoogle', 'Google Speech-to-Text')}</option>
@@ -110,7 +116,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
           </VStack>
 
           {type !== 'custom' && (
-            <VStack gap="4">
+            <VStack align="stretch" gap="4">
               <Label>{t('sttEngines.token', 'API Key / Token')}</Label>
               <Input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="AIza..." />
             </VStack>
@@ -118,7 +124,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
 
           {type === 'google' && (
             <HStack gap="8">
-              <VStack gap="4" className="flex-1">
+              <VStack align="stretch" gap="4" className="flex-1">
                 <Label>{t('sttEngines.google.languageCode', 'Язык')}</Label>
                 <Select value={languageCode} onChange={e => setLanguageCode(e.target.value)}>
                   <option value="ru-RU">Русский (ru-RU)</option>
@@ -128,7 +134,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
                   <option value="de-DE">Deutsch (de-DE)</option>
                 </Select>
               </VStack>
-              <VStack gap="4" className="flex-1">
+              <VStack align="stretch" gap="4" className="flex-1">
                 <Label>{t('sttEngines.google.model', 'Модель')}</Label>
                 <Select value={model} onChange={e => setModel(e.target.value)}>
                   <option value="general">General</option>
@@ -141,7 +147,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
 
           {type === 'yandex' && (
             <>
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label>{t('sttEngines.yandex.folderId', 'Folder ID')}</Label>
                 <Input
                   placeholder="b1g..."
@@ -150,7 +156,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
                 />
               </VStack>
               <HStack gap="8">
-                <VStack gap="4" className="flex-1">
+                <VStack align="stretch" gap="4" className="flex-1">
                   <Label>{t('sttEngines.yandex.languageCode', 'Язык')}</Label>
                   <Select value={languageCode} onChange={e => setLanguageCode(e.target.value)}>
                     <option value="auto">Автоопределение (auto)</option>
@@ -172,7 +178,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
                     <option value="tr-TR">Турецкий (tr-TR)</option>
                   </Select>
                 </VStack>
-                <VStack gap="4" className="flex-1">
+                <VStack align="stretch" gap="4" className="flex-1">
                   <Label>{t('sttEngines.yandex.model', 'Модель')}</Label>
                   <Select value={model} onChange={e => setModel(e.target.value)}>
                     <option value="general">{t('sttEngines.yandex.modelGeneral', 'General (Основная)')}</option>
@@ -180,7 +186,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
                   </Select>
                 </VStack>
               </HStack>
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label>{t('sttEngines.yandex.eouSensitivity', 'EOU Чувствительность')}</Label>
                 <Select value={eouSensitivity} onChange={e => setEouSensitivity(e.target.value)}>
                   <option value="DEFAULT">{t('sttEngines.yandex.eouDefault', 'Стандартная')}</option>
@@ -192,7 +198,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
 
           {type === 'custom' && (
             <>
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label>{t('sttEngines.custom.url', 'URL')}</Label>
                 <Input placeholder="https://api.example.com/asr" value={customUrl} onChange={e => setCustomUrl(e.target.value)} />
               </VStack>
@@ -208,11 +214,14 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
           )}
         </VStack>
 
-        <DialogFooter className="mt-6 pt-4 border-t border-border">
+
+</ModalSection>
+</ModalBody>
+<DialogFooter className="mt-6 pt-4 border-t border-border">
           <Button variant="outline" onClick={onClose}>{t('common.cancel', 'Отмена')}</Button>
           <Button onClick={handleSubmit} disabled={isCreating || isUpdating || !name.trim()}>{t('common.save', 'Сохранить')}</Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

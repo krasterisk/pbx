@@ -1,3 +1,4 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download } from 'lucide-react';
@@ -12,10 +13,10 @@ import { Button, SkeletonText, Text } from '@/shared/ui';
 import { AudioPlayer } from '@/shared/ui/AudioPlayer';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/shared/ui/Dialog';
+} from '@/shared/ui';
 import cls from './VoicemailDetailsModal.module.scss';
 
 export interface VoicemailDetailsModalProps {
@@ -75,14 +76,15 @@ export const VoicemailDetailsModal = memo(({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent size="large">
+      <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {t('cdr.voicemail.detailsTitle', 'Детали сообщения')}
           </DialogTitle>
         </DialogHeader>
 
-        <div className={cls.scrollBody}>
+        <ModalBody className={cls.scrollBody}>
+<ModalSection>
           <Text className={cls.route}>
             {data ? `${data.caller_id} → ${data.exten}` : t('cdr.voicemail.loading', 'Загрузка')}
           </Text>
@@ -181,8 +183,9 @@ export const VoicemailDetailsModal = memo(({
               </span>
             )}
           </div>
-        </div>
-      </DialogContent>
+        </ModalSection>
+</ModalBody>
+      </FormDialogContent>
     </Dialog>
   );
 });

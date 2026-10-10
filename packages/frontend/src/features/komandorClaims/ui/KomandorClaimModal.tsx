@@ -1,6 +1,7 @@
+import { ModalBody } from '@/shared/ui';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter,
   Button, VStack, HStack, Input, Label, Select, Textarea, Checkbox, Text, Badge, TagInput,
 } from '@/shared/ui';
 import {
@@ -234,21 +235,22 @@ export function KomandorClaimModal({ isOpen, onClose, record }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent size="large" className="min-w-0" aria-describedby={undefined}>
+      <FormDialogContent size="large"  aria-describedby={undefined}>
         <DialogHeader className="shrink-0">
           <DialogTitle>
             {isEdit ? `Рекламация ${record?.request_number || record?.uid}` : 'Новая рекламация Командор'}
           </DialogTitle>
         </DialogHeader>
 
-        <HStack gap="8" className="border-b border-border/50 pb-2 shrink-0">
+        <ModalBody>
+<HStack gap="8" className="border-b border-border/50 pb-2 shrink-0">
           <Button variant={tab === 'claim' ? 'default' : 'ghost'} size="sm" onClick={() => setTab('claim')}>Рекламация</Button>
           <Button variant={tab === 'reply' ? 'default' : 'ghost'} size="sm" onClick={() => setTab('reply')}>Ответы и отправка</Button>
         </HStack>
 
         {tab === 'claim' && (
-          <VStack max gap="16" className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pr-1">
-            <VStack max gap="8">
+          <VStack align="stretch" max gap="16" className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pr-1">
+            <VStack align="stretch" max gap="8">
               <HStack gap="8" align="center"><Store className="w-4 h-4" /><Text variant="small" className="font-semibold">Магазин и ответственные</Text></HStack>
               <Input placeholder="Поиск магазина..." value={storeQuery} onChange={(e) => setStoreQuery(e.target.value)} />
               <div className="w-full min-w-0">
@@ -298,7 +300,7 @@ export function KomandorClaimModal({ isOpen, onClose, record }: Props) {
               </div>
             </VStack>
 
-            <VStack max gap="8">
+            <VStack align="stretch" max gap="8">
               <HStack gap="8" align="center"><FileText className="w-4 h-4" /><Text variant="small" className="font-semibold">Обращение</Text></HStack>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full min-w-0">
                 <div className="min-w-0">
@@ -342,7 +344,7 @@ export function KomandorClaimModal({ isOpen, onClose, record }: Props) {
               </div>
             </VStack>
 
-            <VStack max gap="8">
+            <VStack align="stretch" max gap="8">
               <HStack gap="8" align="center"><Phone className="w-4 h-4" /><Text variant="small" className="font-semibold">Клиент</Text></HStack>
               <div>
                 <Label className="text-xs">Контактная информация</Label>
@@ -400,9 +402,9 @@ export function KomandorClaimModal({ isOpen, onClose, record }: Props) {
         )}
 
         {tab === 'reply' && (
-          <VStack max gap="16" className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pr-1">
+          <VStack align="stretch" max gap="16" className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pr-1">
             {!!record?.department_log?.length && (
-              <VStack gap="8">
+              <VStack align="stretch" gap="8">
                 <HStack gap="8" align="center"><Users className="w-4 h-4" /><Text variant="small" className="font-semibold">Ответы подразделения</Text></HStack>
                 {record.department_log.map((m, i) => (
                   <div key={i} className="rounded border border-border/50 p-2 text-sm">
@@ -422,7 +424,7 @@ export function KomandorClaimModal({ isOpen, onClose, record }: Props) {
               <Label className="text-xs">Ответ покупателю</Label>
               <Textarea rows={3} value={customerResponse} onChange={(e) => setCustomerResponse(e.target.value)} />
             </div>
-            <VStack gap="8">
+            <VStack align="stretch" gap="8">
               <HStack gap="8" align="center"><MessageSquare className="w-4 h-4" /><Text variant="small" className="font-semibold">Отправка</Text></HStack>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={sendToStore} onChange={(e) => setSendToStore(e.target.checked)} />
@@ -453,13 +455,15 @@ export function KomandorClaimModal({ isOpen, onClose, record }: Props) {
           </VStack>
         )}
 
-        <DialogFooter className="shrink-0">
+
+</ModalBody>
+<DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={onClose}>Отмена</Button>
           <Button onClick={save} disabled={isLoading || !isValid}>
             {isLoading ? 'Сохранение...' : 'Сохранить'}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

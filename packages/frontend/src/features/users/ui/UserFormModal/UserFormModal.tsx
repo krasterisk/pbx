@@ -1,9 +1,11 @@
+import { toast } from 'react-toastify';
+import { ModalBody, Flex, ModalSection } from '@/shared/ui';
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Stars, Loader2, Upload, Trash2, ChevronDown } from 'lucide-react';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -157,6 +159,7 @@ export const UserFormModal = () => {
       onClose();
     } catch (err) {
       console.error('Failed to save user:', err);
+      toast.error(t("modal.errors.save"));
     }
   };
 
@@ -176,6 +179,7 @@ export const UserFormModal = () => {
       syncAuthAvatar(selectedUser.uniqueid, updated.avatar ?? null);
     } catch (err) {
       console.error('Failed to upload avatar:', err);
+      toast.error(t("modal.errors.upload"));
     }
   };
 
@@ -187,6 +191,7 @@ export const UserFormModal = () => {
       syncAuthAvatar(selectedUser.uniqueid, null);
     } catch (err) {
       console.error('Failed to remove avatar:', err);
+      toast.error(t("modal.errors.remove"));
     }
   };
 
@@ -206,19 +211,19 @@ export const UserFormModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className={`flex flex-col gap-0 overflow-hidden max-h-[min(90vh,90dvh)] ${styles.dialogContent}`}
-      >
+      <FormDialogContent
+        className={styles.dialogContent}
+       aria-describedby={undefined}>
         <DialogHeader className={`shrink-0 ${styles.header}`}>
           <DialogTitle>
             {isEditing ? t('users.edit') : t('users.add')}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className={styles.form} autoComplete="off">
-          <div className={styles.formBody}>
-            <VStack gap="16" max>
-              {isEditing && selectedUser ? (
+        <Flex as="form" direction="column" align="stretch" onSubmit={handleSubmit} className={styles.form} autoComplete="off">
+          <ModalBody className={styles.formBody}>
+<ModalSection title={t("modal.sections.identity")}>
+{isEditing && selectedUser ? (
                 <VStack gap="12" align="center" max className={styles.avatarRow}>
                   <Avatar name={formData.name || selectedUser.name} src={avatarSrc} size={72} />
                   <HStack gap="8" align="center" className={styles.avatarActions}>
@@ -247,7 +252,7 @@ export const UserFormModal = () => {
                       </Button>
                     )}
                   </HStack>
-                  <input
+                  <Input
                     ref={fileRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif"
@@ -256,8 +261,7 @@ export const UserFormModal = () => {
                   />
                 </VStack>
               ) : null}
-
-              <VStack gap="8" max className={styles.field}>
+<VStack align="stretch" gap="8" max className={styles.field}>
                 <Label htmlFor="user-name" className={styles.fieldLabel}>
                   {t('users.name')} *
                 </Label>
@@ -268,8 +272,42 @@ export const UserFormModal = () => {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </VStack>
-
-              <VStack gap="8" max className={styles.field}>
+<VStack align="stretch" gap="8" max className={styles.field}>
+                <Label htmlFor="user-email" className={styles.fieldLabel}>
+                  {t('users.email')}
+                </Label>
+                <Input
+                  id="user-email"
+                  type="email"
+                  inputMode="email"
+                  value={formData.email}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    if (emailError) setEmailError('');
+                  }}
+                  onBlur={() => {
+                    if (!isValidEmail(formData.email)) {
+                      setEmailError(t('users.emailInvalid'));
+                    }
+                  }}
+                  onInvalid={(e) => {
+                    e.preventDefault();
+                    setEmailError(t('users.emailInvalid'));
+                  }}
+                  autoComplete="off"
+                  data-lpignore="true"
+                  aria-invalid={Boolean(emailError)}
+                  aria-describedby={emailError ? 'user-email-error' : undefined}
+                />
+                {emailError ? (
+                  <Text id="user-email-error" className={styles.fieldError}>
+                    {emailError}
+                  </Text>
+                ) : null}
+              </VStack>
+</ModalSection>
+<ModalSection title={t("modal.sections.account")}>
+<VStack align="stretch" gap="8" max className={styles.field}>
                 <Label htmlFor="user-login" className={styles.fieldLabel}>
                   {t('users.login')} *
                 </Label>
@@ -282,8 +320,7 @@ export const UserFormModal = () => {
                   data-lpignore="true"
                 />
               </VStack>
-
-              <VStack gap="8" max className={styles.field}>
+<VStack align="stretch" gap="8" max className={styles.field}>
                 <HStack gap="4" align="center">
                   <Label htmlFor="user-password" className={styles.fieldLabel}>
                     {passwordLabel}
@@ -317,42 +354,9 @@ export const UserFormModal = () => {
                   </Button>
                 </HStack>
               </VStack>
-
-              <VStack gap="8" max className={styles.field}>
-                <Label htmlFor="user-email" className={styles.fieldLabel}>
-                  {t('users.email')}
-                </Label>
-                <Input
-                  id="user-email"
-                  type="email"
-                  inputMode="email"
-                  value={formData.email}
-                  onChange={(e) => {
-                    setFormData({ ...formData, email: e.target.value });
-                    if (emailError) setEmailError('');
-                  }}
-                  onBlur={() => {
-                    if (!isValidEmail(formData.email)) {
-                      setEmailError(t('users.emailInvalid'));
-                    }
-                  }}
-                  onInvalid={(e) => {
-                    e.preventDefault();
-                    setEmailError(t('users.emailInvalid'));
-                  }}
-                  autoComplete="off"
-                  data-lpignore="true"
-                  aria-invalid={Boolean(emailError)}
-                  aria-describedby={emailError ? 'user-email-error' : undefined}
-                />
-                {emailError ? (
-                  <Text id="user-email-error" className={styles.fieldError}>
-                    {emailError}
-                  </Text>
-                ) : null}
-              </VStack>
-
-              <VStack gap="8" max className={styles.primaryField}>
+</ModalSection>
+<ModalSection title={t("modal.sections.access")}>
+<VStack align="stretch" gap="8" max className={styles.primaryField}>
                 <HStack gap="4" align="center">
                   <Label htmlFor="user-level" className={styles.fieldLabel}>
                     {t('users.level')}
@@ -371,15 +375,15 @@ export const UserFormModal = () => {
                   ))}
                 </Select>
               </VStack>
-
-              <VStack
+<VStack align="stretch"
                 gap={accessExtrasOpen ? '12' : '0'}
                 max
                 className={styles.accessGroup}
               >
                 <HStack gap="8" align="center" max className={styles.accessGroupTitleRow}>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     className={styles.accessGroupToggle}
                     aria-expanded={accessExtrasOpen}
                     aria-controls="user-access-extras"
@@ -392,13 +396,13 @@ export const UserFormModal = () => {
                         aria-hidden
                       />
                     </HStack>
-                  </button>
+                  </Button>
                   <InfoTooltip text={t('users.accessExtrasHint')} />
                 </HStack>
 
                 {accessExtrasOpen && (
-                  <VStack gap="12" max id="user-access-extras">
-                    <VStack gap="8" max className={styles.field}>
+                  <VStack align="stretch" gap="12" max id="user-access-extras">
+                    <VStack align="stretch" gap="8" max className={styles.field}>
                       <HStack gap="4" align="center">
                         <Label htmlFor="user-role" className={styles.fieldLabel}>
                           {t('users.role')}
@@ -419,7 +423,7 @@ export const UserFormModal = () => {
                       </Select>
                     </VStack>
 
-                    <VStack gap="8" max className={styles.field}>
+                    <VStack align="stretch" gap="8" max className={styles.field}>
                       <HStack gap="4" align="center">
                         <Label htmlFor="user-numbers" className={styles.fieldLabel}>
                           {t('users.numbersId')}
@@ -442,8 +446,8 @@ export const UserFormModal = () => {
                   </VStack>
                 )}
               </VStack>
-            </VStack>
-          </div>
+</ModalSection>
+</ModalBody>
 
           <DialogFooter className={styles.footer}>
             <HStack gap="8" justify="end" max>
@@ -456,8 +460,8 @@ export const UserFormModal = () => {
               </Button>
             </HStack>
           </DialogFooter>
-        </form>
-      </DialogContent>
+        </Flex>
+      </FormDialogContent>
     </Dialog>
   );
 };

@@ -1,15 +1,12 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Copy,
-  FileQuestion,
   GripVertical,
   MoreVertical,
   Power,
   PowerOff,
-  Filter,
-  LogOut,
-  CircleStop,
+  Info,
   Trash2,
 } from 'lucide-react';
 import {
@@ -142,9 +139,19 @@ export const StepRow = memo(function StepRow({
       ? 'never'
       : meta?.terminal;
   const enabled = action.enabled ?? true;
+  const [infoOpen, setInfoOpen] = useState(false);
+  const infoLabel = t('routes.chain.row.info', 'Информация о шаге');
+  const statuses: string[] = [];
+  if (cond) statuses.push(cond);
+  if (!enabled) statuses.push(t('routes.chain.badge.disabled', 'Выключен'));
+  else if (terminal === 'always') statuses.push(t('routes.chain.badge.terminal', 'Завершает цепочку'));
+  else if (terminal === 'conditional') statuses.push(t('routes.chain.badge.mayExit', 'Может выйти из цепочки'));
+  if (unreachable) statuses.push(t('routes.chain.row.unreachableHint', 'Шаг не выполнится: предыдущее действие завершает цепочку'));
   const minHeight = density === 'compact' ? '44px' : '56px';
   const isEmptyType = !action.type;
   const isUnknown = Boolean(action.type && !config);
+  if (isUnknown) statuses.push(t("routes.chain.badge.unknown", "Неизвестное действие"));
+  if (action.type && allowedTypes && !allowedTypes.includes(action.type)) statuses.push(t("routes.chain.badge.notAllowed", "Недоступно в этом контексте"));
 
   const duplicateLabel = t(
     'routes.chain.row.duplicate',
@@ -234,7 +241,6 @@ export const StepRow = memo(function StepRow({
         ) : (
           <>
             <Flex gap="6" align="center">
-              {isUnknown ? <FileQuestion size={16} /> : null}
               <Text className={isUnknown ? styles.unknownType : styles.title}>
                 {title}
               </Text>
@@ -249,65 +255,22 @@ export const StepRow = memo(function StepRow({
       </VStack>
 
       <Flex className={styles.badges} gap="4">
-        {cond && (
-          <Tooltip content={cond}>
+        {statuses.length > 0 && (
+          <Tooltip content={statuses.join("\n")} open={infoOpen} onOpenChange={setInfoOpen}>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className={styles.statusIcon}
-              aria-label={t(
-                'routes.chain.row.conditions',
-                'Условия выполнения',
-              )}
-              data-testid="step-row-condition-badge"
+              aria-label={infoLabel}
+              data-testid="step-row-info"
               onClick={(event) => {
                 event.stopPropagation();
-                onOpenStep(action.id, 'conditions');
+                setInfoOpen(true);
               }}
             >
-              <Filter size={16} />
+              <Info size={16} />
             </Button>
-          </Tooltip>
-        )}
-        {enabled && terminal === 'always' && (
-          <Tooltip
-            content={t('routes.chain.badge.terminal', 'Завершает цепочку')}
-          >
-            <span
-              tabIndex={0}
-              className={styles.statusIcon}
-              aria-label={t('routes.chain.badge.terminal', 'Завершает цепочку')}
-            >
-              <CircleStop size={16} />
-            </span>
-          </Tooltip>
-        )}
-        {enabled && terminal === 'conditional' && (
-          <Tooltip
-            content={t('routes.chain.badge.mayExit', 'Может выйти из цепочки')}
-          >
-            <span
-              tabIndex={0}
-              className={styles.statusIcon}
-              aria-label={t(
-                'routes.chain.badge.mayExit',
-                'Может выйти из цепочки',
-              )}
-            >
-              <LogOut size={16} />
-            </span>
-          </Tooltip>
-        )}
-        {!enabled && (
-          <Tooltip content={t('routes.chain.badge.disabled', 'Выключен')}>
-            <span
-              tabIndex={0}
-              className={styles.statusIcon}
-              aria-label={t('routes.chain.badge.disabled', 'Выключен')}
-            >
-              <PowerOff size={16} />
-            </span>
           </Tooltip>
         )}
       </Flex>

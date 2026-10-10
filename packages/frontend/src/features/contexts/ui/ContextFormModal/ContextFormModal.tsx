@@ -1,8 +1,11 @@
+import { ModalSection } from '@/shared/ui';
+import { Switch } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { CONTEXT_IDENTIFIER_MAX_LENGTH, CONTEXT_IDENTIFIER_PATTERN, isContextIdentifier } from '@krasterisk/shared';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button, Input, Checkbox, Label, Text, InfoTooltip } from '@/shared/ui';
+import { Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, Button, Input, Label, Text, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import cls from './ContextFormModal.module.scss';
 import { ContextIncludesEditor } from './ContextIncludesEditor';
@@ -101,7 +104,7 @@ export const ContextFormModal = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className={cls.dialog}>
+      <FormDialogContent className={cls.dialog} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {isEditing
@@ -110,9 +113,11 @@ export const ContextFormModal = () => {
           </DialogTitle>
         </DialogHeader>
 
-        <VStack as="form" onSubmit={handleSubmit} autoComplete="off" max>
-          <VStack gap="16" className={cls.fields} max>
-            <VStack gap="8" max>
+        <VStack align="stretch" as="form" onSubmit={handleSubmit} autoComplete="off" max>
+          <ModalBody>
+<VStack align="stretch" gap="16" className={cls.fields} max>
+<ModalSection title={t("modal.sections.identity")}>
+<VStack align="stretch" gap="8" max>
               <HStack gap="8"><Label htmlFor="context-name">
                 {t('contexts.name', 'Имя контекста')} *
               </Label><InfoTooltip text={t('contexts.identifierHint')} /></HStack>
@@ -134,8 +139,7 @@ export const ContextFormModal = () => {
                 placeholder={t('contexts.namePlaceholder', 'from-internal')}
               />
             </VStack>
-
-            <VStack gap="8" max>
+<VStack align="stretch" gap="8" max>
               <HStack gap="8"><Label htmlFor="context-comment">
                 {t('contexts.description', 'Описание')}
               </Label><InfoTooltip text={t('contexts.descriptionHint')} /></HStack>
@@ -147,25 +151,30 @@ export const ContextFormModal = () => {
                 placeholder={t('contexts.descPlaceholder', 'Внутренняя маршрутизация')}
               />
             </VStack>
-            {contextsLoadFailed && <QueryErrorState message={t('contexts.loadError')} onRetry={refetch} />}
-            {contextsLoaded && <ContextIncludesEditor value={includeUids} onChange={setIncludeUids} contexts={contexts ?? []} contextUid={selectedContext?.uid ?? savedUid ?? undefined} onValidityChange={setIncludesValid} />}
-            {availableDefaultKinds.map((kind) => (
+</ModalSection>
+<ModalSection title={t("modal.sections.settings")}>
+{contextsLoadFailed && <QueryErrorState message={t('contexts.loadError')} onRetry={refetch} />}
+{contextsLoaded && <ContextIncludesEditor value={includeUids} onChange={setIncludeUids} contexts={contexts ?? []} contextUid={selectedContext?.uid ?? savedUid ?? undefined} onValidityChange={setIncludesValid} />}
+{availableDefaultKinds.map((kind) => (
               <HStack key={kind} gap="8" className={cls.defaultRow}>
-                <Checkbox id={`context-default-${kind}`} checked={formData[`is_default_for_${kind}`]}
-                  onChange={(event) => setFormData({ ...formData, [`is_default_for_${kind}`]: event.target.checked })} />
+                <Switch id={`context-default-${kind}`} checked={formData[`is_default_for_${kind}`]}
+                  onCheckedChange={(checked) => setFormData({ ...formData, [`is_default_for_${kind}`]: checked })} />
                 <Label htmlFor={`context-default-${kind}`}>{t(kind === 'trunks' ? 'contexts.defaultForTrunks' : 'contexts.defaultForEndpoints')}</Label>
                 <InfoTooltip text={t('contexts.defaultContextHint')} />
               </HStack>
             ))}
-            {saveError && <Text variant="error" role="alert">{t('contexts.saveError')}</Text>}
-            {applyFailed && <VStack gap="8"><Text variant="error" role="alert">{t('contexts.applyFailed')}</Text>
+{saveError && <Text variant="error" role="alert">{t('contexts.saveError')}</Text>}
+{applyFailed && <VStack align="stretch" gap="8"><Text variant="error" role="alert">{t('contexts.applyFailed')}</Text>
               <Button type="button" variant="outline" disabled={isLoading} onClick={async () => {
                 if (!savedUid) return;
                 try { const result = await applyContext(savedUid).unwrap(); if (result.dialplan_applied) onClose(); } catch { setApplyFailed(true); }
               }}>{t('contexts.retryApply')}</Button></VStack>}
-          </VStack>
+</ModalSection>
+</VStack>
 
-          <DialogFooter>
+
+</ModalBody>
+<DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
               {t('common.cancel', 'Отмена')}
             </Button>
@@ -175,7 +184,7 @@ export const ContextFormModal = () => {
             </Button>
           </DialogFooter>
         </VStack>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 };

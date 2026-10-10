@@ -94,7 +94,7 @@ describe('New action types UI (D-44 / D-45 / D-47 / D-49)', () => {
       />,
     );
     expect(screen.queryByText('Завершает цепочку')).toBeNull();
-    expect(screen.getByLabelText('Может выйти из цепочки')).toBeInTheDocument();
+    expect(screen.getByLabelText('Информация о шаге')).toBeInTheDocument();
 
     render(
       <StepRow

@@ -1,13 +1,15 @@
+import { ModalSection } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/shared/ui/Dialog';
+} from '@/shared/ui';
 import { Button, Input, Textarea, VStack, HStack, Select, Text } from '@/shared/ui';
 import {
   usePreviewPromptTtsMutation,
@@ -136,7 +138,7 @@ export function PromptEditModal({ isOpen, onClose }: PromptEditModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <FormDialogContent  aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {isTts
@@ -145,7 +147,9 @@ export function PromptEditModal({ isOpen, onClose }: PromptEditModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16">
+        <ModalBody>
+<ModalSection title={t("modal.sections.settings")}>
+<VStack align="stretch" gap="16">
           <Text variant="muted" className="text-sm">
             {isTts
               ? t('promptsPage.type.tts', 'Синтез речи')
@@ -154,7 +158,7 @@ export function PromptEditModal({ isOpen, onClose }: PromptEditModalProps) {
 
           {isTts && (
             <>
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <label className="text-sm font-medium text-muted-foreground">
                   {t('promptsPage.synthesize.textLabel', 'Текст для синтеза')} *
                 </label>
@@ -165,7 +169,7 @@ export function PromptEditModal({ isOpen, onClose }: PromptEditModalProps) {
                 />
               </VStack>
 
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Text variant="small">{t('promptsPage.synthesize.engineLabel', 'TTS-движок')} *</Text>
                 <Select value={ttsEngineUid} onChange={(e) => setTtsEngineUid(e.target.value)}>
                   <option value="">{t('promptsPage.synthesize.engineSelect', 'Выберите движок')}</option>
@@ -194,7 +198,7 @@ export function PromptEditModal({ isOpen, onClose }: PromptEditModalProps) {
             </>
           )}
 
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <label className="text-sm font-medium text-muted-foreground">
               {t('promptsPage.upload.nameLabel', 'Название записи')} *
             </label>
@@ -204,7 +208,7 @@ export function PromptEditModal({ isOpen, onClose }: PromptEditModalProps) {
             />
           </VStack>
 
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <label className="text-sm font-medium text-muted-foreground">
               {t('promptsPage.upload.descriptionLabel', 'Комментарий')}
             </label>
@@ -217,7 +221,10 @@ export function PromptEditModal({ isOpen, onClose }: PromptEditModalProps) {
           </VStack>
         </VStack>
 
-        <DialogFooter>
+
+</ModalSection>
+</ModalBody>
+<DialogFooter>
           <HStack gap="8" className="w-full justify-end">
             <Button variant="outline" onClick={onClose}>
               {t('common.cancel', 'Отмена')}
@@ -227,7 +234,7 @@ export function PromptEditModal({ isOpen, onClose }: PromptEditModalProps) {
             </Button>
           </HStack>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

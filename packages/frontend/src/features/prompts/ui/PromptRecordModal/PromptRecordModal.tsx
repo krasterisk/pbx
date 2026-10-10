@@ -1,8 +1,10 @@
+import { ModalSection } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/shared/ui/Dialog';
+  Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/shared/ui';
 import { Button, Input, Textarea, VStack, HStack, Select, Text } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { useRecordPromptMutation } from '@/shared/api/endpoints/promptsApi';
@@ -49,13 +51,15 @@ export function PromptRecordModal({ isOpen, onClose }: PromptRecordModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <FormDialogContent  aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{t('promptsPage.record.title', 'Запись по телефону')}</DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16">
-          <VStack gap="4">
+        <ModalBody>
+<ModalSection title={t("modal.sections.settings")}>
+<VStack align="stretch" gap="16">
+          <VStack align="stretch" gap="4">
             <HStack align="center" gap="4">
               <label className="text-sm font-medium text-muted-foreground">
                 {t('promptsPage.record.extenLabel', 'Внутренний номер для записи')}
@@ -89,7 +93,7 @@ export function PromptRecordModal({ isOpen, onClose }: PromptRecordModalProps) {
             )}
           </VStack>
 
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <label className="text-sm font-medium text-muted-foreground">
               {t('promptsPage.record.nameLabel', 'Название записи')} *
             </label>
@@ -101,7 +105,7 @@ export function PromptRecordModal({ isOpen, onClose }: PromptRecordModalProps) {
             />
           </VStack>
 
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <label className="text-sm font-medium text-muted-foreground">
               {t('promptsPage.record.descriptionLabel', 'Комментарий')}
             </label>
@@ -121,7 +125,10 @@ export function PromptRecordModal({ isOpen, onClose }: PromptRecordModalProps) {
           )}
         </VStack>
 
-        <DialogFooter>
+
+</ModalSection>
+</ModalBody>
+<DialogFooter>
           <Button variant="outline" onClick={handleClose}>{t('common.cancel', 'Отмена')}</Button>
           {!initiated && (
             <Button
@@ -132,7 +139,7 @@ export function PromptRecordModal({ isOpen, onClose }: PromptRecordModalProps) {
             </Button>
           )}
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

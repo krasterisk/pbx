@@ -92,7 +92,7 @@ vi.mock('@/shared/ui', async (importOriginal) => {
     ...actual,
     Dialog: ({ open, children }: { open?: boolean; children: React.ReactNode }) =>
       (open ? <div data-testid="dialog">{children}</div> : null),
-    DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    FormDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
     DialogFooter: ({ children, ...props }: { children: React.ReactNode }) => (

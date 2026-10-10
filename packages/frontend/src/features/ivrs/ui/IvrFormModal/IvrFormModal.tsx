@@ -1,15 +1,17 @@
+import { ModalTabs } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
   Button,
   Tooltip,
 } from '@/shared/ui';
-import { VStack } from '@/shared/ui/Stack';
+
 import { getIvrPromptsValidationIssues, normalizeIvrPrompts, type IIvrPhrase } from '@krasterisk/shared';
 import { IIvr, IIvrMenuItem } from '@/entities/ivr';
 import { toast } from 'react-toastify';
@@ -198,29 +200,15 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="large">
+      <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <div className={cls.tabsWrap}>
-          <div className={cls.tabsRow} role="tablist">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={[cls.tab, activeTab === tab.id && cls.tabActive].filter(Boolean).join(' ')}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <ModalTabs items={tabs} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={title} />
 
-        <VStack max className={cls.body}>
+        <ModalBody  className={cls.body}>
+
           {activeTab === 'main' && (
             <IvrMainTab
               name={name}
@@ -270,7 +258,8 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
           {activeTab === 'usage' && mode === 'edit' && ivr && (
             <UsageTab kind="ivr" uid={ivr.uid} />
           )}
-        </VStack>
+
+</ModalBody>
 
         <DialogFooter className={cls.footer}>
           {mode === 'edit' && ivr && (
@@ -299,7 +288,7 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
             {t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
       {mode === 'edit' && ivr && (
         <DeleteBlockedDialog
           open={deleteOpen}

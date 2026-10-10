@@ -241,11 +241,11 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
 
         {step === 1 ? (
           <VStack gap="16" max className={cls.step}>
-            <VStack gap="4" max>
+            <VStack gap="4" max align="stretch">
               <Label htmlFor="sa-wizard-name">{t('speechAnalytics.projectName', 'Название проекта')}</Label>
               <Input id="sa-wizard-name" value={name} onChange={(e) => setName(e.target.value)} />
             </VStack>
-            <VStack gap="4" max>
+            <VStack gap="4" max align="stretch">
               <Label htmlFor="sa-wizard-description">{t('speechAnalytics.wizardProjectDescription', 'Описание проекта')}</Label>
               <Input id="sa-wizard-description" value={description} onChange={(e) => setDescription(e.target.value)} />
             </VStack>
@@ -274,7 +274,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
               </Card>
             </div>
             {mode === 'prompt' ? (
-              <VStack gap="4" max>
+              <VStack gap="4" max align="stretch">
                 <Label htmlFor="sa-wizard-prompt">{t('speechAnalytics.wizardPromptLabel', 'Промпт')}</Label>
                 <Textarea
                   id="sa-wizard-prompt"
@@ -330,7 +330,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
               <VStack gap="8" max>
                 {custom.map((metric, index) => (
                   <Card key={`${metric.id}-${index}`}>
-                    <VStack gap="8" max>
+                    <VStack gap="8" max align="stretch">
                       <HStack justify="between" max>
                         <Text>{metric.name || t('speechAnalytics.wizardNewMetric', 'Новая метрика')}</Text>
                         <Button type="button" variant="outline" onClick={() => setPendingMetricDelete(index)}>
@@ -373,7 +373,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
                       ) : null}
                       {metric.type === 'number' ? (
                         <HStack gap="8" align="end">
-                          <VStack gap="4" className={cls.grow}>
+                          <VStack gap="4" className={cls.grow} align="stretch">
                             <Label>{t('speechAnalytics.settingsScaleFrom', 'От')}</Label>
                             <Input
                               aria-label={t('speechAnalytics.settingsScaleFrom', 'От')}
@@ -381,7 +381,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
                               onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, min: e.target.value === '' ? undefined : Number(e.target.value) } : row)))}
                             />
                           </VStack>
-                          <VStack gap="4" className={cls.grow}>
+                          <VStack gap="4" className={cls.grow} align="stretch">
                             <Label>{t('speechAnalytics.settingsScaleTo', 'До')}</Label>
                             <Input
                               aria-label={t('speechAnalytics.settingsScaleTo', 'До')}
@@ -389,7 +389,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
                               onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, max: e.target.value === '' ? undefined : Number(e.target.value) } : row)))}
                             />
                           </VStack>
-                          <VStack gap="4" className={cls.grow}>
+                          <VStack gap="4" className={cls.grow} align="stretch">
                             <Label>{t('speechAnalytics.wizardUnit', 'Единица')}</Label>
                             <Input
                               aria-label={t('speechAnalytics.wizardUnit', 'Единица')}
@@ -398,7 +398,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
                               onChange={(e) => setCustom((prev) => prev.map((row, i) => (i === index ? { ...row, unit: e.target.value } : row)))}
                             />
                           </VStack>
-                          <VStack gap="4" className={cls.grow}>
+                          <VStack gap="4" className={cls.grow} align="stretch">
                             <Label>{t('speechAnalytics.wizardScore', 'Оценка')}</Label>
                             <Select
                               aria-label={t('speechAnalytics.wizardScore', 'Оценка')}
@@ -467,7 +467,7 @@ export const ProjectWizard = memo(({ onSubmit, onCancel, onContinueInChat, submi
             ) : null}
             {topics.map((tag, index) => (
               <Card key={tag.id}>
-                <VStack gap="8" max>
+                <VStack gap="8" max align="stretch">
                   <HStack justify="between" max>
                     <Text>{tag.name || t('speechAnalytics.wizardNewTopic', 'Новая тема')}</Text>
                     <Button type="button" variant="outline" onClick={() => setPendingDelete(index)}>

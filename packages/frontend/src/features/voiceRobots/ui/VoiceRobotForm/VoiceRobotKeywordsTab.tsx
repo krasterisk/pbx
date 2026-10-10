@@ -1,10 +1,8 @@
+import { FormDialogContent, ModalBody } from "@/shared/ui";
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Pencil, Trash2, Plus, ChevronRight, ChevronDown, Bot, FileText,
-  MessageSquare, ArrowRight, GripVertical, Eye, Copy, Check, GitBranchPlus, Globe, Play,
-} from 'lucide-react';
-import { VStack, HStack, Text, Button, Input, Label, Checkbox, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, SkeletonCard, PageLoader } from '@/shared/ui';
+import { Pencil, Trash2, Plus, ChevronRight, ChevronDown, Bot, FileText, MessageSquare, ArrowRight, Eye, Copy, Check, GitBranchPlus, Globe } from 'lucide-react';
+import { VStack, HStack, Text, Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, SkeletonCard } from '@/shared/ui';
 import { IVoiceRobot, IVoiceRobotKeywordGroup, IVoiceRobotKeyword, IVoiceRobotBotAction } from '@/entities/voiceRobot';
 import { KeywordEditDialog } from '../KeywordEditDialog/KeywordEditDialog';
 import { ConversationPreview } from '../ConversationPreview';
@@ -185,7 +183,7 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
   // Edit dialog state
   const [editingKeyword, setEditingKeyword] = useState<IVoiceRobotKeyword | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
+
   // Preview
   const [previewKeyword, setPreviewKeyword] = useState<IVoiceRobotKeyword | null>(null);
 
@@ -289,14 +287,15 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
 
       {/* Preview Dialog */}
       <Dialog open={!!previewKeyword} onOpenChange={(open) => !open && setPreviewKeyword(null)}>
-        <DialogContent size="large">
+        <FormDialogContent size="large" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{t('voiceRobots.conversationPreview.title', 'Предпросмотр сценария')}</DialogTitle>
           </DialogHeader>
+<ModalBody>
           <div className="py-2">
             {previewKeyword && (
-              <ConversationPreview 
-                keyword={previewKeyword.keywords} 
+              <ConversationPreview
+                keyword={previewKeyword.keywords}
                 action={previewKeyword.bot_action || { response: { type: 'none' }, nextState: { type: 'listen' } }}
                 maxRepeats={previewKeyword.max_repeats}
                 escalationAction={previewKeyword.escalation_action}
@@ -304,7 +303,8 @@ const KeywordsList = memo(({ groupId, robotId }: KeywordsListProps) => {
               />
             )}
           </div>
-        </DialogContent>
+        </ModalBody>
+</FormDialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
@@ -415,10 +415,10 @@ const KeywordGroupPanel = memo(({ group, onDelete, onUpdate, robotId }: KeywordG
           ) : (
             <VStack gap="0" className="min-w-0">
               <Text variant="small" className="font-semibold truncate flex items-center">
-                {group.name} 
+                {group.name}
                 <span className="text-muted-foreground font-normal ml-3 text-xs flex items-center gap-1.5 bg-muted-foreground/10 px-1.5 py-0.5 rounded">
                   ID: {group.uid}
-                  <button 
+                  <button
                     onClick={handleCopyId}
                     className="hover:text-primary transition-colors flex items-center justify-center"
                     title={t('common.copy', 'Скопировать')}
@@ -641,16 +641,18 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot, onImportedRobotField
 
       {/* Tree Preview Dialog */}
       <Dialog open={showTree} onOpenChange={(open) => !open && setShowTree(false)}>
-        <DialogContent size="large">
+        <FormDialogContent size="large" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{t('voiceRobots.preview.treeTitle', 'Дерево сценариев')}</DialogTitle>
           </DialogHeader>
+<ModalBody>
           <ScenarioTreePreview
             robotId={selectedRobot.uid}
             greetingText={selectedRobot.greeting_tts_text || undefined}
             onImportedRobotFields={onImportedRobotFields}
           />
-        </DialogContent>
+        </ModalBody>
+</FormDialogContent>
       </Dialog>
 
       {/* Groups */}
@@ -679,7 +681,7 @@ export const VoiceRobotDialogueTab = memo(({ selectedRobot, onImportedRobotField
       {/* Add group form */}
       {isAddingGroup ? (
         <VStack gap="8" className="p-4 border border-dashed border-primary/40 rounded-xl bg-primary/5">
-          <VStack gap="4">
+          <VStack gap="4" align="stretch">
             <Label>{t('voiceRobots.groupName', 'Название группы')}</Label>
             <Input
               value={newGroupName}

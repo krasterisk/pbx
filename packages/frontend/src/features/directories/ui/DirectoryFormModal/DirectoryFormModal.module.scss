@@ -59,3 +59,7 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.tabs { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.formBody { padding: 20px 24px; }
+@media (max-width: 640px) { .formBody { padding: 12px; } }

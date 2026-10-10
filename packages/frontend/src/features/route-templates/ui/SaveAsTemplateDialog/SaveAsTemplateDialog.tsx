@@ -1,3 +1,4 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save } from 'lucide-react';
@@ -6,7 +7,7 @@ import {
   Button,
   Checkbox,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -75,7 +76,7 @@ export function SaveAsTemplateDialog({ open, onOpenChange, actions }: SaveAsTemp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="large" className={styles.dialog} aria-describedby={undefined}>
+      <FormDialogContent size="large" className={styles.dialog} aria-describedby={undefined}>
         <DialogHeader className={styles.header}>
           <DialogTitle>
             <HStack gap="8" align="center">
@@ -87,8 +88,9 @@ export function SaveAsTemplateDialog({ open, onOpenChange, actions }: SaveAsTemp
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16" className={styles.scrollBody} max>
-          <VStack gap="8" max>
+        <ModalBody  className={styles.scrollBody} >
+<ModalSection>
+          <VStack align="stretch" gap="8" max>
             <Label htmlFor="template-save-name">
               {`${t('routes.templates.name', 'Название')} *`}
             </Label>
@@ -99,7 +101,7 @@ export function SaveAsTemplateDialog({ open, onOpenChange, actions }: SaveAsTemp
               autoFocus
             />
           </VStack>
-          <VStack gap="8" max>
+          <VStack align="stretch" gap="8" max>
             <Label htmlFor="template-save-description">
               {t('routes.templates.description', 'Описание')}
             </Label>
@@ -111,7 +113,7 @@ export function SaveAsTemplateDialog({ open, onOpenChange, actions }: SaveAsTemp
           </VStack>
 
           {candidates.length > 0 ? (
-            <VStack gap="8" max>
+            <VStack align="stretch" gap="8" max>
               <Text variant="h4">{t('routes.templates.slotsSection', 'Что спрашивать при применении')}</Text>
               <Text variant="muted">
                 {t('routes.templates.slotsHint', 'Отмеченные значения шаблон не запомнит, а спросит каждый раз')}
@@ -141,7 +143,8 @@ export function SaveAsTemplateDialog({ open, onOpenChange, actions }: SaveAsTemp
 
           <TemplateActionPreview actions={selected.actions} slots={selected.slots} />
           {error ? <Text variant="error">{error}</Text> : null}
-        </VStack>
+        </ModalSection>
+</ModalBody>
 
         <DialogFooter className={styles.footer}>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -155,7 +158,7 @@ export function SaveAsTemplateDialog({ open, onOpenChange, actions }: SaveAsTemp
             {t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

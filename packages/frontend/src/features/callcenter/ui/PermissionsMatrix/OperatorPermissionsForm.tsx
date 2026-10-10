@@ -1,8 +1,7 @@
+import { FormSheetContent, ModalBody, ModalSection, SheetFooter } from "@/shared/ui";
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Button, Label, Switch, Text, Sheet, SheetContent, SheetHeader, SheetTitle,
-} from '@/shared/ui';
+import { Button, Label, Switch, Text, Sheet, SheetHeader, SheetTitle } from '@/shared/ui';
 import type { IEffectivePermissions, SpyMode } from '@/shared/api/endpoints/callCenterApi';
 import {
   ALL_SPY_MODES,
@@ -63,19 +62,18 @@ export function OperatorPermissionsForm({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md">
+      <FormSheetContent aria-describedby={undefined}>
         <SheetHeader>
           <SheetTitle>
             {t('callcenter.settings.permissions.operatorFormTitle', 'Permissions')}: {operatorName}
           </SheetTitle>
         </SheetHeader>
-        <div className={styles.form} data-testid="operator-permissions-form">
-          {PERMISSION_BOOL_KEYS.map((key) => {
+        <ModalBody data-testid="operator-permissions-form"><ModalSection title={t('modal.sections.access')}>{PERMISSION_BOOL_KEYS.map((key) => {
             const locked = !!locks[key];
             return (
               <div key={key} className={styles.formRow}>
                 <div className={styles.formLabel}>
-                  <Label>{t(`callcenter.settings.permissions.rights.${key}`)}</Label>
+                  <Label htmlFor={`cc-permission-${key}`}>{t(`callcenter.settings.permissions.rights.${key}`)}</Label>
                   {key === 'click_to_call' && (
                     <Text className={styles.hint}>
                       {t(
@@ -91,6 +89,7 @@ export function OperatorPermissionsForm({
                   )}
                 </div>
                 <Switch
+                  id={`cc-permission-${key}`}
                   checked={form[key]}
                   disabled={locked || saving}
                   onCheckedChange={setBool(key)}
@@ -98,8 +97,7 @@ export function OperatorPermissionsForm({
               </div>
             );
           })}
-
-          <div className={styles.form}>
+<div className={styles.form}>
             <Text className={styles.sectionTitle}>
               {t('callcenter.settings.permissions.rights.spy_modes')}
             </Text>
@@ -115,18 +113,16 @@ export function OperatorPermissionsForm({
                 </label>
               ))}
             </div>
-          </div>
-
-          <div className={styles.actions}>
+          </div></ModalSection></ModalBody>
+<SheetFooter><div className={styles.actions}>
             <Button type="button" onClick={() => void handleSave()} disabled={saving}>
               {t('callcenter.settings.save')}
             </Button>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               {t('common.cancel', 'Cancel')}
             </Button>
-          </div>
-        </div>
-      </SheetContent>
+          </div></SheetFooter>
+      </FormSheetContent>
     </Sheet>
   );
 }

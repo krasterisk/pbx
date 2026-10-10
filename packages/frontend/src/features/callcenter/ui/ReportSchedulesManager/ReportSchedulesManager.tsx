@@ -1,3 +1,4 @@
+import { FormDialogContent, ModalBody, ModalSection, ModalToggle, Textarea } from "@/shared/ui";
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -342,7 +343,7 @@ export function ReportSchedulesManager() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <FormDialogContent size="large" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
               {editing
@@ -351,8 +352,9 @@ export function ReportSchedulesManager() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className={styles.formGrid}>
-            <div className={`${styles.field} ${styles.fieldWide}`}>
+          <ModalBody>
+<ModalSection title={t('modal.sections.report')} action={<ModalToggle compact label={t('callcenter.settings.reportSchedules.colEnabled')} id="rs-enabled" checked={form.enabled} onCheckedChange={(enabled)=>setForm(f=>({...f,enabled}))} />}><div className={styles.formGrid}>
+<div className={`${styles.field} ${styles.fieldWide}`}>
               <Label htmlFor="rs-name">{t('callcenter.settings.reportSchedules.fieldName')}</Label>
               <Input
                 id="rs-name"
@@ -360,8 +362,7 @@ export function ReportSchedulesManager() {
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               />
             </div>
-
-            <div className={styles.field}>
+<div className={styles.field}>
               <Label htmlFor="rs-report">{t('callcenter.settings.reportSchedules.fieldReport')}</Label>
               <Select
                 id="rs-report"
@@ -377,8 +378,7 @@ export function ReportSchedulesManager() {
                 ))}
               </Select>
             </div>
-
-            <div className={styles.field}>
+<div className={styles.field}>
               <Label htmlFor="rs-format">{t('callcenter.settings.reportSchedules.fieldFormat')}</Label>
               <Select
                 id="rs-format"
@@ -394,8 +394,7 @@ export function ReportSchedulesManager() {
                 {t('callcenter.settings.reportSchedules.formatHint')}
               </span>
             </div>
-
-            <div className={styles.field}>
+<div className={styles.field}>
               <Label htmlFor="rs-period">{t('callcenter.settings.reportSchedules.fieldPeriod')}</Label>
               <Select
                 id="rs-period"
@@ -414,8 +413,9 @@ export function ReportSchedulesManager() {
                 ))}
               </Select>
             </div>
-
-            <div className={styles.field}>
+</div></ModalSection>
+<ModalSection title={t('modal.sections.timing')} ><div className={styles.formGrid}>
+<div className={styles.field}>
               <Label htmlFor="rs-freq">{t('callcenter.settings.reportSchedules.fieldFrequency')}</Label>
               <Select
                 id="rs-freq"
@@ -434,8 +434,7 @@ export function ReportSchedulesManager() {
                 ))}
               </Select>
             </div>
-
-            <div className={styles.field}>
+<div className={styles.field}>
               <Label htmlFor="rs-hour">{t('callcenter.settings.reportSchedules.fieldHour')}</Label>
               <Input
                 id="rs-hour"
@@ -448,8 +447,7 @@ export function ReportSchedulesManager() {
                 }
               />
             </div>
-
-            <div className={styles.field}>
+<div className={styles.field}>
               <Label htmlFor="rs-minute">{t('callcenter.settings.reportSchedules.fieldMinute')}</Label>
               <Input
                 id="rs-minute"
@@ -462,8 +460,7 @@ export function ReportSchedulesManager() {
                 }
               />
             </div>
-
-            {form.frequency === 'weekly' && (
+{form.frequency === 'weekly' && (
               <div className={styles.field}>
                 <Label htmlFor="rs-dow">{t('callcenter.settings.reportSchedules.fieldDow')}</Label>
                 <Select
@@ -481,8 +478,7 @@ export function ReportSchedulesManager() {
                 </Select>
               </div>
             )}
-
-            {form.frequency === 'monthly' && (
+{form.frequency === 'monthly' && (
               <div className={styles.field}>
                 <Label htmlFor="rs-dom">{t('callcenter.settings.reportSchedules.fieldDom')}</Label>
                 <Input
@@ -497,8 +493,9 @@ export function ReportSchedulesManager() {
                 />
               </div>
             )}
-
-            <div className={styles.field}>
+</div></ModalSection>
+<ModalSection title={t('modal.sections.filters')} ><div className={styles.formGrid}>
+<div className={styles.field}>
               <Label htmlFor="rs-queue">{t('callcenter.settings.reportSchedules.fieldQueue')}</Label>
               <Input
                 id="rs-queue"
@@ -511,8 +508,7 @@ export function ReportSchedulesManager() {
                 }
               />
             </div>
-
-            <div className={styles.field}>
+<div className={styles.field}>
               <Label htmlFor="rs-agent">{t('callcenter.settings.reportSchedules.fieldAgent')}</Label>
               <Input
                 id="rs-agent"
@@ -525,8 +521,9 @@ export function ReportSchedulesManager() {
                 }
               />
             </div>
-
-            <div className={`${styles.field} ${styles.fieldWide}`}>
+</div></ModalSection>
+<ModalSection title={t('modal.sections.delivery')} ><div className={styles.formGrid}>
+<div className={`${styles.field} ${styles.fieldWide}`}>
               <Label htmlFor="rs-channel">{t('callcenter.settings.reportSchedules.fieldChannel')}</Label>
               <Select
                 id="rs-channel"
@@ -543,8 +540,7 @@ export function ReportSchedulesManager() {
                 ))}
               </Select>
             </div>
-
-            <div className={`${styles.field} ${styles.fieldWide}`}>
+<div className={`${styles.field} ${styles.fieldWide}`}>
               <Label htmlFor="rs-target">{t('callcenter.settings.reportSchedules.fieldTarget')}</Label>
               <Input
                 id="rs-target"
@@ -552,8 +548,7 @@ export function ReportSchedulesManager() {
                 onChange={(e) => setForm((f) => ({ ...f, target: e.target.value }))}
               />
             </div>
-
-            <div className={`${styles.field} ${styles.fieldWide}`}>
+<div className={`${styles.field} ${styles.fieldWide}`}>
               <Label htmlFor="rs-subject">{t('callcenter.settings.reportSchedules.fieldSubject')}</Label>
               <Input
                 id="rs-subject"
@@ -562,26 +557,17 @@ export function ReportSchedulesManager() {
                 placeholder="{{report}} / {{period}}"
               />
             </div>
-
-            <div className={`${styles.field} ${styles.fieldWide}`}>
+<div className={`${styles.field} ${styles.fieldWide}`}>
               <Label htmlFor="rs-message">{t('callcenter.settings.reportSchedules.fieldMessage')}</Label>
-              <textarea
+              <Textarea
                 id="rs-message"
-                className="flex min-h-[4rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                rows={3}
                 value={form.message_template ?? ''}
                 onChange={(e) => setForm((f) => ({ ...f, message_template: e.target.value }))}
               />
             </div>
-
-            <div className={styles.field}>
-              <Label htmlFor="rs-enabled">{t('callcenter.settings.reportSchedules.colEnabled')}</Label>
-              <Switch
-                id="rs-enabled"
-                checked={form.enabled}
-                onCheckedChange={(v) => setForm((f) => ({ ...f, enabled: v }))}
-              />
-            </div>
-          </div>
+</div></ModalSection>
+</ModalBody>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
@@ -595,7 +581,7 @@ export function ReportSchedulesManager() {
               {t('callcenter.settings.save')}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
 
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>

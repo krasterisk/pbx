@@ -237,3 +237,5 @@
   background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
   color: var(--color-destructive);
 }
+
+.surface { width: min(40rem, 100vw); padding: 0; gap: 0; }

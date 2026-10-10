@@ -1,3 +1,5 @@
+import { Switch } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,21 +8,7 @@ import {
   AUTODIAL_DEDUP_POLICIES,
   AUTODIAL_PHONE_NORMALIZATIONS,
 } from '@krasterisk/shared';
-import {
-  Button,
-  Checkbox,
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  Label,
-  Select,
-  TableRowAction,
-  TableRowActions,
-  Text,
-} from '@/shared/ui';
+import { Button, Dialog, FormDialogContent, DialogFooter, DialogHeader, DialogTitle, Input, Label, Select, TableRowAction, TableRowActions, Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import {
@@ -120,7 +108,7 @@ export const BaseFormModal = memo(() => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && close()}>
-      <DialogContent size="large" className={cls.dialog} data-testid="autodial-base-form-modal">
+      <FormDialogContent size="large" className={cls.dialog} data-testid="autodial-base-form-modal" aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>
             {editUid !== null ? t('autodial.bases.editTitle') : t('autodial.bases.createTitle')}
@@ -134,16 +122,16 @@ export const BaseFormModal = memo(() => {
             <Loader2 size={24} className={cls.spinner} />
           </HStack>
         ) : (
-          <VStack
-            gap="16"
-            max
+          <ModalBody
+
+
             className={cls.body}
             data-testid="autodial-base-form-body"
             data-viewport="360,768,1440"
             data-overflow="y"
           >
             <div className={cls.grid}>
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label htmlFor="autodial-base-name">{t('autodial.bases.name')}</Label>
                 <Input
                   id="autodial-base-name"
@@ -156,7 +144,7 @@ export const BaseFormModal = memo(() => {
                 )}
               </VStack>
 
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label htmlFor="autodial-base-description">
                   {t('autodial.bases.description')}
                 </Label>
@@ -167,7 +155,7 @@ export const BaseFormModal = memo(() => {
                 />
               </VStack>
 
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label htmlFor="autodial-base-dedup">{t('autodial.bases.dedupPolicy')}</Label>
                 <Select
                   id="autodial-base-dedup"
@@ -187,7 +175,7 @@ export const BaseFormModal = memo(() => {
                 </Select>
               </VStack>
 
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label htmlFor="autodial-base-normalization">
                   {t('autodial.bases.phoneNormalization')}
                 </Label>
@@ -211,14 +199,14 @@ export const BaseFormModal = memo(() => {
               </VStack>
             </div>
 
-            <VStack gap="8" max>
+            <VStack align="stretch" gap="8" max>
               <Text className={cls.sectionTitle}>{t('autodial.bases.schema')}</Text>
               <Text className={cls.hint}>{t('autodial.bases.schemaHint')}</Text>
 
               {draft.fields.map((field, index) => (
                 <div key={field.uid ?? `new-${index}`} className={cls.fieldRow}>
                   <div className={cls.fieldGrid}>
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <Label htmlFor={`autodial-field-key-${index}`}>
                         {t('autodial.bases.fieldKey')}
                       </Label>
@@ -241,7 +229,7 @@ export const BaseFormModal = memo(() => {
                       )}
                     </VStack>
 
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <Label htmlFor={`autodial-field-label-${index}`}>
                         {t('autodial.bases.fieldLabel')}
                       </Label>
@@ -252,7 +240,7 @@ export const BaseFormModal = memo(() => {
                       />
                     </VStack>
 
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <Label htmlFor={`autodial-field-type-${index}`}>
                         {t('autodial.bases.fieldType')}
                       </Label>
@@ -276,7 +264,7 @@ export const BaseFormModal = memo(() => {
                       </Select>
                     </VStack>
 
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <Label htmlFor={`autodial-field-var-${index}`}>
                         {t('autodial.bases.varName')}
                       </Label>
@@ -289,11 +277,10 @@ export const BaseFormModal = memo(() => {
 
                     <HStack gap="12" align="center" className={cls.flags}>
                       <HStack gap="4" align="center">
-                        <Checkbox
+                        <Switch
                           id={`autodial-field-required-${index}`}
                           checked={field.required}
-                          onChange={(e) =>
-                            updateField(index, { ...field, required: e.target.checked })
+                          onCheckedChange={(checked) => updateField(index, { ...field, required: checked })
                           }
                         />
                         <Label htmlFor={`autodial-field-required-${index}`}>
@@ -301,12 +288,11 @@ export const BaseFormModal = memo(() => {
                         </Label>
                       </HStack>
                       <HStack gap="4" align="center">
-                        <Checkbox
+                        <Switch
                           id={`autodial-field-phone-${index}`}
                           checked={field.is_phone || field.type === 'phone'}
                           disabled={field.type === 'phone'}
-                          onChange={(e) =>
-                            updateField(index, { ...field, is_phone: e.target.checked })
+                          onCheckedChange={(checked) => updateField(index, { ...field, is_phone: checked })
                           }
                         />
                         <Label htmlFor={`autodial-field-phone-${index}`}>
@@ -344,7 +330,7 @@ export const BaseFormModal = memo(() => {
                   </div>
 
                   {field.type === 'enum' && (
-                    <VStack gap="4" className={cls.enumRow}>
+                    <VStack align="stretch" gap="4" className={cls.enumRow}>
                       <Label htmlFor={`autodial-field-enum-${index}`}>
                         {t('autodial.bases.enumValues')}
                       </Label>
@@ -382,7 +368,7 @@ export const BaseFormModal = memo(() => {
                 </Button>
               </HStack>
             </VStack>
-          </VStack>
+          </ModalBody>
         )}
 
         <DialogFooter className={cls.footer} data-testid="autodial-base-form-footer">
@@ -399,7 +385,7 @@ export const BaseFormModal = memo(() => {
             </HStack>
           </VStack>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

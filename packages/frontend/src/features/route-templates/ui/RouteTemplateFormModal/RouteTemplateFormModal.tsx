@@ -1,3 +1,4 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LayoutTemplate } from 'lucide-react';
@@ -6,7 +7,7 @@ import {
   Button,
   Checkbox,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -119,7 +120,7 @@ export function RouteTemplateFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="large" className={styles.dialog} aria-describedby={undefined}>
+      <FormDialogContent size="large" className={styles.dialog} aria-describedby={undefined}>
         <DialogHeader className={styles.header}>
           <DialogTitle>
             <HStack gap="8" align="center">
@@ -129,8 +130,9 @@ export function RouteTemplateFormModal({
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16" className={styles.scrollBody} max>
-          <VStack gap="8" max>
+        <ModalBody  className={styles.scrollBody} >
+<ModalSection>
+          <VStack align="stretch" gap="8" max>
             <Label htmlFor="template-form-name">{`${t('routes.templates.name', 'Название')} *`}</Label>
             <Input
               id="template-form-name"
@@ -138,7 +140,7 @@ export function RouteTemplateFormModal({
               onChange={(e) => setName(e.target.value)}
             />
           </VStack>
-          <VStack gap="8" max>
+          <VStack align="stretch" gap="8" max>
             <Label htmlFor="template-form-description">{t('routes.templates.description', 'Описание')}</Label>
             <Textarea
               id="template-form-description"
@@ -157,7 +159,7 @@ export function RouteTemplateFormModal({
           />
 
           {showSlots ? (
-            <VStack gap="8" max>
+            <VStack align="stretch" gap="8" max>
               <Text variant="h4">{t('routes.templates.slotsSection', 'Что спрашивать при применении')}</Text>
               <Text variant="muted">
                 {t('routes.templates.slotsHint', 'Отмеченные значения шаблон не запомнит, а спросит каждый раз')}
@@ -192,7 +194,7 @@ export function RouteTemplateFormModal({
           ) : null}
 
           {error ? (
-            <VStack gap="8">
+            <VStack align="stretch" gap="8">
               <Text variant="error">{error}</Text>
               {mode === 'edit' && isBuiltin(template) ? (
                 <Button type="button" variant="outline" onClick={switchToCopy}>
@@ -201,7 +203,8 @@ export function RouteTemplateFormModal({
               ) : null}
             </VStack>
           ) : null}
-        </VStack>
+        </ModalSection>
+</ModalBody>
 
         <DialogFooter className={styles.footer}>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -215,7 +218,7 @@ export function RouteTemplateFormModal({
             {t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

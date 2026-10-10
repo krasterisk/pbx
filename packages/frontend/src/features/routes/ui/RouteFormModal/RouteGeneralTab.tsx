@@ -2,7 +2,7 @@ import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useMemo, useEffect, useRef, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Route, ListFilter, AudioLines, ChevronDown } from 'lucide-react';
-import { Input, Select, Checkbox, Label, InfoTooltip, Text, Button } from '@/shared/ui';
+import { Input, Select, Switch, Label, InfoTooltip, Text, Button } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { ExtensionChips } from '../ExtensionChips/ExtensionChips';
 import type { IContext } from '@/shared/api/endpoints/contextApi';
@@ -173,7 +173,7 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
           </HStack>
           <HStack gap="8" className={styles.activeToggle}>
             <Label htmlFor="route-active">{t('common.active', 'Активен')}</Label>
-            <Checkbox id="route-active" checked={active} onChange={e=>setActive(e.target.checked)} />
+            <Switch id="route-active" checked={active} onCheckedChange={setActive} />
           </HStack>
         </HStack>
         {/* Name + Context in one responsive row */}
@@ -296,10 +296,10 @@ export const RouteGeneralTab = memo((props: RouteGeneralTabProps) => {
                   )}
                 />
               </HStack>
-              <Checkbox
+              <Switch
                 id="route-record-stereo"
                 checked={recordStereo}
-                onChange={(e) => setRecordStereo(e.target.checked)}
+                onCheckedChange={(checked) => setRecordStereo(checked)}
               />
             </HStack>
           )}

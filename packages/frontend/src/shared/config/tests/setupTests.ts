@@ -18,3 +18,12 @@ function toAbsolute(input: RequestInfo | URL): RequestInfo | URL {
 
 globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
   nativeFetch(toAbsolute(input) as RequestInfo, init)) as typeof fetch;
+
+// jsdom has no ResizeObserver; Radix Switch measures its form-control proxy.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as typeof ResizeObserver;
+}

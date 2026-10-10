@@ -1,3 +1,5 @@
+import { toast } from 'react-toastify';
+import { ModalBody } from '@/shared/ui';
 import { memo, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useForm, Controller } from 'react-hook-form';
@@ -7,7 +9,7 @@ import {
   Input,
   Label,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -150,6 +152,7 @@ export const MohFormModal = memo(() => {
       dispatch(mohActions.closeModal());
     } catch (err) {
       console.error('MOH save error:', err);
+      toast.error(t("modal.errors.save"));
     }
   };
 
@@ -163,7 +166,7 @@ export const MohFormModal = memo(() => {
 
   return (
     <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
-      <DialogContent size="xl" className={cls.dialogContent}>
+      <FormDialogContent size="xl" className={cls.dialogContent} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {modalMode === 'edit'
@@ -172,9 +175,10 @@ export const MohFormModal = memo(() => {
           </DialogTitle>
         </DialogHeader>
 
-        <form className={cls.form} onSubmit={handleSubmit(onSubmit)}>
-          <VStack gap="16" max>
-            <VStack gap="4" max className={cls.field}>
+        <Flex as="form" direction="column" align="stretch" className={cls.form} onSubmit={handleSubmit(onSubmit)}>
+          <VStack align="stretch" gap="16" max>
+            <ModalBody>
+<VStack align="stretch" gap="4" max className={cls.field}>
               <Label htmlFor="moh-displayName">
                 {t('moh.fields.displayName', 'Название класса')} *
               </Label>
@@ -193,7 +197,7 @@ export const MohFormModal = memo(() => {
               )}
             </VStack>
 
-            <VStack gap="4" max className={cls.field}>
+            <VStack align="stretch" gap="4" max className={cls.field}>
               <Label>{t('moh.fields.sort', 'Порядок воспроизведения')}</Label>
               <Controller
                 name="sort"
@@ -229,10 +233,10 @@ export const MohFormModal = memo(() => {
               />
             </VStack>
 
-            <VStack gap="8" max className={cls.field}>
+            <VStack align="stretch" gap="8" max className={cls.field}>
               <Label>{t('moh.playlist.title', 'Плейлист')}</Label>
 
-              <VStack gap="8" max className={cls.playlistBox}>
+              <VStack align="stretch" gap="8" max className={cls.playlistBox}>
                 {playlist.length === 0 ? (
                   <VStack align="center" gap="8" className={cls.playlistEmpty}>
                     <Music size={28} className={cls.playlistEmptyIcon} />
@@ -244,7 +248,7 @@ export const MohFormModal = memo(() => {
                     </Text>
                   </VStack>
                 ) : (
-                  <VStack gap="4" max>
+                  <VStack align="stretch" gap="4" max>
                     {playlist.map((entry, index) => (
                       <Flex key={`${entry.filename}-${index}`} align="center" className={cls.playlistItem}>
                         <Text as="span" className={cls.trackIndex}>
@@ -320,7 +324,9 @@ export const MohFormModal = memo(() => {
               </VStack>
             </VStack>
 
-            <DialogFooter className={cls.footer}>
+
+</ModalBody>
+<DialogFooter className={cls.footer}>
               <Button
                 type="button"
                 variant="outline"
@@ -335,8 +341,8 @@ export const MohFormModal = memo(() => {
               </Button>
             </DialogFooter>
           </VStack>
-        </form>
-      </DialogContent>
+        </Flex>
+      </FormDialogContent>
     </Dialog>
   );
 });

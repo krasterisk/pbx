@@ -1,3 +1,4 @@
+import { ModalBody, Flex } from '@/shared/ui';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -5,7 +6,7 @@ import {
   Input,
   Label,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -233,7 +234,7 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent size="2xl" className={cls.dialogContent}>
+      <FormDialogContent size="2xl" className={cls.dialogContent} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{modalTitle}</DialogTitle>
         </DialogHeader>
@@ -263,11 +264,12 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
           </div>
         )}
 
-        <form className={cls.form} onSubmit={handleSubmit}>
-          {activeTab === 'usage' && mode === 'edit' && selectedUid != null ? (
+        <Flex as="form" direction="column" align="stretch" className={cls.form} onSubmit={handleSubmit}>
+          <ModalBody>
+{activeTab === 'usage' && mode === 'edit' && selectedUid != null ? (
             <UsageTab kind="group" uid={selectedUid} />
           ) : (
-          <VStack gap="12" max>
+          <VStack align="stretch" gap="12" max>
             <div className={cls.field}>
               <HStack gap="4" align="center">
                 <Label htmlFor="call-group-name">{t('callGroups.name', 'Название')}</Label>
@@ -368,7 +370,9 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
           </VStack>
           )}
 
-          <DialogFooter>
+
+</ModalBody>
+<DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
               {t('common.cancel', 'Отмена')}
             </Button>
@@ -376,8 +380,8 @@ export const CallGroupFormModal = memo(({ onSaved }: CallGroupFormModalProps) =>
               {t('common.save', 'Сохранить')}
             </Button>
           </DialogFooter>
-        </form>
-      </DialogContent>
+        </Flex>
+      </FormDialogContent>
     </Dialog>
   );
 });

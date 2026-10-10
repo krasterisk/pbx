@@ -1,8 +1,9 @@
+import { ModalBody } from '@/shared/ui';
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Type, Eye, ChevronDown, ChevronUp, Repeat, ShieldAlert, Tag } from 'lucide-react';
+import { MessageSquare, Type, ChevronDown, ChevronUp, Repeat, ShieldAlert, Tag } from 'lucide-react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter,
   VStack, HStack, Input, Label, Text, Button, TagInput,
 } from '@/shared/ui';
 import { Tooltip } from '@/shared/ui/Tooltip/Tooltip';
@@ -115,7 +116,7 @@ export const KeywordEditDialog = memo(({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="large">
+      <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {keyword
@@ -124,9 +125,10 @@ export const KeywordEditDialog = memo(({
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16" className="flex-1 overflow-y-auto px-1 pb-2">
+        <ModalBody>
+<VStack align="stretch" gap="16" className="flex-1 overflow-y-auto px-1 pb-2">
           {/* ═══ Keyword Phrase ═══ */}
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <HStack gap="4" align="center">
               <Type className={cls.sectionIcon} />
               <Label>{t('voiceRobots.keywordPhrase', 'Ключевая фраза')}</Label>
@@ -140,7 +142,7 @@ export const KeywordEditDialog = memo(({
           </VStack>
 
           {/* ═══ Synonyms (TagInput) ═══ */}
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <Label>{t('voiceRobots.synonyms', 'Синонимы')}</Label>
             <TagInput
               value={synonyms}
@@ -153,15 +155,15 @@ export const KeywordEditDialog = memo(({
           </VStack>
 
           {/* ═══ Negative Keywords (TagInput) ═══ */}
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <HStack align="center" gap="4">
               <Label>{t('voiceRobots.negativeKeywords', 'Стоп-слова')}</Label>
               <Tooltip
                 content={
-                  <VStack gap="2" className="text-xs leading-relaxed p-1 max-w-[320px]">
+                  <VStack align="stretch" gap="2" className="text-xs leading-relaxed p-1 max-w-[320px]">
                     <Text as="span" className="font-semibold">{t('voiceRobots.negativeTooltipTitle')}</Text>
                     <Text as="span">{t('voiceRobots.negativeTooltipDesc')}</Text>
-                    <VStack gap="2" className="mt-2">
+                    <VStack align="stretch" gap="2" className="mt-2">
                       <Text as="span" className="font-semibold">{t('voiceRobots.negativeTooltipExampleTitle')}</Text>
                       <Text as="span">• {t('voiceRobots.negativeTooltipExample1')}</Text>
                       <Text as="span">• {t('voiceRobots.negativeTooltipExample2')}</Text>
@@ -187,7 +189,7 @@ export const KeywordEditDialog = memo(({
           </VStack>
 
           {/* ═══ Comment ═══ */}
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <Label>{t('voiceRobots.comment', 'Комментарий')}</Label>
             <Input
               value={comment}
@@ -197,7 +199,7 @@ export const KeywordEditDialog = memo(({
           </VStack>
 
           {/* ═══ Custom Tag ═══ */}
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <HStack gap="4" align="center">
               <Tag className={cls.sectionIcon} />
               <Label>{t('voiceRobots.customTag', 'Кастомный тег')}</Label>
@@ -213,7 +215,7 @@ export const KeywordEditDialog = memo(({
           </VStack>
 
           {/* ═══ Bot Action ═══ */}
-          <VStack gap="4" className={cls.sectionDivider}>
+          <VStack align="stretch" gap="4" className={cls.sectionDivider}>
             <HStack gap="4" align="center">
               <MessageSquare className={cls.sectionIcon} />
               <Text className={cls.sectionLabel}>
@@ -227,7 +229,7 @@ export const KeywordEditDialog = memo(({
           </VStack>
 
           {/* ═══ Escalation (Repeat Counter) ═══ */}
-          <VStack gap="4" className={cls.sectionDivider}>
+          <VStack align="stretch" gap="4" className={cls.sectionDivider}>
             <HStack gap="4" align="center">
               <Repeat className={cls.sectionIcon} />
               <Button
@@ -248,13 +250,13 @@ export const KeywordEditDialog = memo(({
             </HStack>
 
             {showEscalation && (
-              <VStack gap="8" className="pl-4 border-l-2 border-primary/30">
+              <VStack align="stretch" gap="8" className="pl-4 border-l-2 border-primary/30">
                 <Text variant="xs" className="text-muted-foreground">
                   {t('voiceRobots.escalation.hint', 'Если клиент повторяет эту фразу больше N раз, робот выполнит альтернативное действие вместо основного.')}
                 </Text>
 
                 <HStack gap="8" align="end">
-                  <VStack gap="4" className="w-[200px]">
+                  <VStack align="stretch" gap="4" className="w-[200px]">
                     <Label>{t('voiceRobots.escalation.maxRepeats', 'Количество повторений')}</Label>
                     <Input
                       type="number"
@@ -269,7 +271,7 @@ export const KeywordEditDialog = memo(({
                   </Text>
                 </HStack>
 
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
                     <ShieldAlert className="w-4 h-4 text-amber-500" />
                     <Text className="text-sm font-semibold text-foreground">
@@ -283,7 +285,9 @@ export const KeywordEditDialog = memo(({
           </VStack>
         </VStack>
 
-        <DialogFooter className="mt-4 pt-4 border-t border-border shrink-0">
+
+</ModalBody>
+<DialogFooter className="mt-4 pt-4 border-t border-border shrink-0">
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel', 'Отмена')}
           </Button>
@@ -291,7 +295,7 @@ export const KeywordEditDialog = memo(({
             {t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

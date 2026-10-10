@@ -1,3 +1,5 @@
+import { Switch } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Save, Upload } from 'lucide-react';
@@ -7,7 +9,7 @@ import {
   Button,
   Checkbox,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -250,24 +252,24 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isBusy && close()}>
-      <DialogContent size="large" className={cls.dialog} data-testid="autodial-import-wizard">
+      <FormDialogContent size="large" className={cls.dialog} data-testid="autodial-import-wizard" aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>{t('autodial.import.title')}</DialogTitle>
         </DialogHeader>
 
-        <VStack
-          gap="16"
-          max
+        <ModalBody
+
+
           className={cls.body}
           data-testid="autodial-import-body"
           data-viewport="360,768,1440"
           data-overflow="y"
         >
           {step === 'upload' && (
-            <VStack gap="12" max>
+            <VStack align="stretch" gap="12" max>
               <Text className={cls.hint}>{t('autodial.import.uploadHint')}</Text>
               <HStack gap="12" align="end" wrap="wrap">
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <Label htmlFor="autodial-import-file">{t('autodial.import.file')}</Label>
                   <Input
                     id="autodial-import-file"
@@ -277,7 +279,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
                     onChange={(e) => void onFile(e.target.files?.[0])}
                   />
                 </VStack>
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <Label htmlFor="autodial-import-delimiter">
                     {t('autodial.import.delimiter')}
                   </Label>
@@ -291,11 +293,11 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
                   />
                 </VStack>
                 <HStack gap="4" align="center" className={cls.flag}>
-                  <Checkbox
+                  <Switch
                     id="autodial-import-header"
                     checked={hasHeader}
                     disabled={isBusy}
-                    onChange={(e) => setHasHeader(e.target.checked)}
+                    onCheckedChange={(checked) => setHasHeader(checked)}
                   />
                   <Label htmlFor="autodial-import-header">{t('autodial.import.hasHeader')}</Label>
                 </HStack>
@@ -305,13 +307,13 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
           )}
 
           {step === 'map' && previewData && (
-            <VStack gap="16" max>
+            <VStack align="stretch" gap="16" max>
               <HStack gap="12" align="end" wrap="wrap">
                 <Badge variant="outline">
                   {t('autodial.import.rowsFound', { count: previewData.total_rows })}
                 </Badge>
                 {(profiles ?? []).length > 0 && (
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <Label htmlFor="autodial-import-profile">
                       {t('autodial.import.profile')}
                     </Label>
@@ -384,7 +386,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
               </div>
 
               <HStack gap="8" align="end" wrap="wrap">
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <Label htmlFor="autodial-import-profile-name">
                     {t('autodial.import.saveProfileAs')}
                   </Label>
@@ -407,7 +409,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
           )}
 
           {step === 'done' && result && (
-            <VStack gap="12" max>
+            <VStack align="stretch" gap="12" max>
               <HStack gap="12" wrap="wrap">
                 <Badge>{t('autodial.import.imported', { count: result.imported })}</Badge>
                 <Badge variant="secondary">
@@ -415,7 +417,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
                 </Badge>
               </HStack>
               {result.errors.length > 0 && (
-                <VStack gap="4" max className={cls.errorList}>
+                <VStack align="stretch" gap="4" max className={cls.errorList}>
                   <Text className={cls.sectionTitle}>{t('autodial.import.errors')}</Text>
                   {result.errors.slice(0, 50).map((err, index) => (
                     <Text key={index} className={cls.errorRow}>
@@ -428,7 +430,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
           )}
 
           {error && <Text className={cls.error}>{error}</Text>}
-        </VStack>
+        </ModalBody>
 
         <DialogFooter className={cls.footer} data-testid="autodial-import-footer">
           <HStack gap="8" justify="end" max wrap="wrap" className={cls.footerActions}>
@@ -443,7 +445,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
             )}
           </HStack>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

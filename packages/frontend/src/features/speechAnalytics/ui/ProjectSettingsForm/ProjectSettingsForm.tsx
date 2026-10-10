@@ -1,3 +1,4 @@
+import { FormDialogContent, ModalBody, ModalSection } from "@/shared/ui";
 import type { TFunction } from 'i18next';
 import { memo, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -428,11 +429,11 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
         <TabsContent value="general" className={cls.generalPanel}>
         <VStack gap="12" max className={cls.generalFields}>
           <div className={cls.identity}>
-            <VStack gap="4" max>
+            <VStack gap="4" max align="stretch">
               <Label htmlFor="sa-settings-name">{t('speechAnalytics.projectName', 'Название проекта')}</Label>
               <Input id="sa-settings-name" value={name} onChange={(e) => setName(e.target.value)} />
             </VStack>
-            <VStack gap="4" max>
+            <VStack gap="4" max align="stretch">
               <Label htmlFor="sa-settings-description">{t('speechAnalytics.wizardProjectDescription', 'Описание проекта')}</Label>
               <Input id="sa-settings-description" value={description} onChange={(e) => setDescription(e.target.value)} />
             </VStack>
@@ -623,11 +624,11 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
               {openInsights.csat ? (
                 <>
                   <HStack gap="8" align="end">
-                    <VStack gap="4">
+                    <VStack gap="4" align="stretch">
                       <Label htmlFor="sa-csat-min">{t('speechAnalytics.settingsScaleFrom', 'От')}</Label>
                       <Input id="sa-csat-min" type="number" value={insights.csat.min} onChange={(event) => setInsights((current) => ({ ...current, csat: { ...current.csat, min: Number(event.target.value) } }))} />
                     </VStack>
-                    <VStack gap="4">
+                    <VStack gap="4" align="stretch">
                       <Label htmlFor="sa-csat-max">{t('speechAnalytics.settingsScaleTo', 'До')}</Label>
                       <Input id="sa-csat-max" type="number" value={insights.csat.max} onChange={(event) => setInsights((current) => ({ ...current, csat: { ...current.csat, max: Number(event.target.value) } }))} />
                     </VStack>
@@ -811,7 +812,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                 </Select>
                 {metric.type === 'number' ? (
                   <HStack gap="8" align="end">
-                    <VStack gap="4" className={cls.row}>
+                    <VStack gap="4" className={cls.row} align="stretch">
                       <Label htmlFor={`sa-scale-from-${index}`}>{t('speechAnalytics.settingsScaleFrom', 'От')}</Label>
                       <Input
                         id={`sa-scale-from-${index}`}
@@ -820,7 +821,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                         onChange={(e) => setMetrics((prev) => prev.map((row, i) => (i === index ? { ...row, min: Number(e.target.value), sourceScaleId: null } : row)))}
                       />
                     </VStack>
-                    <VStack gap="4" className={cls.row}>
+                    <VStack gap="4" className={cls.row} align="stretch">
                       <Label htmlFor={`sa-scale-to-${index}`}>{t('speechAnalytics.settingsScaleTo', 'До')}</Label>
                       <Input
                         id={`sa-scale-to-${index}`}
@@ -829,7 +830,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                         onChange={(e) => setMetrics((prev) => prev.map((row, i) => (i === index ? { ...row, max: Number(e.target.value), sourceScaleId: null } : row)))}
                       />
                     </VStack>
-                    <VStack gap="4" className={cls.row}>
+                    <VStack gap="4" className={cls.row} align="stretch">
                       <Label htmlFor={`sa-metric-unit-${index}`}>{t('speechAnalytics.wizardUnit', 'Единица')}</Label>
                       <Input
                         id={`sa-metric-unit-${index}`}
@@ -838,7 +839,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                         onChange={(e) => setMetrics((prev) => prev.map((row, i) => (i === index ? { ...row, unit: e.target.value, sourceScaleId: null } : row)))}
                       />
                     </VStack>
-                    <VStack gap="4" className={cls.row}>
+                    <VStack gap="4" className={cls.row} align="stretch">
                       <Label htmlFor={`sa-metric-polarity-${index}`}>{t('speechAnalytics.wizardScore', 'Оценка')}</Label>
                       <Select
                         id={`sa-metric-polarity-${index}`}
@@ -1341,7 +1342,7 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
       </div>
 
       <Dialog open={promptEditor != null} onOpenChange={(next) => { if (!next) setPromptEditor(null); }}>
-        <DialogContent size="large" aria-describedby={undefined}>
+        <FormDialogContent size="large" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
               {promptEditor === 'focus'
@@ -1349,24 +1350,24 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
                 : t('speechAnalytics.settingsSystemPrompt', 'Системный промпт')}
             </DialogTitle>
           </DialogHeader>
-          <Textarea
+          <ModalBody><ModalSection><Textarea
             className={cls.promptEditor}
             value={promptEditor === 'focus' ? insightsFocus : systemPrompt}
             onChange={(event) => {
               if (promptEditor === 'focus') setInsightsFocus(event.target.value);
               else setSystemPrompt(event.target.value);
             }}
-          />
-        </DialogContent>
+          /></ModalSection></ModalBody>
+        </FormDialogContent>
       </Dialog>
       <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
-        <DialogContent>
+        <FormDialogContent>
           <DialogHeader>
             <DialogTitle>{t('speechAnalytics.settingsDigestSchedule', 'Расписание')}</DialogTitle>
             <DialogDescription>{t('speechAnalytics.settingsScheduleHint', 'Когда отправлять сводку в выбранные интеграции.')}</DialogDescription>
           </DialogHeader>
-          {editedSchedule ? (
-          <VStack gap="8">
+          <ModalBody><ModalSection>{editedSchedule ? (
+          <VStack gap="8" align="stretch">
             <Label>{t('speechAnalytics.settingsDigestSchedule', 'Расписание')}</Label>
             <Select value={editedSchedule.schedule} onChange={(e) => patchSchedule({ schedule: e.target.value as SaDigestSchedule['schedule'] })}>
               <option value="daily">{t('speechAnalytics.settingsDigestDaily', 'Каждый день')}</option>
@@ -1399,11 +1400,11 @@ export const ProjectSettingsForm = memo(({ projectId, onSaved }: ProjectSettings
             <Label>{t('speechAnalytics.settingsDigestHour', 'Час отправки (0-23)')}</Label>
             <Input type="number" value={editedSchedule.sendHour ?? 9} onChange={(e) => patchSchedule({ sendHour: Math.min(23, Math.max(0, Number(e.target.value) || 0)) })} />
           </VStack>
-          ) : null}
+          ) : null}</ModalSection></ModalBody>
           <DialogFooter>
             <Button type="button" onClick={() => setScheduleOpen(false)}>{t('common.close', 'Закрыть')}</Button>
           </DialogFooter>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
       <Dialog open={pendingTopic != null} onOpenChange={(next) => { if (!next) setPendingTopic(null); }}>
         <DialogContent>

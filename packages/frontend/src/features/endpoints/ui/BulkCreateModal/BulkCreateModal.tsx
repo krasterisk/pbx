@@ -1,24 +1,9 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
+import { Switch } from '@/shared/ui';
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layers, Loader2 } from "lucide-react";
-import {
-  Button,
-  Input,
-  PasswordInput,
-  Select,
-  Checkbox,
-  Label,
-  InfoTooltip,
-  Text,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  Flex,
-  VStack,
-  HStack,
-} from "@/shared/ui";
+import { Button, Input, PasswordInput, Select, Label, InfoTooltip, Text, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, Flex, VStack, HStack } from "@/shared/ui";
 import { useAppSelector, useAppDispatch } from "@/shared/hooks/useAppStore";
 import { selectEndpointIsBulkModalOpen } from "../../model/selectors/endpointsPageSelectors";
 import { endpointsPageActions } from "../../model/slice/endpointsPageSlice";
@@ -175,7 +160,7 @@ export const BulkCreateModal = () => {
       open={isOpen}
       onOpenChange={(open) => !open && !busy && handleClose()}
     >
-      <DialogContent
+      <FormDialogContent
         size="large"
         className={cls.dialog}
         aria-describedby={undefined}
@@ -197,7 +182,8 @@ export const BulkCreateModal = () => {
             void handleSubmit();
           }}
         >
-          <VStack gap="16" className={cls.body} max align="stretch">
+          <ModalBody  className={cls.body}  >
+<ModalSection>
             {error && (
               <Text role="alert" className={cls.error}>
                 {error}
@@ -247,7 +233,7 @@ export const BulkCreateModal = () => {
               </VStack>
             ) : (
               <>
-                <VStack gap="8" max>
+                <VStack align="stretch" gap="8" max>
                   <HStack gap="4">
                     <Label htmlFor="bulk-pattern" className={cls.label}>
                       {t("endpoints.bulkExtensionsPattern")} *
@@ -276,7 +262,7 @@ export const BulkCreateModal = () => {
                     </Text>
                   )}
                 </VStack>
-                <VStack gap="8" max>
+                <VStack align="stretch" gap="8" max>
                   <HStack gap="4">
                     <Label htmlFor="bulk-password" className={cls.label}>
                       {t("endpoints.bulkPasswordPattern")} *
@@ -295,7 +281,7 @@ export const BulkCreateModal = () => {
                   />
                   {fieldError("password")}
                 </VStack>
-                <VStack gap="8" max>
+                <VStack align="stretch" gap="8" max>
                   <HStack gap="4">
                     <Label htmlFor="bulk-dept" className={cls.label}>
                       {t("endpoints.department")}
@@ -309,7 +295,7 @@ export const BulkCreateModal = () => {
                     placeholder={t("endpoints.departmentPlaceholder")}
                   />
                 </VStack>
-                <VStack gap="8" max>
+                <VStack align="stretch" gap="8" max>
                   <HStack gap="4">
                     <Label htmlFor="bulk-context" className={cls.label}>
                       {t("endpoints.context")} *
@@ -335,7 +321,7 @@ export const BulkCreateModal = () => {
                   />
                   {fieldError("context")}
                 </VStack>
-                <VStack gap="8" max>
+                <VStack align="stretch" gap="8" max>
                   <HStack gap="4">
                     <Text className={cls.label}>
                       {t("endpoints.natProfile")}
@@ -359,10 +345,10 @@ export const BulkCreateModal = () => {
                   </HStack>
                 </VStack>
                 <HStack gap="8" className={cls.toggle}>
-                  <Checkbox
+                  <Switch
                     id="bulk-webrtc"
                     checked={webrtcEnabled}
-                    onChange={(event) => setWebrtcEnabled(event.target.checked)}
+                    onCheckedChange={(checked) => setWebrtcEnabled(checked)}
                   />
                   <Label htmlFor="bulk-webrtc">
                     {t("endpoints.webrtcClient")}
@@ -371,7 +357,8 @@ export const BulkCreateModal = () => {
                 </HStack>
               </>
             )}
-          </VStack>
+          </ModalSection>
+</ModalBody>
           <DialogFooter className={cls.footer}>
             <Button
               type="button"
@@ -390,7 +377,7 @@ export const BulkCreateModal = () => {
             )}
           </DialogFooter>
         </Flex>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 };

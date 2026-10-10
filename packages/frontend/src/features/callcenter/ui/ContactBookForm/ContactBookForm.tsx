@@ -1,22 +1,8 @@
+import { FormSheetContent, ModalBody, ModalSection } from "@/shared/ui";
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import {
-  Button,
-  Input,
-  Label,
-  Text,
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/ui';
+import { Button, Input, Label, Text, Sheet, SheetFooter, SheetHeader, SheetTitle, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui';
 import {
   useCreateContactMutation,
   useUpdateContactMutation,
@@ -146,7 +132,7 @@ export function ContactBookForm({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="max-w-md">
+        <FormSheetContent aria-describedby={undefined}>
           <SheetHeader>
             <SheetTitle>
               {editing
@@ -154,7 +140,7 @@ export function ContactBookForm({
                 : t('callcenter.softphone.addContact', 'Add contact')}
             </SheetTitle>
           </SheetHeader>
-          <div className={styles.formGrid}>
+          <ModalBody><ModalSection title={t('modal.sections.identity')}><div className={styles.formGrid}>
             <div className={styles.field}>
               <Label htmlFor="cc-contact-name">{t('users.name', 'Name')}</Label>
               <Input
@@ -187,7 +173,7 @@ export function ContactBookForm({
                 placeholder={t('callcenter.contacts.notePlaceholder', 'Optional note')}
               />
             </div>
-          </div>
+          </div></ModalSection></ModalBody>
           <SheetFooter className={styles.footer}>
             <Button
               type="button"
@@ -206,7 +192,7 @@ export function ContactBookForm({
               {t('common.save', 'Save')}
             </Button>
           </SheetFooter>
-        </SheetContent>
+        </FormSheetContent>
       </Sheet>
 
       <Dialog

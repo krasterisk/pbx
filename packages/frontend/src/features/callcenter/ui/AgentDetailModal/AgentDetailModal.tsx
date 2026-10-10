@@ -1,10 +1,11 @@
+import { ModalBody } from '@/shared/ui';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -240,7 +241,7 @@ export function AgentDetailModal({ agent, open, onClose }: AgentDetailModalProps
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent size="xl" className={styles.content}>
+      <FormDialogContent size="xl" className={styles.content} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className={styles.titleRow}>
             {agent && <Avatar name={title} size={40} />}
@@ -257,7 +258,8 @@ export function AgentDetailModal({ agent, open, onClose }: AgentDetailModalProps
           </DialogTitle>
         </DialogHeader>
 
-        {isLoading || isFetching ? (
+        <ModalBody>
+{isLoading || isFetching ? (
           <div className={styles.statsGrid}>
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className={styles.statSkeleton} />
@@ -291,12 +293,14 @@ export function AgentDetailModal({ agent, open, onClose }: AgentDetailModalProps
           </>
         ) : null}
 
-        <DialogFooter>
+
+</ModalBody>
+<DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {t('callcenter.supervisor.cancel', 'Cancel')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

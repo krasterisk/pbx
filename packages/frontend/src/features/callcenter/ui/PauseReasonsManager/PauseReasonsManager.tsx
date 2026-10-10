@@ -1,3 +1,4 @@
+import { FormDialogContent, ModalBody, ModalSection } from "@/shared/ui";
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -241,7 +242,7 @@ export function PauseReasonsManager() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && setDialogOpen(false)}>
-        <DialogContent className="max-w-md">
+        <FormDialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
               {editing
@@ -249,7 +250,7 @@ export function PauseReasonsManager() {
                 : t('callcenter.pauseReasons.add', 'Добавить причину')}
             </DialogTitle>
           </DialogHeader>
-          <div className={styles.formGrid}>
+          <ModalBody><ModalSection title={t('modal.sections.settings')}><div className={styles.formGrid}>
             <div className={styles.field}>
               <Label htmlFor="pr-name">{t('callcenter.pauseReasons.name', 'Название')}</Label>
               <Input
@@ -310,7 +311,7 @@ export function PauseReasonsManager() {
                 }}
               />
             </div>
-          </div>
+          </div></ModalSection></ModalBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
               {t('common.cancel', 'Отмена')}
@@ -323,7 +324,7 @@ export function PauseReasonsManager() {
               {t('callcenter.settings.save')}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
 
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>

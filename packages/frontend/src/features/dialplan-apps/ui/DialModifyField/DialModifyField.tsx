@@ -250,7 +250,7 @@ export function DialModifyField({
         {!expertVisible ? (
           <VStack gap="12" max className={styles.card}>
             <HStack gap="8" max wrap="wrap" className={styles.fieldRow}>
-              <VStack gap="4" max className={styles.fieldHalf}>
+              <VStack gap="4" max className={styles.fieldHalf} align="stretch">
                 <Label className={styles.label} htmlFor="dial-modify-prefix">
                   {t('routes.chain.modify.prefix', 'Добавить в начало')}
                 </Label>
@@ -264,7 +264,7 @@ export function DialModifyField({
                   onChange={(e) => setBasic({ prefix: e.target.value || undefined })}
                 />
               </VStack>
-              <VStack gap="4" max className={styles.fieldHalf}>
+              <VStack gap="4" max className={styles.fieldHalf} align="stretch">
                 <Label className={styles.label} htmlFor="dial-modify-postfix">
                   {t('routes.chain.modify.postfix', 'Добавить в конец')}
                 </Label>
@@ -280,7 +280,7 @@ export function DialModifyField({
             </HStack>
 
             <HStack gap="8" max wrap="wrap" className={styles.fieldRow}>
-              <VStack gap="4" max className={styles.fieldHalf}>
+              <VStack gap="4" max className={styles.fieldHalf} align="stretch">
                 <Label className={styles.label} htmlFor="dial-modify-strip-start">
                   {textMode
                     ? t('routes.apps.calleridV2.stripStart')
@@ -303,7 +303,7 @@ export function DialModifyField({
                   onChange={(e) => setBasic({ stripStartCount: toCount(e.target.value) })}
                 />
               </VStack>
-              <VStack gap="4" max className={styles.fieldHalf}>
+              <VStack gap="4" max className={styles.fieldHalf} align="stretch">
                 <Label className={styles.label} htmlFor="dial-modify-strip-end">
                   {textMode
                     ? t('routes.apps.calleridV2.stripEnd')

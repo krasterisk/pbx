@@ -1,8 +1,9 @@
+import { ModalBody } from '@/shared/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   ScrollArea,
@@ -40,11 +41,12 @@ export const CdrDrilldownModal = memo(({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent size="3xl" className="max-h-[90vh] flex flex-col">
+      <FormDialogContent size="3xl"  aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 min-h-0">
+        <ModalBody>
+<ScrollArea className="flex-1 min-h-0">
           <CdrTable
             data={data?.rows || []}
             isLoading={isLoading}
@@ -64,7 +66,9 @@ export const CdrDrilldownModal = memo(({
         {!isLoading && !data?.rows?.length && (
           <Text variant="muted">{t('common.noData', 'Нет данных')}</Text>
         )}
-      </DialogContent>
+
+</ModalBody>
+</FormDialogContent>
     </Dialog>
   );
 });

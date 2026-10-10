@@ -1,5 +1,6 @@
 import { aiVoiceDesignerRu } from './aiVoiceDesigner';
 export const ru = {
+  modal: { defaultOption: "По умолчанию", errors: {"save":"Не удалось сохранить. Проверьте настройки и повторите попытку.","upload":"Не удалось загрузить файл. Повторите попытку.","remove":"Не удалось удалить файл. Повторите попытку."}, sections: {report: 'Отчёт', filters: 'Фильтры', delivery: 'Доставка', "identity":"Основные сведения","connection":"Подключение","account":"Учётные данные","access":"Права доступа","settings":"Параметры","timing":"Ожидание и таймеры"} },
   period: {
     day: "День",
     week: "Неделя",
@@ -1241,6 +1242,8 @@ export const ru = {
         summaryCarouselEmpty: "Карусель транков: список пуст",
       },
       row: {
+        info: "Информация о шаге",
+        unreachableHint: "Шаг не выполнится: предыдущее действие завершает цепочку",
         conditions: "Условия выполнения",
         scheduleHint: "Условие по расписанию",
         conditionHint: "Условие по результату звонка: {{status}}",

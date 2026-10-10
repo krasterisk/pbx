@@ -1,3 +1,4 @@
+import { FormDialogContent, ModalBody, ModalSection, DialogFooter } from "@/shared/ui";
 import {
   memo,
   useCallback,
@@ -9,17 +10,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, FileAudio, Loader2, Upload, X } from 'lucide-react';
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  Label,
-  Select,
-  Text,
-} from '@/shared/ui';
+import { Button, Dialog, DialogHeader, DialogTitle, Input, Label, Select, Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import cls from './UploadForm.module.scss';
 
@@ -186,7 +177,7 @@ export const UploadForm = memo(({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
+      <FormDialogContent
         size="xl"
         className={cls.dialog}
         data-testid="upload-form"
@@ -202,7 +193,7 @@ export const UploadForm = memo(({
         </DialogHeader>
 
         <form className={cls.form} onSubmit={(e) => void handleSubmit(e)} autoComplete="off">
-          <VStack gap="16" max className={isSubmitting ? `${cls.body} ${cls.formDisabled}` : cls.body}>
+          <ModalBody className={isSubmitting ? `${cls.body} ${cls.formDisabled}` : cls.body}>
             <div
               className={`${cls.dropZone}${dragging ? ` ${cls.dragging}` : ''}${drafts.length ? ` ${cls.hasFiles}` : ''}`}
               onDrop={onDrop}
@@ -232,9 +223,9 @@ export const UploadForm = memo(({
             </div>
 
             {drafts.length > 0 ? (
-              <VStack gap="12" max data-testid="upload-file-list">
-                <div className={cls.shared}>
-                  <VStack gap="4" max>
+              <VStack align="stretch" gap="12" max data-testid="upload-file-list">
+                <ModalSection title={t('modal.sections.settings')}><div className={cls.shared}>
+                  <VStack align="stretch" gap="4" max>
                     <Label htmlFor="sa-upload-project">
                       {t('speechAnalytics.routeProjectLabel', 'Проект аналитики')} *
                     </Label>
@@ -259,7 +250,7 @@ export const UploadForm = memo(({
                     </Select>
                   </VStack>
                   {showConfigSource ? (
-                    <VStack gap="4" max>
+                    <VStack align="stretch" gap="4" max>
                       <Label htmlFor="sa-upload-config-source">
                         {t('speechAnalytics.uploadConfigSource', 'Правила разбора')}
                       </Label>
@@ -288,7 +279,7 @@ export const UploadForm = memo(({
                       </Text>
                     </VStack>
                   ) : null}
-                  <VStack gap="4" max>
+                  <VStack align="stretch" gap="4" max>
                     <Label htmlFor="sa-upload-lang">{t('speechAnalytics.uploadLanguage', 'Язык')}</Label>
                     <Input
                       id="sa-upload-lang"
@@ -298,7 +289,7 @@ export const UploadForm = memo(({
                       onChange={(e) => setLanguage(e.target.value)}
                     />
                   </VStack>
-                </div>
+                </div></ModalSection>
                 <HStack justify="between" max align="center">
                   <Text className={cls.listTitle}>{t('speechAnalytics.uploadFiles', 'Файлы')}</Text>
                   <span className={cls.count}>{drafts.length}</span>
@@ -332,7 +323,7 @@ export const UploadForm = memo(({
                     </div>
                     {row.open ? (
                     <div className={cls.fileFields}>
-                      <VStack gap="4" max>
+                      <VStack align="stretch" gap="4" max>
                         <Label htmlFor={`sa-upload-op-${row.id}`}>{t('speechAnalytics.uploadOperator', 'Оператор')}</Label>
                         <Input
                           id={`sa-upload-op-${row.id}`}
@@ -342,7 +333,7 @@ export const UploadForm = memo(({
                           onChange={(e) => patchDraft(row.id, { operatorName: e.target.value })}
                         />
                       </VStack>
-                      <VStack gap="4" max>
+                      <VStack align="stretch" gap="4" max>
                         <Label htmlFor={`sa-upload-phone-${row.id}`}>{t('speechAnalytics.uploadClientPhone', 'Телефон клиента')}</Label>
                         <Input
                           id={`sa-upload-phone-${row.id}`}
@@ -369,7 +360,9 @@ export const UploadForm = memo(({
               <Text className={cls.error} data-testid="upload-form-error">{errorText}</Text>
             ) : null}
 
-            <HStack justify="end" gap="8" max>
+
+          </ModalBody>
+<DialogFooter><HStack justify="end" gap="8" max>
               <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => handleOpenChange(false)}>
                 {t('common.cancel', 'Отмена')}
               </Button>
@@ -383,10 +376,9 @@ export const UploadForm = memo(({
                   t('speechAnalytics.uploadRecording', 'Загрузить запись')
                 )}
               </Button>
-            </HStack>
-          </VStack>
+            </HStack></DialogFooter>
         </form>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

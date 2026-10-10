@@ -1,3 +1,4 @@
+import { FormDialogContent, ModalBody, ModalSection } from "@/shared/ui";
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -218,14 +219,14 @@ export const TokensTable = memo(({
       )}
 
       <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
-        <DialogContent size="default" aria-describedby={undefined}>
+        <FormDialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
               {t('speechAnalytics.createToken', 'Выпустить токен')}
             </DialogTitle>
           </DialogHeader>
-          <VStack gap="12" max>
-            <VStack gap="8" max>
+          <ModalBody><ModalSection title={t('modal.sections.settings')}><VStack align="stretch" gap="12" max>
+            <VStack align="stretch" gap="8" max>
               <Label htmlFor="sa-token-name">
                 {t('speechAnalytics.tokenName', 'Имя')}
               </Label>
@@ -236,7 +237,7 @@ export const TokensTable = memo(({
                 disabled={issuing}
               />
             </VStack>
-            <VStack gap="8" max>
+            <VStack align="stretch" gap="8" max>
               <Label htmlFor="sa-token-project">
                 {t('speechAnalytics.routeProjectLabel', 'Проект аналитики')}
               </Label>
@@ -253,7 +254,7 @@ export const TokensTable = memo(({
                 ))}
               </Select>
             </VStack>
-          </VStack>
+          </VStack></ModalSection></ModalBody>
           <DialogFooter>
             <Button type="button" variant="outline" disabled={issuing} onClick={() => setIssueOpen(false)}>
               {t('common.cancel', 'Отмена')}
@@ -267,7 +268,7 @@ export const TokensTable = memo(({
               {t('speechAnalytics.createToken', 'Выпустить токен')}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
 
       <Dialog open={Boolean(secretOnce)} onOpenChange={(open) => { if (!open) closeSecret(); }}>

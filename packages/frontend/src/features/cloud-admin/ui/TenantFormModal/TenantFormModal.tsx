@@ -1,9 +1,8 @@
+import { Switch } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Input, Label, Text, Select, PasswordInput, Checkbox,
-} from '@/shared/ui';
+import { Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, Button, Input, Label, Text, Select, PasswordInput } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import {
@@ -143,7 +142,7 @@ export const TenantFormModal = memo(() => {
 
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent size="large" className={cls.dialog} data-testid="tenant-form-modal">
+      <FormDialogContent size="large" className={cls.dialog} data-testid="tenant-form-modal" aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -165,11 +164,11 @@ export const TenantFormModal = memo(() => {
           </Flex>
         </Flex>
 
-        <VStack className={cls.scrollBody} gap="0" max>
+        <ModalBody className={cls.scrollBody}  >
           {activeTab === 'general' && (
-            <VStack gap="16" max>
+            <VStack align="stretch" gap="16" max>
               <Flex className={cls.formGrid} max>
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-name">
                     {t('cloudAdmin.tenants.field.name', 'Название организации')} *
                   </Label>
@@ -181,7 +180,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-slug">
                     {t('cloudAdmin.tenants.field.slug', 'Идентификатор (slug)')}
                   </Label>
@@ -193,7 +192,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-email">
                     {t('cloudAdmin.tenants.field.email', 'Email (логин администратора)')} *
                   </Label>
@@ -207,7 +206,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-phone">
                     {t('cloudAdmin.tenants.field.phone', 'Телефон')}
                   </Label>
@@ -219,7 +218,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-inn">
                     {t('cloudAdmin.tenants.field.inn', 'ИНН')}
                   </Label>
@@ -231,7 +230,7 @@ export const TenantFormModal = memo(() => {
                   />
                 </VStack>
 
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-seller">
                     {t('cloudAdmin.tenants.field.seller', 'Поставщик')} *
                   </Label>
@@ -256,10 +255,10 @@ export const TenantFormModal = memo(() => {
 
               {modalMode === 'edit' && (
                 <HStack gap="8" align="center">
-                  <Checkbox
+                  <Switch
                     id="tenant-own-models"
                     checked={ownModels}
-                    onChange={(event) => setOwnModels(event.target.checked)}
+                    onCheckedChange={(checked) => setOwnModels(checked)}
                   />
                   <Label htmlFor="tenant-own-models">
                     {t('cloudAdmin.tenants.ownModels', 'Использует свои модели')}
@@ -268,12 +267,12 @@ export const TenantFormModal = memo(() => {
               )}
 
               {modalMode === 'create' && (
-                <VStack gap="12" max className={cls.section}>
+                <VStack align="stretch" gap="12" max className={cls.section}>
                   <Text className={cls.sectionTitle}>
                     {t('cloudAdmin.tenants.sectionAdmin', 'Администратор кабинета')}
                   </Text>
                   <Flex className={cls.formGrid} max>
-                    <VStack gap="8" max className={cls.field}>
+                    <VStack align="stretch" gap="8" max className={cls.field}>
                       <Label htmlFor="tenant-admin-name">
                         {t('cloudAdmin.tenants.field.adminName', 'Имя администратора')}
                       </Label>
@@ -284,7 +283,7 @@ export const TenantFormModal = memo(() => {
                         placeholder={t('cloudAdmin.tenants.placeholder.adminName', 'Иванов Иван')}
                       />
                     </VStack>
-                    <VStack gap="8" max className={cls.field}>
+                    <VStack align="stretch" gap="8" max className={cls.field}>
                       <Label htmlFor="tenant-password">
                         {t('cloudAdmin.tenants.field.password', 'Пароль')} *
                       </Label>
@@ -299,7 +298,7 @@ export const TenantFormModal = memo(() => {
                         {t('cloudAdmin.tenants.passwordHint', 'Пароль для входа администратора в кабинет')}
                       </Text>
                     </VStack>
-                    <VStack gap="8" max className={cls.field}>
+                    <VStack align="stretch" gap="8" max className={cls.field}>
                       <Label htmlFor="tenant-trial-days">
                         {t('cloudAdmin.tenants.field.trialDays', 'Пробный период (дней)')}
                       </Label>
@@ -318,9 +317,9 @@ export const TenantFormModal = memo(() => {
           )}
 
           {activeTab === 'limits' && (
-            <VStack gap="16" max>
+            <VStack align="stretch" gap="16" max>
               <Flex className={cls.formGrid} max>
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-max-ext">
                     {t('cloudAdmin.tenants.field.maxExtensions', 'Макс. внутренних номеров')}
                   </Label>
@@ -332,7 +331,7 @@ export const TenantFormModal = memo(() => {
                     onChange={(e) => setMaxExt(e.target.value)}
                   />
                 </VStack>
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-max-trunks">
                     {t('cloudAdmin.tenants.field.maxTrunks', 'Макс. транков')}
                   </Label>
@@ -344,7 +343,7 @@ export const TenantFormModal = memo(() => {
                     onChange={(e) => setMaxTrunks(e.target.value)}
                   />
                 </VStack>
-                <VStack gap="8" max className={cls.field}>
+                <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-max-queues">
                     {t('cloudAdmin.tenants.field.maxQueues', 'Макс. очередей')}
                   </Label>
@@ -359,7 +358,7 @@ export const TenantFormModal = memo(() => {
               </Flex>
             </VStack>
           )}
-        </VStack>
+        </ModalBody>
 
         <DialogFooter className={cls.footer}>
           <HStack gap="8" justify="end" max wrap="wrap">
@@ -371,7 +370,7 @@ export const TenantFormModal = memo(() => {
             </Button>
           </HStack>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

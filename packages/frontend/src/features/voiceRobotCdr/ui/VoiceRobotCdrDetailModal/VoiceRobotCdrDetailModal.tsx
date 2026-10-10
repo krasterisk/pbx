@@ -1,7 +1,8 @@
+import { ModalBody } from '@/shared/ui';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/shared/config/i18n';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Flex, Text, ScrollArea, Badge, Tooltip } from '@/shared/ui';
+import { Dialog, FormDialogContent, DialogHeader, DialogTitle, Flex, Text, ScrollArea, Badge, Tooltip } from '@/shared/ui';
 import { useGetVoiceRobotCdrDetailQuery } from '@/shared/api/endpoints/voiceRobotCdrApi';
 import { VoiceRobotCdrBadge } from '@/entities/voiceRobotCdr';
 import { Phone, Clock, Hash, CheckSquare, ChevronDown, ChevronRight, Database } from 'lucide-react';
@@ -168,7 +169,7 @@ export const VoiceRobotCdrDetailModal = memo(({ cdrId, isOpen, onClose }: VoiceR
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
+      <FormDialogContent  aria-describedby={undefined}>
         <DialogHeader className="p-6 pb-4 border-b border-border/50 bg-muted/20">
           <DialogTitle className="flex items-center gap-4 text-xl">
             {t('voiceRobots.cdr.detail.title')} #{data?.cdr.uid}
@@ -176,7 +177,8 @@ export const VoiceRobotCdrDetailModal = memo(({ cdrId, isOpen, onClose }: VoiceR
           </DialogTitle>
         </DialogHeader>
 
-        {isLoading || !data ? (
+        <ModalBody>
+{isLoading || !data ? (
           <div className="p-8 flex justify-center items-center h-64">
             <Text variant="muted">{t('common.loading')}</Text>
           </div>
@@ -189,7 +191,7 @@ export const VoiceRobotCdrDetailModal = memo(({ cdrId, isOpen, onClose }: VoiceR
                   <div className="font-medium">{data.cdr.caller_id || 'Скрыт'}</div>
                   {data.cdr.caller_name && <div className="text-xs text-muted-foreground">{data.cdr.caller_name}</div>}
                 </VStackIcon>
-                
+
                 <VStackIcon icon={<Clock className="w-4 h-4 text-muted-foreground" />} title={t('voiceRobots.cdr.date')}>
                   <div className="font-medium">
                     {new Date(data.cdr.started_at).toLocaleString('ru-RU', {
@@ -241,7 +243,7 @@ export const VoiceRobotCdrDetailModal = memo(({ cdrId, isOpen, onClose }: VoiceR
                     <div key={log.uid} className="relative">
                       {/* Timeline dot */}
                       <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-background border-2 border-indigo-500/50" />
-                      
+
                       <Flex justify="between" className="mb-1 items-baseline">
                         <Text className="text-xs font-semibold text-muted-foreground">
                           {t('voiceRobots.cdr.detail.step')} {log.step_number}
@@ -268,7 +270,7 @@ export const VoiceRobotCdrDetailModal = memo(({ cdrId, isOpen, onClose }: VoiceR
                         <Flex align="center" gap="12" className="text-xs text-muted-foreground bg-background/50 p-2 rounded border border-muted/30">
                           {log.matched_keyword_id && log.matched_keyword_id !== -1 ? (
                             <span className="text-green-500 font-medium">
-                              ✓ {log.matched_group_name || `${t('voiceRobots.cdr.detail.group')} #${log.matched_group_id}`} 
+                              ✓ {log.matched_group_name || `${t('voiceRobots.cdr.detail.group')} #${log.matched_group_id}`}
                               <span className="text-muted-foreground font-normal ml-1">
                                 ({log.matched_keyword_name || `${t('voiceRobots.cdr.detail.keyword')} #${log.matched_keyword_id}`})
                               </span>
@@ -311,7 +313,9 @@ export const VoiceRobotCdrDetailModal = memo(({ cdrId, isOpen, onClose }: VoiceR
             </div>
           </ScrollArea>
         )}
-      </DialogContent>
+
+</ModalBody>
+</FormDialogContent>
     </Dialog>
   );
 });

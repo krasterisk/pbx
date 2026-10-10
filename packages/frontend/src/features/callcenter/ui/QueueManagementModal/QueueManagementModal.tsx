@@ -1,3 +1,4 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { useCallback, useEffect, useMemo, useState, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,7 +18,7 @@ import { getEventCoordinates } from '@dnd-kit/utilities';
 import { GripVertical, Plus, Minus } from 'lucide-react';
 import {
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -514,7 +515,7 @@ export function QueueManagementModal({
 
   return (
     <Dialog open={open && !!agent} onOpenChange={(v) => { if (!v) onClose(); }}>
-        <DialogContent size="large" className={styles.dialog}>
+        <FormDialogContent size="large" className={styles.dialog} aria-describedby={undefined}>
           <DialogHeader className={styles.dialogHeader}>
             <DialogTitle>
               {t('callcenter.supervisor.queueMgmt.title', 'Queue management: {{name}}', {
@@ -523,7 +524,8 @@ export function QueueManagementModal({
             </DialogTitle>
           </DialogHeader>
 
-          <div className={styles.body}>
+          <ModalBody className={styles.body}>
+<ModalSection>
             {!membershipReady ? (
               <div className={styles.empty}>
                 {t('callcenter.supervisor.queueMgmt.loading', 'Loading queue membership…')}
@@ -582,7 +584,8 @@ export function QueueManagementModal({
               </div>
             </DndContext>
             )}
-          </div>
+          </ModalSection>
+</ModalBody>
 
           {activeQueue ? (
             <CursorDragGhost
@@ -597,7 +600,7 @@ export function QueueManagementModal({
               {t('callcenter.supervisor.queueMgmt.close', 'Close')}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </FormDialogContent>
     </Dialog>
   );
 }

@@ -1,3 +1,4 @@
+import { FormDialogContent, ModalBody, ModalSection } from "@/shared/ui";
 import { memo, useState } from 'react';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
@@ -283,19 +284,19 @@ export const AiConnectionsPage = memo(({ product }: { product: AiProductCode }) 
       {product === 'speech_analytics' ? <ConnectionsApiDocs /> : null}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
+        <FormDialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{t('aiProducts.connections.create', 'Создать токен')}</DialogTitle>
           </DialogHeader>
-          <VStack gap="12">
+          <ModalBody><ModalSection title={t('modal.sections.settings')}><VStack align="stretch" gap="12">
             <Text variant="muted">
               {t('aiProducts.connections.createHint', 'Разбор звонков с этим токеном идёт по опубликованным метрикам выбранного проекта.')}
             </Text>
-            <VStack gap="4">
+            <VStack align="stretch" gap="4">
               <Label htmlFor="sa-key-name">{t('aiProducts.connections.labelPlaceholder', 'Название токена')}</Label>
               <Input id="sa-key-name" value={label} onChange={(event) => setLabel(event.target.value)} />
             </VStack>
-            <VStack gap="4">
+            <VStack align="stretch" gap="4">
               <Label htmlFor="sa-key-project">{t('aiProducts.connections.keyProject', 'Проект')}</Label>
               <Select id="sa-key-project" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
                 {projects.map((project) => (
@@ -303,7 +304,7 @@ export const AiConnectionsPage = memo(({ product }: { product: AiProductCode }) 
                 ))}
               </Select>
             </VStack>
-          </VStack>
+          </VStack></ModalSection></ModalBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
               {t('common.cancel', 'Отмена')}
@@ -312,7 +313,7 @@ export const AiConnectionsPage = memo(({ product }: { product: AiProductCode }) 
               {t('aiProducts.connections.generate', 'Сгенерировать')}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
 
       <Dialog open={secret != null} onOpenChange={(open) => { if (!open) setSecret(null); }}>

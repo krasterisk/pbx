@@ -1,5 +1,6 @@
 import { aiVoiceDesignerEn } from './aiVoiceDesigner';
 export const en = {
+  modal: { defaultOption: "Default", errors: {"save":"Could not save. Check the settings and try again.","upload":"Could not upload the file. Try again.","remove":"Could not delete the file. Try again."}, sections: {report: 'Report', filters: 'Filters', delivery: 'Delivery', "identity":"General information","connection":"Connection","account":"Credentials","access":"Access permissions","settings":"Settings","timing":"Waiting and timers"} },
   period: {
     day: "Day",
     week: "Week",
@@ -1226,6 +1227,8 @@ export const en = {
         summaryCarouselEmpty: "Trunk carousel: list is empty",
       },
       row: {
+        info: "Step information",
+        unreachableHint: "This step will not run: a previous action ends the chain",
         conditions: "Execution conditions",
         scheduleHint: "Runs according to a schedule",
         conditionHint: "Runs for call results: {{status}}",

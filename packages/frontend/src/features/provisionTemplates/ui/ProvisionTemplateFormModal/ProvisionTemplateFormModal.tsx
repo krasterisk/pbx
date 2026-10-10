@@ -1,7 +1,9 @@
+import { toast } from 'react-toastify';
+import { ModalBody, Flex } from '@/shared/ui';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button, Input } from '@/shared/ui';
+import { Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, Button, Input } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useCreateProvisionTemplateMutation, useUpdateProvisionTemplateMutation } from '@/shared/api/api';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
@@ -64,12 +66,13 @@ export const ProvisionTemplateFormModal = () => {
       onClose();
     } catch (err) {
       console.error('Failed to save provision template:', err);
+      toast.error(t("modal.errors.save"));
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[700px] flex flex-col max-h-[90vh]">
+      <FormDialogContent  aria-describedby={undefined}>
         <DialogHeader className="shrink-0">
           <DialogTitle>
             {isEditing
@@ -78,10 +81,11 @@ export const ProvisionTemplateFormModal = () => {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden" autoComplete="off">
-          <div className="flex-1 overflow-y-auto pr-1 py-4">
-            <VStack gap="16" max>
-              <VStack gap="8" max>
+        <Flex as="form" direction="column" align="stretch" onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden" autoComplete="off">
+          <ModalBody>
+<div className="flex-1 overflow-y-auto pr-1 py-4">
+            <VStack align="stretch" gap="16" max>
+              <VStack align="stretch" gap="8" max>
                 <label className="text-sm font-medium text-muted-foreground">
                   {t('provisionTemplates.name', 'Имя шаблона')} *
                 </label>
@@ -94,7 +98,7 @@ export const ProvisionTemplateFormModal = () => {
               </VStack>
 
               <HStack gap="16" max className="grid grid-cols-1 sm:flex">
-                <VStack gap="8" className="flex-1" max>
+                <VStack align="stretch" gap="8" className="flex-1" max>
                   <label className="text-sm font-medium text-muted-foreground">
                     {t('provisionTemplates.vendor', 'Вендор')}
                   </label>
@@ -104,7 +108,7 @@ export const ProvisionTemplateFormModal = () => {
                     placeholder="Например: Yealink"
                   />
                 </VStack>
-                <VStack gap="8" className="flex-1" max>
+                <VStack align="stretch" gap="8" className="flex-1" max>
                   <label className="text-sm font-medium text-muted-foreground">
                     {t('provisionTemplates.model', 'Модель')}
                   </label>
@@ -116,7 +120,7 @@ export const ProvisionTemplateFormModal = () => {
                 </VStack>
               </HStack>
 
-              <VStack gap="8" max>
+              <VStack align="stretch" gap="8" max>
                 <label className="text-sm font-medium text-muted-foreground">
                   {t('provisionTemplates.content', 'Текст шаблона (XML/CFG)')}
                 </label>
@@ -130,7 +134,9 @@ export const ProvisionTemplateFormModal = () => {
             </VStack>
           </div>
 
-          <DialogFooter className="mt-4 shrink-0">
+
+</ModalBody>
+<DialogFooter className="mt-4 shrink-0">
             <HStack gap="8" justify="end" max>
               <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
                 {t('common.cancel', 'Отмена')}
@@ -141,8 +147,8 @@ export const ProvisionTemplateFormModal = () => {
               </Button>
             </HStack>
           </DialogFooter>
-        </form>
-      </DialogContent>
+        </Flex>
+      </FormDialogContent>
     </Dialog>
   );
 };

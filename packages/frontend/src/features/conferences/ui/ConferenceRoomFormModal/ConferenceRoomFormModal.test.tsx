@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { ConferenceRoomFormModal } from './ConferenceRoomFormModal';
@@ -132,19 +132,19 @@ describe('ConferenceRoomFormModal', () => {
       isFetching: false,
     } as unknown as ReturnType<typeof useGetConferenceModeratorsQuery>);
     expect(() => render(<ConferenceRoomFormModal />)).not.toThrow();
-    expect(screen.getByRole('tab', { name: 'Основные' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Основные' })).toBeInTheDocument();
     expect(screen.getByLabelText('Номер комнаты')).toHaveValue('');
   });
 
   it('shows four tabs in create and no History or Links', () => {
     render(<ConferenceRoomFormModal />);
-    expect(screen.getByRole('tab', { name: 'Основные' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Доступ' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Роли' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Запись' })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Ссылки' })).toBeNull();
-    expect(screen.queryByRole('tab', { name: 'История встреч' })).toBeNull();
-    expect(screen.getAllByRole('tab')).toHaveLength(4);
+    expect(screen.getByRole('button', { name: 'Основные' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Доступ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Роли' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Запись' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ссылки' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'История встреч' })).toBeNull();
+    expect(within(screen.getByRole('navigation')).getAllByRole('button')).toHaveLength(4);
   });
 
   it('shows six tabs in edit and mounts ConferenceHistoryTab with roomUid', async () => {
@@ -156,9 +156,9 @@ describe('ConferenceRoomFormModal', () => {
     const user = userEvent.setup();
     render(<ConferenceRoomFormModal />);
 
-    expect(screen.getAllByRole('tab')).toHaveLength(6);
-    expect(screen.getByRole('tab', { name: 'Ссылки' })).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'История встреч' }));
+    expect(within(screen.getByRole('navigation')).getAllByRole('button')).toHaveLength(6);
+    expect(screen.getByRole('button', { name: 'Ссылки' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'История встреч' }));
     const history = screen.getByTestId('conference-history-tab');
     expect(history).toHaveAttribute('data-room-uid', '7');
   });
@@ -176,7 +176,7 @@ describe('ConferenceRoomFormModal', () => {
     const name = screen.getByLabelText('Название') as HTMLInputElement;
     expect(number.value).toBe('');
     expect(name.value).toBe('');
-    await user.click(screen.getByRole('tab', { name: 'Доступ' }));
+    await user.click(screen.getByRole('button', { name: 'Доступ' }));
     expect((screen.getByLabelText('PIN комнаты') as HTMLInputElement).value).toBe('1234');
   });
 
@@ -208,7 +208,7 @@ describe('ConferenceRoomFormModal', () => {
     const user = userEvent.setup();
     render(<ConferenceRoomFormModal />);
 
-    await user.click(screen.getByRole('tab', { name: 'Ссылки' }));
+    await user.click(screen.getByRole('button', { name: 'Ссылки' }));
     await user.click(screen.getByRole('button', { name: 'conferences.links.revoke' }));
     expect(screen.getByText('conferences.links.confirmRevoke:Guest Ann')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'conferences.links.confirmRevokeKeep' })).toBeInTheDocument();
@@ -222,7 +222,7 @@ describe('ConferenceRoomFormModal', () => {
     } as unknown as ReturnType<typeof useGetConferenceRoomQuery>);
     const user = userEvent.setup();
     render(<ConferenceRoomFormModal />);
-    await user.click(screen.getByRole('tab', { name: 'Ссылки' }));
+    await user.click(screen.getByRole('button', { name: 'Ссылки' }));
     expect(screen.getByText('conferences.links.noLinks')).toBeInTheDocument();
     expect(screen.getByText('conferences.links.noLinksHint')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'conferences.links.create' })).toBeInTheDocument();

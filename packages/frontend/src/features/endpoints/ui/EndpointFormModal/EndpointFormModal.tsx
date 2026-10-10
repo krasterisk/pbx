@@ -1,27 +1,8 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw, Loader2 } from "lucide-react";
-import {
-  Button,
-  Input,
-  PasswordInput,
-  Select,
-  Textarea,
-  InfoTooltip,
-  Checkbox,
-  Switch,
-  Label,
-  Text,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/shared/ui";
+import { Button, Input, PasswordInput, Select, Textarea, InfoTooltip, Switch, Label, Text, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui";
 import { VStack, HStack, Flex } from "@/shared/ui/Stack";
 import cls from "./EndpointFormModal.module.scss";
 import { useAppSelector, useAppDispatch } from "@/shared/hooks/useAppStore";
@@ -385,7 +366,7 @@ export const EndpointFormModal = () => {
       open={isOpen}
       onOpenChange={(open) => !open && !isLoading && handleClose()}
     >
-      <DialogContent
+      <FormDialogContent
         size="large"
         aria-describedby={undefined}
         data-testid="endpoint-form-modal"
@@ -437,17 +418,18 @@ export const EndpointFormModal = () => {
               ))}
             </TabsList>}
 
-            <VStack
-              align="stretch"
-              max
+            <ModalBody
+
+
               className={cls.formBody}
               data-testid="endpoint-form-body"
               data-viewport="360,768,1440"
               data-overflow="y"
             >
               <BasicSettings expertMode={expertMode}>
-                <VStack gap="16">
-                  <VStack gap="4">
+                <VStack align="stretch" gap="16" max>
+<ModalSection title={t("modal.sections.identity")}>
+<VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Label htmlFor="ep-extension" className={cls.fieldLabel}>
                         {t("endpoints.extension")} *
@@ -469,8 +451,7 @@ export const EndpointFormModal = () => {
                     />
                     {fieldError("extension")}
                   </VStack>
-
-                  <VStack gap="4">
+<VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Label htmlFor="ep-name" className={cls.fieldLabel}>
                         {t("endpoints.displayName")}
@@ -484,8 +465,7 @@ export const EndpointFormModal = () => {
                       placeholder={t("endpoints.displayNamePlaceholder")}
                     />
                   </VStack>
-
-                  <VStack gap="4">
+<VStack align="stretch" gap="4">
                     <Label htmlFor="ep-dept" className={cls.fieldLabel}>
                       {t("endpoints.department")}
                     </Label>
@@ -496,8 +476,9 @@ export const EndpointFormModal = () => {
                       placeholder={t("endpoints.departmentPlaceholder")}
                     />
                   </VStack>
-
-                  <HStack
+</ModalSection>
+<ModalSection title={t("modal.sections.connection")}>
+<HStack
                     align="center"
                     justify="between"
                     className={cls.toggleRow}
@@ -508,14 +489,13 @@ export const EndpointFormModal = () => {
                       </Label>
                       <InfoTooltip text={t("endpoints.webrtcClientHint")} />
                     </HStack>
-                    <Checkbox
+                    <Switch
                       id="ep-webrtc"
                       checked={webrtcEnabled}
-                      onChange={(e) => setWebrtcEnabled(e.target.checked)}
+                      onCheckedChange={(checked) => setWebrtcEnabled(checked)}
                     />
                   </HStack>
-
-                  <VStack gap="8" max>
+<VStack align="stretch" gap="8" max>
                     <Label htmlFor="ep-password" className={cls.fieldLabel}>
                       {t("endpoints.password")}
                       {mode === "create" ? " *" : ""}
@@ -549,7 +529,7 @@ export const EndpointFormModal = () => {
                       </Button>
                     </HStack>
                     {fieldError("password")}
-                    <VStack gap="4">
+                    <VStack align="stretch" gap="4">
                       <HStack gap="4" align="center">
                         <Label htmlFor="ep-context" className={cls.fieldLabel}>
                           {t("endpoints.context")} *
@@ -578,12 +558,14 @@ export const EndpointFormModal = () => {
                       {fieldError("context")}
                     </VStack>
                   </VStack>
-                </VStack>
+</ModalSection>
+</VStack>
               </BasicSettings>
 
               <TabsContent value="network">
-                <VStack gap="16">
-                  <VStack gap="4">
+<ModalSection>
+                <VStack align="stretch" gap="16">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Label htmlFor="ep-transport" className={cls.fieldLabel}>
                         {t("endpoints.transport")}
@@ -601,7 +583,7 @@ export const EndpointFormModal = () => {
                     />
                   </VStack>
 
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Label className={cls.fieldLabel}>
                         {t("endpoints.natProfile")}
@@ -637,7 +619,7 @@ export const EndpointFormModal = () => {
                     </HStack>
                   </VStack>
 
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Label className={cls.fieldLabel}>
                         {t("endpoints.codecs")}
@@ -671,17 +653,19 @@ export const EndpointFormModal = () => {
                     {fieldError("codecs")}
                   </VStack>
                 </VStack>
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
 
               <TabsContent value="security">
-                <VStack gap="16">
+<ModalSection>
+                <VStack align="stretch" gap="16">
                   <HStack gap="4" align="center">
                     <Text as="h4" className={cls.securityTitle}>
                       {t("endpoints.ipFilterTitle")}
                     </Text>
                     <InfoTooltip text={t("endpoints.ipFilterDesc")} />
                   </HStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Label htmlFor="ep-deny" className={cls.securityLabel}>
                         {t("endpoints.denyNetworks")}
@@ -702,7 +686,7 @@ export const EndpointFormModal = () => {
                     {fieldError("deny")}
                   </VStack>
 
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Label htmlFor="ep-permit" className={cls.securityLabel}>
                         {t("endpoints.permitNetworks")}
@@ -723,17 +707,18 @@ export const EndpointFormModal = () => {
                     {fieldError("permit")}
                   </VStack>
                 </VStack>
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
 
               <TabsContent value="calls">
-                <VStack gap="16">
-                  <VStack gap="4">
+<ModalSection>
+                <VStack align="stretch" gap="16">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="8" align="center">
-                      <Checkbox
+                      <Switch
                         id="ep-blf"
                         checked={blfEnabled}
-                        onChange={(event) =>
-                          setBlfEnabled(event.target.checked)
+                        onCheckedChange={(checked) => setBlfEnabled(checked)
                         }
                       />
                       <Label htmlFor="ep-blf">
@@ -742,7 +727,7 @@ export const EndpointFormModal = () => {
                       <InfoTooltip text={t("endpoints.blfDescription")} />
                     </HStack>
                   </VStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Text as="span" className={cls.fieldLabel}>
                         {t("endpoints.namedCallGroup")}
@@ -755,7 +740,7 @@ export const EndpointFormModal = () => {
                       onChange={setNamedCallGroup}
                     />
                   </VStack>
-                  <VStack gap="4">
+                  <VStack align="stretch" gap="4">
                     <HStack gap="4" align="center">
                       <Text as="span" className={cls.fieldLabel}>
                         {t("endpoints.namedPickupGroup")}
@@ -769,16 +754,17 @@ export const EndpointFormModal = () => {
                     />
                   </VStack>
                 </VStack>
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
 
               <TabsContent value="provision">
-                <VStack gap="16">
+<ModalSection>
+                <VStack align="stretch" gap="16">
                   <HStack gap="12" className={cls.toggleRow} max>
-                    <Checkbox
+                    <Switch
                       id="ep-provision"
                       checked={provisionEnabled}
-                      onChange={(event) =>
-                        setProvisionEnabled(event.target.checked)
+                      onCheckedChange={(checked) => setProvisionEnabled(checked)
                       }
                     />
                     <HStack gap="4">
@@ -791,7 +777,7 @@ export const EndpointFormModal = () => {
 
                   {provisionEnabled && (
                     <>
-                      <VStack gap="4">
+                      <VStack align="stretch" gap="4">
                         <Label htmlFor="ep-mac" className={cls.fieldLabel}>
                           {t("endpoints.provMac")}
                         </Label>
@@ -815,7 +801,7 @@ export const EndpointFormModal = () => {
                         {fieldError("mac")}
                       </VStack>
 
-                      <VStack gap="4">
+                      <VStack align="stretch" gap="4">
                         <Label htmlFor="ep-tpl" className={cls.fieldLabel}>
                           {t("endpoints.provTemplate")}
                         </Label>
@@ -854,7 +840,7 @@ export const EndpointFormModal = () => {
                         )}
                       </VStack>
 
-                      <VStack gap="4">
+                      <VStack align="stretch" gap="4">
                         <Label htmlFor="ep-vars" className={cls.fieldLabel}>
                           {t("endpoints.provVars")}
                         </Label>
@@ -871,21 +857,24 @@ export const EndpointFormModal = () => {
                     </>
                   )}
                 </VStack>
-              </TabsContent>
+              </ModalSection>
+</TabsContent>
 
               <TabsContent
                 value="advanced"
                 forceMount
                 hidden={!expertMode || activeTab !== "advanced"}
               >
+<ModalSection>
                 {fieldError("advanced")}
                 <AdvancedSettingsBuilder
                   value={advancedState}
                   onChange={setAdvancedState}
                   onValidationChange={setAdvancedValid}
                 />
-              </TabsContent>
-            </VStack>
+              </ModalSection>
+</TabsContent>
+            </ModalBody>
           </Tabs>
 
           {serverError && (
@@ -917,7 +906,7 @@ export const EndpointFormModal = () => {
             </HStack>
           </DialogFooter>
         </Flex>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 };

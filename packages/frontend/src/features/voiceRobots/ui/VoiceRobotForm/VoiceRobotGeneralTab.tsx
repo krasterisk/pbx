@@ -1,7 +1,8 @@
+import { Switch } from '@/shared/ui';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
-import { VStack, HStack, Flex, Input, Label, Text, Select, Checkbox, Textarea, Button } from '@/shared/ui';
+import { VStack, HStack, Flex, Input, Label, Text, Select, Textarea, Button } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
 import { IVoiceRobotBotAction } from '@/entities/voiceRobot';
 import { VoiceRobotActionEditor } from '../VoiceRobotActionEditor/VoiceRobotActionEditor';
@@ -81,7 +82,7 @@ export const VoiceRobotGeneralTab = memo(({
       {/* Active toggle */}
       <HStack gap="12" align="center" className="border border-border p-3 rounded bg-background w-full">
         <Label className="flex items-center gap-2 cursor-pointer">
-          <Checkbox checked={active} onChange={(e) => setActive(e.target.checked)} />
+          <Switch checked={active} onCheckedChange={(checked) => setActive(checked)} />
           <Text variant="small">{t('common.active', 'Активен')}</Text>
         </Label>
       </HStack>

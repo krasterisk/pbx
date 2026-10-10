@@ -1,6 +1,7 @@
+import { Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, ModalTabs, ModalBody, ModalSection, ModalToggle, VStack, Textarea } from '@/shared/ui';
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, X, Save, Settings, Workflow, Phone } from 'lucide-react';
+import { Bot, Save } from 'lucide-react';
 import { Button, Input, Label, Text, Select } from '@/shared/ui';
 import {
   useCreateAiAgentMutation,
@@ -89,94 +90,64 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
         await createAgent(payload).unwrap();
       }
       onClose();
-    } catch (err: any) {
-      setError(err?.data?.message || err?.message || 'Save failed');
+    } catch {
+      setError(t('modal.errors.save'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.header}>
-          <span className={styles.title}>
-            <Bot className="w-5 h-5 inline mr-2" />
+    <Dialog open onOpenChange={(open)=>!open&&onClose()}>
+      <FormDialogContent size="large" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>
+            <Bot className={styles.icon} />
             {isEdit ? t('aiAgents.edit', 'Edit AI Agent') : t('aiAgents.create', 'New AI Agent')}
-          </span>
-          <button className={styles.close} onClick={onClose}><X className="w-5 h-5" /></button>
-        </div>
+          </DialogTitle>
+
+        </DialogHeader>
 
         {/* Tabs */}
-        <div className={styles.tabs}>
-          <button
-            className={`${styles.tab} ${tab === 'general' ? styles.tabActive : ''}`}
-            onClick={() => setTab('general')}
-          >
-            <Settings className="w-4 h-4 mr-1 inline" />
-            {t('aiAgents.tab.general', 'General')}
-          </button>
-          <button
-            className={`${styles.tab} ${tab === 'pipeline' ? styles.tabActive : ''}`}
-            onClick={() => setTab('pipeline')}
-          >
-            <Workflow className="w-4 h-4 mr-1 inline" />
-            {t('aiAgents.tab.pipeline', 'Pipeline')}
-          </button>
-          <button
-            className={`${styles.tab} ${tab === 'routing' ? styles.tabActive : ''}`}
-            onClick={() => setTab('routing')}
-          >
-            <Phone className="w-4 h-4 mr-1 inline" />
-            {t('aiAgents.tab.routing', 'Routing')}
-          </button>
-        </div>
+        <ModalTabs items={[{id:"general", label:t("aiAgents.tab.general")},{id:"pipeline", label:t("aiAgents.tab.pipeline")},{id:"routing", label:t("aiAgents.tab.routing")}]} value={tab} onChange={(value)=>setTab(value as Tab)} label={t("common.settings")} />
 
-        <div className={styles.body}>
+        <ModalBody><ModalSection>
           {tab === 'general' && (
             <>
-              <div className={styles.row}>
+              <VStack align="stretch" max className={styles.row}>
                 <Label>{t('aiAgents.field.name', 'Name')}</Label>
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="Sales Bot" />
-              </div>
-              <div className={styles.row}>
+              </VStack>
+              <VStack align="stretch" max className={styles.row}>
                 <Label>{t('aiAgents.field.uniqueId', 'Unique ID')}</Label>
                 <Input value={uniqueId} onChange={e => setUniqueId(e.target.value)} placeholder="sales-bot" />
-                <Text variant="muted" className="text-xs mt-1">
+                <Text variant="muted" >
                   {t('aiAgents.field.uniqueIdHint', 'Used in Asterisk dialplan: Dial(Local/{unique_id}@ai-agents).')}
                 </Text>
-              </div>
-              <div className={styles.row}>
+              </VStack>
+              <VStack align="stretch" max className={styles.row}>
                 <Label>{t('aiAgents.field.greeting', 'Greeting')}</Label>
                 <Input value={greeting} onChange={e => setGreeting(e.target.value)} placeholder="Hello, how can I help?" />
-              </div>
-              <div className={styles.row}>
+              </VStack>
+              <VStack align="stretch" max className={styles.row}>
                 <Label>{t('aiAgents.field.instruction', 'System Prompt')}</Label>
-                <textarea
+                <Textarea
                   className={styles.textarea}
                   value={instruction}
                   onChange={e => setInstruction(e.target.value)}
                   rows={6}
                   placeholder="You are a helpful sales agent for ..."
                 />
-              </div>
-              <div className={styles.row}>
-                <Label>
-                  <input
-                    type="checkbox"
-                    checked={enabled}
-                    onChange={e => setEnabled(e.target.checked)}
-                    style={{ marginRight: 8 }}
-                  />
-                  {t('aiAgents.field.enabled', 'Enabled')}
-                </Label>
-              </div>
+              </VStack>
+              <VStack align="stretch" max className={styles.row}>
+                <ModalToggle label={t("aiAgents.field.enabled")} checked={enabled} onCheckedChange={setEnabled} />
+              </VStack>
             </>
           )}
 
           {tab === 'pipeline' && (
             <>
-              <div className={styles.row}>
+              <VStack align="stretch" max className={styles.row}>
                 <Label>{t('aiAgents.field.mode', 'Mode')}</Label>
                 <Select
                   value={mode}
@@ -185,19 +156,19 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                   <option value="realtime">realtime (speech-to-speech)</option>
                   <option value="cascade">cascade (STT → LLM → TTS)</option>
                 </Select>
-                <Text variant="muted" className="text-xs mt-1">
+                <Text variant="muted" >
                   {mode === 'realtime'
                     ? t('aiAgents.field.modeRealtimeHint', 'Single bidirectional connection - lowest latency. Pick a provider that supports the realtime capability.')
                     : t('aiAgents.field.modeCascadeHint', 'STT and TTS are wired separately - pick all three profiles below.')}
                 </Text>
                 {mode === 'realtime' ? (
-                  <Text variant="muted" className="text-xs mt-1">
+                  <Text variant="muted" >
                     {t('aiRobots.realtimeUnavailable', 'Realtime publish is unavailable until SIP/WebRTC media (AI-08).')}
                   </Text>
                 ) : null}
-              </div>
+              </VStack>
 
-              <div className={styles.row}>
+              <VStack align="stretch" max className={styles.row}>
                 <Label>{t('aiAgents.field.llm', 'LLM / Realtime')}</Label>
                 <Select value={modelProfileId} onChange={(e: any) => setModelProfileId(e.target.value ? Number(e.target.value) : '')}>
                   <option value="">-</option>
@@ -207,11 +178,11 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                     </option>
                   ))}
                 </Select>
-              </div>
+              </VStack>
 
               {mode === 'cascade' && (
                 <>
-                  <div className={styles.row}>
+                  <VStack align="stretch" max className={styles.row}>
                     <Label>{t('aiAgents.field.stt', 'STT (Speech → Text)')}</Label>
                     <Select value={sttProfileId} onChange={(e: any) => setSttProfileId(e.target.value ? Number(e.target.value) : '')}>
                       <option value="">-</option>
@@ -219,8 +190,8 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                         <option key={p.uid} value={p.uid}>{p.name} ({p.vendor})</option>
                       ))}
                     </Select>
-                  </div>
-                  <div className={styles.row}>
+                  </VStack>
+                  <VStack align="stretch" max className={styles.row}>
                     <Label>{t('aiAgents.field.tts', 'TTS (Text → Speech)')}</Label>
                     <Select value={ttsProfileId} onChange={(e: any) => setTtsProfileId(e.target.value ? Number(e.target.value) : '')}>
                       <option value="">-</option>
@@ -228,15 +199,15 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                         <option key={p.uid} value={p.uid}>{p.name} ({p.vendor})</option>
                       ))}
                     </Select>
-                  </div>
-                  <div className={styles.row}>
+                  </VStack>
+                  <VStack align="stretch" max className={styles.row}>
                     <Label>{t('aiAgents.field.voice', 'Voice ID')}</Label>
                     <Input value={voice} onChange={e => setVoice(e.target.value)} placeholder="ru-RU-female-1" />
-                  </div>
+                  </VStack>
                 </>
               )}
 
-              <div className={styles.row}>
+              <VStack align="stretch" max className={styles.row}>
                 <Label>{t('aiAgents.field.toolset', 'Toolset (optional)')}</Label>
                 <Select value={toolsetId} onChange={(e: any) => setToolsetId(e.target.value ? Number(e.target.value) : '')}>
                   <option value="">-</option>
@@ -244,23 +215,23 @@ export function AiAgentModal({ agent, providers, toolsets, onClose }: Props) {
                     <option key={ts.uid} value={ts.uid}>{ts.name}</option>
                   ))}
                 </Select>
-              </div>
+              </VStack>
             </>
           )}
 
           {tab === 'routing' && (
             <>
-              <div className={styles.row}>
+              <VStack align="stretch" max className={styles.row}>
                 <Label>{t('aiAgents.field.channelKind', 'Channel kind')}</Label>
                 <Select value={channelKind} onChange={(e: any) => setChannelKind(e.target.value)}>
                   <option value="local">local - Local/{'{unique_id}'}@ai-agents</option>
                   <option value="pjsip">pjsip - PJSIP/{'{unique_id}'}</option>
                   <option value="sip">sip - SIP/{'{unique_id}'}</option>
                 </Select>
-                <Text variant="muted" className="text-xs mt-1">
+                <Text variant="muted" >
                   {t('aiAgents.field.channelKindHint', 'Used by Asterisk dialplan and queues to dial this agent. Most setups use "local".')}
                 </Text>
-              </div>
+              </VStack>
 
               <div className={styles.callout}>
                 <Text className={styles.calloutTitle}>
@@ -271,7 +242,7 @@ local: 'Local/',
 pjsip: 'PJSIP/',
 sip: 'SIP/',
 }[channelKind]}${uniqueId || 'my-agent'}@ai-agents,60)`}</pre>
-                <Text variant="muted" className="text-xs">
+                <Text variant="muted" >
                   {t('aiAgents.routing.queueHint', 'For a queue, add the agent to it like any other static member.')}
                 </Text>
               </div>
@@ -279,20 +250,20 @@ sip: 'SIP/',
           )}
 
           {error && (
-            <div className={styles.error}>
+            <div className={styles.error} role="alert">
               <Text>{error}</Text>
             </div>
           )}
-        </div>
+        </ModalSection></ModalBody>
 
-        <div className={styles.footer}>
+        <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('common.cancel', 'Cancel')}</Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            <Save className="w-4 h-4 mr-1" />
+            <Save className={styles.icon} />
             {isEdit ? t('common.save', 'Save') : t('common.create', 'Create')}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </FormDialogContent>
+    </Dialog>
   );
 }

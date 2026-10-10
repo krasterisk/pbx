@@ -1,10 +1,11 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button, Input, Text, Select, Label } from '@/shared/ui';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/shared/ui/Dialog';
+  Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import {
@@ -180,7 +181,7 @@ const IntervalEditor = memo(({ interval, index, onChange, onRemove }: IntervalEd
 
       {/* Day of month + Month */}
       <HStack className={cls.selectGrid}>
-        <VStack>
+        <VStack align="stretch">
           <Label className={cls.fieldLabel}>
             {t('timeGroups.dayOfMonth', 'День месяца')}
           </Label>
@@ -194,7 +195,7 @@ const IntervalEditor = memo(({ interval, index, onChange, onRemove }: IntervalEd
             ))}
           </Select>
         </VStack>
-        <VStack>
+        <VStack align="stretch">
           <Label className={cls.fieldLabel}>
             {t('timeGroups.month', 'Месяц')}
           </Label>
@@ -275,7 +276,7 @@ export const TimeGroupFormModal = memo(() => {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent size="large">
+      <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {mode === 'edit'
@@ -287,11 +288,12 @@ export const TimeGroupFormModal = memo(() => {
           </DialogTitle>
         </DialogHeader>
 
-        <VStack className={cls.scrollBody}>
-          <VStack gap="16">
+        <ModalBody className={cls.scrollBody}>
+<ModalSection>
+          <VStack align="stretch" gap="16">
             {/* Name & Comment */}
             <HStack className={cls.formGrid}>
-              <VStack>
+              <VStack align="stretch">
                 <Label className={cls.fieldLabel}>
                   {t('timeGroups.name', 'Название')} *
                 </Label>
@@ -302,7 +304,7 @@ export const TimeGroupFormModal = memo(() => {
                   autoFocus
                 />
               </VStack>
-              <VStack>
+              <VStack align="stretch">
                 <Label className={cls.fieldLabel}>
                   {t('timeGroups.comment', 'Описание')}
                 </Label>
@@ -315,7 +317,7 @@ export const TimeGroupFormModal = memo(() => {
             </HStack>
 
             {/* Intervals */}
-            <VStack gap="8">
+            <VStack align="stretch" gap="8">
               <Text variant="muted" className={cls.intervalLabel}>
                 {t('timeGroups.intervalsLabel', 'Интервалы времени')}
               </Text>
@@ -334,7 +336,8 @@ export const TimeGroupFormModal = memo(() => {
               </Button>
             </VStack>
           </VStack>
-        </VStack>
+        </ModalSection>
+</ModalBody>
 
         {/* Actions */}
         <DialogFooter className="mt-4 pt-4 border-t border-border">
@@ -348,7 +351,7 @@ export const TimeGroupFormModal = memo(() => {
             }
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

@@ -23,3 +23,6 @@
 | context-defaults-aichat | [EXECUTION/PLAN](CONTEXT-DEFAULTS-AICHAT-EXECUTION.md) | Default contexts and platform assistant capability audit |
 | routes-contexts-refactor | [EXECUTION/PLAN](ROUTES-CONTEXTS-REFACTOR-PLAN.md) | Ordered includes, route permissions removal and isolated live Asterisk tests |
 | release-20261009 | [EXECUTION/PLAN](RELEASE-20261009.md) | Released 7acfa819; CI and authenticated production smoke PASS |
+| modal-ui-standardization | [EXECUTION](modal-ui-standardization/EXECUTION.md) | [PLAN](modal-ui-standardization/PLAN.md), implemented / automated-tests-passed; visual tool-unavailable |
+
+| release-20261010 | [EXECUTION/PLAN](RELEASE-20261010.md) | Release 4.6.6: snapshot, checks, push and production deployment |

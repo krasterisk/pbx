@@ -1,8 +1,11 @@
+import { toast } from 'react-toastify';
+import { ModalSection } from '@/shared/ui';
+import { ModalBody } from '@/shared/ui';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui/Dialog';
-import { Button, Input, VStack, HStack, Label, Text, Select } from '@/shared/ui';
+import { Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui';
+import { Button, Input, VStack, HStack, Label, Select } from '@/shared/ui';
 import { ITtsEngine } from '@/entities/engines';
 import { useCreateTtsEngineMutation, useUpdateTtsEngineMutation } from '@/shared/api/endpoints/ttsEnginesApi';
 import cls from './TtsEngineFormModal.module.scss';
@@ -54,7 +57,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
       setLanguageCode(s.language_code || 'ru-RU');
       setVoiceName(s.voice_name || 'ru-RU-Wavenet-A');
       setSpeakingRate(s.speaking_rate || '1.0');
-      
+
       setYandexVoice(s.voice || 'alena');
       setEmotion(s.emotion || s.role || 'neutral');
       setSpeed(s.speed || '1.0');
@@ -134,6 +137,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
       onClose();
     } catch (err) {
       console.error('Failed to save TTS engine', err);
+      toast.error(t("modal.errors.save"));
     }
   };
 
@@ -147,20 +151,22 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent size="large">
+      <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>
             {engine ? t('ttsEngines.edit', 'Редактировать движок') : t('ttsEngines.add', 'Добавить движок')}
           </DialogTitle>
         </DialogHeader>
 
-        <VStack gap="16" className="py-4">
-          <VStack gap="4">
+        <ModalBody>
+<ModalSection title={t("modal.sections.settings")}>
+<VStack align="stretch" gap="16" className="py-4">
+          <VStack align="stretch" gap="4">
             <Label>{t('ttsEngines.name', 'Название')}</Label>
             <Input placeholder={t('ttsEngines.namePlaceholder', 'Yandex Cloud TTS')} value={name} onChange={e => setName(e.target.value)} />
           </VStack>
 
-          <VStack gap="4">
+          <VStack align="stretch" gap="4">
             <Label>{t('ttsEngines.type', 'Тип')}</Label>
             <Select value={type} onChange={(e) => setType(e.target.value as EngineType)}>
               <option value="google">{t('ttsEngines.typeGoogle', 'Google Speech-to-Text / TTS')}</option>
@@ -170,7 +176,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
           </VStack>
 
           {type !== 'custom' && (
-            <VStack gap="4">
+            <VStack align="stretch" gap="4">
               <Label>{t('ttsEngines.token', 'API Key / Token')}</Label>
               <Input
                 type="password"
@@ -184,16 +190,16 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
           {type === 'google' && (
             <>
               <HStack gap="8">
-                <VStack gap="4" className="flex-1">
+                <VStack align="stretch" gap="4" className="flex-1">
                   <Label>{t('ttsEngines.google.languageCode', 'Язык')}</Label>
                   <Input value={languageCode} onChange={e => setLanguageCode(e.target.value)} placeholder="ru-RU" />
                 </VStack>
-                <VStack gap="4" className="flex-1">
+                <VStack align="stretch" gap="4" className="flex-1">
                   <Label>{t('ttsEngines.google.speakingRate', 'Скорость')}</Label>
                   <Input value={speakingRate} onChange={e => setSpeakingRate(e.target.value)} placeholder="1.0" />
                 </VStack>
               </HStack>
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label>{t('ttsEngines.google.voiceName', 'Голос')}</Label>
                 <Select
                   value={voiceName}
@@ -214,7 +220,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
 
           {type === 'yandex' && (
             <>
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label>{t('ttsEngines.yandex.folderId', 'Folder ID')}</Label>
                 <Input
                   placeholder="b1g..."
@@ -223,7 +229,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
                 />
               </VStack>
               <HStack gap="8">
-                <VStack gap="4" className="flex-1">
+                <VStack align="stretch" gap="4" className="flex-1">
                   <Label>{t('ttsEngines.yandex.voice', 'Голос')}</Label>
                   <Select
                     value={yandexVoice}
@@ -251,7 +257,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
                     <option value="yulduz_ru">{t('ttsEngines.yandex.voiceYulduzRu', 'Юлдуз (Амплуа)')}</option>
                   </Select>
                 </VStack>
-                <VStack gap="4" className="flex-1">
+                <VStack align="stretch" gap="4" className="flex-1">
                   <Label>{t('ttsEngines.yandex.role', 'Амплуа/Стиль')}</Label>
                   <Select
                     value={emotion}
@@ -266,11 +272,11 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
                 </VStack>
               </HStack>
               <HStack gap="8">
-                <VStack gap="4" className="flex-1">
+                <VStack align="stretch" gap="4" className="flex-1">
                   <Label>{t('ttsEngines.yandex.speed', 'Скорость (0.1 - 3.0)')}</Label>
                   <Input value={speed} onChange={e => setSpeed(e.target.value)} placeholder="1.0" type="number" step="0.1" min="0.1" max="3.0" />
                 </VStack>
-                <VStack gap="4" className="flex-1">
+                <VStack align="stretch" gap="4" className="flex-1">
                   <Label>{t('ttsEngines.yandex.pitchShift', 'Сдвиг тона (-1000 - 1000 Hz)')}</Label>
                   <Input value={pitchShift} onChange={e => setPitchShift(e.target.value)} placeholder="0" type="number" step="10" min="-1000" max="1000" />
                 </VStack>
@@ -280,7 +286,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
 
           {type === 'custom' && (
             <>
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label>{t('ttsEngines.custom.url', 'URL эндпоинта')}</Label>
                 <Input
                   placeholder="https://api.example.com/tts/synthesize"
@@ -289,7 +295,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
                 />
               </VStack>
 
-              <VStack gap="4">
+              <VStack align="stretch" gap="4">
                 <Label>{t('ttsEngines.custom.authMode', 'Авторизация')}</Label>
                 <Select value={authMode} onChange={(e) => setAuthMode(e.target.value as AuthMode)}>
                   <option value="none">{t('ttsEngines.custom.authNone', 'Нет')}</option>
@@ -299,16 +305,16 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
               </VStack>
 
               {authMode === 'bearer' && (
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <Label>{t('ttsEngines.token', 'Bearer Token')}</Label>
                   <Input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="eyJhbG..." />
                 </VStack>
               )}
 
               {authMode === 'custom' && (
-                <VStack gap="4">
+                <VStack align="stretch" gap="4">
                   <Label>{t('ttsEngines.custom.headers', 'Заголовки')}</Label>
-                  <VStack gap="8" className="bg-background rounded-lg border border-border p-4">
+                  <VStack align="stretch" gap="8" className="bg-background rounded-lg border border-border p-4">
                     {customHeaders.map((header, i) => (
                       <HStack gap="8" key={i} align="center">
                         <Input
@@ -339,13 +345,16 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
           )}
         </VStack>
 
-        <DialogFooter className="mt-6 pt-4 border-t border-border">
+
+</ModalSection>
+</ModalBody>
+<DialogFooter className="mt-6 pt-4 border-t border-border">
           <Button variant="outline" onClick={onClose}>{t('common.cancel', 'Отмена')}</Button>
           <Button onClick={handleSubmit} disabled={isCreating || isUpdating || !name.trim()}>
             {t('common.save', 'Сохранить')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

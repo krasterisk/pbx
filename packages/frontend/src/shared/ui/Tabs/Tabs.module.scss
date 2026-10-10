@@ -3,6 +3,7 @@
 %tab-active-underline {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
+  background: var(--color-muted);
 }
 
 .tabsWrap {
@@ -33,7 +34,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  z-index: 1;
+  z-index: var(--z-index-dropdown);
   width: 2rem;
   padding: 0;
   border: none;

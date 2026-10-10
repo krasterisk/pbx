@@ -1,9 +1,7 @@
+import { Sheet, SheetContent, SheetHeader, SheetTitle, ModalTabs, ModalBody } from '@/shared/ui';
 import { memo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  X, ArrowRightLeft, TrendingUp, TrendingDown, RotateCcw,
-  SlidersHorizontal, AlertCircle, Loader2,
-} from 'lucide-react';
+import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCcw, SlidersHorizontal, AlertCircle, Loader2 } from 'lucide-react';
 import {
   useGetTenantBalanceQuery,
   useGetTenantTransactionsQuery,
@@ -107,16 +105,16 @@ export const TenantDrawer = memo(() => {
   return (
     <>
       {/* Backdrop */}
-      <div className={cls.backdrop} onClick={handleClose} />
+
 
       {/* Drawer */}
-      <aside className={cls.drawer} role="dialog" aria-modal="true">
+      <Sheet open={isOpen} onOpenChange={(open)=>!open&&handleClose()}><SheetContent className={cls.surface} aria-describedby={undefined}>
 
         {/* ── Header ──────────────────────────────────── */}
-        <div className={cls.header}>
+        <SheetHeader className={cls.header}>
           <HStack justify="between" align="start">
             <VStack gap="4">
-              <Text variant="h4">{selectedTenant.name}</Text>
+              <SheetTitle>{selectedTenant.name}</SheetTitle>
               <HStack gap="8" align="center">
                 <TenantStatusBadge status={selectedTenant.status} />
                 {selectedTenant.slug && (
@@ -124,9 +122,7 @@ export const TenantDrawer = memo(() => {
                 )}
               </HStack>
             </VStack>
-            <button onClick={handleClose} className="p-1 rounded hover:bg-muted transition-colors">
-              <X className="w-5 h-5" />
-            </button>
+
           </HStack>
 
           <Button
@@ -145,21 +141,11 @@ export const TenantDrawer = memo(() => {
           </Button>
 
           {/* Tabs */}
-          <div className={cls.tabs}>
-            {TABS.map(({ key, label }) => (
-              <button
-                key={key}
-                className={`${cls.tab} ${tab === key ? cls.tabActive : ''}`}
-                onClick={() => setTab(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+          <ModalTabs items={TABS.map(({key,label})=>({id:key,label}))} value={tab} onChange={(value)=>setTab(value as DrawerTab)} label={t("common.settings")} />
+        </SheetHeader>
 
         {/* ── Body ────────────────────────────────────── */}
-        <div className={cls.body}>
+        <ModalBody className={cls.body}>
 
           {/* ── Tab: Info ─────────────────────────────── */}
           {tab === 'info' && (
@@ -181,7 +167,7 @@ export const TenantDrawer = memo(() => {
                 />
               </VStack>
 
-              <VStack gap="6">
+              <VStack gap="6" align="stretch">
                 <Label htmlFor="drawer-seller">
                   {t('cloudAdmin.drawer.seller', 'Поставщик')}
                 </Label>
@@ -309,8 +295,8 @@ export const TenantDrawer = memo(() => {
               enabled={tab === 'modules'}
             />
           )}
-        </div>
-      </aside>
+        </ModalBody>
+      </SheetContent></Sheet>
     </>
   );
 });

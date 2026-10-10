@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../Dialog/Dialog';
 
 const Sheet = DialogPrimitive.Root;
@@ -25,7 +26,7 @@ SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 type SheetSide = 'right' | 'bottom';
 
-type SheetContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+export type SheetContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   side?: SheetSide;
   hideClose?: boolean;
 };
@@ -33,14 +34,17 @@ type SheetContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.C
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
->(({ className, children, side = 'right', hideClose = false, style, ...props }, ref) => (
+>(({ className, children, side = 'right', hideClose = false, style, ...props }, ref) => {
+  const { t } = useTranslation();
+  return (
   <SheetPortal>
     <SheetOverlay className={side === 'bottom' ? 'bg-black/40' : undefined} />
     <DialogPrimitive.Content
       ref={ref}
+      data-modal-shell
       data-side={side}
       className={cn(
-        'layer-modal border-border bg-background p-6 shadow-lg duration-200',
+        'layer-modal border-border bg-card p-6 shadow-md duration-200',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'flex flex-col gap-4 overflow-hidden',
         'motion-reduce:animate-none motion-reduce:transition-none',
@@ -57,12 +61,13 @@ const SheetContent = React.forwardRef<
       {hideClose ? null : (
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
           <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{t("common.close")}</span>
         </DialogPrimitive.Close>
       )}
     </DialogPrimitive.Content>
   </SheetPortal>
-));
+  );
+});
 SheetContent.displayName = DialogPrimitive.Content.displayName;
 
 const SheetHeader = ({
@@ -70,7 +75,8 @@ const SheetHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn('flex flex-col space-y-1.5 text-left', className)}
+    data-modal-slot="header"
+    className={cn('flex flex-col space-y-1.5 text-left shrink-0', className)}
     {...props}
   />
 );
@@ -81,7 +87,8 @@ const SheetFooter = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-auto', className)}
+    data-modal-slot="footer"
+    className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-auto shrink-0', className)}
     {...props}
   />
 );

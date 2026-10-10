@@ -33,13 +33,13 @@ describe('available default contexts in the modal', () => {
   });
   it('hides occupied flags for a new context but keeps the free type', () => {
     render(<ContextFormModal />);
-    expect(screen.queryByRole('checkbox', { name: 'contexts.defaultForEndpoints' })).not.toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'contexts.defaultForTrunks' })).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'contexts.defaultForEndpoints' })).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'contexts.defaultForTrunks' })).toBeInTheDocument();
   });
   it('keeps the current owner flag visible and checked for deselection', async () => {
     mocks.state.contexts.selectedContext = owner;
     render(<ContextFormModal />);
-    const flag = screen.getByRole('checkbox', { name: 'contexts.defaultForEndpoints' });
+    const flag = screen.getByRole('switch', { name: 'contexts.defaultForEndpoints' });
     expect(flag).toBeChecked();
     fireEvent.click(flag);
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -49,10 +49,10 @@ describe('available default contexts in the modal', () => {
     mocks.rows = [];
     const view = render(<ContextFormModal />);
     fireEvent.change(screen.getByLabelText(/Имя контекста/), { target: { value: 'new-context' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'contexts.defaultForEndpoints' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'contexts.defaultForEndpoints' }));
     mocks.rows = [owner];
     view.rerender(<ContextFormModal />);
-    expect(screen.queryByRole('checkbox', { name: 'contexts.defaultForEndpoints' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'contexts.defaultForEndpoints' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     await waitFor(() => expect(mocks.create).toHaveBeenCalled());
     expect(mocks.create.mock.calls[0][0]).not.toHaveProperty('is_default_for_endpoints');

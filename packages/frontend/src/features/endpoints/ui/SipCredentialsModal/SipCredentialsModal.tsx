@@ -1,3 +1,4 @@
+import { ModalBody, ModalSection } from '@/shared/ui';
 import { useTranslation } from "react-i18next";
 import cls from "./SipCredentialsModal.module.scss";
 import { Key, Copy, Check, Loader2 } from "lucide-react";
@@ -15,7 +16,7 @@ import {
   Text,
   Label,
   Dialog,
-  DialogContent,
+  FormDialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -270,7 +271,7 @@ export const SipCredentialsModal = () => {
 
   return (
     <Dialog open={!!sipId} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent
+      <FormDialogContent
         size="large"
         className={cls.dialog}
         ref={contentRef}
@@ -282,7 +283,8 @@ export const SipCredentialsModal = () => {
             <DialogTitle>{t("endpoints.sipCredentials")}</DialogTitle>
           </HStack>
         </DialogHeader>
-        <VStack max align="stretch" className={cls.body}>
+        <ModalBody   className={cls.body}>
+<ModalSection>
           {isLoading ? (
             <VStack
               gap="16"
@@ -294,7 +296,7 @@ export const SipCredentialsModal = () => {
               <Text variant="muted">{t("common.loading")}</Text>
             </VStack>
           ) : creds ? (
-            <VStack gap="16">
+            <VStack align="stretch" gap="16">
               {renderCredBlock(t("endpoints.credSip"), sipFields)}
 
               {creds.webrtc &&
@@ -312,7 +314,8 @@ export const SipCredentialsModal = () => {
               {copyError}
             </Text>
           )}
-        </VStack>
+        </ModalSection>
+</ModalBody>
         <DialogFooter className={cls.footer}>
           <Button type="button" variant="outline" onClick={handleClose}>
             {t("common.close")}
@@ -329,7 +332,7 @@ export const SipCredentialsModal = () => {
             </Button>
           )}
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 };
