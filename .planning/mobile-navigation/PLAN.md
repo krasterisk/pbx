@@ -1,7 +1,7 @@
-# Рефакторинг навигации: мобильный UX, доступность и согласованность
+# Навигация приложения — r5 (N13 follow-up; r4 сохранён)
 
-Ревизия: **2026-10-10-r4**. Режим: **codex-direct**. Координатор: текущая задача навигации `/root`.
-Статус: **implemented / automated-tests-passed / local-browser-verified (mock API)**. N5-N11 реализованы; N12 automated/browser gates пройдены, human/device/screen-reader/UAT pending. Coordinator/executor /root, без delegated writers.
+Ревизия: **2026-10-10-r5**. Режим: **codex-direct**. Координатор: текущая задача навигации `/root`.
+Статус: **N13 r5 implemented / automated-tests-passed / local-browser-verified (mock API)**. Результаты r4 ниже являются историческими; текущий scope — N13.
 
 ## 1. Цель и преемственность
 
@@ -52,7 +52,7 @@ Baseline: `main`, HEAD `6fa6c41904497046a510ad9969f3d36e9cdd067a`; рабоче�
 
 1. **Один источник навигационных данных.** Использовать итоговые строки `useHubModules` после server catalog mapping, tenant visibility, ownModels, license и RBAC. Не строить поиск/restore по отдельной копии BASELINE_MODULES. Каталог может переносить страницу между разделами.
 2. **Один resolver текущей страницы.** Наиболее точный разрешённый маршрут, с границами сегментов и точным `/`. Раздел и страница одинаковы для всех поверхностей. Hub/служебные URL не маскировать подписью «Дашборд».
-3. **Явный список всех страниц.** Нижнее название раздела становится кнопкой `Раздел ▾` с доступным именем «Все страницы раздела …». Она открывает нижний Sheet «Страницы …» с полными названиями и ссылками. Верхний Sheet содержит разделы, нижний — только страницы; поиска в них нет. Для одной страницы триггер остаётся, для нуля — статичная подпись без пустой панели.
+3. **Явный список всех страниц.** Нижнее название раздела становится кнопкой `Раздел ▾` с доступным именем «Все страницы раздела …». Она открывает нижний Sheet «Страницы …» с полными названиями и ссылками. По уточнению пользователя r5 верхний Sheet содержит раскрывающиеся разделы и все их разрешённые страницы; нижний — страницы текущего раздела. Поиска в них нет. Для одной страницы триггер остаётся, для нуля — статичная подпись без пустой панели.
 4. **Ссылки для переходов, кнопки для действий.** Link semantics сохраняются в меню, нижней панели и Hub. Перетаскивание не перехватывает middle-click, правую кнопку и клики с модификаторами.
 5. **Поиск остаётся отдельным.** Все разрешённые страницы активных разделов доступны из любого раздела. Один результат на канонический URL сохраняет searchable aliases раздела и страницы, контекст раздела и стабильный ID. Если после восстановления module entry отличается от первой страницы, индекс включает оба адреса. Shared CommandPalette получает только готовые данные, без импорта бизнес-фич.
 6. **Порядок и доступность разделов.** Навигация использует catalog order до favorites sorting; Hub сохраняет действующий favorites-first. Недоступные разделы идут отдельной группой «Недоступные разделы» (включая отключённые базовые разделы) с различимыми текстами «Не подключён» / «Отключён» и ведут к своей строке/карточке Hub. «Модули» остаются последними.
@@ -176,3 +176,15 @@ FSD: primitives/public wrappers в shared; доменная навигацион
 | Release | not-applicable; публикация не назначена |
 
 Next action: human/device/UAT по сценариям N12. Код и автоматические проверки завершены; внешняя проверка не блокирует независимую работу. Любые дальнейшие функциональные изменения требуют нового bounded assignment и проверки dirty baseline. Исторические r3 результаты: [SUMMARY-r3](SUMMARY-r3.md).
+
+## N13 — r5: полное дерево страниц в левом Sheet
+
+Назначено пользователем 2026-10-10. Coordinator/executor /root, codex-direct; status implemented / automated-tests-passed / local-browser-verified (mock API). Baseline main/e5a1e202 + чужой endpoints/dialplan/tsbuildinfo diff.
+
+- Активные разделы — кнопки раскрытия, без перехода при нажатии на заголовок. Независимые раскрывающиеся списки всех разрешённых страниц из useHubModules/filterPagesByLevel, без копии registry.
+- При каждом открытии Sheet автоматически раскрыть текущий раздел. Выделить только наиболее точную текущую страницу, в том числе вложенные маршруты.
+- Страницы — native NavItem links. Обычный переход закрывает Sheet, Ctrl/Cmd/middle сохраняют штатное поведение ссылок.
+- aria-expanded/controls, скрытые страницы исключены из focus/accessibility tree; Enter/Space раскрывают, Escape закрывает с возвратом фокуса. Полные названия, 44px targets и локальный вертикальный scroll на 320px.
+- Сохранить catalog order, unavailable statuses/адресный Hub, «Модули» последними. Недоступные страницы не дают обхода license/RBAC.
+- Owned paths: MobileModuleMenu/{tsx,scss,test}; navigation contract frontend ARCHITECTURE; этот PLAN/EXECUTION/SUMMARY и собственные строки индекса. Общие registry/router/storage/backend и чужой dirty diff read-only.
+- Gates (все automated/local browser PASS, evidence в SUMMARY): targeted menu/shell tests, npm run lint, npm run test:backend, npm run test:frontend, TypeScript, локальный Chromium с API mocks (раскрытие без перехода, nested active page, навигация/modified link, scroll, 320/390, две темы, Escape/focus). Real device/screen reader остаются pending.

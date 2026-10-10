@@ -1,0 +1,114 @@
+{
+  "kind": "local-Chromium-with-mocked-API",
+  "checks": [
+    {
+      "name": "dark-current-section-and-nested-page",
+      "result": "pass"
+    },
+    {
+      "name": "dark-independent-expansion-no-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "dark-native-modified-page-link",
+      "result": "pass"
+    },
+    {
+      "name": "dark-selected-page-closes-and-reopens-current",
+      "result": "pass"
+    },
+    {
+      "name": "dark-keyboard-hidden-page-semantics",
+      "result": "pass"
+    },
+    {
+      "name": "dark-escape-focus-restoration",
+      "result": "pass"
+    },
+    {
+      "name": "dark-full-menu-scroll-320",
+      "result": "pass",
+      "width": 320,
+      "documentWidth": 320,
+      "listWidth": 255,
+      "listScrollWidth": 255,
+      "listHeight": 570,
+      "listScrollHeight": 2660
+    },
+    {
+      "name": "dark-full-menu-scroll-390",
+      "result": "pass",
+      "width": 390,
+      "documentWidth": 390,
+      "listWidth": 287,
+      "listScrollWidth": 287,
+      "listHeight": 774,
+      "listScrollHeight": 2564
+    },
+    {
+      "name": "dark-full-menu-scroll-767",
+      "result": "pass",
+      "width": 767,
+      "documentWidth": 767,
+      "listWidth": 287,
+      "listScrollWidth": 287,
+      "listHeight": 774,
+      "listScrollHeight": 2564
+    },
+    {
+      "name": "light-current-section-and-nested-page",
+      "result": "pass"
+    },
+    {
+      "name": "light-independent-expansion-no-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "light-native-modified-page-link",
+      "result": "pass"
+    },
+    {
+      "name": "light-selected-page-closes-and-reopens-current",
+      "result": "pass"
+    },
+    {
+      "name": "light-keyboard-hidden-page-semantics",
+      "result": "pass"
+    },
+    {
+      "name": "light-escape-focus-restoration",
+      "result": "pass"
+    },
+    {
+      "name": "light-full-menu-scroll-320",
+      "result": "pass",
+      "width": 320,
+      "documentWidth": 320,
+      "listWidth": 255,
+      "listScrollWidth": 255,
+      "listHeight": 570,
+      "listScrollHeight": 2660
+    },
+    {
+      "name": "light-full-menu-scroll-390",
+      "result": "pass",
+      "width": 390,
+      "documentWidth": 390,
+      "listWidth": 287,
+      "listScrollWidth": 287,
+      "listHeight": 774,
+      "listScrollHeight": 2564
+    },
+    {
+      "name": "light-full-menu-scroll-767",
+      "result": "pass",
+      "width": 767,
+      "documentWidth": 767,
+      "listWidth": 287,
+      "listScrollWidth": 287,
+      "listHeight": 774,
+      "listScrollHeight": 2564
+    }
+  ],
+  "errors": []
+}
