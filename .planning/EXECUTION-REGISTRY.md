@@ -33,4 +33,4 @@
 
 | release-4.6.8 | [EXECUTION/PLAN](RELEASE-4.6.8-20261010.md) | Released 4.6.8 / b3eaa72f; all CI and authenticated production smoke PASS |
 
-| release-4.6.9 | [EXECUTION/PLAN](RELEASE-4.6.9-20261011.md) | Release 4.6.9: snapshot, CI and production deployment |
+| release-4.6.9 | [EXECUTION/PLAN](RELEASE-4.6.9-20261011.md) | Released 4.6.9 / 35c29abd; all CI and authenticated production smoke PASS |
