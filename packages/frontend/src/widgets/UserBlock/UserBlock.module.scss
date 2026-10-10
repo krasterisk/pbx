@@ -51,3 +51,5 @@
   height: 1rem;
   margin-right: 0.5rem;
 }
+
+@media (max-width: 767px) { .menu [role='menuitem'] { min-height: 44px; } }

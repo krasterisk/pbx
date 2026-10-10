@@ -1,0 +1,174 @@
+{
+  "kind": "local-Chromium-with-mocked-API",
+  "checks": [
+    {
+      "name": "desktop-nested-orientation-and-names",
+      "result": "pass"
+    },
+    {
+      "name": "desktop-modules-last",
+      "result": "pass"
+    },
+    {
+      "name": "palette-real-dialog-focus-escape",
+      "result": "pass"
+    },
+    {
+      "name": "palette-long-list-keyboard",
+      "result": "pass",
+      "count": 27
+    },
+    {
+      "name": "first-page-alias",
+      "result": "pass"
+    },
+    {
+      "name": "global-search-cross-section",
+      "result": "pass"
+    },
+    {
+      "name": "restore-last-canonical-page",
+      "result": "pass"
+    },
+    {
+      "name": "layout-320",
+      "result": "pass",
+      "width": 320,
+      "scrollWidth": 320,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "layout-360",
+      "result": "pass",
+      "width": 360,
+      "scrollWidth": 360,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "layout-390",
+      "result": "pass",
+      "width": 390,
+      "scrollWidth": 390,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "layout-640",
+      "result": "pass",
+      "width": 640,
+      "scrollWidth": 640,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "layout-767",
+      "result": "pass",
+      "width": 767,
+      "scrollWidth": 767,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "layout-768",
+      "result": "pass",
+      "width": 768,
+      "scrollWidth": 768,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "layout-820",
+      "result": "pass",
+      "width": 820,
+      "scrollWidth": 820,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "layout-1024",
+      "result": "pass",
+      "width": 1024,
+      "scrollWidth": 1024,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "layout-1280",
+      "result": "pass",
+      "width": 1280,
+      "scrollWidth": 1280,
+      "bodyPointer": "auto"
+    },
+    {
+      "name": "tablet-explicit-preference-survives-resize",
+      "result": "pass"
+    },
+    {
+      "name": "all-pages-click-without-drag",
+      "result": "pass"
+    },
+    {
+      "name": "section-sheet-focus-trap-escape",
+      "result": "pass"
+    },
+    {
+      "name": "targeted-unavailable-hub-no-nested-actions",
+      "result": "pass"
+    },
+    {
+      "name": "warm-hub-target-focus-after-sheet",
+      "result": "pass"
+    },
+    {
+      "name": "mouse-drag-final-page-without-release-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "modified-click-native-new-tab",
+      "result": "pass"
+    },
+    {
+      "name": "ordinary-click-after-drag",
+      "result": "pass"
+    },
+    {
+      "name": "resize-open-sheet-cleans-modal-lock",
+      "result": "pass"
+    },
+    {
+      "name": "mobile-profile-theme-action",
+      "result": "pass"
+    },
+    {
+      "name": "light-active-label-contrast-passed",
+      "result": "pass",
+      "theme": "light",
+      "foreground": [
+        9,
+        9,
+        11
+      ],
+      "background": [
+        239,
+        239,
+        254
+      ],
+      "base": "color(srgb 1 1 1 / 0.92)",
+      "ratio": 17.477500118356268
+    },
+    {
+      "name": "native-touch-swipe",
+      "result": "pass"
+    }
+  ],
+  "errors": [],
+  "contrast": {
+    "theme": "light",
+    "foreground": [
+      9,
+      9,
+      11
+    ],
+    "background": [
+      239,
+      239,
+      254
+    ],
+    "base": "color(srgb 1 1 1 / 0.92)",
+    "ratio": 17.477500118356268
+  }
+}

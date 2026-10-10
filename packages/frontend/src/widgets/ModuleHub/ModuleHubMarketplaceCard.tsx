@@ -1,6 +1,5 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
 import { Badge, Button, Text } from '@/shared/ui';
 import { HStack, VStack, Flex } from '@/shared/ui/Stack';
 import type { HubModuleRow } from '@/features/modules/types';
@@ -18,8 +17,6 @@ interface ModuleHubMarketplaceCardProps {
 
 export const ModuleHubMarketplaceCard = memo(function ModuleHubMarketplaceCard({
   row,
-  index,
-  reduceMotion,
 }: ModuleHubMarketplaceCardProps) {
   const { t } = useTranslation();
   const Icon = row.pages[0]?.icon;
@@ -36,23 +33,15 @@ export const ModuleHubMarketplaceCard = memo(function ModuleHubMarketplaceCard({
     : resolveHubDisplayPrice(row);
   const canBuy = !isAi || !!publishedSku;
 
-  const motionProps = reduceMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 6 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.25, delay: Math.min(index * 0.04, 0.3) },
-      };
-
   return (
     <>
-      <motion.div {...motionProps}>
+      <Flex max>
         <HStack gap="12" align="center" max className={cls.marketCard}>
           <Flex className={cls.iconBadge} align="center" justify="center">
             {Icon ? <Icon size={18} aria-hidden /> : null}
           </Flex>
 
-          <VStack gap="2" style={{ flex: 1, minWidth: 0 }}>
+          <VStack gap="2" className={cls.rowDescription}>
             <Text as="span" className={cls.moduleName}>
               {name}
             </Text>
@@ -74,7 +63,7 @@ export const ModuleHubMarketplaceCard = memo(function ModuleHubMarketplaceCard({
             {canBuy ? t('marketplace.buy') : t('marketplace.skuUnpublished')}
           </Button>
         </HStack>
-      </motion.div>
+      </Flex>
 
       <CheckoutSheet
         open={checkoutOpen}

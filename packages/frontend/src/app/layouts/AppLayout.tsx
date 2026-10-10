@@ -11,7 +11,7 @@ import cls from './AppLayout.module.scss';
 
 /**
  * Tenant shell: ModuleShell A+C hybrid (desktop sidebar + breadcrumbs).
- * Phone: sidebar and crumbs hidden; recents bottom bar is the only module/page nav.
+ * Phone: top-left section menu, current section and scrolling page buttons below.
  * Wallboard stays outside this layout.
  */
 export const AppLayout = () => {

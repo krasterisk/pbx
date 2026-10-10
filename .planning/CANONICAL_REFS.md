@@ -47,3 +47,5 @@ codex-direct `/root`, ordered includes + live Asterisk validation; replaces prio
 context UI follow-up as the current assignment in this chat.
 
 Поручение этого чата реализовано, автоматические проверки пройдены, visual tool-unavailable: [унификация модалок / EXECUTION](modal-ui-standardization/EXECUTION.md), [PLAN](modal-ui-standardization/PLAN.md), codex-direct /root, 2026-10-10-r1. Маршруты/контексты остаются baseline завершённого предыдущего scope.
+
+Mobile navigation: [EXECUTION](mobile-navigation/EXECUTION.md), [PLAN](mobile-navigation/PLAN.md), [SUMMARY](mobile-navigation/SUMMARY.md), codex-direct /root, 2026-10-10-r4. Navigation UX/a11y refactor N5-N11 implemented; automated/local mocked-browser gates pass, real-device/screen-reader/UX-UAT pending. Adjacent endpoints work excluded.

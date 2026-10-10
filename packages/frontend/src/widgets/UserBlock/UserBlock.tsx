@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, UserRound } from 'lucide-react';
+import { ChevronDown, LogOut, UserRound, Languages, Palette } from 'lucide-react';
 import {
   Avatar,
+  NavItem,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ import { buildUserAvatarUrl } from '@/shared/lib/userAvatarUrl';
 import styles from './UserBlock.module.scss';
 
 interface UserBlockProps {
+  preferences?: { themeLabel: string; languageLabel: string; onThemeChange: () => void; onLanguageChange: () => void };
   /** Optional override for display name (e.g. CC agent) */
   displayName?: string;
   /** Optional override for secondary line */
@@ -26,7 +28,7 @@ interface UserBlockProps {
   className?: string;
 }
 
-export function UserBlock({ displayName, secondaryLine, className }: UserBlockProps) {
+export function UserBlock({ displayName, secondaryLine, className, preferences }: UserBlockProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -81,13 +83,21 @@ export function UserBlock({ displayName, secondaryLine, className }: UserBlockPr
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className={styles.menu}>
-        <DropdownMenuItem
-          id="user-block-profile"
-          onSelect={() => navigate('/profile')}
-        >
-          <UserRound className={styles.menuIcon} />
-          {t('auth.profile')}
+        <DropdownMenuItem asChild>
+          <NavItem id='user-block-profile' to='/profile'>
+            <UserRound size={16} className={styles.menuIcon} aria-hidden />
+            {t('auth.profile')}
+          </NavItem>
         </DropdownMenuItem>
+        {preferences && <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem id='shell-lang-toggle' onSelect={preferences.onLanguageChange}>
+            <Languages size={16} className={styles.menuIcon} aria-hidden />{preferences.languageLabel}
+          </DropdownMenuItem>
+          <DropdownMenuItem id='shell-theme-toggle' onSelect={preferences.onThemeChange}>
+            <Palette size={16} className={styles.menuIcon} aria-hidden />{preferences.themeLabel}
+          </DropdownMenuItem>
+        </>}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           id="user-block-logout"

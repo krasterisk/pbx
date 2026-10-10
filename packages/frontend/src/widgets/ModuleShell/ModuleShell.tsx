@@ -1,9 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Phone, Search, Languages, Moon, Sun, Sparkles } from 'lucide-react';
 import { Button, Text, Tooltip } from '@/shared/ui';
-import { HStack } from '@/shared/ui/Stack';
+import { Flex, HStack } from '@/shared/ui/Stack';
 import { AssistantPanel, type AssistantPanelMode } from '@/widgets/AssistantPanel';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
@@ -16,22 +16,27 @@ import { selectMyAgent } from '@/features/callcenter/model/selectors/callCenterS
 import { agentDisplayName } from '@/features/callcenter/lib/displayLabels';
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import { UserLevel } from '@krasterisk/shared';
+import type { ModulePageDef } from '@/features/modules/types';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { useModuleLicenseGate } from '@/features/modules/hooks/useModuleLicenseGate';
 import { UserBlock } from '@/widgets/UserBlock';
 import {
   filterPagesByLevel,
   findModuleByPath,
-  getModuleEntryPath,
 } from '@/features/modules/lib/moduleRegistry';
 import { ConferenceSessionProvider } from '@/features/conferences/lib/ConferenceSessionProvider';
 import { ConferenceMiniPanel } from '@/features/conferences/ui/ConferenceMiniPanel';
+import { readImpersonation } from '@/features/auth/lib/impersonationSession';
+import { ModuleDestinationProvider, useNavigationHistory } from '@/features/modules/hooks/useNavigationHistory';
+import { findPageByPath } from '@/features/modules/lib/navigation';
 import { ModuleBreadcrumbs } from './ModuleBreadcrumbs';
+import { MobileModuleMenu } from './MobileModuleMenu';
 import { ModuleShellSidebar } from './ModuleShellSidebar';
 import { OfflineBanner } from './OfflineBanner';
 import cls from './ModuleShell.module.scss';
 
 const COLLAPSE_KEY = 'krasterisk.moduleShell.collapsed';
+const EMPTY_PAGES: ModulePageDef[] = [];
 
 interface ModuleShellProps {
   children?: ReactNode;
@@ -40,39 +45,48 @@ interface ModuleShellProps {
 /**
  * In-module shell - A+C hybrid:
  * full-width topbar (logo inert, Module▾ → Page▾ menus) → sidebar | content.
- * Sidebar footer «Модули» → Hub. Phone: sidebar hidden; nav is the bottom bar.
+ * Sidebar footer «Модули» → Hub. Phone: top-left section menu and bottom page navigation.
  */
 export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellProps) {
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
+  const isCompact = useIsMobile(1024);
   const user = useAppSelector((s) => s.auth.user);
+  const accessToken = useAppSelector((s) => s.auth.accessToken);
   const panelMode = useAppSelector((s) => s.aiChat.panelMode) ?? 'dock';
   const chatSeed = useAppSelector((s) => s.aiChat.seedMessage);
   const ccAgent = useAppSelector(selectMyAgent);
   const level = user?.level as UserLevel | undefined;
-  const { active, marketplace } = useHubModules();
+  const { active, marketplace, navigation, isLoading, isError } = useHubModules();
   useModuleLicenseGate();
 
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
+  const [isDark, setIsDark] = useState(() => { try { return localStorage.getItem('theme') !== 'light'; } catch { return !document.documentElement.classList.contains('light'); } });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
   const [agentMinimized, setAgentMinimized] = useState(false);
   const agentTriggerRef = useRef<HTMLButtonElement>(null);
+  const paletteReturnFocus = useRef<HTMLElement | null>(null);
+  const openPalette = useCallback(() => {
+    paletteReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setPaletteOpen(true);
+  }, []);
   const shortcutMod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
   const agentShortcutHint = t('aiChat.shortcutHint', { mod: shortcutMod });
   const searchShortcutHint = `${t('commandPalette.placeholder')} (${shortcutMod}+K)`;
-  const [collapsed, setCollapsed] = useState(() => {
+  const [collapsed, setCollapsed] = useState<boolean | null>(() => {
     try {
-      return localStorage.getItem(COLLAPSE_KEY) === '1';
+      const stored = localStorage.getItem(COLLAPSE_KEY);
+      return stored === '1' ? true : stored === '0' ? false : null;
     } catch {
-      return false;
+      return null;
     }
   });
+  const effectiveCollapsed = collapsed ?? isCompact;
 
-  const navModules = useMemo(() => [...active, ...marketplace], [active, marketplace]);
+  const navModules = useMemo(() => navigation ?? [...active, ...marketplace], [navigation, active, marketplace]);
+  const getDestination = useNavigationHistory(navModules, !isLoading && !isError, readImpersonation(accessToken)?.tenantId);
   const isHub = location.pathname === '/modules' || location.pathname.startsWith('/modules/');
   const currentModule = isHub ? undefined : findModuleByPath(location.pathname, navModules);
   const hubRow = currentModule
@@ -83,39 +97,33 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     !!currentModule && !isHub && currentModule.code !== 'overview';
   const showSidebar = inModuleNav && !isMobile;
 
-  const pageSource = hubRow?.pages ?? currentModule?.pages ?? [];
-  const navPages = inModuleNav && currentModule
-    ? filterPagesByLevel(pageSource, level)
-    : [];
+  const pageSource = hubRow?.pages ?? currentModule?.pages ?? EMPTY_PAGES;
+  const navPages = useMemo(() => inModuleNav && currentModule
+    ? filterPagesByLevel(pageSource, level) : [], [inModuleNav, currentModule, pageSource, level]);
 
-  const currentPage = inModuleNav
-    ? navPages.find(
-        (p) =>
-          location.pathname === p.path ||
-          (p.path !== '/' && location.pathname.startsWith(`${p.path}/`)),
-      )
-    : undefined;
+  const currentPage = inModuleNav ? findPageByPath(location.pathname, navPages) : undefined;
 
   const moduleTitle = useMemo(() => {
-    if (!currentModule || currentModule.code === 'overview') {
+    if (!currentModule) return t('hub.catalog');
+    if (currentModule.code === 'overview') {
       return t('nav.dashboard');
     }
     return t(hubRow?.labelKey ?? currentModule.labelKey);
   }, [currentModule, hubRow, t]);
 
   const licensedModules = useMemo(
-    () => active.filter((m) => m.licenseStatus === 'active'),
-    [active],
+    () => navModules.filter((m) => m.licenseStatus === 'active' && filterPagesByLevel(m.pages, level).length > 0),
+    [navModules, level],
   );
 
   const moduleMenuItems = useMemo(
     () =>
-      licensedModules.map((m) => ({
+      [...licensedModules.map((m) => ({
         id: m.code,
         label: t(m.labelKey),
-        onSelect: () => navigate(getModuleEntryPath(m, level)),
-      })),
-    [licensedModules, level, navigate, t],
+        to: getDestination(m),
+      })), { id: 'hub', label: t('hub.title'), to: '/modules' }],
+    [licensedModules, getDestination, t],
   );
 
   const pageMenuItems = useMemo(
@@ -123,40 +131,35 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
       navPages.map((p) => ({
         id: p.id,
         label: t(p.labelKey),
-        onSelect: () => navigate(p.path),
+        to: p.path,
       })),
-    [navPages, navigate, t],
+    [navPages, t],
   );
 
   const paletteItems = useMemo(() => {
-    const licensed = licensedModules.map((m) => ({
+    const licensed = [...licensedModules.map((m) => ({
       code: m.code,
       label: t(m.labelKey),
-      entryPath: getModuleEntryPath(m, level),
-    }));
+      entryPath: getDestination(m),
+    })), { code: 'hub', label: t('hub.title'), entryPath: '/modules' }];
 
-    const pages =
-      currentModule && currentModule.code !== 'overview'
-        ? filterPagesByLevel(pageSource, level).map((p) => ({
-            id: p.id,
-            label: t(p.labelKey),
-            path: p.path,
-          }))
-        : [];
+    const pages = licensedModules.flatMap((m) => filterPagesByLevel(m.pages, level).map((p) => ({
+      id: m.code + ':' + p.id, label: t(p.labelKey), path: p.path, section: t(m.labelKey),
+    })));
 
     return buildPaletteItems(licensed, pages);
-  }, [licensedModules, currentModule, pageSource, level, t]);
+  }, [licensedModules, level, getDestination, t]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== 'k') return;
       if (!(e.metaKey || e.ctrlKey)) return;
       e.preventDefault();
-      setPaletteOpen((open) => !open);
+      if (!paletteOpen) openPalette(); else setPaletteOpen(false);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [openPalette, paletteOpen]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -197,59 +200,55 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     if (isDark) {
       html.classList.remove('dark');
       html.classList.add('light');
-      localStorage.setItem('theme', 'light');
+      try { localStorage.setItem('theme', 'light'); } catch { /* Keep the applied theme. */ }
     } else {
       html.classList.remove('light');
       html.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      try { localStorage.setItem('theme', 'dark'); } catch { /* Keep the applied theme. */ }
     }
     setIsDark(!isDark);
   };
 
   const toggleLanguage = () => {
-    i18n.changeLanguage(i18n.language === 'ru' ? 'en' : 'ru');
+    i18n.changeLanguage(i18n.language.startsWith('ru') ? 'en' : 'ru');
   };
 
   return (
+    <ModuleDestinationProvider value={getDestination}>
     <ConferenceSessionProvider>
-    <div
+    <Flex direction="column" align="stretch"
       className={cls.shellRoot}
       data-testid="module-shell"
-      data-sidebar-collapsed={!isMobile && collapsed ? 'true' : 'false'}
+      data-sidebar-collapsed={!isMobile && effectiveCollapsed ? 'true' : 'false'}
       data-phone-sidebar={isMobile ? 'hidden' : undefined}
     >
       <OfflineBanner />
 
-      <header className={cls.topbar}>
-        <div className={cls.logo} id="shell-logo" aria-hidden="true">
-          <span className={cls.logoBox}>
+      <Flex as="header" className={cls.topbar}>
+        <Flex className={cls.logo} id="shell-logo" aria-hidden="true">
+          <Flex className={cls.logoBox} justify="center">
             <Phone size={18} aria-hidden />
-          </span>
+          </Flex>
           <Text as="span" className={cls.logoText}>
             Krasterisk
           </Text>
-        </div>
+        </Flex>
 
         {isMobile ? (
-          <Text as="span" className={cls.phoneTitle} data-testid="phone-topbar-title">
-            {isHub
-              ? t('hub.title')
-              : currentPage
-                ? t(currentPage.labelKey)
-                : moduleTitle}
-          </Text>
+          <MobileModuleMenu />
         ) : isHub ? (
           <ModuleBreadcrumbs hubLabel={t('hub.title')} />
         ) : (
           <ModuleBreadcrumbs
             moduleLabel={moduleTitle}
+            moduleCurrent={!!currentModule}
             moduleItems={moduleMenuItems}
             pageLabel={currentPage ? t(currentPage.labelKey) : undefined}
             pageItems={pageMenuItems.length > 0 ? pageMenuItems : undefined}
           />
         )}
 
-        <div className={cls.spacer} />
+        <Flex className={cls.spacer} />
 
         <ConferenceMiniPanel />
 
@@ -269,37 +268,43 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
           </Button>
         </Tooltip>
 
-        {!isMobile && (
-          <Tooltip content={searchShortcutHint}>
+        <Tooltip content={searchShortcutHint}>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               id="shell-cmdk-trigger"
-              onClick={() => setPaletteOpen(true)}
+              onClick={openPalette}
               aria-label={t('commandPalette.placeholder')}
             >
               <Search size={16} aria-hidden />
             </Button>
           </Tooltip>
-        )}
 
-        <Button
+        {!isMobile && <Button
           id="shell-lang-toggle"
           variant="ghost"
           size="icon"
           onClick={toggleLanguage}
-          title={i18n.language.toUpperCase()}
+          aria-label={t('auth.switchLanguage', { language: i18n.language.startsWith('ru') ? 'EN' : 'RU' })}
+          title={t('auth.switchLanguage', { language: i18n.language.startsWith('ru') ? 'EN' : 'RU' })}
         >
-          <Languages className="w-4 h-4" />
-        </Button>
+          <Languages size={16} aria-hidden />
+        </Button>}
 
-        <Button id="shell-theme-toggle" variant="ghost" size="icon" onClick={toggleTheme}>
-          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </Button>
+        {!isMobile && <Button id="shell-theme-toggle" variant="ghost" size="icon" onClick={toggleTheme}
+          aria-label={t(isDark ? 'auth.themeToLight' : 'auth.themeToDark')} title={t(isDark ? 'auth.themeToLight' : 'auth.themeToDark')}>
+          {isDark ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
+        </Button>}
 
         <HStack gap="8" align="center">
           <UserBlock
+            className={cls.userTrigger}
+            preferences={isMobile ? {
+              themeLabel: t(isDark ? 'auth.themeToLight' : 'auth.themeToDark'),
+              languageLabel: t('auth.switchLanguage', { language: i18n.language.startsWith('ru') ? 'EN' : 'RU' }),
+              onThemeChange: toggleTheme, onLanguageChange: toggleLanguage,
+            } : undefined}
             displayName={ccAgent ? agentDisplayName(ccAgent) : undefined}
             secondaryLine={
               ccAgent
@@ -310,24 +315,25 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
             }
           />
         </HStack>
-      </header>
+      </Flex>
 
-      <div className={cls.body}>
+      <Flex align="stretch" className={cls.body}>
         {showSidebar && currentModule && (
           <ModuleShellSidebar
             moduleTitle={moduleTitle}
             pages={navPages}
-            collapsed={collapsed}
+            collapsed={effectiveCollapsed}
             onCollapsedChange={handleCollapsedChange}
           />
         )}
-        <main className={cls.main}>{children}</main>
-      </div>
+        <Flex as="main" direction="column" align="stretch" className={cls.main} tabIndex={-1}>{children}</Flex>
+      </Flex>
 
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         items={paletteItems}
+        returnFocusRef={paletteReturnFocus}
       />
 
       <AssistantPanel
@@ -339,7 +345,8 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
         onClose={closeAgent}
         onOpen={() => setAgentOpen(true)}
       />
-    </div>
+    </Flex>
     </ConferenceSessionProvider>
+    </ModuleDestinationProvider>
   );
 });

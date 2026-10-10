@@ -1,0 +1,167 @@
+{
+  "kind": "local-browser-with-mocked-api",
+  "checks": [
+    {
+      "name": "mobile-layout-360",
+      "result": "pass",
+      "viewport": 360,
+      "scrollWidth": 360,
+      "bar": {
+        "left": 0,
+        "right": 360,
+        "top": 784,
+        "bottom": 844,
+        "width": 360,
+        "height": 60
+      },
+      "pages": {
+        "left": 90,
+        "right": 360,
+        "top": 785,
+        "bottom": 844,
+        "width": 270,
+        "height": 59
+      },
+      "pagesScrollWidth": 839,
+      "menu": {
+        "left": 8,
+        "right": 52,
+        "top": 5.5,
+        "bottom": 49.5,
+        "width": 44,
+        "height": 44
+      },
+      "pageCount": 8
+    },
+    {
+      "name": "mobile-layout-390",
+      "result": "pass",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "bar": {
+        "left": 0,
+        "right": 390,
+        "top": 784,
+        "bottom": 844,
+        "width": 390,
+        "height": 60
+      },
+      "pages": {
+        "left": 97.5,
+        "right": 390,
+        "top": 785,
+        "bottom": 844,
+        "width": 292.5,
+        "height": 59
+      },
+      "pagesScrollWidth": 839,
+      "menu": {
+        "left": 8,
+        "right": 52,
+        "top": 5.5,
+        "bottom": 49.5,
+        "width": 44,
+        "height": 44
+      },
+      "pageCount": 8
+    },
+    {
+      "name": "mobile-layout-640",
+      "result": "pass",
+      "viewport": 640,
+      "scrollWidth": 640,
+      "bar": {
+        "left": 0,
+        "right": 640,
+        "top": 784,
+        "bottom": 844,
+        "width": 640,
+        "height": 60
+      },
+      "pages": {
+        "left": 128,
+        "right": 640,
+        "top": 785,
+        "bottom": 844,
+        "width": 512,
+        "height": 59
+      },
+      "pagesScrollWidth": 839,
+      "menu": {
+        "left": 8,
+        "right": 52,
+        "top": 5.5,
+        "bottom": 49.5,
+        "width": 44,
+        "height": 44
+      },
+      "pageCount": 8
+    },
+    {
+      "name": "mobile-layout-767",
+      "result": "pass",
+      "viewport": 767,
+      "scrollWidth": 767,
+      "bar": {
+        "left": 0,
+        "right": 767,
+        "top": 784,
+        "bottom": 844,
+        "width": 767,
+        "height": 60
+      },
+      "pages": {
+        "left": 128,
+        "right": 767,
+        "top": 785,
+        "bottom": 844,
+        "width": 639,
+        "height": 59
+      },
+      "pagesScrollWidth": 839,
+      "menu": {
+        "left": 8,
+        "right": 52,
+        "top": 5.5,
+        "bottom": 49.5,
+        "width": 44,
+        "height": 44
+      },
+      "pageCount": 8
+    },
+    {
+      "name": "left-sheet-menu-without-search",
+      "result": "pass",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 320,
+        "height": 844
+      }
+    },
+    {
+      "name": "hamburger-section-switch",
+      "result": "pass"
+    },
+    {
+      "name": "touch-swipe-scroll",
+      "result": "pass",
+      "before": 4,
+      "after": 178
+    },
+    {
+      "name": "direct-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "mouse-drag-to-last-page-and-click",
+      "result": "pass",
+      "before": 4,
+      "after": 565
+    },
+    {
+      "name": "desktop-sidebar-and-breadcrumbs",
+      "result": "pass"
+    }
+  ]
+}

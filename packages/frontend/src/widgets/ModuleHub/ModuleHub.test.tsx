@@ -116,3 +116,15 @@ describe('ModuleHub (002-E)', () => {
     expect(market.querySelector('#hub-buy-ai')).toBeTruthy();
   });
 });
+
+describe('targeted Hub context',()=>{
+ beforeEach(()=>{Element.prototype.scrollIntoView=vi.fn();vi.mocked(useHubModules).mockReturnValue({active:[activeRow],marketplace:[lockedRow],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});});
+ it('highlights only the requested known module without opening checkout',()=>{
+  const {container}=render(<MemoryRouter initialEntries={['/modules?module=ai']}><ModuleHub/></MemoryRouter>);
+  expect(container.querySelector('[data-module-code="ai"]')).toHaveAttribute('data-selected','true');expect(container.querySelector('[data-module-code="core"]')).not.toHaveAttribute('data-selected');
+ });
+ it('ignores an unknown module and keeps favorite controls outside route links',()=>{
+  const {container}=render(<MemoryRouter initialEntries={['/modules?module=unknown']}><ModuleHub/></MemoryRouter>);
+  expect(container.querySelector('[data-selected="true"]')).toBeNull();expect(container.querySelector('a button')).toBeNull();
+ });
+});

@@ -16,6 +16,8 @@ import {
 import type { HubModuleRow } from '../types';
 
 export interface UseHubModulesResult {
+  /** Catalog order before Hub favorite sorting. */
+  navigation?: HubModuleRow[];
   /** Active section rows (active + disabled); favorites first. */
   active: HubModuleRow[];
   /** Marketplace section - locked modules only (never disabled). */
@@ -78,6 +80,7 @@ export function useHubModules(): UseHubModulesResult {
   );
 
   return {
+    navigation: shown,
     active,
     marketplace,
     isLoading,

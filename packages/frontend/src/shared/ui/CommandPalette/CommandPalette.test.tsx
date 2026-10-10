@@ -108,3 +108,30 @@ describe('CommandPalette Dialog UI (NAV-04 / D-06)', () => {
     expect(screen.getByText('Music on Hold')).toBeInTheDocument();
   });
 });
+
+describe('accessible palette selection and global aliases', () => {
+  beforeEach(() => { Element.prototype.scrollIntoView = vi.fn(); });
+  it('preserves the first page alias and section context when URLs are deduplicated', () => {
+    const result = buildPaletteItems([{code:'core',label:'PBX',entryPath:'/endpoints'}], [{id:'core:endpoints',label:'Абоненты',path:'/endpoints',section:'PBX'}]);
+    expect(result).toHaveLength(1);expect(result[0].label).toBe('Абоненты');
+    expect(filterPaletteItems('Абоненты',result)).toHaveLength(1);expect(filterPaletteItems('PBX',result)).toHaveLength(1);
+  });
+  it('connects the input to a visible selected option through keyboard wrap', () => {
+    const many=Array.from({length:25},(_,i)=>({id:String(i),label:'Page '+i,path:'/page-'+i}));
+    render(<MemoryRouter><CommandPalette open onOpenChange={()=>{}} items={many}/></MemoryRouter>);
+    const input=screen.getByRole('combobox');expect(input).toHaveAttribute('aria-expanded','true');
+    fireEvent.keyDown(input,{key:'ArrowUp'});
+    const selected=screen.getAllByRole('option').find(option=>option.getAttribute('aria-selected')==='true')!;
+    expect(selected).toHaveTextContent('Page 24');expect(input).toHaveAttribute('aria-activedescendant',selected.id);
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({block:'nearest'});
+    expect(selected).toHaveAttribute('tabindex','-1');
+    fireEvent.keyDown(input,{key:'ArrowDown'});expect(screen.getAllByRole('option')[0]).toHaveAttribute('aria-selected','true');
+  });
+  it('keeps the active descendant valid when catalog results shrink or disappear',()=>{
+    const renderPalette=(data:PaletteItem[])=><MemoryRouter><CommandPalette open onOpenChange={()=>{}} items={data}/></MemoryRouter>;
+    const {rerender}=render(renderPalette(items));const input=screen.getByRole('combobox');
+    fireEvent.keyDown(input,{key:'ArrowUp'});rerender(renderPalette([items[0]]));
+    expect(document.getElementById(input.getAttribute('aria-activedescendant')!)).toHaveAttribute('aria-selected','true');
+    rerender(renderPalette([]));expect(input).not.toHaveAttribute('aria-activedescendant');expect(input).toHaveAttribute('aria-expanded','false');
+  });
+});

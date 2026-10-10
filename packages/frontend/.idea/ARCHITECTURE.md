@@ -1836,7 +1836,7 @@ Phase 8 replaces the legacy single-Sidebar IA with a **Module Hub** entry and an
 | Surface | Route / widget | Role |
 |---------|----------------|------|
 | **Module Hub** | `/modules` → `widgets/ModuleHub` | Dense list of active + marketplace modules (sketch **002-E**); favorites; open / buy |
-| **ModuleShell** | wraps module pages | Full-height sidebar (desktop) + topbar breadcrumbs + ⌘K; phone: no crumbs, recents bottom bar (picker + current in center) |
+| **ModuleShell** | wraps module pages | Full-height sidebar (desktop, compact default at 768-1023px) + topbar section/page switchers + global ⌘K; phone: left Sheet section menu (no search, Modules last), section-name button opens all pages in a bottom Sheet, then native touch/mouse-scrolling page links. Mobile global search is a separate header action; theme/language are in the profile menu |
 | **Platform console** | `/platform/*` outside `AppLayout` | SuperAdmin-only catalog / tenants / role→start (console-chrome, not tenant Hub) |
 | **Tenant modules** | `/system/modules` | Tenant enable/disable + role→start overrides |
 
@@ -1845,6 +1845,17 @@ Phase 8 replaces the legacy single-Sidebar IA with a **Module Hub** entry and an
 - Shell chrome uses SCSS modules + Stack/Text from `shared/ui` (no feature-level Tailwind `div` layouts).
 - Command palette is `shared/ui/CommandPalette` built from Dialog + Input (**no `cmdk`**).
 - Copy lives in `shared/config/locales/{ru,en}.ts` under `hub`, `marketplace`, `commandPalette`, `license`, `platform` — no em dash (`—`) in UI strings (NAV-14 / UI-SPEC Copywriting Contract).
+
+### Navigation contract (2026-10-10-r4)
+
+- Navigation uses the final catalog/RBAC/license/tenant/ownModels data from useHubModules. The navigation collection follows catalog order before Hub favorite sorting; Hub retains favorites-first.
+- features/modules/lib/navigation defines segment matching and one most-specific current page. ModuleShell, sidebar and bottom bar share this resolution; /modules and service routes do not become Dashboard.
+- Route destinations use shared NavItem (native links, anchor refs, modified/middle clicks); actions use Button. Drag ignores modifiers and suppresses only its release click.
+- MobilePageMenu and MobileModuleMenu own folders, SCSS, public indexes and tests. Left Sheet lists sections; bottom Sheet lists all permitted pages with full labels, never search.
+- Shared CommandPalette receives a global data index with section context and aliases; deduping a URL preserves both page and section names. Combobox/option IDs, active-descendant and scroll visibility are synchronized, including changed catalog results.
+- The shell mounts one navigation-history observer. Only canonical nav page IDs/paths are remembered; no entity IDs, query/hash or form state. Versioned storage requires user + tenant context and separates impersonation; incomplete identity/storage denial uses memory. Every restore revalidates current visible/licensed pages and permissions. Explicit URL/history/role-start destinations are preserved.
+- Sidebar auto collapse below 1024px does not write the explicit user preference. Mobile theme/language actions remain accessible in profile; search is separate from section selection.
+- Active text uses foreground tokens and a visible marker for light/dark contrast. Human/device/screen-reader/UX-UAT evidence is recorded separately from mocked Chromium and automated suites.
 
 ### Capacitor Android foundation (NAV-10…13)
 

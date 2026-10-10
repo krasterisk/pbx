@@ -37,7 +37,7 @@
 .offlineBanner {
   min-height: 40px;
   padding: 8px 16px;
-  background: color-mix(in srgb, var(--color-destructive, #b91c1c) 18%, var(--color-card));
+  background: color-mix(in srgb, var(--color-destructive) 18%, var(--color-card));
   border-bottom: 1px solid var(--color-border);
   color: var(--color-foreground);
   flex-shrink: 0;
@@ -101,16 +101,6 @@
   }
 }
 
-.phoneTitle {
-  min-width: 0;
-  flex: 1 1 auto;
-  font-size: 15px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .crumbs {
   display: flex;
   align-items: center;
@@ -168,7 +158,7 @@
 
   &:hover {
     color: var(--color-primary);
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--color-foreground) 4%, transparent);
   }
 
   &:focus-visible {
@@ -313,7 +303,7 @@
   text-align: left;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--color-foreground) 4%, transparent);
     color: var(--color-foreground);
   }
 
@@ -467,7 +457,7 @@
   font-weight: 600;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--color-foreground) 3%, transparent);
   }
 
   &:focus-visible {
@@ -487,3 +477,16 @@
   justify-content: center;
   flex-shrink: 0;
 }
+
+@media (max-width: 767px) {
+  .topbar { gap: 4px; padding: 0 8px; }
+}
+
+@media (max-width: 767px) {
+  .topbar > button { min-width: 44px; height: 44px; flex-shrink: 0; }
+  .userTrigger { min-height: 44px; }
+}
+.sidebarNav { gap: 4px; }
+.crumbBtn { height: auto; }
+
+.sidebarItemActive { color: var(--color-foreground); box-shadow: inset 3px 0 0 currentColor; }

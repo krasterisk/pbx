@@ -6,7 +6,7 @@
 
 .input {
   height: 44px;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .list {
@@ -61,3 +61,10 @@
   font-size: 14px;
   color: var(--color-muted-foreground);
 }
+
+.header { min-height: 44px; padding-right: 48px; justify-content: center; }
+.dialog > button { width: 44px; height: 44px; top: 12px; right: 12px; display: inline-flex; align-items: center; justify-content: center; }
+
+.label { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.path { max-width: 40%; overflow-wrap: anywhere; text-align: right; }
+.item { min-height: 44px; }

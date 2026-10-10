@@ -70,3 +70,5 @@ export { SortableList } from './SortableList/SortableList';
 export type { AuthMode, WebhookHeader } from './WebhookAuthConfig/WebhookAuthConfig';
 
 export * from './ModalLayout';
+
+export { NavItem, isPlainNavigationClick } from './NavItem';

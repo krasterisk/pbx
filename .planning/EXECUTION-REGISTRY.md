@@ -26,3 +26,7 @@
 | modal-ui-standardization | [EXECUTION](modal-ui-standardization/EXECUTION.md) | [PLAN](modal-ui-standardization/PLAN.md), implemented / automated-tests-passed; visual tool-unavailable |
 
 | release-20261010 | [EXECUTION/PLAN](RELEASE-20261010.md) | Released 4.6.6 / bef2865f; all CI and authenticated production smoke PASS |
+
+| mobile-navigation | [EXECUTION](mobile-navigation/EXECUTION.md) | [PLAN](mobile-navigation/PLAN.md) r4; N5-N11 implemented, automated/local-browser mocks PASS; human/device/UAT pending |
+
+| release-4.6.7 | [EXECUTION/PLAN](RELEASE-4.6.7-20261010.md) | Release 4.6.7: snapshot, CI and production deployment |

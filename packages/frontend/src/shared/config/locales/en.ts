@@ -89,6 +89,7 @@ export const en = {
     registrationClosed: "Organization signup is turned off. Sign in is the only option.",
     modeSwitch: "Sign in or create an organization",
     language: "Interface language",
+    switchLanguage: "Switch language to {{language}}",
     themeToLight: "Light theme",
     themeToDark: "Dark theme",
     copyright: "© {{year}} Krasterisk",
@@ -6148,6 +6149,11 @@ export const en = {
   },
 
   hub: {
+    allSectionPages: "All pages in {{name}}",
+    sectionPagesTitle: "Pages: {{name}}",
+    unavailableSections: "Unavailable sections",
+    notConnected: "Not connected",
+
     title: "Modules",
     open: "Open",
     activeSection: "Active",
@@ -6212,6 +6218,8 @@ export const en = {
       "Remove module from base composition: this affects all tenants without an override. Continue?",
   },
   commandPalette: {
+    title: "Search the app",
+    results: "Search results",
     placeholder: "Search modules and pages...",
     empty: "Nothing found. Try a different search term",
   },

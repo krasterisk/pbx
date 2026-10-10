@@ -1,4 +1,5 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { Loader, Text } from '@/shared/ui';
@@ -39,6 +40,32 @@ export const ModuleHub = memo(function ModuleHub() {
   const level = user?.level as UserLevel | undefined;
   const { active, marketplace, isLoading, isError, refetch, toggleFavorite } = useHubModules();
   const reduceMotion = usePrefersReducedMotion();
+  const location = useLocation();
+  const selectedCode = new URLSearchParams(location.search).get('module');
+  const selected = [...active, ...marketplace].find((row) => row.code === selectedCode);
+  const focusCode = selected?.code;
+  const targetRef = useRef<HTMLDivElement>(null);
+  const handledRef = useRef<string | null>(null);
+  const interactedRef = useRef(false);
+  useEffect(() => {
+    interactedRef.current = false;
+    const interacted = () => { interactedRef.current = true; };
+    window.addEventListener('pointerdown', interacted, true);
+    window.addEventListener('keydown', interacted, true);
+    return () => { window.removeEventListener('pointerdown', interacted, true); window.removeEventListener('keydown', interacted, true); };
+  }, [location.key]);
+  useEffect(() => {
+    if (isLoading || isError || !focusCode || !targetRef.current) return;
+    const key = location.key + ':' + focusCode;
+    if (handledRef.current === key) return;
+    handledRef.current = key;
+    const timer = window.requestAnimationFrame(() => {
+      if (interactedRef.current) return;
+      targetRef.current?.scrollIntoView?.({ block: 'nearest' });
+      targetRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(timer);
+  }, [location.key, focusCode, isLoading, isError]);
 
   if (isError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={refetch} />;
   if (isLoading) {
@@ -68,14 +95,17 @@ export const ModuleHub = memo(function ModuleHub() {
         ) : (
           <VStack gap="0" className={cls.list} max data-testid="hub-active-list">
             {active.map((row, index) => (
+              <Flex key={row.code} ref={row.code === selected?.code ? targetRef : undefined} tabIndex={-1}
+                data-module-code={row.code} data-selected={row.code === selected?.code ? 'true' : undefined}
+                role='group' aria-label={t(row.labelKey)} className={cls.targetRow}>
               <ModuleHubRow
-                key={row.code}
                 row={row}
                 level={level}
                 index={index}
                 reduceMotion={reduceMotion}
                 onToggleFavorite={toggleFavorite}
               />
+              </Flex>
             ))}
           </VStack>
         )}
@@ -94,12 +124,15 @@ export const ModuleHub = memo(function ModuleHub() {
         ) : (
           <VStack gap="12" className={cls.marketList} max data-testid="hub-marketplace-list">
             {marketplace.map((row, index) => (
+              <Flex key={row.code} ref={row.code === selected?.code ? targetRef : undefined} tabIndex={-1}
+                data-module-code={row.code} data-selected={row.code === selected?.code ? 'true' : undefined}
+                role='group' aria-label={t(row.labelKey)} className={cls.targetRow}>
               <ModuleHubMarketplaceCard
-                key={row.code}
                 row={row}
                 index={index}
                 reduceMotion={reduceMotion}
               />
+              </Flex>
             ))}
           </VStack>
         )}

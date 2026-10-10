@@ -14,7 +14,7 @@ export function loadFavoriteCodes(): string[] {
 }
 
 export function saveFavoriteCodes(codes: string[]): void {
-  localStorage.setItem(HUB_FAVORITES_KEY, JSON.stringify(codes));
+  try { localStorage.setItem(HUB_FAVORITES_KEY, JSON.stringify(codes)); } catch { /* Keep the current in-memory preference. */ }
 }
 
 export function toggleFavoriteCode(code: string, current: string[]): string[] {

@@ -1,0 +1,21 @@
+{
+  "kind": "mocked-local-Chromium",
+  "checks": [
+    {
+      "theme": "dark",
+      "viewport": 320,
+      "globalResults": 43,
+      "longLabelsNoOverflow": true,
+      "closeTarget": 44,
+      "activeTextContrast": 10.074281221789848
+    },
+    {
+      "theme": "light",
+      "viewport": 320,
+      "globalResults": 43,
+      "longLabelsNoOverflow": true,
+      "closeTarget": 44,
+      "activeTextContrast": 17.477500118356268
+    }
+  ]
+}

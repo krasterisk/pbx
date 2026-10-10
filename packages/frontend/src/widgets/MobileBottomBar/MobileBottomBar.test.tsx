@@ -1,241 +1,207 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Phone } from 'lucide-react';
+import { UserLevel } from '@krasterisk/shared';
 import type { HubModuleRow } from '@/features/modules/types';
-import { MOBILE_NAV_STORAGE_KEY } from '@/features/modules/lib/mobileNavRecents';
 
 const useIsMobileMock = vi.fn((_bp?: number) => true);
-
-vi.mock('@/shared/hooks/useIsMobile', () => ({
-  useIsMobile: (bp?: number) => useIsMobileMock(bp),
-}));
-
-vi.mock('@/features/modules/hooks/useHubModules', () => ({
-  useHubModules: vi.fn(),
-}));
-
+let userLevel: UserLevel = UserLevel.ADMIN;
+vi.mock('@/shared/hooks/useIsMobile', () => ({ useIsMobile: (bp?: number) => useIsMobileMock(bp) }));
+vi.mock('@/features/modules/hooks/useHubModules', () => ({ useHubModules: vi.fn() }));
 vi.mock('@/shared/hooks/useAppStore', () => ({
-  useAppSelector: (sel: (s: { auth: { user: { level: number } } }) => unknown) =>
-    sel({ auth: { user: { level: 1 } } }),
+  useAppSelector: (sel: (s: { auth: { user: { level: UserLevel } } }) => unknown) =>
+    sel({ auth: { user: { level: userLevel } } }),
 }));
-
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-  }),
-}));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { MobileBottomBar } from './MobileBottomBar';
 
 const coreRow: HubModuleRow = {
-  code: 'core',
-  kind: 'base',
-  navVariant: 'tabs',
-  labelKey: 'nav.pbx',
-  licenseStatus: 'active',
-  favorite: false,
+  code: 'core', kind: 'base', navVariant: 'sidebar', labelKey: 'nav.pbx',
+  licenseStatus: 'active', favorite: false,
   pages: [
     { id: 'endpoints', path: '/endpoints', labelKey: 'endpoints.title', icon: Phone },
     { id: 'trunks', path: '/trunks', labelKey: 'nav.trunks', icon: Phone },
   ],
 };
 
-const appsRow: HubModuleRow = {
-  code: 'apps',
-  kind: 'base',
-  navVariant: 'tabs',
-  labelKey: 'nav.apps',
-  licenseStatus: 'active',
-  favorite: false,
-  pages: [{ id: 'ivrs', path: '/ivrs', labelKey: 'nav.ivrs', icon: Phone }],
-};
-
 const systemRow: HubModuleRow = {
-  code: 'system',
-  kind: 'base',
-  navVariant: 'tabs',
-  labelKey: 'nav.system',
-  licenseStatus: 'active',
-  favorite: false,
-  pages: [{ id: 'users', path: '/users', labelKey: 'nav.users', icon: Phone }],
-};
-
-const callcenterRow: HubModuleRow = {
-  code: 'callcenter',
-  kind: 'market',
-  navVariant: 'tabs',
-  labelKey: 'nav.callcenter',
-  licenseStatus: 'active',
-  favorite: false,
+  ...coreRow, code: 'system', labelKey: 'nav.system',
   pages: [
-    { id: 'cc-agent', path: '/callcenter/agent', labelKey: 'nav.operator', icon: Phone },
-    { id: 'cc-supervisor', path: '/callcenter/supervisor', labelKey: 'nav.supervisor', icon: Phone },
+    { id: 'settings', path: '/settings', labelKey: 'nav.settings', icon: Phone },
+    { id: 'tts', path: '/settings/tts-engines', labelKey: 'nav.ttsEngines', icon: Phone },
+    { id: 'users', path: '/users', labelKey: 'nav.users', icon: Phone, minLevels: [UserLevel.ADMIN] },
   ],
 };
 
-const lockedAi: HubModuleRow = {
-  code: 'ai',
-  kind: 'market',
-  navVariant: 'tabs',
-  labelKey: 'nav.ai',
-  licenseStatus: 'locked',
-  favorite: false,
-  pages: [{ id: 'ai-agents', path: '/ai-agents', labelKey: 'nav.aiAgents', icon: Phone }],
-};
+function renderAt(path: string) {
+  return render(<MemoryRouter initialEntries={[path]}><MobileBottomBar /></MemoryRouter>);
+}
 
-describe('MobileBottomBar recents + catalog', () => {
+function sendPointer(node: HTMLElement, type: string, clientX: number, pointerType = 'mouse') {
+  const event = new MouseEvent(type, { bubbles: true, clientX, button: 0 });
+  Object.defineProperties(event, { pointerId: { value: 1 }, pointerType: { value: pointerType } });
+  fireEvent(node, event);
+}
+
+function overflowingStrip() {
+  const strip = screen.getByTestId('bottom-bar-pages');
+  Object.defineProperties(strip, { scrollWidth: { value: 600 }, clientWidth: { value: 200 } });
+  return strip;
+}
+
+describe('MobileBottomBar section pages', () => {
   beforeEach(() => {
-    localStorage.clear();
     useIsMobileMock.mockReturnValue(true);
+    userLevel = UserLevel.ADMIN;
+    Element.prototype.scrollIntoView = vi.fn();
     vi.mocked(useHubModules).mockReturnValue({
-      active: [coreRow, appsRow, systemRow, callcenterRow],
-      marketplace: [lockedAi],
-      isLoading: false,
-      suppressedCodes: [],
-      favoriteCodes: [],
-      toggleFavorite: vi.fn(),
-      isFavorite: () => false,
+      active: [coreRow, systemRow], marketplace: [], isLoading: false,
+      suppressedCodes: [], favoriteCodes: [], toggleFavorite: vi.fn(), isFavorite: () => false,
     });
   });
 
-  it('hides when width ≥768 (useIsMobile false)', () => {
+  it('hides on desktop', () => {
     useIsMobileMock.mockReturnValue(false);
-    const { container } = render(
-      <MemoryRouter>
-        <MobileBottomBar />
-      </MemoryRouter>,
-    );
-    expect(container.querySelector('[data-testid="mobile-bottom-bar"]')).toBeNull();
+    renderAt('/endpoints');
+    expect(screen.queryByTestId('mobile-bottom-bar')).toBeNull();
     expect(useIsMobileMock).toHaveBeenCalledWith(768);
   });
 
-  it('keeps a static catalog picker and puts hub in the center on the hub route', () => {
-    render(
-      <MemoryRouter initialEntries={['/modules']}>
-        <MobileBottomBar />
-      </MemoryRouter>,
-    );
-
-    const bar = screen.getByTestId('mobile-bottom-bar');
-    expect(bar).toHaveAttribute('data-center-code', 'hub');
-    expect(screen.getByTestId('bottom-bar-picker')).toHaveTextContent('hub.catalog');
-    expect(screen.getByTestId('bottom-bar-center')).toHaveAttribute('data-code', 'hub');
-    expect(screen.getByTestId('bottom-bar-center')).toHaveTextContent('hub.home');
-    expect(screen.queryByTestId('bottom-bar-more')).toBeNull();
+  it('shows section name followed by its pages, without the old catalog and recent slots', () => {
+    renderAt('/endpoints');
+    expect(screen.getByTestId('bottom-bar-section')).toHaveTextContent('nav.pbx');
+    const pages = screen.getByTestId('bottom-bar-pages');
+    expect(within(pages).getAllByRole('link')).toHaveLength(2);
+    expect(screen.getByTestId('bottom-bar-page-endpoints')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByTestId('bottom-bar-page-trunks')).not.toHaveAttribute('aria-current');
+    expect(screen.queryByTestId('bottom-bar-picker')).toBeNull();
+    expect(screen.queryByTestId('bottom-bar-center')).toBeNull();
+    expect(screen.queryByTestId('bottom-bar-page-users')).toBeNull();
   });
 
-  it('moves the open module to the center slot', () => {
-    render(
-      <MemoryRouter initialEntries={['/endpoints']}>
-        <MobileBottomBar />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByTestId('mobile-bottom-bar')).toHaveAttribute('data-center-code', 'core');
-    expect(screen.getByTestId('bottom-bar-center')).toHaveAttribute('data-code', 'core');
-    expect(screen.getByTestId('bottom-bar-center').className).toMatch(/active/);
-    expect(screen.getByTestId('bottom-bar-center-menu-hint')).toBeInTheDocument();
-    expect(screen.getByTestId('bottom-bar-center')).toHaveAttribute('aria-haspopup', 'dialog');
-  });
-
-  it('opens a searchable catalog of every module from the picker', () => {
-    render(
-      <MemoryRouter initialEntries={['/modules']}>
-        <MobileBottomBar />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByTestId('bottom-bar-picker'));
-    expect(screen.getByTestId('bottom-bar-catalog-sheet')).toHaveAttribute('data-nav-view', 'catalog');
-    expect(screen.getByTestId('bottom-bar-search')).toBeInTheDocument();
-    expect(screen.getByTestId('bottom-bar-catalog-callcenter')).toHaveTextContent('nav.callcenter');
-    expect(screen.getByTestId('bottom-bar-catalog-ai')).toBeInTheDocument();
-  });
-
-  it('opens the current module pages from the center button', () => {
-    render(
-      <MemoryRouter initialEntries={['/endpoints']}>
-        <MobileBottomBar />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByTestId('bottom-bar-center'));
-    expect(screen.getByTestId('bottom-bar-pages-sheet')).toHaveAttribute('data-nav-view', 'pages');
-    expect(screen.getByTestId('bottom-bar-page-endpoints')).toHaveTextContent('endpoints.title');
-    expect(screen.getByTestId('bottom-bar-page-trunks')).toHaveTextContent('nav.trunks');
-  });
-
-  it('navigates to the chosen subsection from the page sheet', () => {
+  it('navigates directly and updates active page in the same persistent bar', () => {
     render(
       <MemoryRouter initialEntries={['/endpoints']}>
         <MobileBottomBar />
         <Routes>
-          <Route path="/endpoints" element={<div />} />
-          <Route path="/trunks" element={<div data-testid="trunks-page">trunks</div>} />
+          <Route path="/endpoints" element={<div>Endpoints</div>} />
+          <Route path="/trunks" element={<div data-testid="trunks-page">Trunks</div>} />
         </Routes>
       </MemoryRouter>,
     );
-
-    fireEvent.click(screen.getByTestId('bottom-bar-center'));
     fireEvent.click(screen.getByTestId('bottom-bar-page-trunks'));
     expect(screen.getByTestId('trunks-page')).toBeInTheDocument();
+    expect(screen.getByTestId('bottom-bar-page-trunks')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByTestId('bottom-bar-page-endpoints')).not.toHaveAttribute('aria-current');
   });
 
-  it('drills from catalog into a module page list and back', () => {
-    render(
-      <MemoryRouter initialEntries={['/modules']}>
-        <MobileBottomBar />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByTestId('bottom-bar-picker'));
-    fireEvent.click(screen.getByTestId('bottom-bar-catalog-callcenter'));
-    expect(screen.getByTestId('bottom-bar-pages-sheet')).toBeInTheDocument();
-    expect(screen.getByTestId('bottom-bar-page-cc-agent')).toHaveTextContent('nav.operator');
-
-    fireEvent.click(screen.getByTestId('bottom-bar-nav-back'));
-    expect(screen.getByTestId('bottom-bar-catalog-sheet')).toBeInTheDocument();
-    expect(screen.getByText('nav.callcenter')).toBeInTheDocument();
+  it('marks only the longest matching page on nested routes', () => {
+    renderAt('/settings/tts-engines/42');
+    expect(screen.getByTestId('bottom-bar-page-tts')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByTestId('bottom-bar-page-settings')).not.toHaveAttribute('aria-current');
+    expect(within(screen.getByTestId('mobile-bottom-bar')).getAllByRole('link').filter(
+      (button) => button.getAttribute('aria-current') === 'page',
+    )).toHaveLength(1);
   });
 
-  it('finds a page across modules from catalog search', () => {
-    render(
-      <MemoryRouter initialEntries={['/modules']}>
-        <MobileBottomBar />
-      </MemoryRouter>,
-    );
+  it('filters restricted pages', () => {
+    userLevel = UserLevel.OPERATOR;
+    renderAt('/settings');
+    expect(screen.queryByTestId('bottom-bar-page-users')).toBeNull();
+    expect(screen.getByTestId('bottom-bar-page-settings')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByTestId('bottom-bar-picker'));
-    fireEvent.change(screen.getByTestId('bottom-bar-search'), {
-      target: { value: 'endpoints.title' },
+  it('retains every page when a section has many pages and reveals the active one', () => {
+    const manyPages = Array.from({ length: 12 }, (_, i) => ({
+      id: `page-${i}`, path: `/page-${i}`, labelKey: `page.${i}`, icon: Phone,
+    }));
+    vi.mocked(useHubModules).mockReturnValue({
+      active: [{ ...coreRow, pages: manyPages }], marketplace: [], isLoading: false,
+      suppressedCodes: [], favoriteCodes: [], toggleFavorite: vi.fn(), isFavorite: () => false,
     });
-    expect(screen.getByTestId('bottom-bar-search-page-endpoints')).toBeInTheDocument();
+    renderAt('/page-11');
+    expect(within(screen.getByTestId('bottom-bar-pages')).getAllByRole('link')).toHaveLength(12);
+    expect(screen.getByTestId('bottom-bar-page-page-11')).toHaveAttribute('aria-current', 'page');
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
   });
 
-  it('jumps a neighbor module to its last visited page', () => {
-    localStorage.setItem(
-      MOBILE_NAV_STORAGE_KEY,
-      JSON.stringify({
-        codes: ['core', 'hub', 'apps'],
-        lastPathByCode: { core: '/trunks', hub: '/modules', apps: '/ivrs' },
-      }),
-    );
-
-    render(
-      <MemoryRouter initialEntries={['/modules']}>
-        <MobileBottomBar />
-        <Routes>
-          <Route path="/modules" element={<div />} />
-          <Route path="/trunks" element={<div data-testid="trunks-page">trunks</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    const neighbor = screen.getAllByRole('button').find((btn) => btn.getAttribute('data-code') === 'core');
-    expect(neighbor).toBeTruthy();
-    fireEvent.click(neighbor!);
-    expect(screen.getByTestId('trunks-page')).toBeInTheDocument();
+  it('scrolls by mouse drag without navigating on the release click', () => {
+    renderAt('/endpoints');
+    const strip = overflowingStrip();
+    sendPointer(strip, 'pointerdown', 180);
+    sendPointer(strip, 'pointermove', 60);
+    expect(strip.scrollLeft).toBe(120);
+    expect(strip).toHaveAttribute('data-dragging', 'true');
+    sendPointer(strip, 'pointerup', 60);
+    fireEvent.click(screen.getByTestId('bottom-bar-page-trunks'), { detail: 1 });
+    expect(screen.getByTestId('bottom-bar-page-endpoints')).toHaveAttribute('aria-current', 'page');
+    expect(strip).not.toHaveAttribute('data-dragging');
+    // A later ordinary click must still navigate.
+    sendPointer(strip, 'pointerdown', 80);
+    sendPointer(strip, 'pointerup', 80);
+    fireEvent.click(screen.getByTestId('bottom-bar-page-trunks'), { detail: 1 });
+    expect(screen.getByTestId('bottom-bar-page-trunks')).toHaveAttribute('aria-current', 'page');
   });
+
+  it('preserves keyboard activation after a cancelled drag', () => {
+    renderAt('/endpoints');
+    const strip = overflowingStrip();
+    sendPointer(strip, 'pointerdown', 180);
+    sendPointer(strip, 'pointermove', 60);
+    sendPointer(strip, 'pointercancel', 60);
+    fireEvent.click(screen.getByTestId('bottom-bar-page-trunks'), { detail: 0 });
+    expect(screen.getByTestId('bottom-bar-page-trunks')).toHaveAttribute('aria-current', 'page');
+    expect(strip).not.toHaveAttribute('data-dragging');
+  });
+
+  it('leaves touch scrolling to the browser', () => {
+    renderAt('/endpoints');
+    const strip = overflowingStrip();
+    sendPointer(strip, 'pointerdown', 180, 'touch');
+    sendPointer(strip, 'pointermove', 60, 'touch');
+    expect(strip.scrollLeft).toBe(0);
+    expect(strip).not.toHaveAttribute('data-dragging');
+  });
+
+  it('shows Hub title without unrelated page shortcuts on the Hub route', () => {
+    renderAt('/modules');
+    expect(screen.getByTestId('bottom-bar-section')).toHaveTextContent('hub.title');
+    expect(within(screen.getByTestId('bottom-bar-pages')).queryByRole('button')).toBeNull();
+  });
+
+  it('does not expose pages of a disabled module', () => {
+    vi.mocked(useHubModules).mockReturnValue({
+      active: [{ ...coreRow, licenseStatus: 'disabled' }], marketplace: [], isLoading: false,
+      suppressedCodes: [], favoriteCodes: [], toggleFavorite: vi.fn(), isFavorite: () => false,
+    });
+    renderAt('/endpoints');
+    expect(screen.queryByTestId('bottom-bar-page-endpoints')).toBeNull();
+  });
+});
+
+describe('all-pages access and route links',()=>{
+ beforeEach(()=>{useIsMobileMock.mockReturnValue(true);userLevel=UserLevel.ADMIN;Element.prototype.scrollIntoView=vi.fn();vi.mocked(useHubModules).mockReturnValue({active:[coreRow],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});});
+ it('opens a full page list and selects a route without a scrolling gesture',()=>{
+  renderAt('/endpoints');fireEvent.click(screen.getByTestId('bottom-bar-section-trigger'));
+  const menu=screen.getByTestId('bottom-bar-page-menu');expect(menu).toHaveAttribute('data-side','bottom');
+  const link=within(menu).getByRole('link',{name:'nav.trunks'});expect(link).toHaveAttribute('href','/trunks');
+  fireEvent.click(link);expect(screen.queryByTestId('bottom-bar-page-menu')).toBeNull();expect(screen.getByTestId('bottom-bar-page-trunks')).toHaveAttribute('aria-current','page');
+ });
+ it('does not open an empty page menu on the Hub',()=>{
+  renderAt('/modules');expect(screen.queryByTestId('bottom-bar-section-trigger')).toBeNull();
+ });
+ it('does not start mouse dragging for a modified click',()=>{
+  renderAt('/endpoints');const strip=overflowingStrip();
+  const event=new MouseEvent('pointerdown',{bubbles:true,clientX:180,button:0,ctrlKey:true});
+  Object.defineProperties(event,{pointerId:{value:1},pointerType:{value:'mouse'}});fireEvent(strip,event);sendPointer(strip,'pointermove',60);
+  expect(strip.scrollLeft).toBe(0);expect(strip).not.toHaveAttribute('data-dragging');
+  expect(screen.getByTestId('bottom-bar-page-trunks')).toHaveAttribute('href','/trunks');
+ });
+ it('cancels drag state after pointercancel and preserves the next click',()=>{
+  renderAt('/endpoints');const strip=overflowingStrip();sendPointer(strip,'pointerdown',180);sendPointer(strip,'pointermove',60);sendPointer(strip,'pointercancel',60);
+  fireEvent.click(screen.getByTestId('bottom-bar-page-trunks'),{detail:1});expect(screen.getByTestId('bottom-bar-page-trunks')).toHaveAttribute('aria-current','page');
+ });
 });

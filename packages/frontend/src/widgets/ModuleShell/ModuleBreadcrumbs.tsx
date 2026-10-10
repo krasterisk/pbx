@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
+  Button, Text, Flex, NavItem,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,13 +14,15 @@ import cls from './ModuleShell.module.scss';
 export interface BreadcrumbMenuItem {
   id: string;
   label: string;
-  onSelect: () => void;
+  onSelect?: () => void;
+  to?: string;
 }
 
 interface ModuleBreadcrumbsProps {
   /** Hub route: single static label */
   hubLabel?: string;
   moduleLabel?: string;
+  moduleCurrent?: boolean;
   moduleItems?: BreadcrumbMenuItem[];
   pageLabel?: string;
   pageItems?: BreadcrumbMenuItem[];
@@ -39,24 +42,25 @@ function CrumbMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
+        <Button variant="ghost"
           type="button"
           className={classNames(
             cls.crumbBtn,
             { [cls.crumbCurrent]: !!current },
             [],
           )}
+          aria-current={current ? "page" : undefined}
           data-testid={testId}
         >
-          <span className={cls.crumbBtnLabel}>{label}</span>
+          <Text as="span" className={cls.crumbBtnLabel}>{label}</Text>
           <ChevronDown className={cls.crumbChevron} size={14} aria-hidden />
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" data-testid={`${testId}-menu`}>
         {items.map((item) => (
-          <DropdownMenuItem key={item.id} onClick={item.onSelect}>
-            {item.label}
-          </DropdownMenuItem>
+          item.to ? <DropdownMenuItem key={item.id} asChild>
+            <NavItem to={item.to}>{item.label}</NavItem>
+          </DropdownMenuItem> : <DropdownMenuItem key={item.id} onClick={item.onSelect}>{item.label}</DropdownMenuItem>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -69,6 +73,7 @@ function CrumbMenu({
 export const ModuleBreadcrumbs = memo(function ModuleBreadcrumbs({
   hubLabel,
   moduleLabel,
+  moduleCurrent = true,
   moduleItems,
   pageLabel,
   pageItems,
@@ -77,15 +82,15 @@ export const ModuleBreadcrumbs = memo(function ModuleBreadcrumbs({
 
   if (hubLabel) {
     return (
-      <nav
+      <Flex as="nav"
         className={cls.crumbs}
         aria-label={t('hub.breadcrumbLabel')}
         data-testid="module-breadcrumbs"
       >
-        <span className={classNames(cls.crumbText, { [cls.crumbCurrent]: true }, [])}>
+        <Text as="span" aria-current="page" className={classNames(cls.crumbText, { [cls.crumbCurrent]: true }, [])}>
           {hubLabel}
-        </span>
-      </nav>
+        </Text>
+      </Flex>
     );
   }
 
@@ -94,7 +99,7 @@ export const ModuleBreadcrumbs = memo(function ModuleBreadcrumbs({
   const hasPages = !!pageLabel && !!pageItems?.length;
 
   return (
-    <nav
+    <Flex as="nav"
       className={cls.crumbs}
       aria-label={t('hub.breadcrumbLabel')}
       data-testid="module-breadcrumbs"
@@ -103,19 +108,19 @@ export const ModuleBreadcrumbs = memo(function ModuleBreadcrumbs({
         <CrumbMenu
           label={moduleLabel}
           items={moduleItems}
-          current={!hasPages}
+          current={!hasPages && moduleCurrent}
           testId="crumb-module"
         />
       ) : (
-        <span
+        <Text as="span"
           className={classNames(cls.crumbText, { [cls.crumbCurrent]: !hasPages }, [])}
         >
           {moduleLabel}
-        </span>
+        </Text>
       )}
 
       {hasPages && (
-        <span className={cls.crumbItem}>
+        <Text as="span" className={cls.crumbItem}>
           <ChevronRight className={cls.crumbSep} size={14} aria-hidden />
           <CrumbMenu
             label={pageLabel}
@@ -123,8 +128,8 @@ export const ModuleBreadcrumbs = memo(function ModuleBreadcrumbs({
             current
             testId="crumb-page"
           />
-        </span>
+        </Text>
       )}
-    </nav>
+    </Flex>
   );
 });

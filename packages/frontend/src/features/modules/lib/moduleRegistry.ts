@@ -39,6 +39,7 @@ import { UserLevel } from '@krasterisk/shared';
 import type { HubModuleRow, LicenseStatus, ModuleDef, ModulePageDef } from '../types';
 import { applyCatalogNav, sortModulesByCatalogOrder } from './catalogNavOrder';
 import { sortByFavorites } from './favorites';
+import { findPageByPath } from './navigation';
 
 /** Minimal catalog shape for license merge (matches IHubCatalogItem). */
 export interface HubCatalogLicenseItem {
@@ -499,16 +500,13 @@ export function findModuleByPath(
 
   let best: { mod: ModuleDef; len: number } | undefined;
   for (const mod of modules) {
-    for (const page of mod.pages) {
-      const exact = pathname === page.path;
-      const nested =
-        page.path !== '/' &&
-        (pathname === page.path || pathname.startsWith(`${page.path}/`));
-      const moduleRoot =
-        pathname === '/speech-analytics' && page.path.startsWith('/speech-analytics/');
-      if (exact || nested || moduleRoot) {
-        if (!best || page.path.length > best.len) {
-          best = { mod, len: page.path.length };
+    const page = findPageByPath(pathname, mod.pages);
+    if (page && (!best || page.path.length > best.len)) best = { mod, len: page.path.length };
+    // The speech analytics landing is a module root without its own nav item.
+    if (pathname === '/speech-analytics') {
+      for (const candidate of mod.pages) {
+        if (candidate.path.startsWith('/speech-analytics/') && (!best || candidate.path.length > best.len)) {
+          best = { mod, len: candidate.path.length };
         }
       }
     }

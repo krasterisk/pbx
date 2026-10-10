@@ -24,7 +24,7 @@ const SheetOverlay = React.forwardRef<
 ));
 SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-type SheetSide = 'right' | 'bottom';
+type SheetSide = 'left' | 'right' | 'bottom';
 
 export type SheetContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   side?: SheetSide;
@@ -50,6 +50,8 @@ const SheetContent = React.forwardRef<
         'motion-reduce:animate-none motion-reduce:transition-none',
         side === 'right' &&
           'fixed inset-y-0 right-0 h-full w-[480px] max-sm:w-full border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
+        side === 'left' &&
+          'fixed inset-y-0 left-0 h-full w-[480px] max-sm:w-full border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
         side === 'bottom' &&
           'fixed inset-x-0 bottom-0 h-auto max-h-[85dvh] w-full border-t rounded-t-[var(--radius-xl)] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
         className,
@@ -59,7 +61,7 @@ const SheetContent = React.forwardRef<
     >
       {children}
       {hideClose ? null : (
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+        <DialogPrimitive.Close className="absolute right-2 top-2 h-11 w-11 inline-flex items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
           <X className="h-4 w-4" />
           <span className="sr-only">{t("common.close")}</span>
         </DialogPrimitive.Close>
@@ -76,7 +78,7 @@ const SheetHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     data-modal-slot="header"
-    className={cn('flex flex-col space-y-1.5 text-left shrink-0', className)}
+    className={cn('flex flex-col space-y-1.5 text-left shrink-0 pr-12', className)}
     {...props}
   />
 );

@@ -177,7 +177,7 @@ const appsRow: HubModuleRow = {
   labelKey: 'nav.apps',
   licenseStatus: 'active',
   favorite: false,
-  pages: [],
+  pages: [{ id: 'ivrs', path: '/ivrs', labelKey: 'nav.ivrs', icon: Phone }],
 };
 
 describe('ModuleShell (A+C hybrid)', () => {
@@ -274,7 +274,7 @@ describe('ModuleShell (A+C hybrid)', () => {
     expect(screen.getByTestId('module-breadcrumbs')).toHaveTextContent('hub.title');
   });
 
-  it('hides sidebar on phone so the bottom bar owns navigation', () => {
+  it('hides sidebar on phone and places section selection in the topbar', () => {
     useIsMobileMock.mockReturnValue(true);
     render(
       <MemoryRouter initialEntries={['/endpoints']}>
@@ -287,8 +287,11 @@ describe('ModuleShell (A+C hybrid)', () => {
     expect(screen.queryByTestId('module-shell-sidebar')).toBeNull();
     expect(screen.queryByTestId('sidebar-collapse')).toBeNull();
     expect(screen.queryByTestId('module-breadcrumbs')).toBeNull();
-    expect(screen.getByTestId('phone-topbar-title')).toHaveTextContent('endpoints.title');
-    expect(document.getElementById('shell-cmdk-trigger')).toBeNull();
+    expect(screen.queryByTestId('phone-topbar-title')).toBeNull();
+    expect(screen.getByTestId('phone-module-menu-trigger')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('phone-module-menu-trigger'));
+    expect(screen.getByTestId('phone-module-menu')).toBeInTheDocument();
+    expect(document.getElementById('shell-cmdk-trigger')).toBeInTheDocument();
   });
 
   it('toggles collapse on desktop', () => {
@@ -432,4 +435,39 @@ describe('ModuleShell (A+C hybrid)', () => {
     );
     expect(screen.getByTestId('offline-banner')).toBeInTheDocument();
   });
+});
+
+describe('r4 route orientation and global search',()=>{
+ beforeEach(()=>{localStorage.clear();useIsMobileMock.mockReturnValue(false);conferenceSessionRef.current=null;});
+ it('selects only STT on a nested route and announces the same page in the crumb',()=>{
+  const system:HubModuleRow={...coreRow,code:'system',labelKey:'nav.system',pages:[{id:'settings',path:'/settings',labelKey:'nav.settings',icon:Phone},{id:'stt',path:'/settings/stt-engines',labelKey:'nav.sttEngines',icon:Phone}]};
+  vi.mocked(useHubModules).mockReturnValue({active:[system],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
+  render(<MemoryRouter initialEntries={['/settings/stt-engines/42']}><ModuleShell/></MemoryRouter>);
+  expect(screen.getByTestId('crumb-page')).toHaveTextContent('nav.sttEngines');
+  const selected=within(screen.getByTestId('module-shell-sidebar')).getAllByRole('link').filter(link=>link.getAttribute('aria-current')==='page');
+  expect(selected).toHaveLength(1);expect(selected[0]).toHaveAttribute('href','/settings/stt-engines');
+ });
+ it('finds a page in another active module and preserves the first-page alias',()=>{
+  vi.mocked(useHubModules).mockReturnValue({active:[coreRow,appsRow],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
+  render(<MemoryRouter initialEntries={['/ivrs']}><ModuleShell/></MemoryRouter>);fireEvent.keyDown(window,{key:'k',ctrlKey:true});
+  const input=screen.getByRole('combobox');fireEvent.change(input,{target:{value:'nav.trunks'}});expect(screen.getByRole('option')).toHaveTextContent('nav.trunks');
+  fireEvent.change(input,{target:{value:'endpoints.title'}});expect(screen.getByRole('option')).toHaveTextContent('endpoints.title');
+ });
+ it('gives desktop icon actions an accessible name',()=>{
+  vi.mocked(useHubModules).mockReturnValue({active:[coreRow],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
+  render(<MemoryRouter initialEntries={['/endpoints']}><ModuleShell/></MemoryRouter>);
+  expect(document.getElementById('shell-theme-toggle')).toHaveAttribute('aria-label','auth.themeToLight');expect(document.getElementById('shell-lang-toggle')).toHaveAttribute('aria-label','auth.switchLanguage');
+ });
+});
+
+describe('Hub access without a sidebar',()=>{
+ it('keeps Modules last in the desktop switcher on a service page',async()=>{
+  localStorage.clear();useIsMobileMock.mockReturnValue(false);conferenceSessionRef.current=null;
+  vi.mocked(useHubModules).mockReturnValue({active:[coreRow,appsRow],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
+  render(<MemoryRouter initialEntries={['/profile']}><ModuleShell/></MemoryRouter>);
+  expect(screen.queryByTestId('module-shell-sidebar')).toBeNull();
+  const user=(await import('@testing-library/user-event')).default.setup();await user.click(screen.getByTestId('crumb-module'));
+  const entries=within(await screen.findByTestId('crumb-module-menu')).getAllByRole('menuitem');
+  expect(entries[entries.length-1]).toHaveTextContent('hub.title');expect(entries[entries.length-1]).toHaveAttribute('href','/modules');
+ });
 });

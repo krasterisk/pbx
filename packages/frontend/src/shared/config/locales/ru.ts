@@ -89,6 +89,7 @@ export const ru = {
     registrationClosed: "Регистрация организаций отключена. Доступен только вход.",
     modeSwitch: "Вход или создание организации",
     language: "Язык интерфейса",
+    switchLanguage: "Переключить язык на {{language}}",
     themeToLight: "Светлая тема",
     themeToDark: "Тёмная тема",
     copyright: "© {{year}} Krasterisk",
@@ -6252,6 +6253,11 @@ export const ru = {
 
   // Module Hub / Marketplace / Command palette (Phase 08 NAV-14)
   hub: {
+    allSectionPages: "Все страницы раздела {{name}}",
+    sectionPagesTitle: "Страницы: {{name}}",
+    unavailableSections: "Недоступные разделы",
+    notConnected: "Не подключён",
+
     title: "Модули",
     open: "Открыть",
     activeSection: "Активные",
@@ -6317,6 +6323,8 @@ export const ru = {
       "Удалить модуль из базового набора: изменение затронет все тенанты без переопределения. Продолжить?",
   },
   commandPalette: {
+    title: "Поиск по приложению",
+    results: "Результаты поиска",
     placeholder: "Поиск модулей и страниц...",
     empty: "Ничего не найдено. Попробуйте другой запрос",
   },
