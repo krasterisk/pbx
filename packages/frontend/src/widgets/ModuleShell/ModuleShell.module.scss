@@ -1,6 +1,6 @@
 .shellRoot {
   --shell-topbar-height: 56px;
-  --shell-sidebar-width: 240px;
+  --shell-sidebar-width: var(--shell-expanded-sidebar-width, 240px);
   flex: 1 1 0;
   width: 100%;
   min-height: 0;
@@ -79,27 +79,6 @@
   }
 }
 
-.logoBox {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.logoText {
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-
-  @media (max-width: 640px) {
-    display: none;
-  }
-}
 
 .crumbs {
   display: flex;
@@ -342,14 +321,14 @@
   position: relative;
 }
 
-/* Compact footer controls — match sketch .foot-btn (not bulky Button) */
+/* Compact footer controls. */
 .footBtn {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
   min-height: 40px;
-  padding: 8px 10px;
+  padding: 8px 9px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: transparent;
@@ -490,3 +469,38 @@
 .crumbBtn { height: auto; }
 
 .sidebarItemActive { color: var(--color-foreground); box-shadow: inset 3px 0 0 currentColor; }
+
+.sidebarItem, .footBtn { justify-content: flex-start; }
+.sidebarCollapsed .sidebarItem { justify-content: center; }
+
+
+.sidebarCollapse {
+  position: absolute;
+  top: 50%;
+  right: -12px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-muted-foreground);
+  background: var(--color-card);
+
+  &:hover { color: var(--color-foreground); background: var(--color-accent); }
+  &:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; box-shadow: none; }
+}
+
+.sidebarResizing { transition: none; }
+.sidebarResizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+
+  &:hover, &:focus-visible { background: var(--color-primary); }
+  &:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; }
+}

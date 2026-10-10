@@ -28,7 +28,7 @@ const core: HubModuleRow = {
 };
 const apps: HubModuleRow = {
   ...core, code: 'apps', labelKey: 'nav.apps',
-  pages: [{ id: 'ivrs', path: '/ivrs', labelKey: 'nav.ivrs', icon: Phone }],
+  pages: [{ id: 'ivrs', path: '/ivrs', labelKey: 'nav.ivrs', icon: Phone }, { id: 'queues', path: '/queues', labelKey: 'nav.queues', icon: Phone }],
 };
 const locked: HubModuleRow = {
   ...core, code: 'ai', labelKey: 'nav.ai', kind: 'market', licenseStatus: 'locked',

@@ -1,0 +1,330 @@
+{
+  "kind": "local-Chromium-with-mocked-API",
+  "checks": [
+    {
+      "name": "dark-390-natural-leading-edge-no-spacers",
+      "result": "pass",
+      "left": 97.5,
+      "right": 390,
+      "width": 292.5,
+      "scroll": 0,
+      "max": 603,
+      "snap": "none"
+    },
+    {
+      "name": "dark-390-visible-selection-and-reselection-stable",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-sheet-heading-tab-escape-focus",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-last-visible-natural-end-no-blank-space",
+      "result": "pass",
+      "left": 97.5,
+      "right": 390,
+      "width": 292.5,
+      "scroll": 603,
+      "max": 603,
+      "snap": "none"
+    },
+    {
+      "name": "dark-390-middle-revealed-within-natural-bounds",
+      "result": "pass",
+      "left": 97.5,
+      "right": 390,
+      "width": 292.5,
+      "scroll": 169,
+      "max": 603,
+      "snap": "none"
+    },
+    {
+      "name": "dark-390-native-swipe-not-snapped-or-forced-back",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-first-revealed-and-left-hint-cleared",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-single-centered-without-overflow",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-natural-leading-edge-no-spacers",
+      "result": "pass",
+      "left": 80,
+      "right": 320,
+      "width": 240,
+      "scroll": 0,
+      "max": 656,
+      "snap": "none"
+    },
+    {
+      "name": "dark-320-visible-selection-and-reselection-stable",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-sheet-heading-tab-escape-focus",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-last-visible-natural-end-no-blank-space",
+      "result": "pass",
+      "left": 80,
+      "right": 320,
+      "width": 240,
+      "scroll": 656,
+      "max": 656,
+      "snap": "none"
+    },
+    {
+      "name": "dark-320-middle-revealed-within-natural-bounds",
+      "result": "pass",
+      "left": 80,
+      "right": 320,
+      "width": 240,
+      "scroll": 169,
+      "max": 656,
+      "snap": "none"
+    },
+    {
+      "name": "dark-320-native-swipe-not-snapped-or-forced-back",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-first-revealed-and-left-hint-cleared",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-single-centered-without-overflow",
+      "result": "pass"
+    },
+    {
+      "name": "dark-640-natural-leading-edge-no-spacers",
+      "result": "pass",
+      "left": 128,
+      "right": 640,
+      "width": 512,
+      "scroll": 0,
+      "max": 384,
+      "snap": "none"
+    },
+    {
+      "name": "dark-640-visible-selection-and-reselection-stable",
+      "result": "pass"
+    },
+    {
+      "name": "dark-640-sheet-heading-tab-escape-focus",
+      "result": "pass"
+    },
+    {
+      "name": "dark-640-last-visible-natural-end-no-blank-space",
+      "result": "pass",
+      "left": 128,
+      "right": 640,
+      "width": 512,
+      "scroll": 384,
+      "max": 384,
+      "snap": "none"
+    },
+    {
+      "name": "dark-640-middle-revealed-within-natural-bounds",
+      "result": "pass",
+      "left": 128,
+      "right": 640,
+      "width": 512,
+      "scroll": 169,
+      "max": 384,
+      "snap": "none"
+    },
+    {
+      "name": "dark-640-native-swipe-not-snapped-or-forced-back",
+      "result": "pass"
+    },
+    {
+      "name": "dark-640-first-revealed-and-left-hint-cleared",
+      "result": "pass"
+    },
+    {
+      "name": "dark-640-single-centered-without-overflow",
+      "result": "pass"
+    },
+    {
+      "name": "dark-short-group-centered-selection-does-not-move-neighbors",
+      "result": "pass"
+    },
+    {
+      "name": "dark-resize-keeps-selected-visible",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-natural-leading-edge-no-spacers",
+      "result": "pass",
+      "left": 97.5,
+      "right": 390,
+      "width": 292.5,
+      "scroll": 0,
+      "max": 603,
+      "snap": "none"
+    },
+    {
+      "name": "light-390-visible-selection-and-reselection-stable",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-sheet-heading-tab-escape-focus",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-last-visible-natural-end-no-blank-space",
+      "result": "pass",
+      "left": 97.5,
+      "right": 390,
+      "width": 292.5,
+      "scroll": 603,
+      "max": 603,
+      "snap": "none"
+    },
+    {
+      "name": "light-390-middle-revealed-within-natural-bounds",
+      "result": "pass",
+      "left": 97.5,
+      "right": 390,
+      "width": 292.5,
+      "scroll": 169,
+      "max": 603,
+      "snap": "none"
+    },
+    {
+      "name": "light-390-native-swipe-not-snapped-or-forced-back",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-first-revealed-and-left-hint-cleared",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-single-centered-without-overflow",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-natural-leading-edge-no-spacers",
+      "result": "pass",
+      "left": 80,
+      "right": 320,
+      "width": 240,
+      "scroll": 0,
+      "max": 656,
+      "snap": "none"
+    },
+    {
+      "name": "light-320-visible-selection-and-reselection-stable",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-sheet-heading-tab-escape-focus",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-last-visible-natural-end-no-blank-space",
+      "result": "pass",
+      "left": 80,
+      "right": 320,
+      "width": 240,
+      "scroll": 656,
+      "max": 656,
+      "snap": "none"
+    },
+    {
+      "name": "light-320-middle-revealed-within-natural-bounds",
+      "result": "pass",
+      "left": 80,
+      "right": 320,
+      "width": 240,
+      "scroll": 169,
+      "max": 656,
+      "snap": "none"
+    },
+    {
+      "name": "light-320-native-swipe-not-snapped-or-forced-back",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-first-revealed-and-left-hint-cleared",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-single-centered-without-overflow",
+      "result": "pass"
+    },
+    {
+      "name": "light-640-natural-leading-edge-no-spacers",
+      "result": "pass",
+      "left": 128,
+      "right": 640,
+      "width": 512,
+      "scroll": 0,
+      "max": 384,
+      "snap": "none"
+    },
+    {
+      "name": "light-640-visible-selection-and-reselection-stable",
+      "result": "pass"
+    },
+    {
+      "name": "light-640-sheet-heading-tab-escape-focus",
+      "result": "pass"
+    },
+    {
+      "name": "light-640-last-visible-natural-end-no-blank-space",
+      "result": "pass",
+      "left": 128,
+      "right": 640,
+      "width": 512,
+      "scroll": 384,
+      "max": 384,
+      "snap": "none"
+    },
+    {
+      "name": "light-640-middle-revealed-within-natural-bounds",
+      "result": "pass",
+      "left": 128,
+      "right": 640,
+      "width": 512,
+      "scroll": 169,
+      "max": 384,
+      "snap": "none"
+    },
+    {
+      "name": "light-640-native-swipe-not-snapped-or-forced-back",
+      "result": "pass"
+    },
+    {
+      "name": "light-640-first-revealed-and-left-hint-cleared",
+      "result": "pass"
+    },
+    {
+      "name": "light-640-single-centered-without-overflow",
+      "result": "pass"
+    },
+    {
+      "name": "light-short-group-centered-selection-does-not-move-neighbors",
+      "result": "pass"
+    },
+    {
+      "name": "light-resize-keeps-selected-visible",
+      "result": "pass"
+    },
+    {
+      "name": "fine-pointer-mouse-drag-scroll-without-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "desktop-bottom-bar-hidden",
+      "result": "pass"
+    }
+  ],
+  "errors": []
+}

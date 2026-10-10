@@ -177,11 +177,12 @@ const appsRow: HubModuleRow = {
   labelKey: 'nav.apps',
   licenseStatus: 'active',
   favorite: false,
-  pages: [{ id: 'ivrs', path: '/ivrs', labelKey: 'nav.ivrs', icon: Phone }],
+  pages: [{ id: 'ivrs', path: '/ivrs', labelKey: 'nav.ivrs', icon: Phone }, { id: 'queues', path: '/queues', labelKey: 'nav.queues', icon: Phone }],
 };
 
-describe('ModuleShell (A+C hybrid)', () => {
+describe('ModuleShell (global accordion sidebar)', () => {
   beforeEach(() => {
+    localStorage.clear();
     Element.prototype.scrollIntoView = vi.fn();
     useIsMobileMock.mockReturnValue(false);
     conferenceSessionRef.current = null;
@@ -196,7 +197,7 @@ describe('ModuleShell (A+C hybrid)', () => {
     });
   });
 
-  it('shows module▾/page▾ crumbs, inert logo, sidebar; no Home crumb', () => {
+  it('shows global sidebar and brand without the removed header navigation', () => {
     render(
       <MemoryRouter initialEntries={['/endpoints']}>
         <Routes>
@@ -214,10 +215,12 @@ describe('ModuleShell (A+C hybrid)', () => {
 
     expect(screen.getByTestId('module-shell-sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('sidebar-module-title')).toBeInTheDocument();
-    const crumbs = screen.getByTestId('module-breadcrumbs');
-    expect(within(crumbs).queryByText('hub.home')).toBeNull();
-    expect(screen.getByTestId('crumb-module')).toBeInTheDocument();
-    expect(screen.getByTestId('crumb-page')).toHaveTextContent('endpoints.title');
+    expect(document.querySelector('#shell-logo img')).toHaveAttribute('src', '/brand/aipbx-logo.png?v=2');
+    expect(document.getElementById('shell-logo')).toHaveTextContent('AI PBX Krasterisk');
+    expect(screen.queryByTestId('module-breadcrumbs')).toBeNull();
+    expect(screen.queryByTestId('crumb-module')).toBeNull();
+    expect(screen.getByTestId('sidebar-module-core')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('sidebar-module-apps')).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByTestId('module-shell-tabs')).toBeNull();
     expect(screen.getByTestId('module-shell').querySelector('#shell-logo')?.tagName).toBe(
       'DIV',
@@ -225,7 +228,7 @@ describe('ModuleShell (A+C hybrid)', () => {
     expect(screen.getByTestId('module-shell').querySelector('#shell-logo a')).toBeNull();
   });
 
-  it('opens module switcher menu from module crumb', async () => {
+  it('opens another section in the global sidebar without leaving the current page', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     render(
       <MemoryRouter initialEntries={['/endpoints']}>
@@ -235,9 +238,9 @@ describe('ModuleShell (A+C hybrid)', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByTestId('crumb-module'));
-    expect(await screen.findByTestId('crumb-module-menu')).toBeInTheDocument();
-    expect(within(screen.getByTestId('crumb-module-menu')).getByText('nav.apps')).toBeInTheDocument();
+    await user.click(screen.getByTestId('sidebar-module-apps'));
+    expect(screen.getByTestId('sidebar-module-page-apps-ivrs')).toHaveAttribute('href', '/ivrs');
+    expect(screen.getByTestId('sidebar-module-page-core-endpoints')).toHaveAttribute('aria-current', 'page');
   });
 
   it('navigates to Module Hub from sidebar Модули', async () => {
@@ -262,7 +265,7 @@ describe('ModuleShell (A+C hybrid)', () => {
     expect(await screen.findByTestId('hub-page')).toBeInTheDocument();
   });
 
-  it('hides sidebar on Hub', () => {
+  it('keeps the global sidebar on Hub and marks Modules current', () => {
     render(
       <MemoryRouter initialEntries={['/modules']}>
         <ModuleShell>
@@ -270,8 +273,9 @@ describe('ModuleShell (A+C hybrid)', () => {
         </ModuleShell>
       </MemoryRouter>,
     );
-    expect(screen.queryByTestId('module-shell-sidebar')).toBeNull();
-    expect(screen.getByTestId('module-breadcrumbs')).toHaveTextContent('hub.title');
+    expect(screen.getByTestId('module-shell-sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-modules-trigger')).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByTestId('module-breadcrumbs')).toBeNull();
   });
 
   it('hides sidebar on phone and places section selection in the topbar', () => {
@@ -291,6 +295,8 @@ describe('ModuleShell (A+C hybrid)', () => {
     expect(screen.getByTestId('phone-module-menu-trigger')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('phone-module-menu-trigger'));
     expect(screen.getByTestId('phone-module-menu')).toBeInTheDocument();
+    expect(within(screen.getByTestId('phone-module-menu')).getByText('AI PBX Krasterisk')).toBeInTheDocument();
+    expect(document.getElementById('shell-logo')).toBeNull();
     expect(document.getElementById('shell-cmdk-trigger')).toBeInTheDocument();
   });
 
@@ -306,6 +312,13 @@ describe('ModuleShell (A+C hybrid)', () => {
     expect(sidebar).toHaveAttribute('data-collapsed', 'false');
     fireEvent.click(screen.getByTestId('sidebar-collapse'));
     expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+    expect(document.getElementById('shell-logo')).not.toHaveTextContent('AI PBX Krasterisk');
+    expect(screen.getByRole('img', { name: 'AI PBX Krasterisk' })).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-collapse')).toHaveAttribute('aria-label', 'hub.expandSidebar');
+    expect(screen.getByTestId('sidebar-collapse').textContent).toBe('');
+    fireEvent.click(screen.getByTestId('sidebar-collapse'));
+    expect(sidebar).toHaveAttribute('data-collapsed', 'false');
+    expect(document.getElementById('shell-logo')).toHaveTextContent('AI PBX Krasterisk');
   });
 
   it('opens CommandPalette on Ctrl+K', () => {
@@ -439,11 +452,11 @@ describe('ModuleShell (A+C hybrid)', () => {
 
 describe('r4 route orientation and global search',()=>{
  beforeEach(()=>{localStorage.clear();useIsMobileMock.mockReturnValue(false);conferenceSessionRef.current=null;});
- it('selects only STT on a nested route and announces the same page in the crumb',()=>{
+ it('selects only STT on a nested route in the global sidebar',()=>{
   const system:HubModuleRow={...coreRow,code:'system',labelKey:'nav.system',pages:[{id:'settings',path:'/settings',labelKey:'nav.settings',icon:Phone},{id:'stt',path:'/settings/stt-engines',labelKey:'nav.sttEngines',icon:Phone}]};
   vi.mocked(useHubModules).mockReturnValue({active:[system],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
   render(<MemoryRouter initialEntries={['/settings/stt-engines/42']}><ModuleShell/></MemoryRouter>);
-  expect(screen.getByTestId('crumb-page')).toHaveTextContent('nav.sttEngines');
+  expect(screen.queryByTestId('crumb-page')).toBeNull();
   const selected=within(screen.getByTestId('module-shell-sidebar')).getAllByRole('link').filter(link=>link.getAttribute('aria-current')==='page');
   expect(selected).toHaveLength(1);expect(selected[0]).toHaveAttribute('href','/settings/stt-engines');
  });
@@ -460,14 +473,36 @@ describe('r4 route orientation and global search',()=>{
  });
 });
 
-describe('Hub access without a sidebar',()=>{
- it('keeps Modules last in the desktop switcher on a service page',async()=>{
-  localStorage.clear();useIsMobileMock.mockReturnValue(false);conferenceSessionRef.current=null;
-  vi.mocked(useHubModules).mockReturnValue({active:[coreRow,appsRow],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
+describe('global sidebar on service pages and resize preferences', () => {
+ beforeEach(() => { localStorage.clear(); useIsMobileMock.mockReturnValue(false); conferenceSessionRef.current=null;
+  vi.mocked(useHubModules).mockReturnValue({active:[coreRow,appsRow],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false}); });
+ it('keeps all sections and Modules available on a service route', () => {
   render(<MemoryRouter initialEntries={['/profile']}><ModuleShell/></MemoryRouter>);
-  expect(screen.queryByTestId('module-shell-sidebar')).toBeNull();
-  const user=(await import('@testing-library/user-event')).default.setup();await user.click(screen.getByTestId('crumb-module'));
-  const entries=within(await screen.findByTestId('crumb-module-menu')).getAllByRole('menuitem');
-  expect(entries[entries.length-1]).toHaveTextContent('hub.title');expect(entries[entries.length-1]).toHaveAttribute('href','/modules');
+  expect(screen.getByTestId('module-shell-sidebar')).toBeInTheDocument();
+  expect(screen.queryByTestId('module-breadcrumbs')).toBeNull();
+  expect(screen.getByTestId('sidebar-modules-trigger')).toHaveAttribute('href','/modules');
+  expect(screen.getByTestId('sidebar-module-core')).toBeInTheDocument();
+ });
+ it('resizes by keyboard, persists the preference and keeps it after collapse/expand', () => {
+  render(<MemoryRouter initialEntries={['/endpoints']}><ModuleShell/></MemoryRouter>);
+  const separator=screen.getByRole('separator',{name:'hub.resizeSidebar'});
+  const initial=Number(separator.getAttribute('aria-valuenow'));
+  fireEvent.keyDown(separator,{key:'ArrowRight'});
+  expect(separator).toHaveAttribute('aria-valuenow',String(initial+16));
+  expect(localStorage.getItem('krasterisk.moduleShell.width')).toBe(String(initial+16));
+  fireEvent.click(screen.getByTestId('sidebar-collapse'));
+  expect(screen.queryByRole('separator')).toBeNull();
+  fireEvent.click(screen.getByTestId('sidebar-module-apps'));
+  expect(screen.getByTestId('sidebar-module-apps')).toHaveAttribute('aria-expanded','true');
+  expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow',String(initial+16));
+ });
+ it('limits keyboard resizing and rejects invalid stored widths', () => {
+  localStorage.setItem('krasterisk.moduleShell.width','invalid');
+  render(<MemoryRouter initialEntries={['/endpoints']}><ModuleShell/></MemoryRouter>);
+  const separator=screen.getByRole('separator');
+  expect(separator).toHaveAttribute('aria-valuenow','240');
+  fireEvent.keyDown(separator,{key:'Home'});expect(separator).toHaveAttribute('aria-valuenow','200');
+  fireEvent.keyDown(separator,{key:'ArrowLeft'});expect(separator).toHaveAttribute('aria-valuenow','200');
+  fireEvent.keyDown(separator,{key:'End'});expect(separator.getAttribute('aria-valuenow')).toBe(separator.getAttribute('aria-valuemax'));
  });
 });

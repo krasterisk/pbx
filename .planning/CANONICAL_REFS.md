@@ -48,4 +48,4 @@ context UI follow-up as the current assignment in this chat.
 
 Поручение этого чата реализовано, автоматические проверки пройдены, visual tool-unavailable: [унификация модалок / EXECUTION](modal-ui-standardization/EXECUTION.md), [PLAN](modal-ui-standardization/PLAN.md), codex-direct /root, 2026-10-10-r1. Маршруты/контексты остаются baseline завершённого предыдущего scope.
 
-Mobile navigation: [EXECUTION](mobile-navigation/EXECUTION.md), [PLAN](mobile-navigation/PLAN.md), [SUMMARY](mobile-navigation/SUMMARY.md), codex-direct /root, 2026-10-10-r5. N13/r5 expandable sections with all permitted page links implemented; automated/local-browser mocks PASS. r4 evidence retained; real-device/screen-reader/UX-UAT pending. Adjacent endpoints work excluded.
+Mobile navigation: [EXECUTION](mobile-navigation/EXECUTION.md), [PLAN](mobile-navigation/PLAN.md), [SUMMARY](mobile-navigation/SUMMARY.md), codex-direct /root, 2026-10-11-r10. N18 one-page sections without disclosure/duplicate implemented; automated/local mocked browser PASS. Prior revisions retained; human/device gates pending. Adjacent endpoints work excluded.

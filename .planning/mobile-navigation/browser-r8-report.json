@@ -1,0 +1,192 @@
+{
+  "kind": "local-Chromium-with-mocked-API",
+  "checks": [
+    {
+      "name": "dark-390-first-centered",
+      "result": "pass",
+      "scrollLeft": 35,
+      "width": 293,
+      "scrollWidth": 1145
+    },
+    {
+      "name": "dark-390-heading-focus-tab-escape-return",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-last-from-sheet-centered",
+      "result": "pass",
+      "scrollLeft": 810,
+      "width": 293,
+      "scrollWidth": 1173
+    },
+    {
+      "name": "dark-390-middle-from-sheet-centered",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 293,
+      "scrollWidth": 1173
+    },
+    {
+      "name": "dark-390-same-page-recentered",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 293,
+      "scrollWidth": 1173
+    },
+    {
+      "name": "dark-390-native-touch-scroll-retained",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-single-centered",
+      "result": "pass",
+      "scrollLeft": 0,
+      "width": 293,
+      "scrollWidth": 293
+    },
+    {
+      "name": "dark-320-first-centered",
+      "result": "pass",
+      "scrollLeft": 35,
+      "width": 240,
+      "scrollWidth": 1092
+    },
+    {
+      "name": "dark-320-heading-focus-tab-escape-return",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-last-from-sheet-centered",
+      "result": "pass",
+      "scrollLeft": 810,
+      "width": 240,
+      "scrollWidth": 1120
+    },
+    {
+      "name": "dark-320-middle-from-sheet-centered",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 240,
+      "scrollWidth": 1120
+    },
+    {
+      "name": "dark-320-same-page-recentered",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 240,
+      "scrollWidth": 1120
+    },
+    {
+      "name": "dark-320-native-touch-scroll-retained",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-single-centered",
+      "result": "pass",
+      "scrollLeft": 0,
+      "width": 240,
+      "scrollWidth": 240
+    },
+    {
+      "name": "dark-resize-recenters",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 293,
+      "scrollWidth": 1173
+    },
+    {
+      "name": "light-390-first-centered",
+      "result": "pass",
+      "scrollLeft": 35,
+      "width": 293,
+      "scrollWidth": 1145
+    },
+    {
+      "name": "light-390-heading-focus-tab-escape-return",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-last-from-sheet-centered",
+      "result": "pass",
+      "scrollLeft": 810,
+      "width": 293,
+      "scrollWidth": 1173
+    },
+    {
+      "name": "light-390-middle-from-sheet-centered",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 293,
+      "scrollWidth": 1173
+    },
+    {
+      "name": "light-390-same-page-recentered",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 293,
+      "scrollWidth": 1173
+    },
+    {
+      "name": "light-390-native-touch-scroll-retained",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-single-centered",
+      "result": "pass",
+      "scrollLeft": 0,
+      "width": 293,
+      "scrollWidth": 293
+    },
+    {
+      "name": "light-320-first-centered",
+      "result": "pass",
+      "scrollLeft": 36,
+      "width": 240,
+      "scrollWidth": 1120
+    },
+    {
+      "name": "light-320-heading-focus-tab-escape-return",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-last-from-sheet-centered",
+      "result": "pass",
+      "scrollLeft": 810,
+      "width": 240,
+      "scrollWidth": 1120
+    },
+    {
+      "name": "light-320-middle-from-sheet-centered",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 240,
+      "scrollWidth": 1120
+    },
+    {
+      "name": "light-320-same-page-recentered",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 240,
+      "scrollWidth": 1120
+    },
+    {
+      "name": "light-320-native-touch-scroll-retained",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-single-centered",
+      "result": "pass",
+      "scrollLeft": 0,
+      "width": 240,
+      "scrollWidth": 240
+    },
+    {
+      "name": "light-resize-recenters",
+      "result": "pass",
+      "scrollLeft": 207,
+      "width": 293,
+      "scrollWidth": 1173
+    }
+  ],
+  "errors": []
+}

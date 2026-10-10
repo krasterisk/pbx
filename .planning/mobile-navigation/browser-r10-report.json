@@ -1,0 +1,94 @@
+{
+  "kind": "local-Chromium-with-mocked-API",
+  "checks": [
+    {
+      "name": "dark-desktop-single-direct-link-multi-accordion-retained",
+      "result": "pass"
+    },
+    {
+      "name": "dark-desktop-dashboard-navigation-no-duplicate",
+      "result": "pass"
+    },
+    {
+      "name": "dark-compact-single-link-does-not-expand-sidebar",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-bottom-single-static-centered-no-duplicate",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-left-sheet-single-direct-link-closes-no-child",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-multi-page-left-and-bottom-menus-retained",
+      "result": "pass"
+    },
+    {
+      "name": "dark-390-return-to-dashboard-removes-duplicate-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-bottom-single-static-centered-no-duplicate",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-left-sheet-single-direct-link-closes-no-child",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-multi-page-left-and-bottom-menus-retained",
+      "result": "pass"
+    },
+    {
+      "name": "dark-320-return-to-dashboard-removes-duplicate-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "light-desktop-single-direct-link-multi-accordion-retained",
+      "result": "pass"
+    },
+    {
+      "name": "light-desktop-dashboard-navigation-no-duplicate",
+      "result": "pass"
+    },
+    {
+      "name": "light-compact-single-link-does-not-expand-sidebar",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-bottom-single-static-centered-no-duplicate",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-left-sheet-single-direct-link-closes-no-child",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-multi-page-left-and-bottom-menus-retained",
+      "result": "pass"
+    },
+    {
+      "name": "light-390-return-to-dashboard-removes-duplicate-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-bottom-single-static-centered-no-duplicate",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-left-sheet-single-direct-link-closes-no-child",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-multi-page-left-and-bottom-menus-retained",
+      "result": "pass"
+    },
+    {
+      "name": "light-320-return-to-dashboard-removes-duplicate-navigation",
+      "result": "pass"
+    }
+  ],
+  "errors": []
+}

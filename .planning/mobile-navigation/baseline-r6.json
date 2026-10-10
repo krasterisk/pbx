@@ -1,0 +1,12 @@
+{
+  "packages/frontend/src/features/dialplan-apps/model/useSchemaRefs.test.tsx": "dab0844856bb6ef280b71393db9c33600db07b37128f329bbc90bdb0e36257e7",
+  "packages/frontend/src/features/endpoints/config/natProfiles.test.ts": "5d65d95f0101b706cbf64380c7f7d24941b7b2243014cf78c23108c0a3a45bfd",
+  "packages/frontend/src/features/endpoints/config/natProfiles.ts": "0cbec148db528729e28d422e7f0efecf6aaae0ef7401edc9641bc44193187ae4",
+  "packages/frontend/src/features/endpoints/lib/bulkDeletePreview.test.ts": "36f102056171b0ab4cc037ad6a427513781f773cc7716ecce59a79a42d5a7f21",
+  "packages/frontend/src/features/endpoints/lib/bulkDeletePreview.ts": "f1e4c58e079470c930dcd017c7723bc4a8676eeaba839dcfddc4d9c063e65a90",
+  "packages/frontend/src/features/endpoints/lib/endpointIds.test.ts": "b62663ace313eb3be899d10bf6d4674fa62b604c63d179a92395c84ac5bd2c16",
+  "packages/frontend/src/features/endpoints/lib/endpointIds.ts": "be1d550990345b12114a7a90b7a431416efe1bae57d2f8f9d67eb67fb0ce4a4e",
+  "packages/frontend/src/features/endpoints/ui/EndpointsTable/EndpointsTable.test.tsx": "72dee9980b093c9d79ddcb12de6e2d8105f275080356004cd92e0c3a027b1b57",
+  "packages/frontend/src/features/endpoints/ui/EndpointsTable/index.ts": "8cd008a1701bb212433a44d72f65bee2c42f70599462512e34bd410292a7b012",
+  "packages/frontend/tsconfig.tsbuildinfo": "dabd134b4c125f300202ca5661ebc595121d1701c7c85bb3d9b5e3ccfc3b6b3c"
+}

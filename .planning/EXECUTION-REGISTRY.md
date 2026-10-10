@@ -27,8 +27,10 @@
 
 | release-20261010 | [EXECUTION/PLAN](RELEASE-20261010.md) | Released 4.6.6 / bef2865f; all CI and authenticated production smoke PASS |
 
-| mobile-navigation | [EXECUTION](mobile-navigation/EXECUTION.md) | [PLAN](mobile-navigation/PLAN.md) N13/r5 implemented; automated/local-browser mocks PASS; /root coordination idle; human/device/UAT pending |
+| mobile-navigation | [EXECUTION](mobile-navigation/EXECUTION.md) | [PLAN](mobile-navigation/PLAN.md) N18/r10 implemented; automated/local mocked browser PASS; one-page sections without disclosure/duplicate; /root coordination idle; human/device gates pending |
 
 | release-4.6.7 | [EXECUTION/PLAN](RELEASE-4.6.7-20261010.md) | Released 4.6.7 / 96b67a48; all CI and authenticated production smoke PASS |
 
 | release-4.6.8 | [EXECUTION/PLAN](RELEASE-4.6.8-20261010.md) | Released 4.6.8 / b3eaa72f; all CI and authenticated production smoke PASS |
+
+| release-4.6.9 | [EXECUTION/PLAN](RELEASE-4.6.9-20261011.md) | Release 4.6.9: snapshot, CI and production deployment |

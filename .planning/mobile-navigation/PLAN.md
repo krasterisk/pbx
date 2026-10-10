@@ -1,7 +1,7 @@
-# Навигация приложения — r5 (N13 follow-up; r4 сохранён)
+# Навигация приложения — r7 (N15 resizable accordion sidebar)
 
-Ревизия: **2026-10-10-r5**. Режим: **codex-direct**. Координатор: текущая задача навигации `/root`.
-Статус: **N13 r5 implemented / automated-tests-passed / local-browser-verified (mock API)**. Результаты r4 ниже являются историческими; текущий scope — N13.
+Ревизия: **2026-10-10-r7**. Режим: **codex-direct**. Координатор: текущая задача навигации `/root`.
+Статус: **N15 r7 implemented / automated-tests-passed / local-browser-verified (mock API)**. N5-N14 historical, current scope N15; human/device/UAT pending.
 
 ## 1. Цель и преемственность
 
@@ -188,3 +188,66 @@ Next action: human/device/UAT по сценариям N12. Код и автом�
 - Сохранить catalog order, unavailable statuses/адресный Hub, «Модули» последними. Недоступные страницы не дают обхода license/RBAC.
 - Owned paths: MobileModuleMenu/{tsx,scss,test}; navigation contract frontend ARCHITECTURE; этот PLAN/EXECUTION/SUMMARY и собственные строки индекса. Общие registry/router/storage/backend и чужой dirty diff read-only.
 - Gates (все automated/local browser PASS, evidence в SUMMARY): targeted menu/shell tests, npm run lint, npm run test:backend, npm run test:frontend, TypeScript, локальный Chromium с API mocks (раскрытие без перехода, nested active page, навигация/modified link, scroll, 320/390, две темы, Escape/focus). Real device/screen reader остаются pending.
+
+## N14 — r6: выравнивание sidebar и фирменный логотип
+
+Назначено пользователем 2026-10-10, /root sole writer, codex-direct. Baseline main/7b12985c + чужой endpoints/dialplan/tsbuildinfo diff, N13 уже в HEAD. Status historical/intermediate implemented; superseded by N15.
+
+- Expanded sidebar links и footer Modules выровнять к левому краю; collapsed rail остаётся компактным.
+- Удалить footer текстовую кнопку Свернуть. Отдельная icon-only ChevronLeft/ChevronRight по центру высоты sidebar у левого края; не перекрывает page links, keyboard/focus/название состояния доступны, persisted collapse сохранить.
+- Shared AppBrand wrapper переиспользует существующий /brand/aipbx-logo.png?v=2, подпись AI PBX Krasterisk. Desktop top-left показывает brand; при collapsed sidebar только логотип. Mobile Sheet header показывает полный brand и доступный Sheet title.
+- Owned paths: shared/ui/AppBrand и export, ModuleShell/Sidebar/SCSS/tests, MobileModuleMenu header/SCSS/tests, architecture navigation section, собственные planning docs/registry/index. Registry/router/auth/backend/другой dirty diff read-only.
+- Gates: targeted shell/menu, TypeScript, npm run lint/test:backend/test:frontend; Chromium mock API 320/390/768/820/1024/1280 dark/light, реальное выравнивание и геометрия collapse, image loaded/compact/full label, Sheet no overflow/close/focus, persistence. Real-device/screen-reader внешние gates остаются pending.
+
+## N15 — r7: уточнение пользователя во время N14
+
+/root sole writer, codex-direct; N14 продолжен новым scope. Перенести collapse на правую границу, mouse-resizable sidebar с persisted width и keyboard resize fallback. Desktop sidebar содержит раскрывающиеся разделы/страницы как mobile Sheet, общий component для двух поверхностей; collapsed rail позволяет раскрыть полный раздел. Desktop navigation после logo полностью убрать; sidebar доступен на Hub/dashboard/service routes. Сохранить full/compact brand, mobile Sheet, license/RBAC, order, native links и global search.
+
+Owned: ModuleShell/Sidebar и hooks/components/SCSS/tests внутри folder; MobileModuleMenu/shared module navigation composition; RU/EN labels resize при необходимости; AppBrand contract; architecture и own planning docs/index/registry. Новых packages/backend/API/router/storage contracts не требуется. Width preference локальная, clamped на viewport, не меняет collapse preference при resize window.
+
+Checks: meaningful pointer/keyboard/persistence width tests и shared tree integration, targeted UI, lint/type/full backend/frontend; real Chromium right-edge hit geometry, drag width min/max/viewport, current selection/expansion/routes, removed crumbs, mobile regression. N14 результаты сохраняются отдельно как промежуточный baseline; конечные gates проверять для r7.
+
+### N15 final evidence
+
+Width controller и expanded-width CSS variable принадлежат ModuleShell root; sidebar получает resize state/handlers. Shared normal/collapsed CSS contract preserved (AssistantPanel regression PASS). Final targeted 6 files/116 tests, frontend 330 files/1755 tests, type/lint and 30 local Chromium mocked checks PASS. Backend unchanged since current-session run backend-r6.log PASS 3662 tests. Evidence SUMMARY, coordination idle; real-device/screen-reader/UAT pending; release not assigned.
+
+## N16 — r8: нижнее меню и центрирование выбранной страницы
+
+Назначено пользователем 2026-10-10. /root sole coordinator/executor, codex-direct. Baseline main/7b12985c + existing N14/N15 and foreign endpoints/dialplan/tsbuildinfo dirty changes; no other writers assigned.
+
+- Bottom MobilePageMenu initially focuses the noninteractive heading instead of Close; Escape, focus trap and return to trigger retained. Heading contains only section name.
+- Selected bottom page centers in the available page strip on route selection, including selection from Sheet, first/last/single page and viewport resize. Native touch scroll and mouse drag retained.
+- Owned: widgets/MobileBottomBar/**, navigation architecture paragraph, own PLAN/EXECUTION/SUMMARY and registry/index row. Shared Sheet/ModuleShell/backend/router/foreign changes read-only.
+- Checks: targeted component behavior, TypeScript, npm run lint/test:backend/test:frontend; local Chromium with mock API for heading/focus/Tab/Escape, first/last/middle/single centering at 320/390, both themes and manual scroll regression. Real device/screen-reader gates separate.
+
+### N16 final evidence
+
+Implemented; 20 targeted tests, full frontend 330 files / 1757 tests, backend 388 suites / 3662 tests (existing skips), TypeScript and root lint PASS. Local mocked Chromium 30 checks PASS: both themes, 320/390, first/last/middle/single and repeated selection, touch scroll, resize, heading/Tab/Escape/focus return. Self-review; human/device/screen-reader gates remain pending. [SUMMARY](SUMMARY.md). Coordination idle, no release assigned.
+
+## N17 — r9: устойчивый список страниц вместо карусели
+
+Назначено пользователем 2026-10-10: проанализировать аналогичные проекты и реализовать лучший подход. /root sole coordinator/executor, codex-direct. Baseline main/7b12985c + N14-N16 and foreign dirty diff. N16 exact centering/edge spacers explicitly superseded. Sheet heading/focus decisions retained.
+
+Research: [MUI Tabs docs](https://mui.com/material-ui/react-tabs/) distinguish fixed/scrollable arrangements; [MUI Tabs implementation](https://github.com/mui/material-ui/blob/master/packages/mui-material/src/Tabs/Tabs.js) scrollSelectedIntoView only adjusts a clipped selected item; [Material Android TabLayout](https://github.com/material-components/material-components-android/blob/master/lib/java/com/google/android/material/tabs/TabLayout.java) calculates centered target but uses natural scroll bounds. These are alternative strategies, not one universal standard. For this section page strip choose MUI-style minimal reveal with natural bounds: stable neighboring destinations and no artificial blank edge areas.
+
+- Short list centered as a whole, including one page. Long list natural leading alignment, unchanged order/width when selection changes, selected page fully visible with only necessary bounded scroll.
+- Remove half-width spacers and CSS snap; manual touch/mouse scrolling not undone when it finishes. Both overflow directions indicated; native links, focus/Sheet/permissions preserved.
+- Owned: widgets/MobileBottomBar/**, navigation paragraph architecture and own planning docs/index/registry row. Shared primitives, ModuleShell/backend/router and foreign dirty paths read-only.
+- Tests: clipped left/right and clamp, no scroll when already visible, same-page selection, short/single; local Chromium dark/light 320/390/640, first/last/middle, sequential selection stable, native swipe/mouse, history/resize/Sheet/focus and no document overflow. Required lint/type/full frontend/backend. Human/device/UAT separate.
+
+### N17 final evidence (2026-10-11)
+
+Implemented: natural overflow/fitting-group centering and minimum selected-page reveal; N16 forced-centering/spacer/snap approach superseded. Initial targeted 24 tests PASS; final full frontend includes 25 navigation tests, 330 files / 1762 total tests PASS. Backend 388 suites / 3662 tests PASS with existing skips; root lint and TypeScript PASS. Local Chromium with mock API 54 matrix + 3 history/resize checks PASS, errors=[]; both themes, 320/390/640 and mouse/touch. Screenshots self-reviewed; real device/screen-reader/human UAT pending. [SUMMARY](SUMMARY.md). Coordination idle; release not assigned.
+
+## N18 — r10: раздел с единственной страницей без дублирования
+
+User assignment 2026-10-11; /root sole coordinator/executor, codex-direct. Baseline main/7b12985c plus N14-N17 and foreign dirty changes preserved.
+
+- Shared desktop/sidebar and mobile left Sheet: active sections with exactly one permitted page become direct native section links, no disclosure/child duplicate; nested current-page marker and compact rail work. Multi-page sections remain accordion; unavailable modules remain targeted Hub/status, not bypassed. Count pages after RBAC filtering.
+- Bottom bar: one page means static section name, no page Sheet trigger/chevron or duplicate page shortcut; name centered in bar. Multi-page lists unchanged; no empty scroll track on no-page routes. Existing single-page-centering shortcut decision superseded.
+- Owned MobileBottomBar/**, ModuleShell/ModuleNavigation/** and affected ModuleShell/MobileModuleMenu tests, navigation architecture and own planning docs/index/registry row. Backend/router/registry/shared primitives and foreign paths read-only.
+- Checks: focused page counts/permission/locked/direct link/compact and multi-page regression, required root lint/full frontend/backend and TypeScript; local Chromium desktop/compact/mobile dark/light, Dashboard direct link once, bottom no duplicates, multi-page accordion/list/Sheet still available. Human/device gates separate.
+
+### N18 final evidence
+
+Implemented; targeted 5 files / 66 tests PASS; full frontend 331 files / 1769 tests PASS; backend 388 suites / 3662 tests PASS with existing 1 suite / 11 skipped; root lint / TypeScript PASS. Local mocked Chromium 22 checks PASS, errors=[]: desktop/compact direct single link and phone bottom/static/Sheet, multi-page regression, 320/390 dark/light. Foreign baseline ten hashes unchanged. [SUMMARY](SUMMARY.md). Coordination idle; human/device gates external, release not assigned.

@@ -1,0 +1,126 @@
+{
+  "kind": "local-Chromium-with-mocked-API",
+  "checks": [
+    {
+      "name": "dark-global-sidebar-current-page-no-header-chain",
+      "result": "pass"
+    },
+    {
+      "name": "dark-independent-accordion-sections",
+      "result": "pass"
+    },
+    {
+      "name": "dark-right-edge-midpoint-arrow",
+      "result": "pass"
+    },
+    {
+      "name": "dark-mouse-resize-and-release-cleanup",
+      "result": "pass"
+    },
+    {
+      "name": "dark-width-restored-after-reload",
+      "result": "pass"
+    },
+    {
+      "name": "dark-mouse-width-limits",
+      "result": "pass"
+    },
+    {
+      "name": "dark-cancel-on-blur-restores-width-and-cursor",
+      "result": "pass"
+    },
+    {
+      "name": "dark-keyboard-resize",
+      "result": "pass"
+    },
+    {
+      "name": "dark-compact-section-click-expands-sidebar",
+      "result": "pass"
+    },
+    {
+      "name": "dark-viewport-clamp-1024",
+      "result": "pass"
+    },
+    {
+      "name": "dark-viewport-clamp-820",
+      "result": "pass"
+    },
+    {
+      "name": "dark-viewport-clamp-768",
+      "result": "pass"
+    },
+    {
+      "name": "dark-page-link-hub-and-profile-global-menu",
+      "result": "pass"
+    },
+    {
+      "name": "dark-shared-mobile-menu-regression-390",
+      "result": "pass"
+    },
+    {
+      "name": "dark-shared-mobile-menu-regression-320",
+      "result": "pass"
+    },
+    {
+      "name": "light-global-sidebar-current-page-no-header-chain",
+      "result": "pass"
+    },
+    {
+      "name": "light-independent-accordion-sections",
+      "result": "pass"
+    },
+    {
+      "name": "light-right-edge-midpoint-arrow",
+      "result": "pass"
+    },
+    {
+      "name": "light-mouse-resize-and-release-cleanup",
+      "result": "pass"
+    },
+    {
+      "name": "light-width-restored-after-reload",
+      "result": "pass"
+    },
+    {
+      "name": "light-mouse-width-limits",
+      "result": "pass"
+    },
+    {
+      "name": "light-cancel-on-blur-restores-width-and-cursor",
+      "result": "pass"
+    },
+    {
+      "name": "light-keyboard-resize",
+      "result": "pass"
+    },
+    {
+      "name": "light-compact-section-click-expands-sidebar",
+      "result": "pass"
+    },
+    {
+      "name": "light-viewport-clamp-1024",
+      "result": "pass"
+    },
+    {
+      "name": "light-viewport-clamp-820",
+      "result": "pass"
+    },
+    {
+      "name": "light-viewport-clamp-768",
+      "result": "pass"
+    },
+    {
+      "name": "light-page-link-hub-and-profile-global-menu",
+      "result": "pass"
+    },
+    {
+      "name": "light-shared-mobile-menu-regression-390",
+      "result": "pass"
+    },
+    {
+      "name": "light-shared-mobile-menu-regression-320",
+      "result": "pass"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,17 @@
+{
+  "kind": "local-Chromium-with-mocked-API",
+  "checks": [
+    {
+      "name": "browser-back-restores-visible-first-page",
+      "result": "pass"
+    },
+    {
+      "name": "browser-forward-reveals-last-page",
+      "result": "pass"
+    },
+    {
+      "name": "resize-last-page-fully-visible-reduced-motion",
+      "result": "pass"
+    }
+  ]
+}

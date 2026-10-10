@@ -26,10 +26,13 @@
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   touch-action: pan-x;
-  scroll-snap-type: x proximity;
   scrollbar-width: none;
   padding: 4px;
   gap: 4px;
+
+  // Auto margins center fitting groups and become zero when the list overflows.
+  .item:first-child { margin-inline-start: auto; }
+  .item:last-child { margin-inline-end: auto; }
 
   &::-webkit-scrollbar {
     display: none;
@@ -46,7 +49,6 @@
   max-width: 148px;
   padding: 4px 10px;
   color: var(--color-muted-foreground);
-  scroll-snap-align: start;
 
   &:hover {
     color: var(--color-foreground);
@@ -82,7 +84,6 @@
 }
 
 .pages[data-dragging='true'] {
-  scroll-snap-type: none;
   cursor: grabbing;
 
   .item { cursor: grabbing; }
@@ -106,7 +107,20 @@
 }
 
 .pagesWrap { flex: 1 1 0; min-width: 0; height: 100%; position: relative; }
-.pagesWrap[data-has-more='true']::after {
-  content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 20px; pointer-events: none;
+.pagesWrap[data-has-more='true']::after,
+.pagesWrap[data-has-previous='true']::before {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 12px; pointer-events: none;
   background: linear-gradient(to right, transparent, var(--color-card));
+}
+
+.pagesWrap[data-has-more='true']::after { right: 0; }
+.pagesWrap[data-has-previous='true']::before {
+  left: 0; z-index: 1;
+  background: linear-gradient(to left, transparent, var(--color-card));
+}
+
+.bar[data-single-page='true'] .section {
+  flex: 1 1 auto;
+  width: auto;
+  border-right: 0;
 }

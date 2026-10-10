@@ -1,8 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Phone, Search, Languages, Moon, Sun, Sparkles } from 'lucide-react';
-import { Button, Text, Tooltip } from '@/shared/ui';
+import { Search, Languages, Moon, Sun, Sparkles } from 'lucide-react';
+import { AppBrand, Button, Tooltip } from '@/shared/ui';
 import { Flex, HStack } from '@/shared/ui/Stack';
 import { AssistantPanel, type AssistantPanelMode } from '@/widgets/AssistantPanel';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
@@ -16,27 +15,23 @@ import { selectMyAgent } from '@/features/callcenter/model/selectors/callCenterS
 import { agentDisplayName } from '@/features/callcenter/lib/displayLabels';
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import { UserLevel } from '@krasterisk/shared';
-import type { ModulePageDef } from '@/features/modules/types';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { useModuleLicenseGate } from '@/features/modules/hooks/useModuleLicenseGate';
 import { UserBlock } from '@/widgets/UserBlock';
 import {
   filterPagesByLevel,
-  findModuleByPath,
 } from '@/features/modules/lib/moduleRegistry';
 import { ConferenceSessionProvider } from '@/features/conferences/lib/ConferenceSessionProvider';
 import { ConferenceMiniPanel } from '@/features/conferences/ui/ConferenceMiniPanel';
 import { readImpersonation } from '@/features/auth/lib/impersonationSession';
 import { ModuleDestinationProvider, useNavigationHistory } from '@/features/modules/hooks/useNavigationHistory';
-import { findPageByPath } from '@/features/modules/lib/navigation';
-import { ModuleBreadcrumbs } from './ModuleBreadcrumbs';
 import { MobileModuleMenu } from './MobileModuleMenu';
 import { ModuleShellSidebar } from './ModuleShellSidebar';
 import { OfflineBanner } from './OfflineBanner';
+import { useSidebarWidth } from './useSidebarWidth';
 import cls from './ModuleShell.module.scss';
 
 const COLLAPSE_KEY = 'krasterisk.moduleShell.collapsed';
-const EMPTY_PAGES: ModulePageDef[] = [];
 
 interface ModuleShellProps {
   children?: ReactNode;
@@ -44,12 +39,11 @@ interface ModuleShellProps {
 
 /**
  * In-module shell - A+C hybrid:
- * full-width topbar (logo inert, Module▾ → Page▾ menus) → sidebar | content.
+ * Full-width brand/action header → global expandable sidebar | content.
  * Sidebar footer «Модули» → Hub. Phone: top-left section menu and bottom page navigation.
  */
 export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellProps) {
   const { t, i18n } = useTranslation();
-  const location = useLocation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
   const isCompact = useIsMobile(1024);
@@ -59,7 +53,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
   const chatSeed = useAppSelector((s) => s.aiChat.seedMessage);
   const ccAgent = useAppSelector(selectMyAgent);
   const level = user?.level as UserLevel | undefined;
-  const { active, marketplace, navigation, isLoading, isError } = useHubModules();
+  const { active, marketplace, navigation, isLoading, isError, refetch } = useHubModules();
   useModuleLicenseGate();
 
   const [isDark, setIsDark] = useState(() => { try { return localStorage.getItem('theme') !== 'light'; } catch { return !document.documentElement.classList.contains('light'); } });
@@ -84,56 +78,15 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     }
   });
   const effectiveCollapsed = collapsed ?? isCompact;
+  const sidebarResize = useSidebarWidth(isMobile || effectiveCollapsed);
 
   const navModules = useMemo(() => navigation ?? [...active, ...marketplace], [navigation, active, marketplace]);
   const getDestination = useNavigationHistory(navModules, !isLoading && !isError, readImpersonation(accessToken)?.tenantId);
-  const isHub = location.pathname === '/modules' || location.pathname.startsWith('/modules/');
-  const currentModule = isHub ? undefined : findModuleByPath(location.pathname, navModules);
-  const hubRow = currentModule
-    ? active.find((m) => m.code === currentModule.code)
-    : undefined;
-
-  const inModuleNav =
-    !!currentModule && !isHub && currentModule.code !== 'overview';
-  const showSidebar = inModuleNav && !isMobile;
-
-  const pageSource = hubRow?.pages ?? currentModule?.pages ?? EMPTY_PAGES;
-  const navPages = useMemo(() => inModuleNav && currentModule
-    ? filterPagesByLevel(pageSource, level) : [], [inModuleNav, currentModule, pageSource, level]);
-
-  const currentPage = inModuleNav ? findPageByPath(location.pathname, navPages) : undefined;
-
-  const moduleTitle = useMemo(() => {
-    if (!currentModule) return t('hub.catalog');
-    if (currentModule.code === 'overview') {
-      return t('nav.dashboard');
-    }
-    return t(hubRow?.labelKey ?? currentModule.labelKey);
-  }, [currentModule, hubRow, t]);
+  const showSidebar = !isMobile;
 
   const licensedModules = useMemo(
     () => navModules.filter((m) => m.licenseStatus === 'active' && filterPagesByLevel(m.pages, level).length > 0),
     [navModules, level],
-  );
-
-  const moduleMenuItems = useMemo(
-    () =>
-      [...licensedModules.map((m) => ({
-        id: m.code,
-        label: t(m.labelKey),
-        to: getDestination(m),
-      })), { id: 'hub', label: t('hub.title'), to: '/modules' }],
-    [licensedModules, getDestination, t],
-  );
-
-  const pageMenuItems = useMemo(
-    () =>
-      navPages.map((p) => ({
-        id: p.id,
-        label: t(p.labelKey),
-        to: p.path,
-      })),
-    [navPages, t],
   );
 
   const paletteItems = useMemo(() => {
@@ -218,6 +171,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
     <ConferenceSessionProvider>
     <Flex direction="column" align="stretch"
       className={cls.shellRoot}
+      style={{ '--shell-expanded-sidebar-width': sidebarResize.width + 'px' } as CSSProperties}
       data-testid="module-shell"
       data-sidebar-collapsed={!isMobile && effectiveCollapsed ? 'true' : 'false'}
       data-phone-sidebar={isMobile ? 'hidden' : undefined}
@@ -225,28 +179,9 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
       <OfflineBanner />
 
       <Flex as="header" className={cls.topbar}>
-        <Flex className={cls.logo} id="shell-logo" aria-hidden="true">
-          <Flex className={cls.logoBox} justify="center">
-            <Phone size={18} aria-hidden />
-          </Flex>
-          <Text as="span" className={cls.logoText}>
-            Krasterisk
-          </Text>
-        </Flex>
+        {!isMobile && <AppBrand className={cls.logo} id="shell-logo" compact={showSidebar && effectiveCollapsed} />}
 
-        {isMobile ? (
-          <MobileModuleMenu />
-        ) : isHub ? (
-          <ModuleBreadcrumbs hubLabel={t('hub.title')} />
-        ) : (
-          <ModuleBreadcrumbs
-            moduleLabel={moduleTitle}
-            moduleCurrent={!!currentModule}
-            moduleItems={moduleMenuItems}
-            pageLabel={currentPage ? t(currentPage.labelKey) : undefined}
-            pageItems={pageMenuItems.length > 0 ? pageMenuItems : undefined}
-          />
-        )}
+        {isMobile && <MobileModuleMenu />}
 
         <Flex className={cls.spacer} />
 
@@ -318,10 +253,14 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
       </Flex>
 
       <Flex align="stretch" className={cls.body}>
-        {showSidebar && currentModule && (
+        {showSidebar && (
           <ModuleShellSidebar
-            moduleTitle={moduleTitle}
-            pages={navPages}
+            modules={navModules}
+            resize={sidebarResize}
+            level={level}
+            isLoading={isLoading}
+            isError={isError}
+            refetch={refetch}
             collapsed={effectiveCollapsed}
             onCollapsedChange={handleCollapsedChange}
           />

@@ -16,3 +16,5 @@
     color: var(--color-foreground); box-shadow: inset 3px 0 0 currentColor;
   }
 }
+
+.pageTitle:focus { outline: none; }

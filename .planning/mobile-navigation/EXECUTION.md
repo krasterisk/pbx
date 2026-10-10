@@ -1,23 +1,21 @@
-# Выполнение навигации: N13 / r5
+# Выполнение навигации — N18 / r10
 
-- Coordinator/executor: /root, mode codex-direct, единственный writer. Coordination idle: пользовательское задание N13 реализовано и автоматические/local-browser проверки завершены. Делегированных writers нет, review координатором, не independent.
-- Current PLAN: [PLAN](PLAN.md), 2026-10-10-r5, N13; SHA-256: 410acdc7ee5a045b6737bfa4b77c426e3f70e1c089850cf9e4a6db25c0b18eb6.
-- User assignment: раскрывающиеся разделы со всеми подразделами в левом Sheet вместо немедленного перехода на первую страницу.
-- Baseline: main/e5a1e202 + чужой endpoints/dialplan/tsbuildinfo diff. Предыдущий r4 уже в HEAD. SHA-256 сохранённых чужих файлов совпадает с baseline-r5.json после проверок.
-- Owned paths: MobileModuleMenu component/SCSS/tests, navigation contract frontend ARCHITECTURE, собственные PLAN/EXECUTION/SUMMARY и строка registry/index. Backend/registry/router/storage/root STATE/ROADMAP/чужой dirty diff read-only и не менялись.
+/root sole coordinator/executor, codex-direct; coordination idle. Current [PLAN](PLAN.md) N18/r10, 2026-10-11; SHA-256 7d02d1486956084fb9fdf946c52731c63dbe38649236d1f53e228e4d233e0dd9. Baseline main/7b12985c + N14-N17/foreign dirty diff preserved. No delegated writers; self-review not independent.
 
-| Gate N13 | Статус |
+Owned: MobileBottomBar/**, ModuleNavigation/** and affected shell/mobile-menu tests, navigation architecture paragraph and own planning docs/index/registry row. One-page sections after RBAC filtering are direct links without disclosure/duplicated children; bottom single shows only static centered section name with no Sheet/shortcut. Multi-page behavior and unavailable Hub links retained. Other paths read-only.
+
+| Gate | Status |
 |---|---|
 | Implementation | implemented |
-| Targeted menu/shell/bottom | pass: 4 files / 50 tests |
-| TypeScript / lint | pass: 0 errors, existing warnings |
-| Full backend | pass: 388 suites / 3662 tests, existing skips |
-| Full frontend | pass: 329 files / 1749 tests |
-| Local Chromium mock API | pass: 18 scenarios, dark/light, 320/390/767px |
-| Screenshots | self-reviewed |
-| Real phone / screen reader / human UAT | pending, внешние gates r4 не закрываются local mocks |
-| Release | not-applicable; commit/push/deploy не назначены |
+| Targeted | PASS 5 files / 66 tests |
+| Root lint / TypeScript | PASS exit 0; existing lint warnings |
+| Full frontend | PASS 331 files / 1769 tests, exit 0 |
+| Full backend | PASS 388 suites / 3662 tests, exit 0; existing 1 suite / 11 skipped |
+| Local Chromium mocked API | PASS 22 checks, errors=[]; desktop/compact and phone 320/390 dark/light |
+| Screenshot review | self-reviewed |
+| Real device/screen-reader/human UAT/live authenticated API | pending external |
+| Release | not-applicable; commit/push/deploy not assigned |
 
-Evidence/files/behavior: [SUMMARY](SUMMARY.md), historical [r4](SUMMARY-r4.md), [r3](SUMMARY-r3.md). Временный Vite 3017 остановлен; пользовательские 3010/backend не трогались.
+[SUMMARY](SUMMARY.md), previous [r9](SUMMARY-r9.md). Foreign ten SHA-256 matches baseline-r6.json. Temporary Vite 3017 stopped; user dev servers unchanged.
 
-Next action: внешний real-device/screen-reader/UAT по N12/N13 при наличии устройств/участников. Новых functional tasks не назначено; дальнейший пользовательский запрос требует сверки актуального baseline и владельцев. Соседние фазы не закрываются.
+Next action: external real-device/screen-reader/UAT when devices/participants are supplied. No functional work remains in N18; new request requires baseline/ownership check. Adjacent initiatives/root STATE/ROADMAP preserved.

@@ -6181,6 +6181,7 @@ export const en = {
     home: "Home",
     breadcrumbLabel: "Breadcrumb",
     collapseSidebar: "Collapse",
+    resizeSidebar: "Resize navigation sidebar",
     expandSidebar: "Expand",
   },
   marketplace: {

@@ -72,3 +72,5 @@ export type { AuthMode, WebhookHeader } from './WebhookAuthConfig/WebhookAuthCon
 export * from './ModalLayout';
 
 export { NavItem, isPlainNavigationClick } from './NavItem';
+
+export { AppBrand } from './AppBrand';

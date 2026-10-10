@@ -114,7 +114,7 @@ describe('MobileBottomBar section pages', () => {
     expect(screen.getByTestId('bottom-bar-page-settings')).toBeInTheDocument();
   });
 
-  it('retains every page when a section has many pages and reveals the active one', () => {
+  it('retains every page when a section has many pages', () => {
     const manyPages = Array.from({ length: 12 }, (_, i) => ({
       id: `page-${i}`, path: `/page-${i}`, labelKey: `page.${i}`, icon: Phone,
     }));
@@ -125,7 +125,74 @@ describe('MobileBottomBar section pages', () => {
     renderAt('/page-11');
     expect(within(screen.getByTestId('bottom-bar-pages')).getAllByRole('link')).toHaveLength(12);
     expect(screen.getByTestId('bottom-bar-page-page-11')).toHaveAttribute('aria-current', 'page');
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+  });
+
+  it('reveals a clipped link with minimal scroll on resize and reselection from the Sheet', () => {
+    renderAt('/trunks');
+    const strip = screen.getByTestId('bottom-bar-pages');
+    const selected = screen.getByTestId('bottom-bar-page-trunks');
+    Object.defineProperties(strip, { clientWidth: { value: 240 }, scrollWidth: { value: 800 } });
+    vi.spyOn(strip, 'getBoundingClientRect').mockImplementation(() => ({ left: 80, right: 320, width: 240 }) as DOMRect);
+    vi.spyOn(selected, 'getBoundingClientRect').mockImplementation(() => ({ left: 440 - strip.scrollLeft, right: 520 - strip.scrollLeft, width: 80 }) as DOMRect);
+    fireEvent(window, new Event('resize'));
+    expect(strip.scrollLeft).toBe(208);
+    strip.scrollLeft = 100;
+    fireEvent.click(screen.getByTestId('bottom-bar-section-trigger'));
+    fireEvent.click(within(screen.getByTestId('bottom-bar-page-menu')).getByRole('link', { name: 'nav.trunks' }));
+    expect(strip.scrollLeft).toBe(208);
+    expect(screen.queryByTestId('bottom-bar-page-menu')).toBeNull();
+    strip.scrollLeft = 50;
+    fireEvent.click(selected);
+    expect(strip.scrollLeft).toBe(208);
+  });
+
+  it('keeps scroll position when the selected link is already visible', () => {
+    renderAt('/trunks');
+    const strip = screen.getByTestId('bottom-bar-pages');
+    Object.defineProperties(strip, { clientWidth: { value: 240 }, scrollWidth: { value: 800 } });
+    vi.spyOn(strip, 'getBoundingClientRect').mockReturnValue({ left: 80, right: 320, width: 240 } as DOMRect);
+    vi.spyOn(screen.getByTestId('bottom-bar-page-trunks'), 'getBoundingClientRect').mockImplementation(() => ({ left: 220 - strip.scrollLeft, right: 300 - strip.scrollLeft, width: 80 }) as DOMRect);
+    strip.scrollLeft = 60;
+    fireEvent(window, new Event('resize'));
+    expect(strip.scrollLeft).toBe(60);
+    fireEvent.click(screen.getByTestId('bottom-bar-page-trunks'));
+    expect(strip.scrollLeft).toBe(60);
+  });
+
+  it.each([['first', 84, 560, 0], ['last', 800, 0, 560]] as const)(
+    'reveals the %s page without scrolling into blank edge space', (_, left, initial, expected) => {
+      renderAt('/trunks');
+      const strip = screen.getByTestId('bottom-bar-pages');
+      Object.defineProperties(strip, { clientWidth: { value: 240 }, scrollWidth: { value: 800 } });
+      vi.spyOn(strip, 'getBoundingClientRect').mockReturnValue({ left: 80, right: 320, width: 240 } as DOMRect);
+      vi.spyOn(screen.getByTestId('bottom-bar-page-trunks'), 'getBoundingClientRect').mockImplementation(() => ({ left: left - strip.scrollLeft, right: left + 80 - strip.scrollLeft, width: 80 }) as DOMRect);
+      strip.scrollLeft = initial;
+      fireEvent(window, new Event('resize'));
+      expect(strip.scrollLeft).toBe(expected);
+    },
+  );
+
+  it('moves only as far as needed to reveal a clipped link on the left', () => {
+    renderAt('/trunks');
+    const strip = screen.getByTestId('bottom-bar-pages');
+    Object.defineProperties(strip, { clientWidth: { value: 240 }, scrollWidth: { value: 800 } });
+    vi.spyOn(strip, 'getBoundingClientRect').mockReturnValue({ left: 80, right: 320, width: 240 } as DOMRect);
+    vi.spyOn(screen.getByTestId('bottom-bar-page-trunks'), 'getBoundingClientRect').mockImplementation(() => ({ left: 240 - strip.scrollLeft, right: 320 - strip.scrollLeft, width: 80 }) as DOMRect);
+    strip.scrollLeft = 200;
+    fireEvent(window, new Event('resize'));
+    expect(strip.scrollLeft).toBe(152);
+  });
+
+  it('keeps an oversized link start-aligned instead of oscillating on repeated resize', () => {
+    renderAt('/trunks');
+    const strip = screen.getByTestId('bottom-bar-pages');
+    Object.defineProperties(strip, { clientWidth: { value: 80 }, scrollWidth: { value: 400 } });
+    vi.spyOn(strip, 'getBoundingClientRect').mockReturnValue({ left: 80, right: 160, width: 80 } as DOMRect);
+    vi.spyOn(screen.getByTestId('bottom-bar-page-trunks'), 'getBoundingClientRect').mockImplementation(() => ({ left: 240 - strip.scrollLeft, right: 388 - strip.scrollLeft, width: 148 }) as DOMRect);
+    fireEvent(window, new Event('resize'));
+    expect(strip.scrollLeft).toBe(152);
+    fireEvent(window, new Event('resize'));
+    expect(strip.scrollLeft).toBe(152);
   });
 
   it('scrolls by mouse drag without navigating on the release click', () => {
@@ -169,7 +236,18 @@ describe('MobileBottomBar section pages', () => {
   it('shows Hub title without unrelated page shortcuts on the Hub route', () => {
     renderAt('/modules');
     expect(screen.getByTestId('bottom-bar-section')).toHaveTextContent('hub.title');
-    expect(within(screen.getByTestId('bottom-bar-pages')).queryByRole('button')).toBeNull();
+    expect(screen.queryByTestId('bottom-bar-pages')).toBeNull();
+  });
+
+  it.each(['single', 'permission-filtered'])('does not repeat the sole accessible page (%s)', (kind) => {
+    userLevel = kind === 'permission-filtered' ? UserLevel.OPERATOR : UserLevel.ADMIN;
+    const pages = kind === 'single' ? [coreRow.pages[0]] : [coreRow.pages[0], {...coreRow.pages[1], minLevels: [UserLevel.ADMIN]}];
+    vi.mocked(useHubModules).mockReturnValue({ active: [{...coreRow, pages}], marketplace: [], isLoading: false, suppressedCodes: [], favoriteCodes: [], toggleFavorite: vi.fn(), isFavorite: () => false });
+    renderAt('/endpoints');
+    expect(screen.getByTestId('bottom-bar-section')).toHaveTextContent('nav.pbx');
+    expect(screen.queryByTestId('bottom-bar-section-trigger')).toBeNull();
+    expect(screen.queryByTestId('bottom-bar-pages')).toBeNull();
+    expect(within(screen.getByTestId('mobile-bottom-bar')).queryByRole('link')).toBeNull();
   });
 
   it('does not expose pages of a disabled module', () => {

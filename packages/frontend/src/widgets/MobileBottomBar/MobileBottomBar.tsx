@@ -1,7 +1,7 @@
-import { memo, useEffect, useMemo, useRef, useState, type PointerEvent, type MouseEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type MouseEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { NavItem, Text } from '@/shared/ui';
+import { NavItem, Text, isPlainNavigationClick } from '@/shared/ui';
 import { Flex } from '@/shared/ui/Stack';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
@@ -32,6 +32,7 @@ export const MobileBottomBar = memo(function MobileBottomBar() {
   const activeButtonRef = useRef<HTMLAnchorElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
   const dragRef = useRef<{ pointerId: number; startX: number; scrollLeft: number; dragged: boolean } | null>(null);
   const suppressClickRef = useRef(false);
   const [dragging, setDragging] = useState(false);
@@ -82,16 +83,41 @@ export const MobileBottomBar = memo(function MobileBottomBar() {
     event.stopPropagation();
   };
 
+  const revealSelected = useCallback(() => {
+    const strip = stripRef.current;
+    const activeButton = activeButtonRef.current;
+    if (!strip || !activeButton) return;
+    const stripRect = strip.getBoundingClientRect();
+    const buttonRect = activeButton.getBoundingClientRect();
+    const start = stripRect.left + strip.clientLeft + 8;
+    const end = stripRect.left + strip.clientLeft + strip.clientWidth - 8;
+    const offset = buttonRect.width > end - start || buttonRect.left < start
+      ? buttonRect.left - start
+      : buttonRect.right > end ? buttonRect.right - end : 0;
+    if (!offset) return;
+    const maxScroll = Math.max(0, strip.scrollWidth - strip.clientWidth);
+    strip.scrollLeft = Math.max(0, Math.min(maxScroll, strip.scrollLeft + offset));
+  }, []);
+
   useEffect(() => {
-    if (isMobile) {
-      activeButtonRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-    }
-  }, [isMobile, pathname, currentPage?.id]);
+    const strip = stripRef.current;
+    const activeButton = activeButtonRef.current;
+    if (!isMobile || !strip || !activeButton) return;
+    revealSelected();
+    window.addEventListener('resize', revealSelected);
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(revealSelected);
+    observer?.observe(strip);
+    Array.from(strip.children).forEach((page) => observer?.observe(page));
+    return () => { window.removeEventListener('resize', revealSelected); observer?.disconnect(); };
+  }, [isMobile, pathname, currentPage?.id, pages, revealSelected]);
 
   useEffect(() => {
     const strip = stripRef.current;
     if (!isMobile || !strip) return;
-    const update = () => setHasMore(strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 2);
+    const update = () => {
+      setHasPrevious(strip.scrollLeft > 2);
+      setHasMore(strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 2);
+    };
     update();
     strip.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
@@ -111,12 +137,13 @@ export const MobileBottomBar = memo(function MobileBottomBar() {
       className={cls.bar}
       data-testid="mobile-bottom-bar"
       data-module-code={currentModule?.code ?? 'hub'}
+      data-single-page={pages.length === 1 ? 'true' : undefined}
       aria-label={t('hub.breadcrumbLabel')}
     >
       <Flex className={cls.section} justify='center'>
-        <MobilePageMenu title={title} pages={pages} currentPage={currentPage} />
+        <MobilePageMenu title={title} pages={pages} currentPage={currentPage} onSelect={revealSelected} />
       </Flex>
-      <Flex className={cls.pagesWrap} data-has-more={hasMore ? 'true' : undefined}>
+      {pages.length > 1 && <Flex className={cls.pagesWrap} data-has-more={hasMore ? 'true' : undefined} data-has-previous={hasPrevious ? 'true' : undefined}>
       <Flex
         align="stretch"
         className={cls.pages}
@@ -138,6 +165,7 @@ export const MobileBottomBar = memo(function MobileBottomBar() {
               key={page.id}
               ref={selected ? activeButtonRef : undefined}
               to={page.path}
+              onClick={(event) => { if (selected && isPlainNavigationClick(event)) revealSelected(); }}
               variant="ghost"
               className={`${cls.item}${selected ? ` ${cls.active}` : ''}`}
               data-testid={`bottom-bar-page-${page.id}`}
@@ -150,7 +178,7 @@ export const MobileBottomBar = memo(function MobileBottomBar() {
           );
         })}
       </Flex>
-      </Flex>
+      </Flex>}
     </Flex>
   );
 });

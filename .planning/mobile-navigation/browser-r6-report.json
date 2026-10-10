@@ -1,0 +1,150 @@
+{
+  "kind": "local-Chromium-with-mocked-API",
+  "checks": [
+    {
+      "name": "dark-left-alignment-and-midpoint-control",
+      "result": "pass",
+      "width": 1280,
+      "docWidth": 1280,
+      "sidebarLeft": 0,
+      "buttonLeft": 0,
+      "sidebarCenter": 478,
+      "buttonCenter": 478,
+      "buttonText": "",
+      "hit": true,
+      "justify": [
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start"
+      ],
+      "icons": [
+        34,
+        34,
+        34,
+        34,
+        34,
+        34,
+        34,
+        34
+      ],
+      "footerIcon": 34,
+      "buttonRight": 24
+    },
+    {
+      "name": "dark-existing-logo-loaded",
+      "result": "pass"
+    },
+    {
+      "name": "dark-compact-logo-and-expand-control",
+      "result": "pass"
+    },
+    {
+      "name": "dark-persistence-and-label-restore",
+      "result": "pass"
+    },
+    {
+      "name": "dark-expanded-layout-1024",
+      "result": "pass",
+      "width": 1024,
+      "docWidth": 1024
+    },
+    {
+      "name": "dark-expanded-layout-820",
+      "result": "pass",
+      "width": 820,
+      "docWidth": 820
+    },
+    {
+      "name": "dark-expanded-layout-768",
+      "result": "pass",
+      "width": 768,
+      "docWidth": 768
+    },
+    {
+      "name": "dark-mobile-sheet-brand-390",
+      "result": "pass"
+    },
+    {
+      "name": "dark-mobile-sheet-brand-320",
+      "result": "pass"
+    },
+    {
+      "name": "light-left-alignment-and-midpoint-control",
+      "result": "pass",
+      "width": 1280,
+      "docWidth": 1280,
+      "sidebarLeft": 0,
+      "buttonLeft": 0,
+      "sidebarCenter": 478,
+      "buttonCenter": 478,
+      "buttonText": "",
+      "hit": true,
+      "justify": [
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start",
+        "flex-start"
+      ],
+      "icons": [
+        34,
+        34,
+        34,
+        34,
+        34,
+        34,
+        34,
+        34
+      ],
+      "footerIcon": 34,
+      "buttonRight": 24
+    },
+    {
+      "name": "light-existing-logo-loaded",
+      "result": "pass"
+    },
+    {
+      "name": "light-compact-logo-and-expand-control",
+      "result": "pass"
+    },
+    {
+      "name": "light-persistence-and-label-restore",
+      "result": "pass"
+    },
+    {
+      "name": "light-expanded-layout-1024",
+      "result": "pass",
+      "width": 1024,
+      "docWidth": 1024
+    },
+    {
+      "name": "light-expanded-layout-820",
+      "result": "pass",
+      "width": 820,
+      "docWidth": 820
+    },
+    {
+      "name": "light-expanded-layout-768",
+      "result": "pass",
+      "width": 768,
+      "docWidth": 768
+    },
+    {
+      "name": "light-mobile-sheet-brand-390",
+      "result": "pass"
+    },
+    {
+      "name": "light-mobile-sheet-brand-320",
+      "result": "pass"
+    }
+  ],
+  "errors": []
+}

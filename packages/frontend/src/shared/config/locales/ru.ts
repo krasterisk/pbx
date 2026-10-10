@@ -6285,6 +6285,7 @@ export const ru = {
     home: "Главная",
     breadcrumbLabel: "Навигация",
     collapseSidebar: "Свернуть",
+    resizeSidebar: "Изменить ширину панели навигации",
     expandSidebar: "Развернуть",
   },
   marketplace: {
