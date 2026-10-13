@@ -32,6 +32,7 @@ export type ReasonedModule = {
 export type ModuleCoverageEntry = CoveredModule | ReasonedModule;
 
 export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
+  support: {kind:'covered',domain:'support',sharedSkill:'helpdesk-support',capability:'read'},
   'ai-agents': {
     kind: 'infrastructure',
     reason:

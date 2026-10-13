@@ -1,5 +1,6 @@
+import { stateFingerprint, routeState } from '../ai-platform/ai-state-fingerprint';
 import type { Transaction } from 'sequelize';
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ensureCdrVpbxUserUidInDialplan, parseRouteDialPattern, validateRouteDialPatterns, routeExecutionContext, routeDialPatternKey } from '@krasterisk/shared';
 import type { CallValueSource, IDirectoryBehaviorParams, ITimeGroupInterval } from '@krasterisk/shared';
@@ -308,7 +309,7 @@ export class RoutesService {
   }
 
   /** Update an existing route */
-  async update(uid: number, data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number, transaction?: Transaction): Promise<Route> {
+  async update(uid: number, data: Partial<Route> & { bindings?: RouteBindingInput[] }, vpbxUserUid: number, transaction?: Transaction, expectedStateHash?: string): Promise<Route> {
     if (!transaction && this.routeModel.sequelize) {
       const db = this.routeModel.sequelize;
       return db.transaction(async (tx) => {
@@ -316,11 +317,12 @@ export class RoutesService {
         // pairs even when two requests create/update concurrently.
         const owned = await db.models.Context.findAll({ where: { user_uid: vpbxUserUid }, order: [['uid', 'ASC']], transaction: tx, lock: tx.LOCK.UPDATE });
         if (data.context_uid !== undefined && !owned.some((context) => Number(context.get('uid')) === data.context_uid)) throw new NotFoundException('Context not found');
-        return this.update(uid, data, vpbxUserUid, tx);
+        return this.update(uid, data, vpbxUserUid, tx, expectedStateHash);
       });
     }
 
     const route = await this.findOne(uid, vpbxUserUid, transaction);
+    if (expectedStateHash && stateFingerprint(routeState(route)) !== expectedStateHash) throw new ConflictException('Route changed after approval');
     const { bindings, ...rest } = data as any;
     if (rest.actions !== undefined) {
       throwIfInvalidActionPayload({ actions: rest.actions });
@@ -372,15 +374,15 @@ export class RoutesService {
   }
 
   /** Format a single TimeGroup interval for ExecIfTime (shared with schedule action). */
-  private formatTimeGroupInterval(interval: ITimeGroupInterval): string {
-    return formatTimeGroupInterval(interval);
+  private formatTimeGroupInterval(interval: ITimeGroupInterval,timezone?:string): string {
+    return formatTimeGroupInterval(interval,timezone);
   }
 
   /** Build uid → ExecIfTime interval expressions map from tenant time groups. */
-  private buildTimeGroupIntervalMap(timeGroups: { uid: number; intervals?: ITimeGroupInterval[] }[]): Map<number, string[]> {
+  private buildTimeGroupIntervalMap(timeGroups: { uid: number; intervals?: ITimeGroupInterval[] }[], timezone?:string): Map<number, string[]> {
     const map = new Map<number, string[]>();
     for (const tg of timeGroups) {
-      const exprs = (tg.intervals || []).map((i) => this.formatTimeGroupInterval(i));
+      const exprs = (tg.intervals || []).map((i) => this.formatTimeGroupInterval(i,timezone));
       if (exprs.length) map.set(tg.uid, exprs);
     }
     return map;
@@ -522,22 +524,25 @@ export class RoutesService {
         if (typeof tgUid === 'number') guardedUids.add(tgUid);
       }
       for (const uid of guardedUids) {
+        lines.push(`same => n,Set(__WT_${uid}=0)`);
         const intervalExprs = timeGroupIntervals.get(uid);
         if (!intervalExprs?.length) {
-          this.logger.warn(`Route ${route.uid}: time_group_uid ${uid} not found or has no intervals — action unguarded`);
-          lines.push(`same => n,NoOp(Warning: time group ${uid} not found — action unguarded)`);
+          this.logger.warn(`Route ${route.uid}: time_group_uid ${uid} not found or has no intervals — action blocked`);
+          lines.push(`same => n,NoOp(Warning: time group ${uid} not found — action blocked)`);
           continue;
         }
-        lines.push(`same => n,Set(__WT_${uid}=0)`);
-        for (const expr of intervalExprs) {
-          lines.push(`same => n,ExecIfTime(${expr}?Set(__WT_${uid}=1))`);
+        for (const [index,expr] of intervalExprs.entries()) {
+          const label=`wt_${route.uid}_${uid}_${index}`;
+          lines.push(`same => n,GotoIfTime(${expr}?${label}_open:${label}_done)`);
+          lines.push(`same => n(${label}_open),Set(__WT_${uid}=1)`);
+          lines.push(`same => n(${label}_done),NoOp(Calendar interval checked)`);
         }
       }
 
       // Pass webhooks context so Dial/Queue actions can add U()/gosub for on_answer
       for (const action of actions) {
         const tgUid = action.condition?.time_group_uid;
-        const hasTg = typeof tgUid === 'number' && !!timeGroupIntervals.get(tgUid)?.length;
+        const hasTg = typeof tgUid === 'number';
         const dp = renderActionChain([action], {
           vpbxUserUid,
           host: 'route',
@@ -576,7 +581,7 @@ export class RoutesService {
   async generateContextDialplan(contextUid: number, vpbxUserUid: number, contextName: string, includes: string[], isAdmin: boolean = false): Promise<string> {
     const routes = await this.findAllByContext(contextUid, vpbxUserUid);
     const timeGroups = await this.timeGroupsService.findAll(vpbxUserUid);
-    const timeGroupIntervals = this.buildTimeGroupIntervalMap(timeGroups);
+    const timeGroupIntervals = this.buildTimeGroupIntervalMap(timeGroups,await this.timeGroupsService.timezone(vpbxUserUid));
     const lines: string[] = [];
 
     const tenantedContextName = this.buildContextName(contextName, vpbxUserUid);

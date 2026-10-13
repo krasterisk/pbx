@@ -1,3 +1,4 @@
+import { stateFingerprint, routeState } from '../ai-platform/ai-state-fingerprint';
 import { callerIdV2Errors, directoryStepErrors, isRouteDialPattern, serializeRouteDialPattern, validateRouteDialPatterns, type RouteDialPattern } from '@krasterisk/shared';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
@@ -36,7 +37,7 @@ import type { DialplanAction, DialplanHost } from '@krasterisk/shared';
 import { countDialplanAppUsage, listDialplanAppCatalog } from './dialplan-app-catalog';
 import { SaProject } from '../speech-analytics/speech-analytics.models';
 
-const SCHEMA_VERSION = 'routes-4';
+const SCHEMA_VERSION = 'routes-5';
 const dialRuleSchema = z.string().min(1).max(160).refine(isRouteDialPattern, 'Invalid extension/Caller ID rule');
 const ruleListSchema = z.array(dialRuleSchema).min(1).max(100).refine((values) => { try { validateRouteDialPatterns(values); return true; } catch { return false; } }, 'Invalid or duplicate dial rules');
 const pairSchema = z.strictObject({ extension: z.string(), callerId: z.string().optional().describe('Нет поля: любой вызывающий; пустая строка: без Caller ID; номер или шаблон, например _2XX') });
@@ -85,7 +86,7 @@ const updateRouteInput = z.strictObject({
   options: routeOptionsSchema.optional(),
   webhooks: z.record(z.string(), z.unknown()).optional(),
 });
-const updateRouteArgs = updateRouteInput.omit({ dial_patterns: true }).extend({ context_uid: z.number().int().positive() });
+const updateRouteArgs = updateRouteInput.omit({ dial_patterns: true }).extend({ context_uid: z.number().int().positive(), expected_hash: z.string().length(64) });
 type UpdateRouteInput = z.infer<typeof updateRouteInput>;
 type UpdateRouteArgs = z.infer<typeof updateRouteArgs>;
 
@@ -385,21 +386,23 @@ export class RoutesAiAdapter implements DomainAiAdapter, OnModuleInit {
         if (input.dial_patterns) { const { dial_patterns, ...patch } = input; input = { ...patch, extensions: dial_patterns.map(serializeRouteDialPattern) }; }
         if (Object.keys(input).length < 2) return { refused: true, message: 'Не указано ни одного изменения.' };
         const current = await this.routesService.findOne(input.id, ctx.vpbxUserUid);
+        if(current.raw_dialplan?.trim())return {refused:true,message:'Маршрут содержит ручной диалплан; требуется уточнение владельца'};
         const check = await this.validateUpdatedRoute(current, input, ctx);
         if (!check.ok) return { refused: true, message: check.reason };
         const before = { name: current.name, extensions: current.extensions, actions: current.actions, active: !!current.active, options: current.options, webhooks: current.webhooks };
-        return this.proposal('update_route', current.name, { ...input, context_uid: current.context_uid }, before, { ...before, ...input, options: { ...current.options, ...input.options } }, [`Изменить маршрут «${current.name}»`, 'После подтверждения диалплан будет перезагружен']);
+        return this.proposal('update_route', current.name, { ...input, context_uid: current.context_uid, expected_hash: stateFingerprint(routeState(current)) }, before, { ...before, ...input, options: { ...current.options, ...input.options } }, [`Изменить маршрут «${current.name}»`, 'После подтверждения диалплан будет перезагружен']);
       },
       revalidate: async (args, ctx) => {
         const current = await this.routesService.findOne(args.id, ctx.vpbxUserUid);
+        if (args.expected_hash !== stateFingerprint(routeState(current))) return { ok: false, reason: 'Маршрут изменился после согласования; обновите предложение.' };
         if (current.context_uid !== args.context_uid) return { ok: false, reason: 'Контекст маршрута изменился; обновите предложение.' };
         const check = await this.validateUpdatedRoute(current, args, ctx);
         return check.ok ? { ok: true, args } : check;
       },
       apply: async (args, ctx) => {
-        const { id, context_uid: _context, ...patch } = args;
+        const { id, context_uid: _context, expected_hash, ...patch } = args;
         const current = await this.routesService.findOne(id, ctx.vpbxUserUid);
-        await this.routesService.update(id, { ...patch, ...(patch.options === undefined ? {} : { options: { ...current.options, ...patch.options } }), ...(patch.active === undefined ? {} : { active: patch.active ? 1 : 0 }) } as never, ctx.vpbxUserUid);
+        await this.routesService.update(id, { ...patch, ...(patch.options === undefined ? {} : { options: { ...current.options, ...patch.options } }), ...(patch.active === undefined ? {} : { active: patch.active ? 1 : 0 }) } as never, ctx.vpbxUserUid, undefined, expected_hash);
       },
     });
   }

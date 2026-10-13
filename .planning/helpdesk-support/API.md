@@ -1,0 +1,11 @@
+# Helpdesk integration
+
+Apply additive migration0035 using the existing migration runner for the chosen DB. Configure an integration credential of product `pbx_support` under `/api/v1/integrations` as an active tenant administrator. Grants use resourceKind `pbx`, resourceId the integration principal ID and explicit scopes: `support:read:TOOL`, `support:propose:TOOL`, plus trusted executor `support:apply`, `support:reject`, `support:status`. Permission revision changes invalidate plans. Credentials belong in the helpdesk binding vault, never in model arguments.
+
+Source URL in helpdesk: `https://SERVER/api/support/v1`. `GET capabilities` exposes only granted operations/schemas. `POST mcp` serves stateless initialization/discovery/read tools; each call authenticates the integration and tenant. Discovery does not grant rights. Changes use `POST proposals {operation,arguments,request_id}`, then `GET proposals/ID`; `POST .../apply` or `.../reject` takes the exact `{hash}`, and `.../verify` is readonly. These executor operations are outside model discovery. Default approval is mandatory for route/calendar/probe changes and customer email remains separately approved.
+
+A proposal stores a bounded dependent DAG and original state, generator preview, tool and permission revisions; changes in entities/tenant grants cause refusal. Claim is saved before execution. Unknown/partial execution never automatically replays; inspect status and verify. Support can remove a selected existing forwarding step and attach calendars; new targets/raw dialplan are unavailable. Calendars use IANA timezone and exclusive end (08:00–22:00 generates through21:59). Missing/foreign calendars block generation; interval edits require every consumer reload in the approved DAG.
+
+STT diagnostic probe uses the existing provider factory and synthetic one-second PCM16/8kHz/mono, bounded timeout and quota. Only numeric error/format/presence metadata reaches helpdesk; provider credentials, transcripts and raw exceptions are discarded. An API response is not proof of live RTP/audio quality.
+
+Install on a customer server only after compatibility/migration/backup review and start with readonly grants. This publication does not deploy v4 or develop the voice runtime. `harness/helpdesk-support/README.md` describes synthetic runtime gates.

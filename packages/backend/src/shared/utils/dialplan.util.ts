@@ -945,9 +945,19 @@ export function findUnreachableSteps(actions: Array<{ type: string }>): number[]
  * Shared time_group / schedule interval → ExecIfTime / GotoIfTime expression
  * (time,dow,dom,months). Used by route time-group guards and the schedule action.
  */
-export function formatTimeGroupInterval(interval: ITimeGroupInterval): string {
-  const timeExpr = `${interval.time_start}-${interval.time_end}`;
-  return `${timeExpr},${interval.days_of_week},${interval.days_of_month},${interval.months}`;
+export function formatTimeGroupInterval(interval: ITimeGroupInterval, fallbackTimezone?: string): string {
+  const validRange=(value:string,universe:readonly string[]):boolean=>typeof value==='string'&&(value==='*'||value.split(',').every(part=>{const ends=part.toLowerCase().split('-');return ends.length<=2&&ends.every(token=>universe.includes(token));}));
+  if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(interval.time_start)||!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(interval.time_end))throw new Error('calendar_time_invalid');
+  if(!validRange(interval.days_of_week,['sun','mon','tue','wed','thu','fri','sat'])||!validRange(interval.months,['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'])||!validRange(interval.days_of_month,Array.from({length:31},(_,i)=>String(i+1))))throw new Error('calendar_range_invalid');
+  if(interval.time_start===interval.time_end)throw new Error('calendar_empty_interval');
+  // API/UI evaluate [start,end); Asterisk's end minute is inclusive.
+  const [hour,minute]=interval.time_end.split(':').map(Number);
+  const end=(hour*60+minute+1439)%1440;
+  const last=`${String(Math.floor(end/60)).padStart(2,'0')}:${String(end%60).padStart(2,'0')}`;
+  const timezone=interval.timezone||fallbackTimezone;
+  if(timezone){if(!/^[A-Za-z0-9_+/-]{1,80}$/.test(timezone))throw new Error('calendar_timezone_invalid');new Intl.DateTimeFormat('en',{timeZone:timezone});}
+  const tokens=(s:string)=>s.replace(/,/g,'&');
+  return `${interval.time_start}-${last},${tokens(interval.days_of_week)},${tokens(interval.days_of_month)},${tokens(interval.months)}${timezone?','+timezone:''}`;
 }
 
 /** Prefix a generated application so a leading `(name),` becomes `n(name)`. */

@@ -1,3 +1,4 @@
+import { SupportPlan } from '../modules/support/support-plan.model';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD } from '@nestjs/core';
@@ -237,7 +238,7 @@ export const PBX_CORE_MODELS = [
   CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
   CcDisplayToken, CcAlertConfig, CcChatMessage, CcChatChannel, CcCardTemplate,
   CcCardField, CcCardData, CcReportSchedule, CcAiProvider, CcAiAuditLog,
-  AgentThread, AgentThreadMessage, AgentProposal, AgentWorkflow, AgentWorkflowStep,
+  AgentThread, AgentThreadMessage, AgentProposal, AgentWorkflow, AgentWorkflowStep, SupportPlan,
   AiChatSettings, TimeGroup, Directory, DirectoryField, DirectoryRecord,
   RouteDirectoryBinding, RouteTemplate, VoicemailMessage, VoicemailAccessToken,
   CallbackRequest, NotificationIntegration, CallGroup, CallGroupMember,

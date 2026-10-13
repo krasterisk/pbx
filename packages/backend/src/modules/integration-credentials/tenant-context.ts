@@ -7,10 +7,10 @@ export type TenantContext = Readonly<{
   requestId: string;
 }>;
 
-export type ProductResourceKind = 'project' | 'deployment';
+export type ProductResourceKind = 'project' | 'deployment' | 'pbx';
 
 export interface ProductResourceReference {
-  product: 'speech_analytics' | 'ai_voice_robots';
+  product: 'speech_analytics' | 'ai_voice_robots' | 'pbx_support';
   action: string;
   resourceKind: ProductResourceKind;
   resourceId: string;

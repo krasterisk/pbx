@@ -13,6 +13,8 @@ export interface ITimeGroupInterval {
   days_of_month: string;
   /** Months: "jan-jun" | "jan" | "*" (all) */
   months: string;
+  /** IANA timezone. Omitted intervals inherit the tenant timezone. */
+  timezone?: string;
 }
 
 export interface ITimeGroup {

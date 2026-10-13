@@ -1,0 +1,3 @@
+FROM php:8.2-apache-bullseye
+RUN sed -i "/bullseye-security/d" /etc/apt/sources.list && apt-get update && apt-get install -y --no-install-recommends asterisk && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["/usr/sbin/asterisk", "-f"]

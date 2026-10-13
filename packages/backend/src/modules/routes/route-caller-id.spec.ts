@@ -1,7 +1,7 @@
 import { RoutesService } from './routes.service';
 import { routeExecutionContext } from '@krasterisk/shared';
 function fixture(rows: any[]) {
-  const service = new RoutesService({ findAll: jest.fn(async () => rows) } as never, {} as never, {} as never, {} as never, { findAll: async () => [] } as never);
+  const service = new RoutesService({ findAll: jest.fn(async () => rows) } as never, {} as never, {} as never, {} as never, { findAll: async () => [],timezone:async()=> 'Europe/Moscow' } as never);
   service.findAllByContext = jest.fn(async () => rows);
   return service;
 }

@@ -1,0 +1,36 @@
+services:
+  mysql:
+    image: mysql:8.4.11
+    environment:
+      MYSQL_ROOT_PASSWORD: fixture-v4-mysql-only
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: krasterisk_ci_supportlab
+    ports: ["127.0.0.1:13319:3306"]
+    tmpfs: ["/var/lib/mysql:size=320m"]
+    command: ["--innodb-redo-log-capacity=8388608", "--skip-log-bin", "--innodb-buffer-pool-size=33554432"]
+    networks: [lab]
+    healthcheck:
+      test: [CMD, mysqladmin, ping, -h, localhost, -pfixture-v4-mysql-only]
+      interval: 3s
+      retries: 40
+  postgres:
+    image: postgres:17.11-bookworm
+    tmpfs: ["/var/lib/postgresql/data:size=256m"]
+    environment:
+      POSTGRES_PASSWORD: fixture-v4-postgres-only
+      POSTGRES_DB: krasterisk_ci_supportlab
+    ports: ["127.0.0.1:15439:5432"]
+    networks: [lab]
+  redis:
+    image: redis:7.4-alpine
+    ports: ["127.0.0.1:16389:6379"]
+    networks: [lab]
+  asterisk:
+    image: ${SUPPORT_ASTERISK_IMAGE:-krasterisk-support-asterisk-r9}
+    build: {context: ., dockerfile: Dockerfile.asterisk}
+    entrypoint: [/usr/sbin/asterisk, -f]
+    ports: ["127.0.0.1:15039:5038"]
+    volumes: ["./asterisk:/etc/asterisk"]
+    networks: [lab]
+networks:
+  lab: {internal: true}

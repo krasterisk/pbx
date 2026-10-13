@@ -149,7 +149,7 @@ describe('Directory step execution', () => {
       {} as never,
       {} as never,
       {} as never,
-      { findAll: jest.fn().mockResolvedValue([]) } as never,
+      { findAll: jest.fn().mockResolvedValue([]),timezone:async()=> 'Europe/Moscow' } as never,
     );
     const route = {
       uid: 3,

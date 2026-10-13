@@ -34,3 +34,5 @@
 | release-4.6.8 | [EXECUTION/PLAN](RELEASE-4.6.8-20261010.md) | Released 4.6.8 / b3eaa72f; all CI and authenticated production smoke PASS |
 
 | release-4.6.9 | [EXECUTION/PLAN](RELEASE-4.6.9-20261011.md) | Released 4.6.9 / 35c29abd; all CI and authenticated production smoke PASS |
+
+| helpdesk-support | [EXECUTION](helpdesk-support/EXECUTION.md) | API/MCP scoped support, canonical helpdesk PLAN revision9; source tested, customer deployment separate |
