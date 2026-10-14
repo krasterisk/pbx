@@ -27,14 +27,11 @@
 }
 
 .toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
+ composes: summaryIcon from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .count {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: summaryCount from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .toolbarActions {
@@ -123,11 +120,8 @@
 
 .mobileCard {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+
   border-left-width: 4px;
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
 }
 
 .cardNew {

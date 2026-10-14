@@ -29,6 +29,8 @@ import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module'
 import { TtsEnginesModule } from '../tts-engines/tts-engines.module';
 import { SttEnginesModule } from '../stt-engines/stt-engines.module';
 import { VoiceRobotsAiAdapter } from './voice-robots-ai.adapter';
+import { VoiceRobotConfigurationService } from './voice-robot-configuration.service';
+import { VoiceRobotToolsService } from './voice-robot-tools.service';
 // STT/TTS Providers (Phase 1)
 import { YandexStreamingSttProvider } from './providers/yandex-streaming-stt.provider';
 import { YandexStreamingTtsProvider } from './providers/yandex-streaming-tts.provider';
@@ -79,6 +81,8 @@ import { SttProviderFactory, TtsProviderFactory } from './providers/provider-fac
     TtsProviderFactory,
     TtsCacheService,
     VoiceRobotsAiAdapter,
+    VoiceRobotConfigurationService,
+    VoiceRobotToolsService,
   ],
   exports: [VoiceRobotsService, RtpUdpServerService, SttProviderFactory],
 })

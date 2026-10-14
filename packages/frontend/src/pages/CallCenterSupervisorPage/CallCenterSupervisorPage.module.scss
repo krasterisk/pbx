@@ -371,9 +371,9 @@
 }
 
 .tableScroll {
-  overflow-x: auto;
+ composes: section from '../../shared/ui/Table/Table.module.scss';
+
   min-width: 0;
-  -webkit-overflow-scrolling: touch;
   width: 100%;
   font-size: 0.875rem;
   line-height: 1.35;

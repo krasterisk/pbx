@@ -11,13 +11,12 @@ const other = { id: 'other', path: '/other', labelKey: 'page.other', icon: Phone
 function Location() { return <output data-testid='location'>{useLocation().pathname}</output>; }
 describe('ModuleNavigation single-page sections', () => {
   it.each([false, true])('uses one direct current link without disclosure or duplicate in compact=%s', (compact) => {
-    const onExpand = vi.fn();
-    render(<MemoryRouter initialEntries={['/only/details']}><ModuleNavigation rows={[single]} level={UserLevel.ADMIN} compact={compact} onExpand={onExpand} testIdPrefix='menu' includeHub={false} /><Location /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/only/details']}><ModuleNavigation rows={[single]} level={UserLevel.ADMIN} compact={compact} testIdPrefix='menu' includeHub={false} /><Location /></MemoryRouter>);
     const link = screen.getByRole('link', { name: 'nav.only' });
     expect(link).toHaveAttribute('href', '/only');expect(link).toHaveAttribute('aria-current', 'page');expect(link).not.toHaveAttribute('aria-expanded');
     expect(screen.queryByRole('button')).toBeNull();expect(screen.queryByTestId('menu-page-single-only')).toBeNull();
     expect(within(screen.getByRole('navigation')).getAllByRole('link')).toHaveLength(1);
-    fireEvent.click(link);expect(screen.getByTestId('location')).toHaveTextContent('/only');expect(onExpand).not.toHaveBeenCalled();
+    fireEvent.click(link);expect(screen.getByTestId('location')).toHaveTextContent('/only');
   });
   it('counts only permitted pages when choosing between direct link and disclosure', () => {
     render(<MemoryRouter initialEntries={['/only']}><ModuleNavigation rows={[{...single, pages: [...single.pages, {...other, minLevels: [UserLevel.ADMIN]}]}]} level={UserLevel.OPERATOR} testIdPrefix='menu' includeHub={false} /></MemoryRouter>);

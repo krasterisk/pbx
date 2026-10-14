@@ -384,7 +384,7 @@ export function TrunkCarouselTrunksField({
               disabled={readOnly}
               value={row.callerIdName ?? ''}
               aria-label={t('routes.apps.callerid.name', 'Имя CallerID (опц.)')}
-              placeholder={t('routes.apps.callerid.keepName', 'Пусто — сохранить текущее имя')}
+              placeholder={t('routes.apps.callerid.keepName', 'Пусто - сохранить текущее имя')}
               onChange={(e) => updateRow(index, { callerIdName: e.target.value })}
             />
           </VStack>

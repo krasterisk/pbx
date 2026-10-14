@@ -94,7 +94,24 @@
 
 .expertToggle {
   flex-shrink: 0;
-  padding-bottom: 0.75rem;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  label {
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+}
+.section {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 3%, var(--color-card)),
+    var(--color-card) 55%
+  );
+  svg[aria-hidden] {
+    color: var(--color-primary);
+  }
 }
 
 .formBody {
@@ -104,7 +121,6 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  padding-right: 0.25rem;
   > * {
     flex-shrink: 0;
   }

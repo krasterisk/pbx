@@ -58,7 +58,7 @@ vi.mock('@/shared/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/ui')>();
   return {
     ...actual,
-    DataTable: () => <div data-testid="tenants-datatable">table</div>,
+    Table: () => <div data-testid="tenants-datatable">table</div>,
   };
 });
 

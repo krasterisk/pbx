@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { Flex } from '@/shared/ui/Stack';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
@@ -18,6 +19,7 @@ export const AppLayout = () => {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const isMobile = useIsMobile(768);
   useRoleStartRedirect();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -31,12 +33,12 @@ export const AppLayout = () => {
       className={classNames(cls.root, { [cls.withBottomBar]: isMobile }, [])}
       data-phone-nav={isMobile ? 'true' : undefined}
     >
-      <ModuleShell>
+      <ModuleShell mobileMenuOpen={mobileMenuOpen} onMobileMenuOpenChange={setMobileMenuOpen}>
         <TablePageSizeProvider>
           <Outlet />
         </TablePageSizeProvider>
       </ModuleShell>
-      <MobileBottomBar />
+      <MobileBottomBar sectionsOpen={mobileMenuOpen} onOpenSections={() => setMobileMenuOpen(true)} />
     </Flex>
   );
 };

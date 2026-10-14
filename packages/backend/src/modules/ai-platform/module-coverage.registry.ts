@@ -32,6 +32,7 @@ export type ReasonedModule = {
 export type ModuleCoverageEntry = CoveredModule | ReasonedModule;
 
 export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
+  support: {kind:'covered',domain:'support',sharedSkill:'helpdesk-support',capability:'read'},
   'ai-agents': {
     kind: 'infrastructure',
     reason:
@@ -111,6 +112,7 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   },
   contexts: { kind: 'covered', capability: 'configure' },
   diagnostics: { kind: 'covered', capability: 'read' },
+  dashboard: { kind: 'covered', capability: 'read' },
   'dialplan-bridge': {
     kind: 'infrastructure',
     reason: 'Internal Asterisk/API bridge, not a tenant-facing catalog.',
@@ -189,7 +191,7 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
   trunks: { kind: 'covered', capability: 'configure' },
   'tts-engines': { kind: 'covered', sharedSkill: 'speech-engines', capability: 'configure' },
   users: { kind: 'covered', capability: 'immutable' },
-  'voice-robots': { kind: 'covered', capability: 'read' },
+  'voice-robots': { kind: 'covered', capability: 'configure' },
   voicemail: { kind: 'covered', capability: 'read' },
 };
 

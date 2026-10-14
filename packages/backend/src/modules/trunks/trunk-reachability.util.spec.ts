@@ -15,7 +15,8 @@ describe('trunk reachability from AMI contacts', () => {
     expect(trunkReachability([])).toBe('Unknown');
     expect(trunkReachability([{ event: 'EndpointDetail', devicestate: 'Not in use' }])).toBe('Unknown');
   });
-  it('shows an endpoint without contacts as unavailable when AMI confirms it', () => {
-    expect(trunkReachability([{ event: 'EndpointDetail', devicestate: 'Unavailable' }])).toBe('Unreachable');
+  it.each(['Unavailable', 'Not in use', 'Invalid'])('distinguishes no contacts from a physical outage for DeviceState %s', (devicestate) => {
+    expect(trunkReachability([{ event: 'EndpointDetail', devicestate }], true)).toBe('NoContacts');
+    expect(trunkReachability([{ event: 'EndpointDetail', devicestate }], false)).toBe('Unknown');
   });
 });

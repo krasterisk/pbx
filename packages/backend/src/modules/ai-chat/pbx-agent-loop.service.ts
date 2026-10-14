@@ -42,6 +42,7 @@ import {
   parseTurnModeDecision,
   providerHasNativeTools,
   toolsForMode,
+  selectAgentToolBudget,
   TURN_MODE_SYSTEM,
   turnModeHint,
   type TurnMode,
@@ -323,7 +324,8 @@ export class PbxAgentLoopService {
         setupDomain = setup.domain;
       }
     }
-    const visible = toolsForMode(allTools, turnMode, readOnlyRequest);
+    const visible = selectAgentToolBudget(toolsForMode(allTools, turnMode, readOnlyRequest),
+      allTools.length > 128 ? this.mcpTools.getToolNamesForDomains(classification.domains) : []);
     registered = this.registerTools(visible);
     tools = registered.map((tool) => tool.spec);
 

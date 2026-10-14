@@ -18,6 +18,7 @@ vi.mock('@/shared/hooks/useIsMobile', () => ({
 
 vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppDispatch: () => vi.fn(),
+  useAppSelector: () => 1,
 }));
 
 vi.mock('@/shared/api/endpoints/trunkApi', () => ({
@@ -45,6 +46,8 @@ vi.mock('@/shared/api/endpoints/trunkApi', () => ({
   })),
   useBulkDeleteTrunksMutation: vi.fn(() => [vi.fn(), { isLoading: false }]),
   useDeleteTrunkMutation: vi.fn(() => [vi.fn()]),
+  useRegisterTrunkMutation: vi.fn(() => [vi.fn()]),
+  useBulkRegisterTrunksMutation: vi.fn(() => [vi.fn()]),
 }));
 
 vi.mock('./useTrunksTableColumns', () => ({
@@ -58,7 +61,7 @@ vi.mock('@/shared/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/ui')>();
   return {
     ...actual,
-    DataTable: () => <div data-testid="trunks-datatable">table</div>,
+    Table: () => <div data-testid="trunks-datatable">table</div>,
   };
 });
 

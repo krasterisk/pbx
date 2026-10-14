@@ -1,28 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { Plus, Music, Volume2, Mic } from 'lucide-react';
+import { Plus, Music, Volume2, Mic, ListMusic } from 'lucide-react';
+import { SortableRegion } from '@/shared/ui/SortableRegion';
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { getIvrPromptsValidationIssues, type IIvrPhrase, type IIvrPhraseTtsSettings } from '@krasterisk/shared';
+  getIvrPromptsValidationIssues,
+  type IIvrPhrase,
+  type IIvrPhraseTtsSettings,
+} from '@krasterisk/shared';
 import { getPhraseValidationMessage } from '../../lib/ivrPromptsValidation';
 import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
 import { usePreviewIvrTtsMutation } from '@/shared/api/endpoints/ivrsApi';
-import { Button, Select, Text, Textarea } from '@/shared/ui';
+import { Button, Select, Text, Textarea, Label, ModalSection, SegmentedControl } from '@/shared/ui';
 import { VStack, Flex, HStack } from '@/shared/ui/Stack';
 import { IvrPhraseTtsFields } from '../IvrPhraseTtsFields/IvrPhraseTtsFields';
 import { SortableIvrPhraseItem } from '../SortableIvrPhraseItem/SortableIvrPhraseItem';
@@ -40,11 +30,7 @@ interface IvrPromptsEditorProps {
   invalidPhraseIndexes?: number[];
 }
 
-export function IvrPromptsEditor({
-  value,
-  onChange,
-  invalidPhraseIndexes = [],
-}: IvrPromptsEditorProps) {
+export function IvrPromptsEditor({ value, onChange, invalidPhraseIndexes = [] }: IvrPromptsEditorProps) {
   const { t } = useTranslation();
   const { data: allPrompts = [] } = useGetPromptsQuery();
   const { data: engines = [] } = useGetTtsEnginesQuery();
@@ -79,18 +65,14 @@ export function IvrPromptsEditor({
 
   useEffect(() => () => stopAudio(), [stopAudio]);
 
+  const phraseCount = value.length;
   useEffect(() => {
     setPhraseIds((prev) => {
-      if (value.length === 0) return [];
-      if (prev.length === value.length) return prev;
-      return value.map((_, i) => prev[i] ?? newPhraseId());
+      if (phraseCount === 0) return [];
+      if (prev.length === phraseCount) return prev;
+      return Array.from({ length: phraseCount }, (_, i) => prev[i] ?? newPhraseId());
     });
-  }, [value.length]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  }, [phraseCount]);
 
   const getPromptLabel = (filename: string): string => {
     const found = allPrompts.find((p) => p.filename === filename);
@@ -198,18 +180,12 @@ export function IvrPromptsEditor({
         settings: Object.keys(ttsSettings).length ? ttsSettings : undefined,
       }).unwrap();
       await playPreviewBlob(blob);
-    } catch (err: any) {
-      toast.error(
-        err?.data?.message || t('ivrs.prompts.previewError', 'Не удалось синтезировать фразу'),
-      );
+    } catch {
+      toast.error(t('ivrs.prompts.previewError'));
     }
   };
 
-  const handlePreviewRow = async (
-    text: string,
-    engineUid: number,
-    settings?: IIvrPhraseTtsSettings,
-  ) => {
+  const handlePreviewRow = async (text: string, engineUid: number, settings?: IIvrPhraseTtsSettings) => {
     if (!text.trim() || !engineUid) {
       toast.warning(t('ivrs.prompts.ttsRequired', 'Укажите текст и TTS-движок'));
       return;
@@ -221,10 +197,8 @@ export function IvrPromptsEditor({
         settings,
       }).unwrap();
       await playPreviewBlob(blob);
-    } catch (err: any) {
-      toast.error(
-        err?.data?.message || t('ivrs.prompts.previewError', 'Не удалось синтезировать фразу'),
-      );
+    } catch {
+      toast.error(t('ivrs.prompts.previewError'));
     }
   };
 
@@ -233,31 +207,32 @@ export function IvrPromptsEditor({
     setPhraseIds((ids) => ids.filter((_, i) => i !== index));
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = phraseIds.indexOf(String(active.id));
-    const newIndex = phraseIds.indexOf(String(over.id));
-    if (oldIndex < 0 || newIndex < 0) return;
-
-    onChange(arrayMove(value, oldIndex, newIndex));
-    setPhraseIds((ids) => arrayMove(ids, oldIndex, newIndex));
+  const handleReorder = (nextIds: string[]) => {
+    const indices = nextIds.map((id) => sortableIds.indexOf(id));
+    if (
+      nextIds.length !== value.length ||
+      new Set(nextIds).size !== nextIds.length ||
+      indices.some((index) => index < 0)
+    )
+      return;
+    onChange(indices.map((index) => value[index]));
+    setPhraseIds(nextIds);
   };
 
   const usedAudioFilenames = new Set(
-    value.filter((p): p is Extract<IIvrPhrase, { kind: 'audio' }> => p.kind === 'audio').map((p) => p.filename),
+    value
+      .filter((p): p is Extract<IIvrPhrase, { kind: 'audio' }> => p.kind === 'audio')
+      .map((p) => p.filename),
   );
   const availablePrompts = allPrompts.filter((p) => !usedAudioFilenames.has(p.filename));
 
-  const sortableIds = phraseIds.length === value.length
-    ? phraseIds
-    : value.map((_, i) => phraseIds[i] ?? newPhraseId());
+  const sortableIds =
+    phraseIds.length === value.length ? phraseIds : value.map((_, i) => phraseIds[i] ?? newPhraseId());
 
   return (
-    <div className={cls.sectionPanel}>
+    <VStack align="stretch" gap="16" max>
       <audio ref={audioRef} className={cls.hiddenAudio} />
-      <VStack gap="12" max className={cls.promptsEditor}>
+      <ModalSection title={t('ivrs.editor.phrases')} icon={ListMusic}>
         {value.length === 0 && (
           <VStack align="center" gap="8" className={cls.emptyState}>
             <Music size={32} className={cls.emptyIcon} />
@@ -269,150 +244,132 @@ export function IvrPromptsEditor({
             </Text>
           </VStack>
         )}
-
         {value.length > 0 && (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-              <VStack gap="8" className={cls.phraseList}>
-                {value.map((phrase, index) => (
-                  <SortableIvrPhraseItem
-                    key={sortableIds[index]}
-                    id={sortableIds[index]}
-                    index={index}
-                    phrase={phrase}
-                    engines={engines}
-                    engineOptions={engineOptions}
-                    getPromptLabel={getPromptLabel}
-                    onUpdate={updatePhrase}
-                    onRemove={handleRemove}
-                    onPreviewTts={handlePreviewRow}
-                    onPreviewAudio={playPromptByFilename}
-                    isPreviewLoading={isPreviewLoading}
-                    isAudioPlaying={
-                      phrase.kind === 'audio'
-                      && playingPromptUid != null
-                      && allPrompts.some(
-                        (p) => p.uid === playingPromptUid && p.filename === phrase.filename,
-                      )
-                    }
-                    hasError={invalidPhraseIndexes.includes(index)}
-                  />
-                ))}
-              </VStack>
-            </SortableContext>
-          </DndContext>
+          <SortableRegion ids={sortableIds} onReorder={handleReorder}>
+            <VStack align="stretch" gap="8" className={cls.phraseList}>
+              {value.map((phrase, index) => (
+                <SortableIvrPhraseItem
+                  key={sortableIds[index]}
+                  id={sortableIds[index]}
+                  index={index}
+                  phrase={phrase}
+                  engines={engines}
+                  engineOptions={engineOptions}
+                  getPromptLabel={getPromptLabel}
+                  onUpdate={updatePhrase}
+                  onRemove={handleRemove}
+                  onPreviewTts={handlePreviewRow}
+                  onPreviewAudio={playPromptByFilename}
+                  isPreviewLoading={isPreviewLoading}
+                  isAudioPlaying={
+                    phrase.kind === 'audio' &&
+                    playingPromptUid != null &&
+                    allPrompts.some((p) => p.uid === playingPromptUid && p.filename === phrase.filename)
+                  }
+                  hasError={invalidPhraseIndexes.includes(index)}
+                />
+              ))}
+            </VStack>
+          </SortableRegion>
         )}
-
-        <div className={cls.addSection}>
-          <HStack gap="8" className={cls.modeToggle}>
-            <Button
-              type="button"
-              variant={addMode === 'audio' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
+      </ModalSection>
+      <ModalSection
+        title={t('ivrs.editor.addPhrase')}
+        icon={Plus}
+        action={
+          <SegmentedControl<AddMode>
+            value={addMode}
+            ariaLabel={t('ivrs.editor.addPhrase')}
+            onChange={(mode) => {
+              stopAudio();
+              setAddMode(mode);
+            }}
+            options={[
+              { value: 'audio', label: t('ivrs.prompts.modeAudio'), icon: Volume2 },
+              { value: 'tts', label: t('ivrs.prompts.modeTts'), icon: Mic },
+            ]}
+          />
+        }
+      >
+        {addMode === 'audio' ? (
+          <Flex align="center" className={cls.addRow}>
+            <Select
+              className={cls.promptSelect}
+              aria-label={t('ivrs.prompts.selectPrompt')}
+              value={selectedPrompt}
+              onChange={(e) => {
                 stopAudio();
-                setAddMode('audio');
+                setSelectedPrompt(e.target.value);
               }}
             >
-              <Volume2 size={14} />
-              {t('ivrs.prompts.modeAudio', 'Запись')}
-            </Button>
+              <option value="">{t('ivrs.prompts.selectPrompt', 'Выберите запись')}</option>
+              {availablePrompts.map((p) => (
+                <option key={p.uid} value={p.filename}>
+                  {p.comment || p.filename}
+                </option>
+              ))}
+            </Select>
             <Button
               type="button"
-              variant={addMode === 'tts' ? 'default' : 'outline'}
-              size="sm"
+              variant="outline"
               onClick={() => {
-                stopAudio();
-                setAddMode('tts');
+                if (selectedPrompt) void playPromptByFilename(selectedPrompt);
               }}
+              disabled={!selectedPromptRecord}
+              className={cls.addBtn}
             >
-              <Mic size={14} />
-              {t('ivrs.prompts.modeTts', 'TTS')}
+              {playingPromptUid != null && selectedPromptRecord?.uid === playingPromptUid
+                ? t('ivrs.prompts.stop', 'Стоп')
+                : t('ivrs.prompts.preview', 'Прослушать')}
             </Button>
-          </HStack>
-
-          {addMode === 'audio' ? (
-            <Flex align="center" className={cls.addRow}>
+            <Button type="button" onClick={handleAddAudio} disabled={!selectedPrompt} className={cls.addBtn}>
+              <Plus size={16} />
+              {t('ivrs.prompts.add', 'Добавить')}
+            </Button>
+          </Flex>
+        ) : (
+          <VStack align="stretch" gap="12" className={cls.ttsForm}>
+            <Label htmlFor="ivr-new-tts-text">{t('ivrs.editor.text')}</Label>
+            <Textarea
+              id="ivr-new-tts-text"
+              value={ttsText}
+              onChange={(e) => setTtsText(e.target.value)}
+              placeholder={t('ivrs.prompts.textPlaceholder', 'Текст фразы для синтеза')}
+              rows={3}
+            />
+            <VStack align="stretch" gap="4">
+              <Label htmlFor="ivr-new-tts-engine">{t('ivrs.prompts.engine')}</Label>
               <Select
-                className={cls.promptSelect}
-                value={selectedPrompt}
-                onChange={(e) => {
-                  stopAudio();
-                  setSelectedPrompt(e.target.value);
-                }}
+                id="ivr-new-tts-engine"
+                value={ttsEngineUid}
+                onChange={(e) => setTtsEngineUid(e.target.value)}
               >
-                <option value="">{t('ivrs.prompts.selectPrompt', 'Выберите запись')}</option>
-                {availablePrompts.map((p) => (
-                  <option key={p.uid} value={p.filename}>
-                    {p.comment || p.filename}
+                <option value="">{t('ivrs.prompts.selectEngine', 'Выберите движок')}</option>
+                {engines.map((eng) => (
+                  <option key={eng.uid} value={String(eng.uid)}>
+                    {eng.name} ({eng.type})
                   </option>
                 ))}
               </Select>
+            </VStack>
+            <IvrPhraseTtsFields engine={selectedEngine} settings={ttsSettings} onChange={setTtsSettings} />
+            <HStack gap="8">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  if (selectedPrompt) void playPromptByFilename(selectedPrompt);
-                }}
-                disabled={!selectedPromptRecord}
-                className={cls.addBtn}
-                title={t('ivrs.prompts.preview', 'Прослушать')}
+                onClick={handlePreviewNew}
+                disabled={isPreviewLoading || !ttsText.trim() || !ttsEngineUid}
               >
-                {playingPromptUid != null && selectedPromptRecord?.uid === playingPromptUid
-                  ? t('ivrs.prompts.stop', 'Стоп')
-                  : t('ivrs.prompts.preview', 'Прослушать')}
+                {t('ivrs.prompts.preview', 'Прослушать')}
               </Button>
-              <Button type="button" onClick={handleAddAudio} disabled={!selectedPrompt} className={cls.addBtn}>
+              <Button type="button" onClick={handleAddTts} disabled={!ttsText.trim() || !ttsEngineUid}>
                 <Plus size={16} />
-                {t('ivrs.prompts.add', 'Добавить')}
+                {t('ivrs.prompts.addTts', 'Добавить TTS')}
               </Button>
-            </Flex>
-          ) : (
-            <VStack gap="12" className={cls.ttsForm}>
-              <Textarea
-                value={ttsText}
-                onChange={(e) => setTtsText(e.target.value)}
-                placeholder={t('ivrs.prompts.textPlaceholder', 'Текст фразы для синтеза')}
-                rows={3}
-              />
-              <VStack gap="4">
-                <Text variant="small">{t('ivrs.prompts.engine', 'TTS-движок')}</Text>
-                <Select value={ttsEngineUid} onChange={(e) => setTtsEngineUid(e.target.value)}>
-                  <option value="">{t('ivrs.prompts.selectEngine', 'Выберите движок')}</option>
-                  {engines.map((eng) => (
-                    <option key={eng.uid} value={String(eng.uid)}>
-                      {eng.name} ({eng.type})
-                    </option>
-                  ))}
-                </Select>
-              </VStack>
-              <IvrPhraseTtsFields
-                engine={selectedEngine}
-                settings={ttsSettings}
-                onChange={setTtsSettings}
-              />
-              <HStack gap="8">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handlePreviewNew}
-                  disabled={isPreviewLoading || !ttsText.trim() || !ttsEngineUid}
-                >
-                  {t('ivrs.prompts.preview', 'Прослушать')}
-                </Button>
-                <Button type="button" onClick={handleAddTts} disabled={!ttsText.trim() || !ttsEngineUid}>
-                  <Plus size={16} />
-                  {t('ivrs.prompts.addTts', 'Добавить TTS')}
-                </Button>
-              </HStack>
-            </VStack>
-          )}
-        </div>
-      </VStack>
-    </div>
+            </HStack>
+          </VStack>
+        )}
+      </ModalSection>
+    </VStack>
   );
 }

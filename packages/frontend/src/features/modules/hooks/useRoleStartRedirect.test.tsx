@@ -1,0 +1,22 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import { Phone } from 'lucide-react';
+import { UserLevel } from '@krasterisk/shared';
+import type { HubModuleRow } from '../types';
+const mocks = vi.hoisted(()=>({navigate:vi.fn(),user:{level:1} as {level:UserLevel}|null,pathname:'/',query:{data:{path:'/'} as {path:string}|undefined,isFetching:false},hub:{active:[] as HubModuleRow[],marketplace:[] as HubModuleRow[],navigation:[] as HubModuleRow[],isLoading:false,isError:false}}));
+vi.mock('react-router-dom',()=>({useLocation:()=>({pathname:mocks.pathname}),useNavigate:()=>mocks.navigate}));
+vi.mock('@/shared/hooks/useAppStore',()=>({useAppSelector:(selector:(s:{auth:{user:typeof mocks.user}})=>unknown)=>selector({auth:{user:mocks.user}})}));
+vi.mock('@/shared/api/endpoints/cloudAdminApi',()=>({useGetRoleStartQuery:()=>mocks.query}));
+vi.mock('./useHubModules',()=>({useHubModules:()=>mocks.hub}));
+import { ROLE_START_PENDING_KEY, useRoleStartRedirect } from './useRoleStartRedirect';
+const core:HubModuleRow={code:'core',kind:'base',navVariant:'sidebar',labelKey:'nav.pbx',licenseStatus:'active',favorite:false,pages:[{id:'endpoints',path:'/endpoints',labelKey:'endpoints.title',icon:Phone},{id:'trunks',path:'/trunks',labelKey:'nav.trunks',icon:Phone}]};
+describe('catalog-aware login start',()=>{
+ beforeEach(()=>{sessionStorage.clear();sessionStorage.setItem(ROLE_START_PENDING_KEY,'1');mocks.navigate.mockReset();mocks.user={level:UserLevel.ADMIN};mocks.pathname='/';mocks.query={data:{path:'/'},isFetching:false};mocks.hub={active:[core],marketplace:[],navigation:[core],isLoading:false,isError:false};});
+ it('starts an available section when default Dashboard is absent',()=>{renderHook(useRoleStartRedirect);expect(mocks.navigate).toHaveBeenCalledWith('/endpoints',{replace:true});expect(sessionStorage.getItem(ROLE_START_PENDING_KEY)).toBeNull();});
+ it('waits for catalog and preserves the pending login target',()=>{mocks.hub.isLoading=true;const view=renderHook(useRoleStartRedirect);expect(mocks.navigate).not.toHaveBeenCalled();expect(sessionStorage.getItem(ROLE_START_PENDING_KEY)).toBe('1');mocks.hub={...mocks.hub,isLoading:false};view.rerender();expect(mocks.navigate).toHaveBeenCalledWith('/endpoints',{replace:true});});
+ it('keeps a valid configured start and applies it only once',()=>{mocks.query.data={path:'/trunks'};const view=renderHook(useRoleStartRedirect);expect(mocks.navigate).toHaveBeenCalledWith('/trunks',{replace:true});mocks.pathname='/endpoints';view.rerender();expect(mocks.navigate).toHaveBeenCalledTimes(1);});
+ it('uses Hub with no eligible modules or a failed catalog',()=>{mocks.hub.navigation=[];mocks.hub.active=[];renderHook(useRoleStartRedirect);expect(mocks.navigate).toHaveBeenCalledWith('/modules',{replace:true});});
+ it('handles catalog failure without inventing Dashboard availability',()=>{mocks.hub.isError=true;renderHook(useRoleStartRedirect);expect(mocks.navigate).toHaveBeenCalledWith('/modules',{replace:true});});
+ it('keeps platform start for SuperAdmin without waiting for tenant catalog',()=>{mocks.user={level:UserLevel.SUPERADMIN};mocks.hub.isLoading=true;renderHook(useRoleStartRedirect);expect(mocks.navigate).toHaveBeenCalledWith('/platform',{replace:true});});
+ it('does not redirect existing sessions without pending login',()=>{sessionStorage.clear();renderHook(useRoleStartRedirect);expect(mocks.navigate).not.toHaveBeenCalled();});
+});

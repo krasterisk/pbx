@@ -1,3 +1,4 @@
+import { TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/shared/ui';
 import { useState, useMemo, useCallback, useEffect, memo } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +12,7 @@ import {
 } from 'lucide-react';
 import {
   VStack, Flex, Text, Button, SegmentedControl,
-  DataTable, Avatar, Dialog, DialogContent, DialogHeader, DialogTitle,
+  Table, Avatar, Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, Checkbox, Label,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator,
@@ -998,7 +999,7 @@ export function CallCenterSupervisorPage() {
               data-testid="hybrid-table"
               data-hybrid="overflow-x-auto"
             >
-              <DataTable<IAgent>
+              <Table<IAgent>
                 data={filteredAgents}
                 columns={agentColumns}
                 getRowId={(row) => row.interface}
@@ -1035,18 +1036,18 @@ export function CallCenterSupervisorPage() {
                 data-testid="hybrid-table"
                 data-hybrid="overflow-x-auto"
               >
-                <table className={styles.liveCallsTable}>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>{t('callcenter.supervisor.caller', 'Caller')}</th>
-                      <th>{t('callcenter.supervisor.queue_lbl', 'Queue')}</th>
-                      <th>{t('callcenter.supervisor.status', 'Status')}</th>
-                      <th>{t('callcenter.supervisor.agent_lbl', 'Agent')}</th>
-                      <th>{t('callcenter.supervisor.actions_lbl', 'Actions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className={styles.liveCallsTable}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>{t('callcenter.supervisor.caller', 'Caller')}</TableHead>
+                      <TableHead>{t('callcenter.supervisor.queue_lbl', 'Queue')}</TableHead>
+                      <TableHead>{t('callcenter.supervisor.status', 'Status')}</TableHead>
+                      <TableHead>{t('callcenter.supervisor.agent_lbl', 'Agent')}</TableHead>
+                      <TableHead>{t('callcenter.supervisor.actions_lbl', 'Actions')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {filteredCalls.map((call: ICall, i) => {
                       const target = transferTarget[call.uniqueid] ?? '';
                       const isWaiting = call.status === 'WAITING' || call.status === 'RINGING';
@@ -1058,17 +1059,17 @@ export function CallCenterSupervisorPage() {
                         ? agents.find((a) => a.interface === call.agent || agentExten(a) === normalizeToken(call.agent!))
                         : undefined;
                       return (
-                        <tr key={call.uniqueid}>
-                          <td>{i + 1}</td>
-                          <td>{call.callerIdNum || '-'}</td>
-                          <td>{queueDisplayName(call.queue, queues)}</td>
-                          <td>
+                        <TableRow key={call.uniqueid}>
+                          <TableCell>{i + 1}</TableCell>
+                          <TableCell>{call.callerIdNum || '-'}</TableCell>
+                          <TableCell>{queueDisplayName(call.queue, queues)}</TableCell>
+                          <TableCell>
                             <span className={`${styles.callStatusBadge} ${callStatusBadge(call.status)}`}>
                               {call.status}
                             </span>
-                          </td>
-                          <td>{agentRow ? agentLabelWithExt(agentRow) : (call.agent ? interfaceToExtension(call.agent) : '-')}</td>
-                          <td>
+                          </TableCell>
+                          <TableCell>{agentRow ? agentLabelWithExt(agentRow) : (call.agent ? interfaceToExtension(call.agent) : '-')}</TableCell>
+                          <TableCell>
                             <Flex align="center" gap="6" wrap="wrap">
                               {(isWaiting || isActive) && (
                                 <>
@@ -1124,12 +1125,12 @@ export function CallCenterSupervisorPage() {
                                 </button>
                               )}
                             </Flex>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ) : (
               <div className={styles.emptyState}>
@@ -1148,41 +1149,41 @@ export function CallCenterSupervisorPage() {
             data-testid="hybrid-table"
             data-hybrid="overflow-x-auto"
           >
-            <table className={styles.liveCallsTable}>
-              <thead>
-                <tr>
-                  <th>{t('callcenter.supervisor.queueName', 'Queue')}</th>
-                  <th>{t('callcenter.supervisor.waiting', 'Waiting')}</th>
-                  <th>{t('callcenter.supervisor.inCall', 'Talking')}</th>
-                  <th>{t('callcenter.supervisor.agents_lbl', 'Agents')}</th>
-                  <th>SLA</th>
-                  <th>{t('callcenter.supervisor.answered', 'Answered')}</th>
-                  <th>{t('callcenter.supervisor.abandoned', 'Lost')}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className={styles.liveCallsTable}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('callcenter.supervisor.queueName', 'Queue')}</TableHead>
+                  <TableHead>{t('callcenter.supervisor.waiting', 'Waiting')}</TableHead>
+                  <TableHead>{t('callcenter.supervisor.inCall', 'Talking')}</TableHead>
+                  <TableHead>{t('callcenter.supervisor.agents_lbl', 'Agents')}</TableHead>
+                  <TableHead>SLA</TableHead>
+                  <TableHead>{t('callcenter.supervisor.answered', 'Answered')}</TableHead>
+                  <TableHead>{t('callcenter.supervisor.abandoned', 'Lost')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredQueues.map((q) => (
-                  <tr key={q.name}>
-                    <td>{queueDisplayName(q.name, filteredQueues)}</td>
-                    <td style={{ color: q.waiting > 3 ? 'var(--color-destructive)' : undefined, fontWeight: q.waiting > 0 ? 700 : 400 }}>
+                  <TableRow key={q.name}>
+                    <TableCell>{queueDisplayName(q.name, filteredQueues)}</TableCell>
+                    <TableCell style={{ color: q.waiting > 3 ? 'var(--color-destructive)' : undefined, fontWeight: q.waiting > 0 ? 700 : 400 }}>
                       {q.waiting}
-                    </td>
-                    <td>{q.talking}</td>
-                    <td>
+                    </TableCell>
+                    <TableCell>{q.talking}</TableCell>
+                    <TableCell>
                       {q.agents.available}/{q.agents.total}
                       {q.agents.paused > 0 && ` (${q.agents.paused} paused)`}
-                    </td>
-                    <td style={{ color: q.sla < 80 ? 'var(--color-destructive)' : 'var(--color-success)', fontWeight: 600 }}>
+                    </TableCell>
+                    <TableCell style={{ color: q.sla < 80 ? 'var(--color-destructive)' : 'var(--color-success)', fontWeight: 600 }}>
                       {q.sla}%
-                    </td>
-                    <td>{q.calls.answered}</td>
-                    <td style={{ color: q.calls.abandoned > 0 ? 'var(--color-destructive)' : undefined }}>
+                    </TableCell>
+                    <TableCell>{q.calls.answered}</TableCell>
+                    <TableCell style={{ color: q.calls.abandoned > 0 ? 'var(--color-destructive)' : undefined }}>
                       {q.calls.abandoned}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         ) : (
           <div className={styles.emptyState}>
@@ -1218,7 +1219,7 @@ export function CallCenterSupervisorPage() {
             <Text variant="muted">{t('callcenter.callback.emptyTitle', 'No callback requests')}</Text>
           ) : (
             <div className={`${styles.tableScroll} overflow-x-auto`}>
-              <DataTable<ICallbackRequest>
+              <Table<ICallbackRequest>
                 data={filteredCallbacks}
                 columns={callbackColumns}
                 getRowId={(row) => String(row.id)}

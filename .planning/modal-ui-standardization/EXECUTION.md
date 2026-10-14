@@ -1,5 +1,17 @@
 # EXECUTION: единые модалки
 
+## Текущее уточнение U7 / 2026-10-13-r2
+
+- /root, codex-direct, sole writer; U7 implemented / automated-tests-passed. План 2026-10-13-r2 / U7 в PLAN.md.
+- Baseline HEAD: 7263d4996928bb58bc4b21f9b45995374725b805; большой соседний dirty baseline сохранён, целевые IVR-компоненты исходно clean.
+- Shared запись ограничена новым Sortable wrapper и новыми ivrs.editor ключами; остальные задачи/registry не присваиваются.
+- U7.1–U7.3 implemented: секции/переключатели, сворачиваемые пункты и фразы, shared SortableRegion, схема без проверки, Usage kind=ivr/uid только edit.
+- U7.4: root lint PASS (0 errors; backend 123/frontend 111 warnings); final targeted lint PASS (0 warnings/errors); backend PASS (414 suites, 4010 tests; 1 suite/11 tests skipped; существующий teardown warning); final types/build PASS; frontend full PASS (348 files / 1942 tests, exit 0). Первоначальный тест удаления исправлен (селект добавления сохраняет запись). Evidence: [IVR-VERIFICATION](IVR-VERIFICATION.md).
+- Visual: tool-unavailable, две инициализации CUA закончились timeout/kernel reset. Live/визуальная проверка не заявляется.
+- Handoff: текущий код и обязательные автоматические gates завершены, активных writers нет. Next: browser visual QA RU/EN/mobile после восстановления инструмента; не выполнять соседние планы. Старый отчёт U1–U6 остаётся историческим evidence.
+
+## Историческое evidence U1–U6, 2026-10-10
+
 - Coordinator: `/root`, `01a110c1-2070-74f1-9d26-def0842ff170`.
 - Mode: `codex-direct`; sole writer, no agents. UI implemented; automated-tests-passed. Visual tool unavailable; no release.
 - Current plan: [PLAN](PLAN.md), 2026-10-10-r1, U1–U6. U1–U5 implemented; U6 automated gates PASS, visual tool-unavailable.

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import WebSocket from 'ws';
 import { AriHttpClientService } from './ari-http-client.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ariHttpPrefix } from './ari-http-prefix';
 
 /**
  * Manages the WebSocket connection to Asterisk ARI.
@@ -64,9 +65,10 @@ export class AriConnectionService implements OnApplicationBootstrap, OnApplicati
     const password = this.configService.get<string>('ARI_PASSWORD', '');
     const appNames = this.ariClient.getEventAppNames();
 
-    const wsUrl = `${protocol}://${host}:${port}/ari/events?api_key=${username}:${password}&app=${appNames.join(',')}`;
+    const prefix = ariHttpPrefix(this.configService.get<string>('ARI_HTTP_PREFIX'));
+    const wsUrl = `${protocol}://${host}:${port}${prefix}/ari/events?api_key=${encodeURIComponent(`${username}:${password}`)}&app=${appNames.join(',')}`;
 
-    this.logger.log(`Connecting to ARI WebSocket: ${wsUrl.replace(password, '***')}`);
+    this.logger.log(`Connecting to ARI WebSocket: ${protocol}://${host}:${port}${prefix}/ari/events apps=${appNames.join(',')}`);
 
     this.ws = new WebSocket(wsUrl);
 

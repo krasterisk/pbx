@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import type { FieldSchema } from '../schema.types';
 
 type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
@@ -16,9 +17,9 @@ export function buildToIvrSchema(t: TFn): FieldSchema[] {
   ];
 }
 
-export function summarizeToIvr(params: Record<string, unknown>, t: TFn): string {
+export function summarizeToIvr(params: Record<string, unknown>, t: TFn, refs?: Record<string, unknown>): string {
   const uid = String(params.ivr_uid ?? '').trim();
   return uid
-    ? t('routes.chain.toivr.summary', 'IVR #{{uid}}').replace('{{uid}}', uid)
+    ? summaryRefLabel(refs, 'ivrs', uid, t)
     : t('routes.chain.toivr.summaryEmpty', 'IVR: не выбрано');
 }

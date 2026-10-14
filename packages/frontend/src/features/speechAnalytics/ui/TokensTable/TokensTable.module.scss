@@ -13,8 +13,9 @@
 }
 
 .tableScroll {
+ composes: section from '../../../../shared/ui/Table/Table.module.scss';
+
   width: 100%;
-  overflow-x: auto;
   min-width: 0;
 }
 

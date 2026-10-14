@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import { directoryStepErrors, type IDirectoryLookupParams, type CallValueSource, type DirectoryLookupOutput } from '@krasterisk/shared';
 import { DirectoryPolicyEditor } from '../../ui/DirectoryPolicyEditor/DirectoryPolicyEditor';
 import type { FieldSchema } from '../schema.types';
@@ -20,17 +21,18 @@ export function directoryLookupFieldErrors(params: Record<string, unknown>): Rec
   return Object.fromEntries(Object.entries(directoryStepErrors(params)).map(([field,code])=>[field,code==='invalid'?'directory-invalid':code]));
 }
 
-export function summarizeDirectoryLookup(params: Record<string, unknown>, t: TFn): string {
+export function summarizeDirectoryLookup(params: Record<string, unknown>, t: TFn, refs?: Record<string, unknown>): string {
   const directoryUid = String(params.directoryUid ?? '').trim();
   if (!directoryUid) {
     return t('routes.chain.directoryLookup.summaryEmpty', 'Справочник: не выбран');
   }
-  if (params.behavior) return t('routes.directories.behavior.'+params.behavior);
+  const name = summaryRefLabel(refs, 'dialplanDirectories', directoryUid, t);
+  if (params.behavior) return `${name}: ${t('routes.directories.behavior.'+params.behavior)}`;
   const outputs = Array.isArray(params.outputs) ? params.outputs : [];
   if (!outputs.length) {
-    return t('routes.chain.directoryLookup.summaryNoOutputs', 'Справочник: нет полей');
+    return `${name}: ${t('routes.chain.directoryLookup.summaryNoOutputs', 'Справочник: нет полей')}`;
   }
-  return t('routes.chain.directoryLookup.summary', 'Справочник: {{count}} поле(й)').replace(
+  return name + ': ' + t('routes.chain.directoryLookup.summary', 'Справочник: {{count}} поле(й)').replace(
     '{{count}}',
     String(outputs.length),
   );

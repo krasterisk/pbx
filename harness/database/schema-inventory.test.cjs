@@ -45,7 +45,7 @@ test('baseline and AppModule model table/column names stay in sync', () => {
     'sa_tenant_capture_policies', 'sa_transcript_corrections',
     'sa_transcript_segments', 'sa_transcripts',
   ]);
-  assert.equal(result.counts.modelColumns, result.counts.baselineColumns + 59);
+  assert.equal(result.counts.modelColumns, result.counts.baselineColumns + 74);
   assert.deepEqual(result.differences, {
     modelTablesAbsentFromBaseline: reviewed.extraTables, baselineTablesAbsentFromModels: [],
     modelColumnsAbsentFromBaseline: reviewed.extraColumns, baselineColumnsAbsentFromModels: reviewed.removedColumns,

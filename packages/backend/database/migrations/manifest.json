@@ -131,6 +131,18 @@
         {
           "id": "0032-autodial-channel-reservations.sql",
           "artifact": "0032-autodial-channel-reservations.sql"
+        },
+        {
+          "id": "0033-pbx-dashboard.sql",
+          "artifact": "0033-pbx-dashboard.sql"
+        },
+        {
+          "id": "0034-cel-extra.sql",
+          "artifact": "0034-cel-extra.sql"
+        },
+        {
+          "id": "0035-support-plans.sql",
+          "artifact": "0035-support-plans.sql"
         }
       ],
       "profiles": {
@@ -470,6 +482,18 @@
         {
           "id": "0032-autodial-channel-reservations.sql",
           "artifact": "postgres/0032-autodial-channel-reservations.sql"
+        },
+        {
+          "id": "0033-pbx-dashboard.sql",
+          "artifact": "postgres/0033-pbx-dashboard.sql"
+        },
+        {
+          "id": "0034-cel-extra.sql",
+          "artifact": "postgres/0034-cel-extra.sql"
+        },
+        {
+          "id": "0035-support-plans.sql",
+          "artifact": "postgres/0035-support-plans.sql"
         }
       ],
       "profiles": {

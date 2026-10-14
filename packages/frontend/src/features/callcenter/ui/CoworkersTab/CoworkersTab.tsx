@@ -1,3 +1,4 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/shared/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -418,28 +419,28 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
   return (
     <div className={styles.wrap} data-testid="coworkers-tab">
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>{t('callcenter.coworkersTab.colAgent', 'Agent')}</th>
-              <th>{t('callcenter.coworkersTab.colStatus', 'Status')}</th>
-              <th>{t('callcenter.coworkersTab.colTime', 'Time')}</th>
-              <th title={`${t('callcenter.coworkersTab.answeredHint', 'Incoming answered')} (${periodHint})`}>
+        <Table className={styles.table}>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('callcenter.coworkersTab.colAgent', 'Agent')}</TableHead>
+              <TableHead>{t('callcenter.coworkersTab.colStatus', 'Status')}</TableHead>
+              <TableHead>{t('callcenter.coworkersTab.colTime', 'Time')}</TableHead>
+              <TableHead title={`${t('callcenter.coworkersTab.answeredHint', 'Incoming answered')} (${periodHint})`}>
                 {t('callcenter.kpi.answered', 'Answered')}
-              </th>
-              <th title={`${t('callcenter.coworkersTab.madeHint', 'Outbound answered')} (${periodHint})`}>
+              </TableHead>
+              <TableHead title={`${t('callcenter.coworkersTab.madeHint', 'Outbound answered')} (${periodHint})`}>
                 {t('callcenter.kpi.made', 'Made')}
-              </th>
-              <th title={`${t('callcenter.coworkersTab.missedHint', 'Missed calls')} (${periodHint})`}>
+              </TableHead>
+              <TableHead title={`${t('callcenter.coworkersTab.missedHint', 'Missed calls')} (${periodHint})`}>
                 {t('callcenter.kpi.missed', 'Missed')}
-              </th>
-              <th title={`${t('callcenter.coworkersTab.totalHint', 'Answered + made')} (${periodHint})`}>
+              </TableHead>
+              <TableHead title={`${t('callcenter.coworkersTab.totalHint', 'Answered + made')} (${periodHint})`}>
                 {t('callcenter.coworkersTab.total', 'Calls')}
-              </th>
-              <th aria-label={t('callcenter.coworkersTab.colActions', 'Actions')} />
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+              <TableHead aria-label={t('callcenter.coworkersTab.colActions', 'Actions')} />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {colleagues.map((agent) => {
               const isSelf = agent.interface === myAgent?.interface;
               const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status) && !isSelf;
@@ -466,7 +467,7 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
                   className={`${canClickTransfer ? styles.rowClickable : ''}${isSelf ? ` ${styles.selfRow}` : ''}`}
                   onColleagueClick={canClickTransfer ? () => requestTransfer(agent) : undefined}
                 >
-                  <td className={styles.nameCell}>
+                  <TableCell className={styles.nameCell}>
                     <span className={`${styles.dot} ${presenceDotClass(agent.status)}`} />
                     <span className={styles.name}>
                       {agentDisplayName(agent)}
@@ -475,21 +476,21 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
                     {isSelf ? (
                       <span className={styles.selfBadge}>{t('callcenter.coworkersTab.you', 'You')}</span>
                     ) : null}
-                  </td>
-                  <td className={activityToneClass(activity.tone)}>{activity.text}</td>
-                  <td className={styles.timer}>{formatStatusElapsed(elapsed)}</td>
-                  <td className={styles.kpiCell}>{kpi.answered}</td>
-                  <td className={styles.kpiCell}>{kpi.made}</td>
-                  <td className={styles.kpiCell}>{kpi.missed}</td>
-                  <td className={styles.kpiCell}>
+                  </TableCell>
+                  <TableCell className={activityToneClass(activity.tone)}>{activity.text}</TableCell>
+                  <TableCell className={styles.timer}>{formatStatusElapsed(elapsed)}</TableCell>
+                  <TableCell className={styles.kpiCell}>{kpi.answered}</TableCell>
+                  <TableCell className={styles.kpiCell}>{kpi.made}</TableCell>
+                  <TableCell className={styles.kpiCell}>{kpi.missed}</TableCell>
+                  <TableCell className={styles.kpiCell}>
                     {kpi.total}
-                  </td>
-                  <td className={styles.actionsCell}>{renderActions(agent, isSelf)}</td>
+                  </TableCell>
+                  <TableCell className={styles.actionsCell}>{renderActions(agent, isSelf)}</TableCell>
                 </DroppableColleague>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {hangupDialog}
     </div>

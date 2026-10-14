@@ -1,0 +1,14 @@
+{
+  "kind": "local-Chromium-with-realistic-mocked-catalog",
+  "checks": [
+    {
+      "name": "390-hidden-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    }
+  ],
+  "errors": [],
+  "failure": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('bottom-bar-module-trigger')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Разделы\" aria-expanded=\"false\" aria-haspopup=\"dialog\" data-testid=\"bottom-bar-module-trigger\" class=\"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 _moduleTrigger_p4hek_145\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m  - element was detached from the DOM, retrying\u001b[22m\n\n    at C:\\Users\\Professional\\WebstormProjects\\krasterisk_v4\\.planning\\mobile-navigation\\browser-r11-check.cjs:8:310"
+}

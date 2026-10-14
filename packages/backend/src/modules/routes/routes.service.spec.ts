@@ -45,6 +45,7 @@ describe('RoutesService', () => {
     };
     timeGroupsService = {
       findAll: jest.fn().mockResolvedValue([]),
+      timezone: jest.fn().mockResolvedValue('Europe/Moscow'),
     };
     service = new RoutesService(routeModel, bindingModel, directoryModel, fieldModel, timeGroupsService);
   });
@@ -456,7 +457,7 @@ describe('RoutesService', () => {
       const lines = dp.split('\n');
 
       expect(lines.filter((l) => l.includes('Set(__WT_12=0)'))).toHaveLength(1);
-      expect(lines.filter((l) => l.includes(`ExecIfTime(${intervalExpr}?Set(__WT_12=1))`))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes(`GotoIfTime(${intervalExpr}?`))).toHaveLength(1);
       expect(lines.filter((l) => l.includes('ExecIf($["${WT_12}"="1"]?Hangup())'))).toHaveLength(2);
     });
 
@@ -478,7 +479,7 @@ describe('RoutesService', () => {
 
       expect(lines.filter((l) => l.includes('Set(__WT_12=0)'))).toHaveLength(1);
       expect(lines.filter((l) => l.includes('Set(__WT_34=0)'))).toHaveLength(1);
-      expect(lines.filter((l) => l.includes('ExecIfTime(08:00-12:00,sat-sun,*,*?Set(__WT_34=1))'))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes('GotoIfTime(08:00-12:00,sat-sun,*,*?'))).toHaveLength(1);
       expect(lines.filter((l) => l.includes('ExecIf($["${WT_12}"="1"]?'))).toHaveLength(1);
       expect(lines.filter((l) => l.includes('ExecIf($["${WT_34}"="1"]?'))).toHaveLength(1);
     });
@@ -514,10 +515,14 @@ describe('RoutesService', () => {
 
       const dp = service.generateRouteDialplan(route, 100, false, timeGroupMap(7, intervals));
 
-      expect(dp).toContain('ExecIfTime(10:30-11:45,mon-wed,1-15,jan-mar?Set(__WT_7=1))');
+      expect(dp).toContain('GotoIfTime(10:30-11:45,mon-wed,1-15,jan-mar?');
     });
   });
 
+  it('blocks a calendar-guarded action when its calendar is missing',()=>{
+    const dp=service.generateRouteDialplan(baseRoute({actions:[{type:'hangup',condition:{time_group_uid:99}}]}),100,false,new Map());
+    expect(dp).toContain('Set(__WT_99=0)');expect(dp).toContain('action blocked');expect(dp).toContain('ExecIf($["${WT_99}"="1"]?Hangup())');
+  });
   describe('generateRouteDialplan — call recording', () => {
     it('emits mono MixMonitor with b flag for on-answer recording', () => {
       const route = baseRoute({ options: { record: true } });

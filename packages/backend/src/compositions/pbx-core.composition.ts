@@ -77,6 +77,8 @@ import { CloudAdminModule } from '../modules/cloud-admin/cloud-admin.module';
 import { AiChatModule } from '../modules/ai-chat/ai-chat.module';
 import { AgentProposalsModule } from '../modules/ai-chat/agent-proposals.module';
 import { McpModule } from '../modules/mcp/mcp.module';
+import { SupportPlan } from '../modules/support/support-plan.model';
+import { DashboardModule } from '../modules/dashboard/dashboard.module';
 import { HealthModule } from '../modules/health/health.module';
 import { CallCenterModule } from '../modules/callcenter/callcenter.module';
 import { IntegrationCredentialsModule } from '../modules/integration-credentials/integration-credentials.module';
@@ -213,7 +215,7 @@ import {
 
 /** Existing open PBX nest modules. Commercial robot/analytics product modules are not listed. */
 export const PBX_CORE_NEST_MODULES = [
-  RedisModule, HealthModule, AuthModule, UsersModule, EndpointsModule, ContextsModule,
+  RedisModule, HealthModule, DashboardModule, AuthModule, UsersModule, EndpointsModule, ContextsModule,
   RolesModule, NumbersModule, AmiModule, DiagnosticsModule, TrunksModule, RoutesModule,
   IvrsModule, PromptsModule, TtsEnginesModule, SttEnginesModule, MohModule,
   SystemSettingsModule, TenantSettingsModule, VoiceRobotsModule, ReportsCdrModule,
@@ -237,7 +239,7 @@ export const PBX_CORE_MODELS = [
   CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
   CcDisplayToken, CcAlertConfig, CcChatMessage, CcChatChannel, CcCardTemplate,
   CcCardField, CcCardData, CcReportSchedule, CcAiProvider, CcAiAuditLog,
-  AgentThread, AgentThreadMessage, AgentProposal, AgentWorkflow, AgentWorkflowStep,
+  AgentThread, AgentThreadMessage, AgentProposal, AgentWorkflow, AgentWorkflowStep, SupportPlan,
   AiChatSettings, TimeGroup, Directory, DirectoryField, DirectoryRecord,
   RouteDirectoryBinding, RouteTemplate, VoicemailMessage, VoicemailAccessToken,
   CallbackRequest, NotificationIntegration, CallGroup, CallGroupMember,

@@ -2132,7 +2132,7 @@ describe('D-44 label / goto generator', () => {
   });
 
   it('schedule time expression matches the time_group interval format byte-for-byte', () => {
-    const expected = `${workHours.time_start}-${workHours.time_end},${workHours.days_of_week},${workHours.days_of_month},${workHours.months}`;
+    const expected = '09:00-17:59,mon-fri,*,*';
     const dp = AsteriskDialplanUtils.actionToDialplan(
       { type: 'schedule', params: { intervals: [workHours] }, condition: {} },
       vpbx,

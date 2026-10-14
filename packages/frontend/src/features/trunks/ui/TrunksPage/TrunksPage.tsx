@@ -1,3 +1,5 @@
+import { useInRouterContext, useSearchParams } from 'react-router-dom';
+import { DashboardJournalView } from '@/features/dashboard/ui/DashboardJournalView';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Cable, Plus } from 'lucide-react';
@@ -9,7 +11,7 @@ import { TrunksTable } from '../TrunksTable/TrunksTable';
 import { TrunkFormModal } from '../TrunkFormModal/TrunkFormModal';
 import cls from './TrunksPage.module.scss';
 
-export const TrunksPage = memo(() => {
+const LegacyTrunksPage = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
@@ -48,4 +50,10 @@ export const TrunksPage = memo(() => {
   );
 });
 
+LegacyTrunksPage.displayName = 'LegacyTrunksPage';
+function RoutedTrunksPage() {
+  const [search] = useSearchParams();
+  return search.get('dashboard') === '1' ? <DashboardJournalView kind="trunks" /> : <LegacyTrunksPage />;
+}
+export const TrunksPage = memo(() => useInRouterContext() ? <RoutedTrunksPage /> : <LegacyTrunksPage />);
 TrunksPage.displayName = 'TrunksPage';

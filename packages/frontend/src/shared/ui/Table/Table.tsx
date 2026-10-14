@@ -1,119 +1,49 @@
-import * as React from "react"
-import { classNames } from "@/shared/lib/classNames/classNames"
-
-const Table = React.forwardRef<
-  HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
-    <table
-      ref={ref}
-      className={classNames("w-full caption-bottom text-sm", {}, [className || ""])}
-      {...props}
-    />
-  </div>
-))
-Table.displayName = "Table"
-
-const TableHeader = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <thead ref={ref} className={classNames("[&_tr]:border-b", {}, [className || ""])} {...props} />
-))
-TableHeader.displayName = "TableHeader"
-
-const TableBody = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <tbody
-    ref={ref}
-    className={classNames("[&_tr:last-child]:border-0", {}, [className || ""])}
-    {...props}
-  />
-))
-TableBody.displayName = "TableBody"
-
-const TableFooter = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <tfoot
-    ref={ref}
-    className={classNames("bg-muted/50 border-t font-medium [&>tr]:last:border-b-0", {}, [className || ""])}
-    {...props}
-  />
-))
-TableFooter.displayName = "TableFooter"
-
-const TableRow = React.forwardRef<
-  HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
-  <tr
-    ref={ref}
-    className={classNames(
-      "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
-      {},
-      [className || ""]
-    )}
-    {...props}
-  />
-))
-TableRow.displayName = "TableRow"
-
-const TableHead = React.forwardRef<
-  HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={classNames(
-      "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      {},
-      [className || ""]
-    )}
-    {...props}
-  />
-))
-TableHead.displayName = "TableHead"
-
-const TableCell = React.forwardRef<
-  HTMLTableCellElement,
-  React.TdHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <td
-    ref={ref}
-    className={classNames(
-      "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      {},
-      [className || ""]
-    )}
-    {...props}
-  />
-))
-TableCell.displayName = "TableCell"
-
-const TableCaption = React.forwardRef<
-  HTMLTableCaptionElement,
-  React.HTMLAttributes<HTMLTableCaptionElement>
->(({ className, ...props }, ref) => (
-  <caption
-    ref={ref}
-    className={classNames("mt-4 text-sm text-muted-foreground", {}, [className || ""])}
-    {...props}
-  />
-))
-TableCaption.displayName = "TableCaption"
-
+import * as React from "react";
+import { TableMarkup, type TableMarkupProps } from "./TableMarkup";
+import {
+  TableDataView,
+  type DataTableProps,
+  type DataTableRef,
+} from "./TableDataView";
+export type TableProps<TData> = DataTableProps<TData>;
+export type TableRef = DataTableRef;
+export type { TableMarkupProps } from "./TableMarkup";
+export type { TableToolbarProps, TableToolbarSelection } from "./TableToolbar";
+export type { TableExportConfig } from "./tableCsv";
+export { TableToolbar } from "./TableToolbar";
+export { TableCard, TableCardDetails, type TableCardProps } from "./TableCard";
 export {
-  Table,
   TableHeader,
   TableBody,
   TableFooter,
   TableRow,
   TableHead,
   TableCell,
+  TableSelectionCell,
   TableCaption,
+} from "./TableMarkup";
+export { default as tableStyles } from "./Table.module.scss";
+/** One table API: data + columns for lists, children for existing semantic markup. */
+function TableInner<TData>(
+  props: DataTableProps<TData> | TableMarkupProps,
+  ref: React.ForwardedRef<DataTableRef | HTMLTableElement>,
+) {
+  return "data" in props && "columns" in props ? (
+    <TableDataView {...props} ref={ref as React.Ref<DataTableRef>} />
+  ) : (
+    <TableMarkup
+      {...(props as TableMarkupProps)}
+      ref={ref as React.Ref<HTMLTableElement>}
+    />
+  );
 }
+export const Table = React.forwardRef(TableInner) as {
+  <TData>(
+    props: DataTableProps<TData> & { ref?: React.Ref<DataTableRef> },
+  ): React.ReactElement;
+  (
+    props: TableMarkupProps & { ref?: React.Ref<HTMLTableElement> },
+  ): React.ReactElement;
+  displayName?: string;
+};
+Table.displayName = "Table";

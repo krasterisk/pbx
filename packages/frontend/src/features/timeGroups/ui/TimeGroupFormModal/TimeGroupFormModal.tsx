@@ -179,6 +179,12 @@ const IntervalEditor = memo(({ interval, index, onChange, onRemove }: IntervalEd
         </HStack>
       </VStack>
 
+      <VStack align="stretch">
+        <Label htmlFor={'calendar-timezone-'+index}>{t('timeGroups.timezone','Часовой пояс (IANA)')}</Label>
+        <Input id={'calendar-timezone-'+index} value={interval.timezone??''} placeholder="Europe/Moscow" onChange={(e)=>handleField('timezone',e.target.value)} />
+        <Text variant="muted">{t('timeGroups.timezoneHint','Пустое поле — часовой пояс клиента. Конец интервала не включается.')}</Text>
+      </VStack>
+
       {/* Day of month + Month */}
       <HStack className={cls.selectGrid}>
         <VStack align="stretch">

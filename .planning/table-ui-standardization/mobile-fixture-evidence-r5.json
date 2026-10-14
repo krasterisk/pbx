@@ -1,0 +1,6648 @@
+{
+  "note": "Synthetic long data using 29 real feature CSS modules, shared TableCard and TableToolbar. Includes final selection-gated toolbar and unframed icons; not populated live pages.",
+  "selection320": [
+    {
+      "index": 0,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/ai-providers/ui/AiProvidersTable/AiProvidersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 223
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 160
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 104
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 104
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/ai-providers/ui/AiProvidersTable/AiProvidersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 223
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 160
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 104
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 104
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/ai-providers/ui/AiProvidersTable/AiProvidersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 223
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 160
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 104
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 104
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/ai-providers/ui/AiProvidersTable/AiProvidersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 223
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 160
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 104
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 104
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 1,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/autodial/ui/BasesList/BasesList.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/autodial/ui/BasesList/BasesList.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/autodial/ui/BasesList/BasesList.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/autodial/ui/BasesList/BasesList.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 2,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/autodial/ui/CampaignsTable/CampaignsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/autodial/ui/CampaignsTable/CampaignsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/autodial/ui/CampaignsTable/CampaignsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/autodial/ui/CampaignsTable/CampaignsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 3,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/call-groups/ui/CallGroupsTable/CallGroupsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/call-groups/ui/CallGroupsTable/CallGroupsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/call-groups/ui/CallGroupsTable/CallGroupsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/call-groups/ui/CallGroupsTable/CallGroupsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 4,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/callcenter/ui/SoftphoneWidget/SoftphoneContacts.tsx",
+              "firstCard": {
+                "height": 416,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/callcenter/ui/SoftphoneWidget/SoftphoneContacts.tsx",
+              "firstCard": {
+                "height": 416,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/callcenter/ui/SoftphoneWidget/SoftphoneContacts.tsx",
+              "firstCard": {
+                "height": 416,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/callcenter/ui/SoftphoneWidget/SoftphoneContacts.tsx",
+              "firstCard": {
+                "height": 416,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 5,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/cloud-admin/ui/TenantsTable/TenantsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/cloud-admin/ui/TenantsTable/TenantsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/cloud-admin/ui/TenantsTable/TenantsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/cloud-admin/ui/TenantsTable/TenantsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 6,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/conferences/ui/ConferencesTable/ConferencesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/conferences/ui/ConferencesTable/ConferencesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/conferences/ui/ConferencesTable/ConferencesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/conferences/ui/ConferencesTable/ConferencesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 7,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/directories/ui/DirectoriesTable/DirectoriesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/directories/ui/DirectoriesTable/DirectoriesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/directories/ui/DirectoriesTable/DirectoriesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/directories/ui/DirectoriesTable/DirectoriesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 8,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/endpoints/ui/EndpointsTable/EndpointsTable.tsx",
+              "firstCard": {
+                "height": 452,
+                "width": 256,
+                "x": 13,
+                "y": 203
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 140
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 0,
+                "width": 0,
+                "x": -16,
+                "y": -131
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 61,
+                "y": 61
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/endpoints/ui/EndpointsTable/EndpointsTable.tsx",
+              "firstCard": {
+                "height": 452,
+                "width": 256,
+                "x": 13,
+                "y": 203
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 140
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 0,
+                "width": 0,
+                "x": -16,
+                "y": -131
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 61,
+                "y": 61
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/endpoints/ui/EndpointsTable/EndpointsTable.tsx",
+              "firstCard": {
+                "height": 452,
+                "width": 256,
+                "x": 13,
+                "y": 203
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 140
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 0,
+                "width": 0,
+                "x": -16,
+                "y": 266
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 61,
+                "y": 61
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/endpoints/ui/EndpointsTable/EndpointsTable.tsx",
+              "firstCard": {
+                "height": 452,
+                "width": 256,
+                "x": 13,
+                "y": 203
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 140
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 0,
+                "width": 0,
+                "x": -16,
+                "y": -131
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 61,
+                "y": 61
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 9,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/ivrs/ui/IvrsTable/IvrsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/ivrs/ui/IvrsTable/IvrsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/ivrs/ui/IvrsTable/IvrsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/ivrs/ui/IvrsTable/IvrsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 10,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/moh/ui/MohTable/MohTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/moh/ui/MohTable/MohTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/moh/ui/MohTable/MohTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/moh/ui/MohTable/MohTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 11,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/notifications/ui/NotificationIntegrationsTable/NotificationIntegrationsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/notifications/ui/NotificationIntegrationsTable/NotificationIntegrationsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/notifications/ui/NotificationIntegrationsTable/NotificationIntegrationsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/notifications/ui/NotificationIntegrationsTable/NotificationIntegrationsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 12,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/numbers/ui/NumbersTable/NumbersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/numbers/ui/NumbersTable/NumbersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/numbers/ui/NumbersTable/NumbersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/numbers/ui/NumbersTable/NumbersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 13,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/prompts/ui/PromptsTable/PromptsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/prompts/ui/PromptsTable/PromptsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/prompts/ui/PromptsTable/PromptsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/prompts/ui/PromptsTable/PromptsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 14,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/provisionTemplates/ui/ProvisionTemplatesTable/ProvisionTemplatesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/provisionTemplates/ui/ProvisionTemplatesTable/ProvisionTemplatesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/provisionTemplates/ui/ProvisionTemplatesTable/ProvisionTemplatesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/provisionTemplates/ui/ProvisionTemplatesTable/ProvisionTemplatesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 15,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/queues/ui/QueuesTable/QueuesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/queues/ui/QueuesTable/QueuesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/queues/ui/QueuesTable/QueuesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/queues/ui/QueuesTable/QueuesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 16,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/roles/ui/RolesTable/RolesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/roles/ui/RolesTable/RolesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/roles/ui/RolesTable/RolesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/roles/ui/RolesTable/RolesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 17,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/route-templates/ui/RouteTemplatesPage/RouteTemplatesPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/route-templates/ui/RouteTemplatesPage/RouteTemplatesPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/route-templates/ui/RouteTemplatesPage/RouteTemplatesPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/route-templates/ui/RouteTemplatesPage/RouteTemplatesPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 18,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/routes/ui/RoutesTable/RoutesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/routes/ui/RoutesTable/RoutesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/routes/ui/RoutesTable/RoutesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/routes/ui/RoutesTable/RoutesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 19,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/serviceRequests/ui/ServiceRequestsTable/ServiceRequestsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/serviceRequests/ui/ServiceRequestsTable/ServiceRequestsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/serviceRequests/ui/ServiceRequestsTable/ServiceRequestsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/serviceRequests/ui/ServiceRequestsTable/ServiceRequestsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 207
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 144
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 88
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 88
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 20,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/stt-engines/ui/SttEnginesTable/SttEnginesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/stt-engines/ui/SttEnginesTable/SttEnginesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/stt-engines/ui/SttEnginesTable/SttEnginesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/stt-engines/ui/SttEnginesTable/SttEnginesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 21,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/timeGroups/ui/TimeGroupsTable/TimeGroupsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/timeGroups/ui/TimeGroupsTable/TimeGroupsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/timeGroups/ui/TimeGroupsTable/TimeGroupsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/timeGroups/ui/TimeGroupsTable/TimeGroupsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 22,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/trunks/ui/TrunksTable/TrunksTable.tsx",
+              "firstCard": {
+                "height": 578,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/trunks/ui/TrunksTable/TrunksTable.tsx",
+              "firstCard": {
+                "height": 578,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/trunks/ui/TrunksTable/TrunksTable.tsx",
+              "firstCard": {
+                "height": 578,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/trunks/ui/TrunksTable/TrunksTable.tsx",
+              "firstCard": {
+                "height": 578,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 23,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/tts-engines/ui/TtsEnginesTable/TtsEnginesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/tts-engines/ui/TtsEnginesTable/TtsEnginesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/tts-engines/ui/TtsEnginesTable/TtsEnginesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/tts-engines/ui/TtsEnginesTable/TtsEnginesTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 24,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/users/ui/UsersTable/UsersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/users/ui/UsersTable/UsersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/users/ui/UsersTable/UsersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/users/ui/UsersTable/UsersTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 25,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/voiceRobots/ui/DataListEditor/DataListEditor.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/voiceRobots/ui/DataListEditor/DataListEditor.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/voiceRobots/ui/DataListEditor/DataListEditor.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/voiceRobots/ui/DataListEditor/DataListEditor.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 26,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/voiceRobots/ui/VoiceRobotsTable/VoiceRobotsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/voiceRobots/ui/VoiceRobotsTable/VoiceRobotsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/voiceRobots/ui/VoiceRobotsTable/VoiceRobotsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/features/voiceRobots/ui/VoiceRobotsTable/VoiceRobotsTable.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 27,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/pages/AiAgentsPage/AiAgentsPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/pages/AiAgentsPage/AiAgentsPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/pages/AiAgentsPage/AiAgentsPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/pages/AiAgentsPage/AiAgentsPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 161
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 97
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 40,
+                "width": 256,
+                "x": 13,
+                "y": 96
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 42
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    },
+    {
+      "index": 28,
+      "states": [
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 1,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 2,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        },
+        {
+          "cases": [
+            {
+              "cardOverflow": false,
+              "file": "packages/frontend/src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.tsx",
+              "firstCard": {
+                "height": 656,
+                "width": 256,
+                "x": 13,
+                "y": 219
+              },
+              "search": {
+                "height": 38,
+                "width": 256,
+                "x": 13,
+                "y": 156
+              },
+              "selected": 0,
+              "textClipped": false,
+              "toolbar": {
+                "height": 94,
+                "width": 256,
+                "x": 13,
+                "y": 100
+              },
+              "toolbarOverflow": false,
+              "tools": {
+                "height": 48,
+                "width": 208,
+                "x": 13,
+                "y": 100
+              }
+            }
+          ],
+          "viewport": 320,
+          "width": 314
+        }
+      ],
+      "stable": true,
+      "clean": true
+    }
+  ],
+  "widths390and767": [
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/ai-providers/ui/AiProvidersTable/AiProvidersTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 223
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 160
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 104
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 104
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/autodial/ui/BasesList/BasesList.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 97
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 40,
+            "width": 326,
+            "x": 13,
+            "y": 96
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 42
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/autodial/ui/CampaignsTable/CampaignsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 207
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 144
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 88
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 88
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/call-groups/ui/CallGroupsTable/CallGroupsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/callcenter/ui/SoftphoneWidget/SoftphoneContacts.tsx",
+          "firstCard": {
+            "height": 298,
+            "width": 326,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 97
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 40,
+            "width": 326,
+            "x": 13,
+            "y": 96
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 42
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/cloud-admin/ui/TenantsTable/TenantsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 207
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 144
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 88
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 88
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/conferences/ui/ConferencesTable/ConferencesTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/directories/ui/DirectoriesTable/DirectoriesTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/endpoints/ui/EndpointsTable/EndpointsTable.tsx",
+          "firstCard": {
+            "height": 316,
+            "width": 326,
+            "x": 13,
+            "y": 167
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 104
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 0,
+            "width": 0,
+            "x": -16,
+            "y": -131
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 131,
+            "y": 43
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/ivrs/ui/IvrsTable/IvrsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/moh/ui/MohTable/MohTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/notifications/ui/NotificationIntegrationsTable/NotificationIntegrationsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/numbers/ui/NumbersTable/NumbersTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/prompts/ui/PromptsTable/PromptsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/provisionTemplates/ui/ProvisionTemplatesTable/ProvisionTemplatesTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/queues/ui/QueuesTable/QueuesTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/roles/ui/RolesTable/RolesTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/route-templates/ui/RouteTemplatesPage/RouteTemplatesPage.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/routes/ui/RoutesTable/RoutesTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/serviceRequests/ui/ServiceRequestsTable/ServiceRequestsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 207
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 144
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 88
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 88
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/stt-engines/ui/SttEnginesTable/SttEnginesTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/timeGroups/ui/TimeGroupsTable/TimeGroupsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/trunks/ui/TrunksTable/TrunksTable.tsx",
+          "firstCard": {
+            "height": 346,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/tts-engines/ui/TtsEnginesTable/TtsEnginesTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/users/ui/UsersTable/UsersTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/voiceRobots/ui/DataListEditor/DataListEditor.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 97
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 40,
+            "width": 326,
+            "x": 13,
+            "y": 96
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 42
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/voiceRobots/ui/VoiceRobotsTable/VoiceRobotsTable.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/pages/AiAgentsPage/AiAgentsPage.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 97
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 40,
+            "width": 326,
+            "x": 13,
+            "y": 96
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 42
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.tsx",
+          "firstCard": {
+            "height": 400,
+            "width": 326,
+            "x": 13,
+            "y": 219
+          },
+          "search": {
+            "height": 38,
+            "width": 326,
+            "x": 13,
+            "y": 156
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 94,
+            "width": 326,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 390,
+      "width": 384
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/ai-providers/ui/AiProvidersTable/AiProvidersTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 177
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 109
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 104
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 104
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/autodial/ui/BasesList/BasesList.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 97
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 40,
+            "width": 709,
+            "x": 13,
+            "y": 96
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 42
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/autodial/ui/CampaignsTable/CampaignsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 93
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 88
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 88
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/call-groups/ui/CallGroupsTable/CallGroupsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/callcenter/ui/SoftphoneWidget/SoftphoneContacts.tsx",
+          "firstCard": {
+            "height": 184,
+            "width": 709,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 97
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 40,
+            "width": 709,
+            "x": 13,
+            "y": 96
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 42
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/cloud-admin/ui/TenantsTable/TenantsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 93
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 88
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 88
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/conferences/ui/ConferencesTable/ConferencesTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/directories/ui/DirectoriesTable/DirectoriesTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/endpoints/ui/EndpointsTable/EndpointsTable.tsx",
+          "firstCard": {
+            "height": 184,
+            "width": 709,
+            "x": 13,
+            "y": 167
+          },
+          "search": {
+            "height": 38,
+            "width": 709,
+            "x": 13,
+            "y": 104
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 0,
+            "width": 0,
+            "x": -16,
+            "y": -101
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 514,
+            "y": 43
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/ivrs/ui/IvrsTable/IvrsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/moh/ui/MohTable/MohTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/notifications/ui/NotificationIntegrationsTable/NotificationIntegrationsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/numbers/ui/NumbersTable/NumbersTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/prompts/ui/PromptsTable/PromptsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/provisionTemplates/ui/ProvisionTemplatesTable/ProvisionTemplatesTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/queues/ui/QueuesTable/QueuesTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/roles/ui/RolesTable/RolesTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/route-templates/ui/RouteTemplatesPage/RouteTemplatesPage.tsx",
+          "firstCard": {
+            "height": 280,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/routes/ui/RoutesTable/RoutesTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/serviceRequests/ui/ServiceRequestsTable/ServiceRequestsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 93
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 88
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 88
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/stt-engines/ui/SttEnginesTable/SttEnginesTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/timeGroups/ui/TimeGroupsTable/TimeGroupsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/trunks/ui/TrunksTable/TrunksTable.tsx",
+          "firstCard": {
+            "height": 217,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/tts-engines/ui/TtsEnginesTable/TtsEnginesTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/users/ui/UsersTable/UsersTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/voiceRobots/ui/DataListEditor/DataListEditor.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 97
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 40,
+            "width": 709,
+            "x": 13,
+            "y": 96
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 42
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/features/voiceRobots/ui/VoiceRobotsTable/VoiceRobotsTable.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/pages/AiAgentsPage/AiAgentsPage.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 161
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 97
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 40,
+            "width": 709,
+            "x": 13,
+            "y": 96
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 13,
+            "y": 42
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    },
+    {
+      "cases": [
+        {
+          "cardOverflow": false,
+          "file": "packages/frontend/src/pages/SpeechAnalyticsProjectsPage/SpeechAnalyticsProjectsPage.tsx",
+          "firstCard": {
+            "height": 232,
+            "width": 709,
+            "x": 13,
+            "y": 173
+          },
+          "search": {
+            "height": 38,
+            "width": 384,
+            "x": 338,
+            "y": 105
+          },
+          "selected": 0,
+          "textClipped": false,
+          "toolbar": {
+            "height": 48,
+            "width": 709,
+            "x": 13,
+            "y": 100
+          },
+          "toolbarOverflow": false,
+          "tools": {
+            "height": 48,
+            "width": 208,
+            "x": 122,
+            "y": 100
+          }
+        }
+      ],
+      "viewport": 767,
+      "width": 767
+    }
+  ]
+}

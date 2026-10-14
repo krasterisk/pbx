@@ -7,6 +7,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui';
 import { Button, Input, VStack, HStack, Label, Select } from '@/shared/ui';
 import { ITtsEngine } from '@/entities/engines';
+import { isStandaloneApp } from '@/shared/api/apiBase';
 import { useCreateTtsEngineMutation, useUpdateTtsEngineMutation } from '@/shared/api/endpoints/ttsEnginesApi';
 import cls from './TtsEngineFormModal.module.scss';
 
@@ -25,7 +26,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
   const [updateEngine, { isLoading: isUpdating }] = useUpdateTtsEngineMutation();
 
   const [name, setName] = useState('');
-  const [type, setType] = useState<EngineType>('google');
+  const [type, setType] = useState<EngineType>(isStandaloneApp() ? 'yandex' : 'google');
   const [token, setToken] = useState('');
 
   // Google settings
@@ -73,7 +74,7 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
 
   const resetForm = () => {
     setName('');
-    setType('google');
+    setType(isStandaloneApp() ? 'yandex' : 'google');
     setToken('');
     setCustomUrl('');
     setAuthMode('none');
@@ -169,9 +170,9 @@ export function TtsEngineFormModal({ isOpen, onClose, engine }: TtsEngineFormMod
           <VStack align="stretch" gap="4">
             <Label>{t('ttsEngines.type', 'Тип')}</Label>
             <Select value={type} onChange={(e) => setType(e.target.value as EngineType)}>
-              <option value="google">{t('ttsEngines.typeGoogle', 'Google Speech-to-Text / TTS')}</option>
+              {!isStandaloneApp() && <option value="google">{t('ttsEngines.typeGoogle', 'Google Speech-to-Text / TTS')}</option>}
               <option value="yandex">{t('ttsEngines.typeYandex', 'Yandex SpeechKit')}</option>
-              <option value="custom">{t('ttsEngines.typeCustom', 'Custom Endpoint')}</option>
+              {!isStandaloneApp() && <option value="custom">{t('ttsEngines.typeCustom', 'Custom Endpoint')}</option>}
             </Select>
           </VStack>
 

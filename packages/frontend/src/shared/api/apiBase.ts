@@ -19,7 +19,8 @@ export function getAuthApiBase(): string {
 }
 
 export function isStandaloneApp(): boolean {
-  return typeof window !== 'undefined' && window.location.pathname.includes('standalone');
+  return import.meta.env.VITE_VPBX_STANDALONE === 'true'
+    || (typeof window !== 'undefined' && window.location.pathname.includes('standalone'));
 }
 
 /** Same base as rtkApi in standalone (single `/public`, never `/public/public`). */

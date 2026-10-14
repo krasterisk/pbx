@@ -61,14 +61,5 @@
 }
 
 .tableWrap {
-  width: 100%;
-  min-width: 0;
-  align-self: stretch;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-
-  > * {
-    width: 100%;
-    min-width: 0;
-  }
+  composes: section from "../../shared/ui/Table/Table.module.scss";
 }

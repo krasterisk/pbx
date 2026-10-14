@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ariHttpPrefix } from './ari-http-prefix';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { resolveAriApplicationNames } from './ari-app-name';
 
@@ -80,7 +81,7 @@ export class AriHttpClientService implements OnModuleInit {
     const username = this.configService.get<string>('ARI_USER', 'krasterisk');
     const password = this.configService.get<string>('ARI_PASSWORD', '');
     
-    this.baseURL = `${protocol}://${host}:${port}/ari`;
+    this.baseURL = `${protocol}://${host}:${port}${ariHttpPrefix(this.configService.get<string>('ARI_HTTP_PREFIX'))}/ari`;
     const appNames = resolveAriApplicationNames({
       scriptedVoiceRobots: this.configService.get<string>('ARI_APP_NAME'),
       autodial: this.configService.get<string>('ARI_AUTODIAL_APP_NAME'),
@@ -248,6 +249,11 @@ export class AriHttpClientService implements OnModuleInit {
     });
   }
 
+  async getChannelVar(channelId: string, variable: string): Promise<string> {
+    const response = await this.client.get(`/channels/${channelId}/variable`, { params: { variable } });
+    return String(response.data.value ?? '');
+  }
+
   async answerChannel(channelId: string): Promise<void> {
     await this.client.post(`/channels/${channelId}/answer`);
   }
@@ -328,6 +334,7 @@ export class AriHttpClientService implements OnModuleInit {
 
   /** The single inbound WebSocket subscribes to each currently active owner. */
   getEventAppNames(): readonly string[] {
-    return [this.appName, this.autodialAppName];
+    return this.configService.get<string>('ARI_SCRIPTED_ONLY') === 'true'
+      ? [this.appName] : [this.appName, this.autodialAppName];
   }
 }

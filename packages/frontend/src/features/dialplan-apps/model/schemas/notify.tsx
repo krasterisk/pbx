@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import { normalizeNotifyParams } from '@krasterisk/shared';
 import type { FieldSchema } from '../schema.types';
 
@@ -46,14 +47,14 @@ export function buildNotifySchema(t: TFn): FieldSchema[] {
   ];
 }
 
-export function summarizeNotify(params: Record<string, unknown>, t: TFn): string {
+export function summarizeNotify(params: Record<string, unknown>, t: TFn, refs?: Record<string, unknown>): string {
   const uid = params.integration_uid;
   if (!uid) {
     return t('routes.chain.notify.summaryEmpty', 'Уведомление: интеграция не выбрана');
   }
-  return t('routes.chain.notify.summary', 'Уведомление через интеграцию #{{uid}}').replace(
-    '{{uid}}',
-    String(uid),
+  return t('routes.chain.notify.summary', 'Уведомление через {{name}}').replace(
+    '{{name}}',
+    summaryRefLabel(refs, 'notifications', uid, t),
   );
 }
 

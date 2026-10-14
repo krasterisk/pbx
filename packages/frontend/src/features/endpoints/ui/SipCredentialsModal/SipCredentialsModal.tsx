@@ -1,4 +1,4 @@
-import { ModalBody, ModalSection } from '@/shared/ui';
+import { ModalBody, ModalSection } from "@/shared/ui";
 import { useTranslation } from "react-i18next";
 import cls from "./SipCredentialsModal.module.scss";
 import { Key, Copy, Check, Loader2 } from "lucide-react";
@@ -176,52 +176,54 @@ export const SipCredentialsModal = () => {
     title: string,
     fields: { label: string; value: string; field: string }[],
   ) => (
-    <VStack gap="12" className={cls.block}>
-      <Text className={cls.title}>{title}</Text>
-      {fields.map(({ label, value, field }) => (
-        <VStack gap="4" key={field}>
-          <Label htmlFor={`credential-${field}`} className={cls.label}>
-            {label}
-          </Label>
-          <Flex gap="8" max>
-            <Flex className={cls.inputWrap}>
-              {field.includes("password") ? (
-                <PasswordInput
-                  id={`credential-${field}`}
-                  readOnly
-                  value={value}
-                  className={cls.mono}
-                />
-              ) : (
-                <Input
-                  id={`credential-${field}`}
-                  readOnly
-                  value={value}
-                  className={cls.mono}
-                />
-              )}
+    <ModalSection className={cls.block}>
+      <VStack gap="12" align="stretch" max>
+        <Text className={cls.title}>{title}</Text>
+        {fields.map(({ label, value, field }) => (
+          <VStack gap="4" key={field}>
+            <Label htmlFor={`credential-${field}`} className={cls.label}>
+              {label}
+            </Label>
+            <Flex gap="8" max>
+              <Flex className={cls.inputWrap}>
+                {field.includes("password") ? (
+                  <PasswordInput
+                    id={`credential-${field}`}
+                    readOnly
+                    value={value}
+                    className={cls.mono}
+                  />
+                ) : (
+                  <Input
+                    id={`credential-${field}`}
+                    readOnly
+                    value={value}
+                    className={cls.mono}
+                  />
+                )}
+              </Flex>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className={cls.copyButton}
+                aria-label={t("endpoints.copyField", { field: label })}
+                onMouseDown={keepDialogFocused}
+                onClick={() => {
+                  void copyToClipboard(value, field);
+                }}
+              >
+                {copiedField === field ? (
+                  <Check size={16} className={cls.copied} />
+                ) : (
+                  <Copy size={16} />
+                )}
+              </Button>
             </Flex>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className={cls.copyButton}
-              aria-label={t("endpoints.copyField", { field: label })}
-              onMouseDown={keepDialogFocused}
-              onClick={() => {
-                void copyToClipboard(value, field);
-              }}
-            >
-              {copiedField === field ? (
-                <Check size={16} className={cls.copied} />
-              ) : (
-                <Copy size={16} />
-              )}
-            </Button>
-          </Flex>
-        </VStack>
-      ))}
-    </VStack>
+          </VStack>
+        ))}
+      </VStack>
+    </ModalSection>
   );
 
   const sipFields = creds
@@ -272,7 +274,7 @@ export const SipCredentialsModal = () => {
   return (
     <Dialog open={!!sipId} onOpenChange={(open) => !open && handleClose()}>
       <FormDialogContent
-        size="large"
+        size="default"
         className={cls.dialog}
         ref={contentRef}
         aria-describedby={undefined}
@@ -283,8 +285,7 @@ export const SipCredentialsModal = () => {
             <DialogTitle>{t("endpoints.sipCredentials")}</DialogTitle>
           </HStack>
         </DialogHeader>
-        <ModalBody   className={cls.body}>
-<ModalSection>
+        <ModalBody className={cls.body}>
           {isLoading ? (
             <VStack
               gap="16"
@@ -296,12 +297,12 @@ export const SipCredentialsModal = () => {
               <Text variant="muted">{t("common.loading")}</Text>
             </VStack>
           ) : creds ? (
-            <VStack align="stretch" gap="16">
+            <Flex align="stretch" gap="16" className={cls.blocks} max>
               {renderCredBlock(t("endpoints.credSip"), sipFields)}
 
               {creds.webrtc &&
                 renderCredBlock(t("endpoints.credWebrtc"), webrtcFields)}
-            </VStack>
+            </Flex>
           ) : (
             <Text variant="muted" role={isError ? "alert" : undefined}>
               {t(
@@ -314,8 +315,7 @@ export const SipCredentialsModal = () => {
               {copyError}
             </Text>
           )}
-        </ModalSection>
-</ModalBody>
+        </ModalBody>
         <DialogFooter className={cls.footer}>
           <Button type="button" variant="outline" onClick={handleClose}>
             {t("common.close")}

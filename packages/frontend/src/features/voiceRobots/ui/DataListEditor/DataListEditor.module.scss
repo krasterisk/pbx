@@ -132,9 +132,10 @@
 }
 
 .tableWrapper {
-  overflow-x: auto;
-  border-radius: 0.5rem;
-  border: 1px solid hsl(var(--border) / 0.5);
+ composes: section from '../../../../shared/ui/Table/Table.module.scss';
+
+
+
 }
 
 .dataTable {

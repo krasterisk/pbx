@@ -13,6 +13,8 @@
 
 ## Монорепо
 
+Shared table design/search/export assignment: [EXECUTION](table-ui-standardization/EXECUTION.md), [PLAN](table-ui-standardization/PLAN.md), codex-direct /root, current revision 2026-10-13-r6 (one shared selection toolbar, no duplicate selection banners). Existing endpoint design is the UI baseline; adjacent completed initiatives remain unchanged.
+
 | Путь | Содержание |
 |------|------------|
 | `package.json` (root) | Workspaces, npm scripts (`test`, `lint`, `dev:*`) |
@@ -48,4 +50,6 @@ context UI follow-up as the current assignment in this chat.
 
 Поручение этого чата реализовано, автоматические проверки пройдены, visual tool-unavailable: [унификация модалок / EXECUTION](modal-ui-standardization/EXECUTION.md), [PLAN](modal-ui-standardization/PLAN.md), codex-direct /root, 2026-10-10-r1. Маршруты/контексты остаются baseline завершённого предыдущего scope.
 
-Mobile navigation: [EXECUTION](mobile-navigation/EXECUTION.md), [PLAN](mobile-navigation/PLAN.md), [SUMMARY](mobile-navigation/SUMMARY.md), codex-direct /root, 2026-10-11-r10. N18 one-page sections without disclosure/duplicate implemented; automated/local mocked browser PASS. Prior revisions retained; human/device gates pending. Adjacent endpoints work excluded.
+Mobile navigation: [EXECUTION](mobile-navigation/EXECUTION.md), [PLAN](mobile-navigation/PLAN.md), [SUMMARY](mobile-navigation/SUMMARY.md), codex-direct /root, 2026-10-11-r11. N19 catalog-aware login/root fallback and working footer section Sheet implemented; automated/local mocked browser gates PASS. Prior revisions retained; human/device gates pending. Adjacent endpoints work excluded.
+
+PBX Dashboard: [EXECUTION](pbx-dashboard/EXECUTION.md), [PLAN](pbx-dashboard/PLAN.md), [SUMMARY](pbx-dashboard/SUMMARY.md), [LIVE-REVIEW](pbx-dashboard/LIVE-REVIEW.md); codex-direct /root, 2026-10-11-r3 implemented/automated-tests-passed/isolated ordinary-call live-verified; working AI/full autodial engine/dedicated PBX load/release pending.

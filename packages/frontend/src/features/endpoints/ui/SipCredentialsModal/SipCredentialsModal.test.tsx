@@ -88,6 +88,7 @@ describe("SipCredentialsModal", () => {
 
   it("uses locale keys for every credential label", () => {
     renderModal();
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-modal-size', 'default');
 
     expect(screen.getByText("endpoints.sipCredentials")).toBeInTheDocument();
     expect(screen.getByText("endpoints.credSip")).toBeInTheDocument();

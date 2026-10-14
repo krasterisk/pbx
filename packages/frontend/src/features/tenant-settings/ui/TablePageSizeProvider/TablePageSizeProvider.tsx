@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { TablePageSizeContext } from '@/shared/ui/DataTable/TablePageSizeContext';
+import { TablePageSizeContext } from '@/shared/ui/Table/TablePageSizeContext';
 import { normalizeTablePageSize, useGetTenantSettingsQuery } from '@/entities/tenantSettings';
 
 export function TablePageSizeProvider({ children }: { children: ReactNode }) {

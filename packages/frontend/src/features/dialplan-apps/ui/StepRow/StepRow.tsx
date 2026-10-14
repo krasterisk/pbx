@@ -30,6 +30,7 @@ import { toConditionSource } from '../../model/conditionMap';
 import type { ChainAction } from '../../model/editorReducer';
 import { sanitizeParamsForPreview } from '@/features/route-templates/model/sanitizeParamsForPreview';
 import { stripActionTitleFromSummary } from '../../model/stripActionTitleFromSummary';
+import { summarySlotLabels } from '../../model/summaryLabels';
 import styles from './StepRow.module.scss';
 
 export type StepSection = 'params' | 'conditions' | 'options';
@@ -125,7 +126,10 @@ export const StepRow = memo(function StepRow({
     ? config.summarize(
         sanitizeParamsForPreview(action.params ?? {}, slots),
         t,
-        refs,
+        {
+          ...refs,
+          templateSlotLabels: summarySlotLabels(slots, t),
+        },
       )
     : t(
         'routes.chain.unknown.summary',

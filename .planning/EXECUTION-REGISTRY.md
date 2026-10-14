@@ -14,11 +14,12 @@
 
 | ac-reservations-fix | [EXECUTION/PLAN](AC-RESERVATIONS-FIX.md) | Scoped production schema repair |
 
-| trunk-status-fix | [EXECUTION/PLAN](TRUNK-STATUS-FIX.md) | Trunk reachability UI |
+| trunk-status-fix | [EXECUTION/PLAN](TRUNK-STATUS-FIX.md) | r3 /root codex-direct implemented/targeted-tests-passed: AoR discrepancy diagnosed, empty Actions column removed; backend/build PASS, frontend original6 mock failures + corrective9/9 PASS, root lint blocked by support error, browser policy blocked; r2 evidence retained; no release |
 
 | dialplan-callerid-name | [EXECUTION/PLAN](DIALPLAN-CALLERID-NAME.md) | Trunk labels and CallerID name |
 | blf-support | [EXECUTION/PLAN](BLF-SUPPORT.md) | Optional tenant-isolated BLF and presence |
 | endpoints-architecture | [EXECUTION/PLAN](ENDPOINTS-ARCHITECTURE-EXECUTION.md) | Endpoints UI architecture and audit repair |
+| table-ui-standardization | [EXECUTION](table-ui-standardization/EXECUTION.md) | [PLAN](table-ui-standardization/PLAN.md), /root chat 01a12e83-9fcf-7460-a9b5-060c61e3a096 codex-direct r6 T17–T19 accepted: one selection toolbar, legacy banners removed, mobile filtered-ID selection; 36 files/149 tests + final 17-case regression/typecheck/scoped lint PASS, actual Endpoints/Trunks geometry verified |
 | design-system-refresh | [EXECUTION/PLAN](DESIGN-SYSTEM-REFRESH-EXECUTION.md) | Centered errors, redesigned dark palette, AiChat launcher |
 | context-defaults-aichat | [EXECUTION/PLAN](CONTEXT-DEFAULTS-AICHAT-EXECUTION.md) | Default contexts and platform assistant capability audit |
 | routes-contexts-refactor | [EXECUTION/PLAN](ROUTES-CONTEXTS-REFACTOR-PLAN.md) | Ordered includes, route permissions removal and isolated live Asterisk tests |
@@ -27,10 +28,15 @@
 
 | release-20261010 | [EXECUTION/PLAN](RELEASE-20261010.md) | Released 4.6.6 / bef2865f; all CI and authenticated production smoke PASS |
 
-| mobile-navigation | [EXECUTION](mobile-navigation/EXECUTION.md) | [PLAN](mobile-navigation/PLAN.md) N18/r10 implemented; automated/local mocked browser PASS; one-page sections without disclosure/duplicate; /root coordination idle; human/device gates pending |
+| mobile-navigation | [EXECUTION](mobile-navigation/EXECUTION.md) | [PLAN](mobile-navigation/PLAN.md) N21/r13 compact section flyouts implemented; targeted/types/lint/backend/frontend PASS, visual tool-unavailable; /root sole coordinator, codex-direct idle |
 
 | release-4.6.7 | [EXECUTION/PLAN](RELEASE-4.6.7-20261010.md) | Released 4.6.7 / 96b67a48; all CI and authenticated production smoke PASS |
 
 | release-4.6.8 | [EXECUTION/PLAN](RELEASE-4.6.8-20261010.md) | Released 4.6.8 / b3eaa72f; all CI and authenticated production smoke PASS |
 
 | release-4.6.9 | [EXECUTION/PLAN](RELEASE-4.6.9-20261011.md) | Released 4.6.9 / 35c29abd; all CI and authenticated production smoke PASS |
+
+| pbx-dashboard | [EXECUTION](pbx-dashboard/EXECUTION.md) | [PLAN](pbx-dashboard/PLAN.md), [SUMMARY](pbx-dashboard/SUMMARY.md); /root codex-direct D7-UI r4 implemented, scoped43/types/frontend-lint/backend PASS, global lint/frontend foreign failures; visual pending, writers FIN; r3 AI/autodial/load/release gates unchanged |
+| mpbx-voice-robots | [EXECUTION/PLAN](mpbx-voice-robots/EXECUTION.md) | /root codex-direct r5 module HTML MCP restyle/footer guide, full-viewport dialogs and shadow gutters released/live-verified; desktop/mobile scoped checks PASS;109 protected files/index and all PM2/Asterisk unchanged/no restarts; r4 backend4011/frontend1946 regression baseline PASS; real audio/capacity pending |
+
+| release-4.7.0 | [EXECUTION/PLAN](RELEASE-4.7.0-20261014.md) | Publish current 4.7.0 snapshot and production upgrade |

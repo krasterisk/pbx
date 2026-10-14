@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import { useTranslation } from 'react-i18next';
 import { Checkbox, Label, Select } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
@@ -38,6 +39,7 @@ export function normalizePlaybackParams(params: Record<string, unknown> = {}): R
 export function summarizePlayback(
   params: Record<string, unknown>,
   t: TFn,
+  refs?: Record<string, unknown>,
 ): string {
   const mode = String(params.mode ?? 'plain') as keyof typeof PLAYBACK_MODE_LABELS;
   const modeLabel = t(
@@ -51,7 +53,7 @@ export function summarizePlayback(
   }
   return t('routes.chain.playback.summary', '{{mode}}: {{file}}')
     .replace('{{mode}}', modeLabel)
-    .replace('{{file}}', file);
+    .replace('{{file}}', summaryRefLabel(refs, 'prompts', file, t, file));
 }
 
 export function buildPlaybackSchema(t: TFn): FieldSchema[] {

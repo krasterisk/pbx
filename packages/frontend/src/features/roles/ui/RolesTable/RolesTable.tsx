@@ -1,29 +1,19 @@
-import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { memo, useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { type Table } from '@tanstack/react-table';
-import { Shield, Search, Loader2, Trash2, Pencil } from 'lucide-react';
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  Input,
-  Button,
-  DataTable,
-  Text,
-  TableRowActions,
-  TableRowAction,
-  TableSelectionBanner,
-  BulkDeleteDialog,
-} from '@/shared/ui';
-import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import { useGetRolesQuery, useDeleteRoleMutation, useBulkDeleteRolesMutation } from '@/shared/api/api';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
-import { rolesPageActions } from '../../model/slice/rolesPageSlice';
-import { useRolesTableColumns } from './useRolesTableColumns';
-import cls from './RolesTable.module.scss';
+import { TableCard } from "@/shared/ui";
+
+import { useBulkDeleteRolesMutation, useGetRolesQuery } from "@/shared/api/api";
+import { useAppDispatch } from "@/shared/hooks/useAppStore";
+import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { BulkDeleteDialog, Card, CardContent, CardHeader, Table, TableToolbar, Text, tableStyles } from "@/shared/ui";
+import { QueryErrorState } from "@/shared/ui/QueryErrorState";
+import { Flex, HStack, VStack } from "@/shared/ui/Stack";
+
+import { Loader2, Shield } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { rolesPageActions } from "../../model/slice/rolesPageSlice";
+import cls from "./RolesTable.module.scss";
+import { useRolesTableColumns } from "./useRolesTableColumns";
 
 const PAGE_SIZE = 50;
 
@@ -31,11 +21,16 @@ export const RolesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: roles = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetRolesQuery();
-  const [deleteRole] = useDeleteRoleMutation();
+  const {
+    data: roles = [],
+    isLoading,
+    isError: isListLoadError,
+    refetch: retryListLoad,
+  } = useGetRolesQuery();
+
   const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteRolesMutation();
 
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [globalFilter, setGlobalFilter] = useState("");
   const selection = useCrossPageRowSelection({ globalFilter });
 
   const columns = useRolesTableColumns();
@@ -44,8 +39,8 @@ export const RolesTable = memo(() => {
     const q = globalFilter.trim().toLowerCase();
     if (!q) return roles;
     return roles.filter((role) => {
-      const name = (role.name || '').toLowerCase();
-      const comment = (role.comment || role.description || '').toLowerCase();
+      const name = (role.name || "").toLowerCase();
+      const comment = (role.comment || role.description || "").toLowerCase();
       return name.includes(q) || comment.includes(q);
     });
   }, [roles, globalFilter]);
@@ -66,20 +61,7 @@ export const RolesTable = memo(() => {
     selection.afterBulkDelete();
   }, [selection, bulkDelete]);
 
-  const renderSelectionBanner = useCallback(
-    (table: Table<(typeof roles)[number]>) => (
-      <TableSelectionBanner
-        table={table}
-        pageSize={PAGE_SIZE}
-        allMatchingSelected={selection.allMatchingSelected}
-        selectedIds={selection.selectedIds}
-        selectedCount={selection.selectedCount}
-        onSelectAllMatching={selection.selectAllMatching}
-        onClear={selection.clearSelection}
-      />
-    ),
-    [selection],
-  );
+
 
   const bulkDeleteDialog = (
     <BulkDeleteDialog
@@ -98,41 +80,48 @@ export const RolesTable = memo(() => {
     <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
         <Shield size={20} className={cls.toolbarIcon} />
-        <Text className={cls.count}>{t('roles.count', { count: roles.length })}</Text>
+        <Text className={cls.count}>
+          {t("roles.count", { count: roles.length })}
+        </Text>
       </HStack>
       <HStack gap="8" align="center" className={cls.toolbarActions}>
-        {!isMobile && (
-          <Button
-            variant="destructive"
-            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selection.selectedCount === 0}
-            aria-hidden={selection.selectedCount === 0}
-            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
-            onClick={selection.openBulkDelete}
-          >
-            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('roles.deleteSelected', { count: selection.selectedCount })}
-          </Button>
-        )}
-        <Flex align="center" className={cls.searchWrap}>
-          <Search size={16} className={cls.searchIcon} />
-          <Input
-            id="roles-search"
-            placeholder={t('common.search')}
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className={cls.searchInput}
-          />
-        </Flex>
+        <TableToolbar
+          tableRef={selection.tableRef}
+          searchId="roles-search"
+          searchPlaceholder={t("common.search")}
+          searchValue={globalFilter}
+          onSearchChange={(value) => setGlobalFilter(value)}
+          exportTable={{
+            data: roles,
+            columns: columns,
+            getRowId: (row) => String(row.id),
+            globalFilter: globalFilter,
+            rowSelection: selection.rowSelection,
+            filename: "roles_export",
+          }}
+          selection={selection}
+
+          onDeleteSelected={selection.openBulkDelete}
+          deleteDisabled={isDeleting}
+          deleteLabel={t("roles.deleteSelected", {
+            count: selection.selectedCount,
+          })}
+        />
       </HStack>
     </Flex>
   );
 
-  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
+  if (isListLoadError)
+    return (
+      <QueryErrorState
+        message={t("common.queryLoadError")}
+        onRetry={() => void retryListLoad()}
+      />
+    );
   if (isLoading) {
     return (
-      <Card className={cls.card}>
-        <CardHeader>{toolbar}</CardHeader>
+      <Card className={[tableStyles.surface, cls.card].join(" ")}>
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <Flex align="center" justify="center" className={cls.loading}>
             <Loader2 size={24} className={cls.spinner} />
@@ -144,52 +133,44 @@ export const RolesTable = memo(() => {
 
   if (isMobile) {
     return (
-      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
-        <CardHeader>{toolbar}</CardHeader>
+      <Card
+        className={[tableStyles.surface, cls.card].join(" ")}
+        data-testid="hybrid-table"
+        data-hybrid="mobile-card"
+      >
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <VStack gap="8" max className={cls.mobileList}>
             {filtered.length === 0 ? (
               <Text variant="muted" className={cls.mobileEmpty}>
-                {t('roles.empty')}
+                {t("roles.empty")}
               </Text>
             ) : (
               filtered.map((role) => (
-                <Flex
+                <TableCard
+                  onActivate={() =>
+                    dispatch(rolesPageActions.openEditModal(role))
+                  }
                   key={role.id}
                   direction="column"
-                  className={cls.mobileCard}
+                  className={[tableStyles.card, cls.mobileCard].join(" ")}
                   data-testid="roles-mobile-card"
+                  selection={selection.cardSelection(
+                    String(role.id),
+                    t("common.selectRowAria", { index: String(role.id) }),
+                  )}
                 >
                   <HStack justify="between" align="start" max>
                     <VStack gap="4">
-                      <Text as="span" className={cls.name}>{role.name}</Text>
+                      <Text as="span" className={cls.name}>
+                        {role.name}
+                      </Text>
                       <Text as="span" className={cls.comment}>
-                        {role.comment || role.description || '-'}
+                        {role.comment || role.description || "-"}
                       </Text>
                     </VStack>
-                    <TableRowActions>
-                      <TableRowAction
-                        title={t('common.edit')}
-                        aria-label={t('common.edit')}
-                        onClick={() => dispatch(rolesPageActions.openEditModal(role))}
-                      >
-                        <Pencil />
-                      </TableRowAction>
-                      <TableRowAction
-                        danger
-                        title={t('common.delete')}
-                        aria-label={t('common.delete')}
-                        onClick={() => {
-                          if (window.confirm(t('roles.confirmDelete', { name: role.name }))) {
-                            void deleteRole(role.id);
-                          }
-                        }}
-                      >
-                        <Trash2 />
-                      </TableRowAction>
-                    </TableRowActions>
                   </HStack>
-                </Flex>
+                </TableCard>
               ))
             )}
           </VStack>
@@ -200,8 +181,12 @@ export const RolesTable = memo(() => {
   }
 
   return (
-    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
-      <CardHeader>{toolbar}</CardHeader>
+    <Card
+      className={[tableStyles.surface, cls.card].join(" ")}
+      data-testid="hybrid-table"
+      data-hybrid="overflow-x-auto"
+    >
+      <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
       <CardContent className={cls.cardContent}>
         <Flex
           direction="column"
@@ -209,7 +194,13 @@ export const RolesTable = memo(() => {
           className={cls.tableScroll}
           data-testid="roles-table-scroll"
         >
-          <DataTable
+          <Table
+            onRowClick={(role) =>
+              dispatch(rolesPageActions.openEditModal(role))
+            }
+            surface={false}
+            showSearch={false}
+            showExport={false}
             ref={selection.tableRef}
             className={cls.table}
             data={roles}
@@ -220,10 +211,10 @@ export const RolesTable = memo(() => {
             onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
             pageSize={PAGE_SIZE}
-            emptyText={t('roles.empty')}
+            emptyText={t("roles.empty")}
             exportFilename="roles_export"
-            selectAllAriaLabel={t('common.selectPageAria')}
-            renderBanner={renderSelectionBanner}
+            selectAllAriaLabel={t("common.selectPageAria")}
+
           />
         </Flex>
       </CardContent>
@@ -232,4 +223,4 @@ export const RolesTable = memo(() => {
   );
 });
 
-RolesTable.displayName = 'RolesTable';
+RolesTable.displayName = "RolesTable";

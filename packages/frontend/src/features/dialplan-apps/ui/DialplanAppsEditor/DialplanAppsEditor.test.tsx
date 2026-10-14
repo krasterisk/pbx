@@ -83,7 +83,7 @@ vi.mock('@/shared/api/endpoints/numberApi', () => ({
 }));
 
 vi.mock('@/shared/api/endpoints/notificationApi', () => ({
-  useGetNotificationsQuery: () => ({ data: [], isLoading: false }),
+  useGetNotificationsQuery: () => ({ data: [{ uid: 1, name: 'Оповещения Telegram', channel: 'telegram' }], isLoading: false }),
 }));
 
 vi.mock('@/shared/api/endpoints/conferenceRoomApi', () => ({
@@ -135,6 +135,13 @@ describe('DialplanAppsEditor', () => {
   it('shows the catalog name for a voice robot action', () => {
     render(<Harness actions={[step('robot', 'voicerobot', { params: { robot_uid: 1 } })]} onChange={vi.fn()} />);
     expect(screen.getByTestId('step-row-summary')).toHaveTextContent('Командор');
+  });
+
+  it('shows the selected notification integration name in the closed step card', () => {
+    render(<Harness actions={[step('notify', 'notify', { params: { integration_uid: 1, body: 'Call ended' } })]} onChange={vi.fn()} />);
+    const summary = screen.getByTestId('step-row-summary');
+    expect(summary).toHaveTextContent('Оповещения Telegram (telegram)');
+    expect(summary).not.toHaveTextContent('#1');
   });
 
   it('adds an action when crypto.randomUUID is unavailable on HTTP', () => {

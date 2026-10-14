@@ -3,6 +3,9 @@ import { VoiceRobotsService } from './voice-robots.service';
 import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { RouteReferencesService } from '../route-references/route-references.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
+import { defineMutationTool, jsonSchemaOf } from '../ai-platform/ai-mutation.contract';
+import { VoiceRobotToolsService, type RobotTool } from './voice-robot-tools.service';
+import { z } from 'zod';
 import {
   AiStateProvider,
   AiToolDefinition,
@@ -47,10 +50,10 @@ type GroupLike = {
 };
 
 /**
- * VoiceRobotsAiAdapter — read-only voice robot tools (D-15).
+ * VoiceRobotsAiAdapter — shared robot catalog for MCP and AI chat.
  * Describe resolves each referenced speech engine so a silent robot is diagnosable
  * in one call. Dangling engine uids are reported as missing, not skipped (T-15-89).
- * Robots are outside the write boundary — no mutating tool is declared.
+ * Writes use the platform proposal/confirmation contract; never reload dialplan.
  */
 @Injectable()
 export class VoiceRobotsAiAdapter implements DomainAiAdapter, OnModuleInit {
@@ -62,6 +65,7 @@ export class VoiceRobotsAiAdapter implements DomainAiAdapter, OnModuleInit {
     private readonly providers: AiProvidersService,
     private readonly registry: AiAdapterRegistryService,
     @Optional() private readonly routeReferences?: RouteReferencesService,
+    @Optional() private readonly robotTools?: VoiceRobotToolsService,
   ) {}
 
   onModuleInit(): void {
@@ -70,7 +74,40 @@ export class VoiceRobotsAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [this.toolListVoiceRobots(), this.toolDescribeVoiceRobot()];
+    return [this.toolListVoiceRobots(), this.toolDescribeVoiceRobot(),
+      ...(this.robotTools?.definitions().map(tool => this.adoptRobotTool(tool)) ?? [])];
+  }
+
+  private adoptRobotTool(tool: RobotTool): AiToolDefinition {
+    if (tool.readOnly) return {
+      name: tool.name, description: tool.description, entityType: 'voice_robot',
+      inputSchema: jsonSchemaOf(tool.input), handler: (args, tenant) => tool.execute(tool.input.parse(args), tenant),
+    };
+    const canonical = tool.input.extend({ expectedRevision: z.string().min(1) });
+    return defineMutationTool({ name: tool.name, description: tool.description, entityType: 'voice_robot',
+      destructive: tool.name.startsWith('delete'), schemaVersion: 'voice-robot-tools-1',
+      input: tool.input, args: canonical, reload: { kind: 'none' },
+      propose: async (input, ctx) => {
+        await this.robotTools!.configuration.preflight(input, ctx.vpbxUserUid);
+        const expectedRevision = await this.robotTools!.configuration.revision(tool.name, input, ctx.vpbxUserUid);
+        const parent = await this.robotTools!.configuration.parentId(tool.name, input, ctx.vpbxUserUid);
+        const current = parent ? await this.robotTools!.configuration.configuration(ctx.vpbxUserUid, parent) : null;
+        return { entityType: 'voice_robot', entityLabel: current?.robot.name ?? (input as Record<string, any>).data?.name ?? 'Голосовой робот',
+          summary: [tool.description, 'Изменение только конфигурации робота; маршрут звонка не меняется.'],
+          before: current ? { robot: current.robot, groupCount: current.groups.length,
+            keywordCount: current.keywords.length, dataListCount: current.dataLists.length, revision: expectedRevision } : null,
+          after: input, applyPayload: { tool: tool.name, args: { ...input, expectedRevision } }, includesDialplanReload: false };
+      },
+      revalidate: async (args, ctx) => {
+        const { expectedRevision, ...input } = args;
+        try {
+          const revision = await this.robotTools!.configuration.revision(tool.name, input, ctx.vpbxUserUid);
+          return revision === expectedRevision ? { ok: true, args } : { ok: false, reason: 'Robot changed since proposal; read it again' };
+        } catch { return { ok: false, reason: 'Robot or child no longer belongs to this tenant' }; }
+      },
+      apply: async (args, ctx) => { const { expectedRevision, ...input } = args;
+        return tool.execute(input, ctx.vpbxUserUid, String(expectedRevision)); },
+    });
   }
 
   getStateProvider(): AiStateProvider {
@@ -111,7 +148,7 @@ export class VoiceRobotsAiAdapter implements DomainAiAdapter, OnModuleInit {
     return {
       name: 'describe_voice_robot',
       description:
-        'Один робот: сценарий (приветствие, группы) и речевые движки с configured/missing. Битую ссылку не пропускает. Изменить робота нельзя.',
+        'Один робот: сценарий (приветствие, группы) и речевые движки с configured/missing. Для полной конфигурации — get_voice_robot_configuration; изменения через карточки подтверждения.',
       inputSchema: {
         uid: { type: 'number', description: 'UID робота из list_voice_robots' },
       },

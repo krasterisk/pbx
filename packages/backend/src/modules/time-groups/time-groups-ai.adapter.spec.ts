@@ -238,6 +238,14 @@ describe('TimeGroupsAiAdapter mutations', () => {
       expect(timeGroupsService.update).not.toHaveBeenCalled();
     });
 
+    it('rejects calendar drift before confirmation', async () => {
+      const tool = getTool(adapter, 'update_time_group');
+      const proposed = await tool.handler({ uid: 11, name: 'Будни' }, TENANT_A);
+      const current = await timeGroupsService.findOne(11,TENANT_A);
+      timeGroupsService.findOne.mockResolvedValueOnce({...current,comment:'changed in web'});
+      const checked = await tool.mutation!.revalidate(proposed.applyPayload.args,{vpbxUserUid:TENANT_A,userUid:1,role:1,isAdmin:true});
+      expect(checked.ok).toBe(false);expect(timeGroupsService.update).not.toHaveBeenCalled();
+    });
     it('apply updates only the owned uid', async () => {
       const tool = getTool(adapter, 'update_time_group');
       const proposed = await tool.handler({ uid: 11, name: 'Будни' }, TENANT_A);
@@ -252,6 +260,7 @@ describe('TimeGroupsAiAdapter mutations', () => {
         11,
         expect.objectContaining({ name: 'Будни' }),
         TENANT_A,
+        expect.stringMatching(/^[a-f0-9]{64}$/),
       );
     });
   });

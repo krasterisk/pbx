@@ -1,3 +1,4 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/shared/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileQuestion } from 'lucide-react';
@@ -45,22 +46,22 @@ export const UnknownActionCard = memo(function UnknownActionCard({
           'Неизвестный тип действия. Параметры сохранены и не будут потеряны',
         )}
       </Text>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>{t('routes.chain.unknown.key', 'Ключ')}</th>
-            <th>{t('routes.chain.unknown.value', 'Значение')}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table showSearch={false} showExport={false} className={styles.table}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('routes.chain.unknown.key', 'Ключ')}</TableHead>
+            <TableHead>{t('routes.chain.unknown.value', 'Значение')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {entries.map(([key, value]) => (
-            <tr key={key}>
-              <td>{key}</td>
-              <td>{paramValue(value)}</td>
-            </tr>
+            <TableRow key={key}>
+              <TableCell>{key}</TableCell>
+              <TableCell>{paramValue(value)}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
       {!readOnly ? (
         <Flex gap="8" className={styles.actions} wrap="wrap">
           <Button type="button" variant="outline" onClick={onDelete} aria-label={deleteLabel}>

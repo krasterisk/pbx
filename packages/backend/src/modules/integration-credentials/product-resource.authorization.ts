@@ -40,7 +40,8 @@ export class ProductResourceAuthorization {
 
   async authorize(context: TenantContext, reference: ProductResourceReference): Promise<void> {
     const validPair = (reference.product === 'speech_analytics' && reference.resourceKind === 'project')
-      || (reference.product === 'ai_voice_robots' && reference.resourceKind === 'deployment');
+      || (reference.product === 'ai_voice_robots' && reference.resourceKind === 'deployment')
+      || (reference.product === 'pbx_support' && reference.resourceKind === 'pbx');
     if (!validPair || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(reference.resourceId)
       || !/^[a-z][a-z0-9:_-]{0,63}$/.test(reference.action)) {
       throw new NotFoundException({ code: 'resource_not_found' });

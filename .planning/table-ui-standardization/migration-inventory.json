@@ -1,0 +1,134 @@
+[
+  {
+    "file": "features\\ai-providers\\ui\\AiProvidersTable\\AiProvidersTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\aiRobots\\ui\\RobotsTable\\RobotsTable.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "features\\call-groups\\ui\\CallGroupsTable\\CallGroupsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\callcenter\\ui\\ReportSchedulesManager\\ReportSchedulesManager.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "features\\cdr\\ui\\CdrTable\\CdrTable.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "features\\cloud-admin\\ui\\SellersTable\\SellersTable.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "features\\cloud-admin\\ui\\TenantsTable\\TenantsTable.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "features\\conferences\\ui\\ConferencesTable\\ConferencesTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\contexts\\ui\\ContextsTable\\ContextsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\directories\\ui\\DirectoriesTable\\DirectoriesTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\endpoints\\ui\\EndpointsTable\\EndpointsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\ivrs\\ui\\IvrsTable\\IvrsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\komandorClaims\\ui\\KomandorClaimsTable.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "features\\moh\\ui\\MohTable\\MohTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\notifications\\ui\\NotificationIntegrationsTable\\NotificationIntegrationsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\numbers\\ui\\NumbersTable\\NumbersTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\prompts\\ui\\PromptsTable\\PromptsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\provisionTemplates\\ui\\ProvisionTemplatesTable\\ProvisionTemplatesTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\queues\\ui\\QueuesTable\\QueuesTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\roles\\ui\\RolesTable\\RolesTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\route-templates\\ui\\RouteTemplatesPage\\RouteTemplatesPage.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\routes\\ui\\RoutesTable\\RoutesTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\serviceRequests\\ui\\ServiceRequestsTable\\ServiceRequestsTable.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "features\\speechAnalytics\\ui\\ConversationsTable\\ConversationsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\stt-engines\\ui\\SttEnginesTable\\SttEnginesTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\timeGroups\\ui\\TimeGroupsTable\\TimeGroupsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\trunks\\ui\\TrunksTable\\TrunksTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\tts-engines\\ui\\TtsEnginesTable\\TtsEnginesTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\users\\ui\\UsersTable\\UsersTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "features\\voiceRobots\\ui\\VoiceRobotsTable\\VoiceRobotsTable.tsx",
+    "externalToolbar": true
+  },
+  {
+    "file": "pages\\CallCenterReportsPage\\CallCenterReportsPage.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "pages\\CallCenterSupervisorPage\\CallCenterSupervisorPage.tsx",
+    "externalToolbar": false
+  },
+  {
+    "file": "pages\\SpeechAnalyticsProjectsPage\\SpeechAnalyticsProjectsPage.tsx",
+    "externalToolbar": true
+  }
+]

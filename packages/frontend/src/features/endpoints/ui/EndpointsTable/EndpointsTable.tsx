@@ -1,51 +1,29 @@
-import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import React, { memo, useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { type Table } from "@tanstack/react-table";
+import { EndpointStatus, endpointCallerName } from "@/entities/endpoint";
+import type { IEndpointListItem } from "@/shared/api/endpoints/endpointApi";
 import {
-  Phone,
-  Search,
-  Loader2,
-  Trash2,
-  Download,
-  Pencil,
-  Key,
-} from "lucide-react";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  Input,
-  Checkbox,
-  Button,
-  DataTable,
-  Text,
-  TableRowActions,
-  TableRowAction,
-  TableSelectionBanner,
-  BulkDeleteDialog,
-} from "@/shared/ui";
-import { HStack, Flex, VStack } from "@/shared/ui/Stack";
-import {
-  useGetEndpointsQuery,
   useBulkDeleteEndpointsMutation,
+  useDeleteEndpointMutation,
   useGetActiveBulkJobQuery,
   useGetBulkJobStatusQuery,
-  useDeleteEndpointMutation,
+  useGetEndpointsQuery,
 } from "@/shared/api/endpoints/endpointApi";
-import type { IEndpointListItem } from "@/shared/api/endpoints/endpointApi";
 import { useAppDispatch } from "@/shared/hooks/useAppStore";
-import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
-import { endpointsPageActions } from "../../model/slice/endpointsPageSlice";
-import { useEndpointsTableColumns } from "./useEndpointsTableColumns";
-import cls from "./EndpointsTable.module.scss";
-import { EndpointStatus, endpointCallerName } from "@/entities/endpoint";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { BulkDeleteDialog, Card, CardContent, CardHeader, Checkbox, Label, Table, TableCard, TableCardDetails, TableRowAction, TableRowActions, TableToolbar, Text, Tooltip, tableStyles } from "@/shared/ui";
+import { QueryErrorState } from "@/shared/ui/QueryErrorState";
+import { Flex, HStack, VStack } from "@/shared/ui/Stack";
+
+import { Key, Loader2 } from "lucide-react";
+import React, { memo, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   apiErrorMessage,
   jobProgress as progressPercent,
 } from "../../lib/formValidation";
-import { buildCsv, downloadCsv } from "@/shared/lib/csv";
+import { endpointsPageActions } from "../../model/slice/endpointsPageSlice";
+import cls from "./EndpointsTable.module.scss";
+import { useEndpointsTableColumns } from "./useEndpointsTableColumns";
 
 const PAGE_SIZE = 50;
 
@@ -122,43 +100,6 @@ export const EndpointsTable = memo(() => {
     });
   }, [endpoints, globalFilter]);
 
-  const handleExportCsv = () => {
-    if (!isMobile) {
-      selection.tableRef.current?.exportCsv(
-        selection.selectedCount ? { rows: "selected" } : undefined,
-      );
-      return;
-    }
-    const selected = endpoints.filter(
-      (endpoint) => selection.rowSelection[endpoint.id],
-    );
-    const rows = selected.length ? selected : filteredForMobile;
-    downloadCsv(
-      buildCsv([
-        [
-          t("endpoints.extension"),
-          t("endpoints.callerid"),
-          t("endpoints.department"),
-          t("endpoints.context"),
-          t("endpoints.status"),
-          t("endpoints.network"),
-        ],
-        ...rows.map((endpoint) => [
-          endpoint.extension,
-          endpointCallerName(endpoint.callerid),
-          endpoint.department || "",
-          endpoint.context,
-          t(
-            endpoint.status === "online"
-              ? "endpoints.statusOnline"
-              : "endpoints.statusOffline",
-          ),
-          endpoint.userAgent || "",
-        ]),
-      ]),
-      "krasterisk_endpoints_export.csv",
-    );
-  };
   const confirmSingleDelete = async () => {
     if (!deleteTarget || singleDeleting) return;
     setSingleDeleting(true);
@@ -199,20 +140,7 @@ export const EndpointsTable = memo(() => {
       </HStack>
     ) : null;
 
-  const renderSelectionBanner = useCallback(
-    (table: Table<IEndpointListItem>) => (
-      <TableSelectionBanner
-        table={table}
-        pageSize={PAGE_SIZE}
-        allMatchingSelected={selection.allMatchingSelected}
-        selectedIds={selection.selectedIds}
-        selectedCount={selection.selectedCount}
-        onSelectAllMatching={selection.selectAllMatching}
-        onClear={selection.clearSelection}
-      />
-    ),
-    [selection],
-  );
+
 
   const bulkDeleteDialog = (
     <BulkDeleteDialog
@@ -228,85 +156,75 @@ export const EndpointsTable = memo(() => {
     />
   );
 
+  const exportLabel =
+    selection.selectedCount > 0
+      ? t("endpoints.exportSelectedCsv", { count: selection.selectedCount })
+      : t("endpoints.exportCsv");
+  const deleteLabel = t("endpoints.deleteSelected", {
+    count: selection.selectedCount,
+  });
   const toolbar = (
-    <Flex justify="between" align="center" className={cls.toolbar} max>
-      <HStack gap="8" align="center">
-        <Phone size={20} className={cls.toolbarIcon} />
-        <Text className={cls.count}>
-          {t("endpoints.count", { count: endpoints.length })}
-        </Text>
-        {endpoints.length > 0 && (
-          <Text as="span" className={cls.onlineBadge}>
-            {onlineCount} {t("endpoints.statusOnline").toLowerCase()}
+    <Flex align="stretch" className={cls.toolbar} max>
+      <HStack gap="12" align="center" className={cls.toolbarSummary}>
+        <VStack gap="4" align="start">
+          <Text className={cls.count}>
+            {t("endpoints.totalCount", { count: endpoints.length })}
           </Text>
-        )}
+          <HStack gap="8" align="center" className={cls.summaryStats}>
+            <Text as="span" className={cls.onlineBadge}>
+              {onlineCount} {t("endpoints.statusOnline").toLowerCase()}
+            </Text>
+          </HStack>
+        </VStack>
       </HStack>
-      <HStack gap="8" align="center" className={cls.toolbarActions}>
-        {
-          <Button
-            variant="destructive"
-            className={
-              selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined
-            }
-            disabled={isDeleting || selection.selectedCount === 0}
-            aria-hidden={selection.selectedCount === 0}
-            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
-            onClick={() => {
-              setDeleteError("");
-              selection.openBulkDelete();
-            }}
-          >
-            {isDeleting ? (
-              <Loader2 size={16} className={cls.spinner} />
-            ) : (
-              <Trash2 size={16} />
-            )}
-            {isDeleting
-              ? t("common.loading")
-              : t("endpoints.deleteSelected", {
-                  count: selection.selectedCount,
-                })}
-          </Button>
-        }
-        <Flex align="center" className={cls.searchWrap}>
-          <Search size={16} className={cls.searchIcon} />
-          <Input
-            id="endpoints-search"
-            aria-label={t("common.search")}
-            placeholder={t("common.search")}
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className={cls.searchInput}
-          />
-        </Flex>
-        {
-          <Button variant="outline" onClick={handleExportCsv}>
-            <Download size={16} />
-            {selection.selectedCount > 0
-              ? t("endpoints.exportSelectedCsv", {
-                  count: selection.selectedCount,
-                })
-              : t("endpoints.exportCsv")}
-          </Button>
-        }
-      </HStack>
+      <TableToolbar
+        tableRef={selection.tableRef}
+        className={cls.toolbarActions}
+        searchId="endpoints-search"
+        searchValue={globalFilter}
+        onSearchChange={setGlobalFilter}
+        exportTable={{
+          data: endpoints,
+          columns,
+          getRowId: (row) => row.id,
+          globalFilter,
+          rowSelection: selection.rowSelection,
+          filename: "krasterisk_endpoints_export",
+        }}
+        exportLabel={exportLabel}
+        exportDisabled={isLoading || !endpoints.length}
+        selection={selection}
+        selectAllLabel={t("endpoints.selectionAll")}
+        clearSelectionLabel={t("endpoints.selectionClear")}
+        selectionRowIds={isMobile ? filteredForMobile.map((ep) => ep.id) : undefined}
+        onDeleteSelected={() => {
+          setDeleteError("");
+          selection.openBulkDelete();
+        }}
+        deleteDisabled={isDeleting}
+        deleteLabel={deleteLabel}
+      />
     </Flex>
   );
 
   if (isError)
     return (
-      <Card className={cls.card}>
-        <CardContent>
-          <QueryErrorState message={t("endpoints.loadError")} onRetry={() => void refetch()} retryLabel={t("common.retry")} />
+      <Card className={[tableStyles.surface, cls.card].join(" ")}>
+        <CardContent className={cls.stateContent}>
+          <QueryErrorState
+            message={t("endpoints.loadError")}
+            onRetry={() => void refetch()}
+            retryLabel={t("common.retry")}
+          />
         </CardContent>
       </Card>
     );
 
   if (isLoading) {
     return (
-      <Card className={cls.card}>
-        <CardHeader>{toolbar}</CardHeader>
-        <CardContent>
+      <Card className={[tableStyles.surface, cls.card].join(" ")}>
+        <CardHeader className={cls.cardHeader}>{toolbar}</CardHeader>
+        <CardContent className={cls.stateContent}>
           <Flex align="center" justify="center" className={cls.loading}>
             <Loader2 size={24} className={cls.spinner} />
           </Flex>
@@ -322,114 +240,123 @@ export const EndpointsTable = memo(() => {
         data-testid="hybrid-table"
         data-hybrid="mobile-card"
       >
-        <CardHeader>
+        <CardHeader className={cls.cardHeader}>
           {toolbar}
           {jobProgress}
-          <HStack gap="8" wrap="wrap">
-            <Button
-              type="button"
-              variant="link"
-              onClick={() =>
-                selection.onRowSelectionChange(
-                  Object.fromEntries(
-                    filteredForMobile.map((endpoint) => [endpoint.id, true]),
-                  ),
-                )
-              }
-            >
-              {t("endpoints.selectionAll")}
-            </Button>
-            <Button
-              type="button"
-              variant="link"
-              disabled={!selection.selectedCount}
-              onClick={() => selection.onRowSelectionChange({})}
-            >
-              {t("endpoints.selectionClear")}
-            </Button>
-          </HStack>
         </CardHeader>
-        <CardContent>
+        <CardContent className={cls.mobileBody}>
           <VStack gap="8" max className={cls.mobileList}>
             {filteredForMobile.length === 0 ? (
               <Text variant="muted" className={cls.mobileEmpty}>
                 {t("common.noData")}
               </Text>
             ) : (
-              filteredForMobile.map((ep) => {
-                return (
-                  <Flex
-                    key={ep.id}
-                    direction="column"
-                    className={cls.mobileCard}
-                    data-testid="endpoints-mobile-card"
+              filteredForMobile.map((ep) => (
+                <TableCard
+                  onActivate={() =>
+                    dispatch(endpointsPageActions.openEditModal(ep))
+                  }
+                  aria-label={t("endpoints.editRowAria", { ext: ep.extension })}
+                  key={ep.id}
+                  direction="column"
+                  className={[tableStyles.card, cls.mobileCard].join(" ")}
+                  data-selected={!!selection.rowSelection[ep.id]}
+                  data-testid="endpoints-mobile-card"
+                >
+                  <HStack
+                    gap="12"
+                    align="start"
+                    className={cls.mobileContent}
+                    max
                   >
-                    <HStack justify="between" align="start" max wrap="wrap">
-                      <VStack gap="4">
-                        <HStack gap="8" align="center">
-                          <Checkbox
-                            aria-label={t("endpoints.selectRowAria", {
-                              ext: ep.extension,
-                            })}
-                            checked={!!selection.rowSelection[ep.id]}
-                            onChange={(event) =>
-                              selection.onRowSelectionChange({
-                                ...selection.rowSelection,
-                                [ep.id]: event.target.checked,
-                              })
-                            }
-                          />
-                          <Text as="span" className={cls.extension}>
-                            {ep.extension}
-                          </Text>
-                          <EndpointStatus endpoint={ep} />
-                        </HStack>
-                        <Text as="span" className={cls.cell}>
-                          {endpointCallerName(ep.callerid)}
+                    <Label
+                      className={cls.selectionControl}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Checkbox
+                        aria-label={t("endpoints.selectRowAria", {
+                          ext: ep.extension,
+                        })}
+                        checked={!!selection.rowSelection[ep.id]}
+                        onChange={(event) =>
+                          selection.onRowSelectionChange({
+                            ...selection.rowSelection,
+                            [ep.id]: event.target.checked,
+                          })
+                        }
+                      />
+                    </Label>
+                    <VStack
+                      gap="8"
+                      align="stretch"
+                      className={cls.mobileIdentity}
+                      max
+                    >
+                      <HStack gap="8" align="center" wrap="wrap">
+                        <Text as="span" className={cls.mobileExtension}>
+                          {ep.extension}
                         </Text>
-                        {ep.department ? (
-                          <Text as="span" className={cls.cellMuted}>
-                            {ep.department}
+                        {endpointCallerName(ep.callerid) !== ep.extension && (
+                          <Text className={cls.callerName}>
+                            {endpointCallerName(ep.callerid)}
                           </Text>
-                        ) : null}
-                      </VStack>
-                      <TableRowActions>
+                        )}
+                      </HStack>
+                    </VStack>
+                    <TableRowActions className={cls.cardControl}>
+                      <Tooltip content={t("endpoints.btnSip")}>
                         <TableRowAction
-                          title={t("endpoints.btnSip")}
                           aria-label={t("endpoints.btnSip")}
-                          onClick={() =>
+                          onClick={(event) => {
+                            event.stopPropagation();
                             dispatch(
                               endpointsPageActions.openCredentialsModal(ep.id),
-                            )
-                          }
+                            );
+                          }}
                         >
                           <Key />
                         </TableRowAction>
-                        <TableRowAction
-                          title={t("common.edit")}
-                          aria-label={t("common.edit")}
-                          onClick={() =>
-                            dispatch(endpointsPageActions.openEditModal(ep))
-                          }
-                        >
-                          <Pencil />
-                        </TableRowAction>
-                        <TableRowAction
-                          danger
-                          title={t("common.delete")}
-                          aria-label={t("common.delete")}
-                          onClick={() => {
-                            setDeleteError("");
-                            setDeleteTarget(ep);
-                          }}
-                        >
-                          <Trash2 />
-                        </TableRowAction>
-                      </TableRowActions>
-                    </HStack>
-                  </Flex>
-                );
-              })
+                      </Tooltip>
+                    </TableRowActions>
+                  </HStack>
+                  <TableCardDetails
+                    fields={[
+                      {
+                        id: "status",
+                        label: t("endpoints.status"),
+                        value: <EndpointStatus endpoint={ep} />,
+                      },
+                      {
+                        id: "context",
+                        label: t("endpoints.context"),
+                        value: ep.context,
+                      },
+                      ...(ep.department
+                        ? [
+                            {
+                              id: "department",
+                              label: t("endpoints.department"),
+                              value: ep.department,
+                            },
+                          ]
+                        : []),
+                    ]}
+                  />
+                  {(ep.clientIp || ep.userAgent) && (
+                    <TableCardDetails
+                      fields={[
+                        {
+                          id: "network",
+                          label: t("endpoints.network"),
+                          value: [ep.clientIp, ep.userAgent]
+                            .filter(Boolean)
+                            .join(" · "),
+                        },
+                      ]}
+                    />
+                  )}
+                </TableCard>
+              ))
             )}
           </VStack>
         </CardContent>
@@ -453,11 +380,11 @@ export const EndpointsTable = memo(() => {
 
   return (
     <Card
-      className={cls.card}
+      className={[tableStyles.surface, cls.card].join(" ")}
       data-testid="hybrid-table"
       data-hybrid="overflow-x-auto"
     >
-      <CardHeader>
+      <CardHeader className={cls.cardHeader}>
         {toolbar}
         {jobProgress}
       </CardHeader>
@@ -468,7 +395,10 @@ export const EndpointsTable = memo(() => {
           className={cls.tableScroll}
           data-testid="endpoints-table-scroll"
         >
-          <DataTable
+          <Table
+            surface={false}
+            showSearch={false}
+            showExport={false}
             ref={selection.tableRef}
             className={cls.table}
             data={endpoints}
@@ -485,7 +415,13 @@ export const EndpointsTable = memo(() => {
             selectRowAriaLabel={(row) =>
               t("endpoints.selectRowAria", { ext: row.extension })
             }
-            renderBanner={renderSelectionBanner}
+            onRowClick={(endpoint) =>
+              dispatch(endpointsPageActions.openEditModal(endpoint))
+            }
+            getRowAriaLabel={(endpoint) =>
+              t("endpoints.editRowAria", { ext: endpoint.extension })
+            }
+
           />
         </Flex>
       </CardContent>

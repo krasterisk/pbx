@@ -44,7 +44,7 @@ export interface FieldOption {
 }
 
 export interface SchemaCatalogRef {
-  items: Array<{ value: string; label: string }>;
+  items: Array<{ value: string; label: string; aliases?: string[]; fields?: Array<{ value: string; label: string }> }>;
   isLoading: boolean;
   sectionHref: string;
   sectionKey?: string;

@@ -1,28 +1,30 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SA_INDUSTRY_TEMPLATES } from '@krasterisk/shared';
-import { MetricEditor } from '@/features/speechAnalytics/ui/MetricEditor';
-import { SpeechAnalyticsProjectsPage } from './SpeechAnalyticsProjectsPage';
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SA_INDUSTRY_TEMPLATES } from "@krasterisk/shared";
+import { MetricEditor } from "@/features/speechAnalytics/ui/MetricEditor";
+import { SpeechAnalyticsProjectsPage } from "./SpeechAnalyticsProjectsPage";
 
-vi.mock('react-i18next', () => ({
+vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, defaultValue?: string | Record<string, unknown>) => {
-      if (typeof defaultValue === 'string') return defaultValue;
+      if (typeof defaultValue === "string") return defaultValue;
       return key;
     },
-    i18n: { language: 'ru' },
+    i18n: { language: "ru" },
   }),
 }));
 
-vi.mock('react-toastify', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock("react-toastify", () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}));
 
-vi.mock('@/shared/hooks/useIsMobile', () => ({
+vi.mock("@/shared/hooks/useIsMobile", () => ({
   useIsMobile: () => false,
 }));
 
-vi.mock('@/shared/hooks/useAppStore', () => ({
+vi.mock("@/shared/hooks/useAppStore", () => ({
   useAppDispatch: () => vi.fn(),
 }));
 
@@ -46,13 +48,21 @@ const projectsState: {
   refetch: vi.fn(),
 };
 
-vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
+vi.mock("@/features/speechAnalytics/api/speechAnalyticsApi", () => ({
   cabinetSaProjects: (rows: Array<{ status: string }> | undefined) =>
-    (rows ?? []).filter((project) => project.status !== 'archived'),
-  usePurgeSaProjectMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ deleted: true }) })), { isLoading: false }],
+    (rows ?? []).filter((project) => project.status !== "archived"),
+  usePurgeSaProjectMutation: () => [
+    vi.fn(() => ({ unwrap: () => Promise.resolve({ deleted: true }) })),
+    { isLoading: false },
+  ],
   useDismissSaAnalysisJobMutation: () => [vi.fn(), { isLoading: false }],
   useGetSaJournalQuery: () => ({
-    data: { items: [], total: 0, uploadProgress: { done: 0, total: 0 }, analysisJobs: [] },
+    data: {
+      items: [],
+      total: 0,
+      uploadProgress: { done: 0, total: 0 },
+      analysisJobs: [],
+    },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -63,15 +73,29 @@ vi.mock('@/features/speechAnalytics/api/speechAnalyticsApi', () => ({
     isError: projectsState.isError,
     refetch: projectsState.refetch,
   }),
-  useCreateSaProjectMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ id: 'new', draft_revision: 1 }) })), { isLoading: false }],
-  useBulkDeleteSaProjectsMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ deleted: true }) })), { isLoading: false }],
-  usePublishSaProjectMutation: () => [vi.fn(), { isLoading: projectsState.saveLoading === true }],
+  useCreateSaProjectMutation: () => [
+    vi.fn(() => ({
+      unwrap: () => Promise.resolve({ id: "new", draft_revision: 1 }),
+    })),
+    { isLoading: false },
+  ],
+  useBulkDeleteSaProjectsMutation: () => [
+    vi.fn(() => ({ unwrap: () => Promise.resolve({ deleted: true }) })),
+    { isLoading: false },
+  ],
+  usePublishSaProjectMutation: () => [
+    vi.fn(),
+    { isLoading: projectsState.saveLoading === true },
+  ],
   useSetSaProjectIntakeMutation: () => [vi.fn(), {}],
-  useUpdateSaProjectDraftMutation: () => [vi.fn(), { isLoading: projectsState.saveLoading === true }],
+  useUpdateSaProjectDraftMutation: () => [
+    vi.fn(),
+    { isLoading: projectsState.saveLoading === true },
+  ],
   useTestSaProjectWebhookMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
-vi.mock('@/shared/api/endpoints/notificationApi', () => ({
+vi.mock("@/shared/api/endpoints/notificationApi", () => ({
   useGetNotificationsQuery: () => ({ data: [], isLoading: false }),
 }));
 
@@ -83,7 +107,20 @@ function renderPage() {
   );
 }
 
-describe('SpeechAnalyticsProjectsPage', () => {
+
+function selectEntityForActions() {
+  const checkbox = screen.getAllByRole("checkbox").find(element => element.closest("tbody") || element.closest("[data-table-activatable]")) as HTMLInputElement | undefined;
+  if (!checkbox) throw new Error("Missing entity checkbox");
+  if (!checkbox.checked) fireEvent.click(checkbox);
+}
+
+function getSelectedDeleteAction() {
+  const button = document.querySelector<HTMLButtonElement>("[data-table-delete]");
+  if (!button) throw new Error("Missing selected entity delete action");
+  return button;
+}
+
+describe("SpeechAnalyticsProjectsPage", () => {
   beforeEach(() => {
     projectsState.data = [];
     projectsState.isLoading = false;
@@ -92,71 +129,116 @@ describe('SpeechAnalyticsProjectsPage', () => {
     projectsState.refetch = vi.fn();
   });
 
-  it('shows empty projects heading and create CTA when list is empty', () => {
+  it("shows empty projects heading and create CTA when list is empty", () => {
     renderPage();
 
-    expect(screen.getByTestId('speech-analytics-projects')).toBeInTheDocument();
-    expect(screen.getByText('Проектов пока нет')).toBeInTheDocument();
+    expect(screen.getByTestId("speech-analytics-projects")).toBeInTheDocument();
+    expect(screen.getByText("Проектов пока нет")).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Создайте проект и опубликуйте метрики, чтобы маршруты и загрузки могли брать этот набор.',
+        "Создайте проект и опубликуйте метрики, чтобы маршруты и загрузки могли брать этот набор.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Создать проект' }).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByRole("button", { name: "Создать проект" }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows a loader while projects are loading', () => {
+  it("shows a loader while projects are loading", () => {
     projectsState.isLoading = true;
     renderPage();
 
-    expect(screen.getByTestId('projects-loading')).toBeInTheDocument();
+    expect(screen.getByTestId("projects-loading")).toBeInTheDocument();
   });
 
-  it('shows error text and retry when projects fail to load', async () => {
+  it("shows error text and retry when projects fail to load", async () => {
     const user = userEvent.setup();
     projectsState.isError = true;
     renderPage();
 
-    expect(screen.getByTestId('projects-error')).toBeInTheDocument();
-    expect(screen.getByText(/Не удалось загрузить проекты/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Повторить|retry/i }));
+    expect(screen.getByTestId("projects-error")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Не удалось загрузить проекты/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Повторить|retry/i }));
     expect(projectsState.refetch).toHaveBeenCalled();
   });
 
-  it('keeps the create CTA when the list has one project', () => {
+  it("keeps the create CTA when the list has one project", () => {
     projectsState.data = [
-      { id: 'p1', name: 'Pilot', status: 'active', draft_revision: 1, active_version_id: 'v1' },
+      {
+        id: "p1",
+        name: "Pilot",
+        status: "active",
+        draft_revision: 1,
+        active_version_id: "v1",
+      },
     ];
     renderPage();
-    expect(screen.getByText('Pilot')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'common.edit' })).toHaveAttribute('title', 'common.edit');
-    expect(screen.getByRole('button', { name: 'common.copy' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'common.delete' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Создать проект' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Pilot")).toBeInTheDocument();
+    expect(
+      document.querySelector<HTMLElement>('[data-table-activatable="true"]')!,
+    ).toHaveAttribute("tabindex", "0");
+    selectEntityForActions();
+    expect(
+      screen.getByRole("button", { name: "common.copy" }),
+    ).toBeInTheDocument();
+    expect(
+      getSelectedDeleteAction(),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Создать проект" }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
-  it('keeps the create CTA when the list has many projects', () => {
+  it("keeps the create CTA when the list has many projects", () => {
     projectsState.data = [
-      { id: 'p1', name: 'Pilot', status: 'active', draft_revision: 1, active_version_id: 'v1' },
-      { id: 'p2', name: 'Debt', status: 'draft', draft_revision: 2, active_version_id: null },
-      { id: 'p3', name: 'Appt', status: 'active', draft_revision: 1, active_version_id: 'v3' },
+      {
+        id: "p1",
+        name: "Pilot",
+        status: "active",
+        draft_revision: 1,
+        active_version_id: "v1",
+      },
+      {
+        id: "p2",
+        name: "Debt",
+        status: "draft",
+        draft_revision: 2,
+        active_version_id: null,
+      },
+      {
+        id: "p3",
+        name: "Appt",
+        status: "active",
+        draft_revision: 1,
+        active_version_id: "v3",
+      },
     ];
     renderPage();
-    expect(screen.getByText('Debt')).toBeInTheDocument();
-    expect(screen.getByText('Appt')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Создать проект' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Debt")).toBeInTheDocument();
+    expect(screen.getByText("Appt")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Создать проект" }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 });
 
-describe('MetricEditor (via projects verify path)', () => {
+describe("MetricEditor (via projects verify path)", () => {
   beforeEach(() => {
     projectsState.data = [
-      { id: 'p1', name: 'Pilot', status: 'draft', draft_revision: 1, active_version_id: null },
+      {
+        id: "p1",
+        name: "Pilot",
+        status: "draft",
+        draft_revision: 1,
+        active_version_id: null,
+      },
     ];
     projectsState.saveLoading = false;
   });
 
-  it('renders D-25 templates and disables publish while saving', () => {
+  it("renders D-25 templates and disables publish while saving", () => {
     projectsState.saveLoading = true;
     render(
       <MemoryRouter>
@@ -164,8 +246,12 @@ describe('MetricEditor (via projects verify path)', () => {
       </MemoryRouter>,
     );
     for (const templateId of SA_INDUSTRY_TEMPLATES) {
-      expect(screen.getByTestId(`sa-template-${templateId}`)).toBeInTheDocument();
+      expect(
+        screen.getByTestId(`sa-template-${templateId}`),
+      ).toBeInTheDocument();
     }
-    expect(screen.getByRole('button', { name: 'Опубликовать проект' })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Опубликовать проект" }),
+    ).toBeDisabled();
   });
 });

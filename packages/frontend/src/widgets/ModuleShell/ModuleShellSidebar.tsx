@@ -28,7 +28,7 @@ export const ModuleShellSidebar = memo(function ModuleShellSidebar({ modules, re
   return <Flex as='section' direction='column' align='stretch' className={classNames(cls.sidebar, { [cls.sidebarCollapsed]: collapsed, [cls.sidebarResizing]: resizing }, [])}
     id='module-shell-sidebar' data-testid='module-shell-sidebar' data-collapsed={collapsed ? 'true' : 'false'} aria-label={t('hub.catalog')}>
     <Flex className={cls.sidebarHead}><Text as='span' className={cls.sidebarModuleTitle} data-testid='sidebar-module-title'>{t('hub.catalog')}</Text></Flex>
-    <ModuleNavigation rows={modules} level={level} compact={collapsed} onExpand={() => onCollapsedChange(false)}
+    <ModuleNavigation rows={modules} level={level} compact={collapsed}
       testIdPrefix='sidebar-module' className={cls.sidebarNav} includeHub={false} isLoading={isLoading} isError={isError} refetch={refetch} />
     <Flex direction='column' align='stretch' className={cls.sidebarFoot}>
       <NavItem to='/modules' className={cls.footBtn + (pathname === '/modules' ? ' ' + cls.sidebarItemActive : '')} aria-current={pathname === '/modules' ? 'page' : undefined} data-testid='sidebar-modules-trigger' aria-label={t('hub.title')} title={t('hub.title')}>

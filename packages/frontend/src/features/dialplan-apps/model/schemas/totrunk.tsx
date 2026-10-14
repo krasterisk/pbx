@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import type { FieldSchema } from '../schema.types';
 import type { ITrunkCarouselItem, TrunkCallerIdSource } from '@krasterisk/shared';
 import { TrunkCarouselTrunksField } from '../../ui/TrunkCarouselTrunksField/TrunkCarouselTrunksField';
@@ -125,8 +126,7 @@ function summarizeCid(callerId: TrunkCallerIdSource | undefined, t: TFn): string
 }
 
 export function summarizeToTrunk(params: Record<string, unknown>, t: TFn, refs?: Record<string, unknown>): string {
-  const catalog = refs?.trunkIds as { items?: Array<{ value: string; label: string }> } | undefined;
-  const label = (raw: string) => catalog?.items?.find((item) => item.value === raw.replace(/^PJSIP\//, '') || item.label === raw)?.label ?? raw;
+  const label = (raw: string) => summaryRefLabel(refs, 'trunkIds', raw, t);
   const trunks = Array.isArray(params.trunks) ? (params.trunks as ITrunkCarouselItem[]) : [];
   const filled = trunks.filter((row) => String(row?.trunkId ?? '').trim());
 
@@ -142,8 +142,7 @@ export function summarizeToTrunk(params: Record<string, unknown>, t: TFn, refs?:
 
   if (filled.length === 1) {
     const row = filled[0];
-    const trunk = label(String(row.trunkId).trim()) || '…';
-    const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', label(trunk));
+    const base = t('routes.chain.totrunk.summary', 'Транк {{trunk}}').replace('{{trunk}}', label(String(row.trunkId).trim()));
     const cid = summarizeCid(row.callerId, t);
     return cid ? `${base} (CID: ${cid})` : base;
   }

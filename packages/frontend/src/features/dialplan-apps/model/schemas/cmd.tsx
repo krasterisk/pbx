@@ -14,7 +14,7 @@ export function buildCmdSchema(t: TFn): FieldSchema[] {
       hintKey: 'routes.chain.cmd.hint',
       hint: t(
         'routes.chain.cmd.hint',
-        'Произ произвольная строка dialplan (без перевода строк).\nДоступно **только администратору** маршрута.\nИспользуйте осознанно — ошибка может сломать контекст.',
+        'Произ произвольная строка dialplan (без перевода строк).\nДоступно **только администратору** маршрута.\nИспользуйте осознанно - ошибка может сломать контекст.',
       ),
       render: ({ params, onChange, readOnly, field }) => (
         <Textarea

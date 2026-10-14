@@ -1,3 +1,4 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/shared/ui';
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -100,19 +101,19 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
         </div>
       ) : (
         <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>{t('callcenter.agent.status', 'Status')}</th>
-                <th>{t('callcenter.agent.caller', 'Caller')}</th>
-                <th>{t('callcenter.agent.queue', 'Queue')}</th>
-                <th>{t('callcenter.agent.operator', 'Operator')}</th>
-                <th>{t('callcenter.agent.wait', 'Wait')}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className={styles.table}>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>{t('callcenter.agent.status', 'Status')}</TableHead>
+                <TableHead>{t('callcenter.agent.caller', 'Caller')}</TableHead>
+                <TableHead>{t('callcenter.agent.queue', 'Queue')}</TableHead>
+                <TableHead>{t('callcenter.agent.operator', 'Operator')}</TableHead>
+                <TableHead>{t('callcenter.agent.wait', 'Wait')}</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {monitorCalls.map((call, i) => {
                 const isTalking = call.status === 'TALKING' || call.status === 'HOLD';
                 const waitSec = Math.floor((Date.now() - new Date(call.enterTime).getTime()) / 1000);
@@ -127,13 +128,13 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
                   ? agentDisplayName(agent)
                   : (call.agent ? interfaceToExtension(call.agent) : '-');
                 return (
-                  <tr
+                  <TableRow
                     key={call.uniqueid}
                     className={isTalking ? styles.rowTalking : styles.rowWaiting}
                     data-status={call.status}
                   >
-                    <td>{i + 1}</td>
-                    <td>
+                    <TableCell>{i + 1}</TableCell>
+                    <TableCell>
                       <span className={isTalking ? styles.badgeTalking : styles.badgeWaiting}>
                         {isTalking
                           ? (call.status === 'HOLD'
@@ -143,17 +144,17 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
                             ? t('callcenter.agent.ringing', 'Ringing')
                             : t('callcenter.agent.waiting_lbl', 'waiting'))}
                       </span>
-                    </td>
-                    <td>{callerDisplayLabel(call.callerIdNum, call.callerIdName)}</td>
-                    <td title={call.queue}>{queueDisplayName(call.queue, queues)}</td>
-                    <td title={call.agent || undefined}>{operatorLabel}</td>
-                    <td className={`${styles.waitTime} ${
+                    </TableCell>
+                    <TableCell>{callerDisplayLabel(call.callerIdNum, call.callerIdName)}</TableCell>
+                    <TableCell title={call.queue}>{queueDisplayName(call.queue, queues)}</TableCell>
+                    <TableCell title={call.agent || undefined}>{operatorLabel}</TableCell>
+                    <TableCell className={`${styles.waitTime} ${
                       !isTalking && waitSec > 60 ? styles.waitTimeDanger :
                       !isTalking && waitSec > 30 ? styles.waitTimeWarning : ''
                     }`}>
                       {formatTime(waitSec)}
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {operatorSettings?.pickup_enabled && !isTalking && (
                         <Flex>
                           <Button
@@ -170,12 +171,12 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
                           </Button>
                         </Flex>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

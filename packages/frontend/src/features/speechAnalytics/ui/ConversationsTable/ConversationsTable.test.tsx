@@ -112,8 +112,10 @@ describe('ConversationsTable', () => {
     render(<ConversationsTable items={items} />);
 
     await user.click(screen.getAllByRole('checkbox')[0]);
-    expect(screen.getByTestId('table-selection-banner')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'common.selectionBannerSelectAll' }));
+    expect(screen.queryByTestId('table-selection-banner')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('20');
+    await user.click(screen.getByRole('button', { name: 'common.tableSelectAll' }));
+    expect(screen.getByRole('status')).toHaveTextContent('21');
     await user.click(screen.getByTestId('journal-export-selected'));
 
     expect(exportJournalExcelMock).toHaveBeenCalledTimes(1);

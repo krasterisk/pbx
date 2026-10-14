@@ -66,10 +66,10 @@
 }
 
 .tableScroll {
+  composes: section from "../../../../shared/ui/Table/Table.module.scss";
+
   width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .num {

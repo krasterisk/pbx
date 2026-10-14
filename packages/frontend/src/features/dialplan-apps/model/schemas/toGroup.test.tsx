@@ -52,7 +52,7 @@ describe('buildToGroupSchema', () => {
     ).toMatch(/B-номер/i);
     expect(
       dialplanAppsRegistry.togroup.summarize({ group: '12' }, t),
-    ).toContain('12');
+    ).toContain('Объект недоступен');
   });
 
   it.each([

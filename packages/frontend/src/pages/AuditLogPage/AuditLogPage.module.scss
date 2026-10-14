@@ -94,7 +94,9 @@
   align-items: center;
   gap: 6px;
   border-radius: 0;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
   min-height: 44px;
 
   &:hover {
@@ -107,7 +109,7 @@
   color: var(--color-foreground);
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: -1px;
     left: 0;
@@ -138,7 +140,8 @@
 
 .filterBar {
   padding: 10px 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--color-border) 60%, transparent);
   background: color-mix(in srgb, var(--color-muted) 10%, transparent);
   min-width: 0;
   overflow-x: auto;
@@ -152,12 +155,8 @@
 /* ── Table content ───────────────────────────────── */
 
 .tableWrap {
-  padding: 0;
+  composes: section from "../../shared/ui/Table/Table.module.scss";
   flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  width: 100%;
 }
 
 /* ── Pagination ──────────────────────────────────── */

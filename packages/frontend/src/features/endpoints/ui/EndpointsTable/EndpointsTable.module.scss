@@ -1,312 +1,300 @@
-/* ─────────────────────────────────────────────────────
-   EndpointsTable — список абонентов
-   Design tokens: var(--color-*) from globals.css @theme
-   ───────────────────────────────────────────────────── */
-
-.card {
-  width: 100%;
-  min-width: 0;
-}
-.error {
-  color: var(--color-destructive);
-  font-size: 0.875rem;
-}
-
 .cardContent {
   padding: 0;
-  min-width: 0;
   width: 100%;
-}
-
-.toolbar {
-  flex-wrap: nowrap;
-  gap: 1rem;
-  min-height: 2.25rem;
-
-  @media (max-width: 640px) {
-    flex-wrap: wrap;
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-.toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
-}
-
-.count {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
-}
-
-.onlineBadge {
-  font-size: 0.75rem;
-  line-height: 1;
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
-  color: var(--color-success);
-  background: color-mix(in srgb, var(--color-success) 12%, transparent);
-}
-
-.toolbarActions {
   min-width: 0;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-
-  @media (max-width: 640px) {
-    width: 100%;
-  }
 }
-
-.bulkBtnHidden {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.searchWrap {
-  position: relative;
-  min-width: 0;
-  width: 16rem;
-
-  @media (max-width: 640px) {
-    width: 100%;
-  }
-}
-
-.searchIcon {
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-muted-foreground);
-  pointer-events: none;
-}
-
-.searchInput {
-  height: 2.25rem;
-  padding-left: 2.5rem;
-}
-
 .tableScroll {
   width: 100%;
   min-width: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
-
 .table {
   width: 100%;
+  min-width: 60rem;
 }
 
-.selectionBanner {
-  width: 100%;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+.toolbarActions [data-table-search] {
+  position: relative;
+  min-width: 0;
 }
-
-.bannerLink {
-  height: auto;
-  padding: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
+.onlineBadge {
+  border-radius: var(--radius-sm);
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-card));
+  font-size: 0.75rem;
 }
-
-.loading {
-  height: 12rem;
-  width: 100%;
-}
-
-.spinner {
-  color: var(--color-primary);
-  flex-shrink: 0;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .cell {
   margin: 0;
   font-size: 0.875rem;
-  line-height: 1.25;
+  line-height: 1.3;
   color: var(--color-foreground);
 }
-
 .cellMuted {
   composes: cell;
   color: var(--color-muted-foreground);
 }
-
 .extension {
   composes: cell;
-  font-weight: 600;
-  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+  font-weight: 650;
+  font-family: ui-monospace, monospace;
   color: var(--color-primary);
 }
-
 .contextChip {
-  margin: 0;
   font-size: 0.75rem;
-  line-height: 1.25;
-  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
-  padding: 0.125rem 0.5rem;
+  line-height: 1.3;
+  font-family: ui-monospace, monospace;
+  padding: 3px 6px;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-muted) 80%, transparent);
+  background: var(--color-muted);
   color: var(--color-muted-foreground);
 }
-
 .mono {
-  margin: 0;
   font-size: 0.75rem;
-  line-height: 1.25;
-  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+  font-family: ui-monospace, monospace;
   color: var(--color-primary);
 }
-
 .device {
-  margin: 0;
   font-size: 0.75rem;
-  line-height: 1.25;
   color: var(--color-muted-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 10rem;
 }
-
-.statusDot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 9999px;
+.loading {
+  height: 12rem;
+  width: 100%;
+}
+.spinner {
+  color: var(--color-primary);
   flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
 }
-
-.statusDotOnline {
-  composes: statusDot;
-  background: var(--color-success);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
-
-.statusDotOffline {
-  composes: statusDot;
-  background: var(--color-muted-foreground);
-}
-
-.statusOnline {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  color: var(--color-success);
-}
-
-.statusOffline {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  color: var(--color-muted-foreground);
-}
-
-.lastReg {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  color: var(--color-muted-foreground);
-}
-
-.webrtcBadge {
-  padding: 0.125rem 0.375rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted-foreground);
-  font-size: 0.75rem;
-  line-height: 1;
-}
-
-.webrtcLabel {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1;
-}
-
-.webrtcBadgeOnline {
-  composes: webrtcBadge;
-  border-color: color-mix(in srgb, var(--color-info) 40%, transparent);
-  color: var(--color-info);
-  background: color-mix(in srgb, var(--color-info) 12%, transparent);
-}
-
-.webrtcDot {
-  width: 0.375rem;
-  height: 0.375rem;
-  border-radius: 9999px;
-  flex-shrink: 0;
-  background: var(--color-muted-foreground);
-}
-
-.webrtcDotOnline {
-  composes: webrtcDot;
-  background: var(--color-info);
-}
-
 .jobBar {
   width: 100%;
   flex-wrap: wrap;
+  padding-top: 12px;
 }
-
 .jobTrack {
   flex: 1;
   min-width: 0;
-  height: 0.75rem;
-  border-radius: 9999px;
+  height: 12px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-muted) 80%, transparent);
+  background: var(--color-muted);
   border: 1px solid var(--color-border);
 }
-
 .jobFill {
   height: 100%;
   background: var(--color-primary);
 }
-
 .jobLabel {
   white-space: normal;
 }
-
 .mobileList {
   width: 100%;
 }
+.mobileEmpty {
+  width: 100%;
+  padding: 32px 0;
+  text-align: center;
+}
+/* Feature layout and independent endpoint actions. */
+.card {
+  composes: surface from "../../../../shared/ui/Table/Table.module.scss";
+}
+.cardHeader {
+  composes: toolbarPanel from "../../../../shared/ui/Table/Table.module.scss";
+  padding: 20px;
+}
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+.toolbarSummary {
+  min-width: 0;
+  min-height: 50px;
+}
+.summaryStats {
+  height: 24px;
+  white-space: nowrap;
+}
+.count {
+ composes: summaryCount from "../../../../shared/ui/Table/Table.module.scss";
+}
+.onlineBadge {
+  line-height: 1.3;
+  padding: 3px 7px;
+}
+.toolbarActions {
+  min-width: 0;
+  justify-content: flex-end;
+}
 
-@media (max-width: 767px) {
-  .toolbar,
-  .toolbarActions {
-    flex-wrap: wrap;
-    width: 100%;
-  }
-  .toolbarActions {
-    gap: 0.5rem;
-  }
-  .searchWrap {
-    width: 100%;
-    order: -1;
-  }
+.searchInput {
+  height: 38px;
+  background: var(--color-background);
+  border-radius: var(--radius-md);
+}
+
+.deleteTool:hover {
+  color: var(--color-destructive);
+  background: color-mix(
+    in srgb,
+    var(--color-destructive) 8%,
+    var(--color-card)
+  );
+}
+
+.extension {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 3.25rem;
+  padding: 6px 8px;
+  border: 1px solid
+    color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-card));
+}
+.mobileList {
+  align-items: stretch;
 }
 
 .mobileCard {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
+}
+.mobileContent {
+  min-width: 0;
+}
+.cardControl {
+  position: relative;
+  pointer-events: auto;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.selectionControl {
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -10px -6px -10px -10px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  &:hover {
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  }
+}
+.mobileIdentity {
+  min-width: 0;
+  flex: 1;
+}
+.mobileExtension {
+  font:
+    650 1.0625rem/1.3 ui-monospace,
+    monospace;
+  color: var(--color-primary);
+}
+.callerName {
+  font-size: 0.9375rem;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.mobileMeta {
+  min-width: 0;
+}
+.contextChip {
+  overflow-wrap: anywhere;
+}
+.device {
+  max-width: 100%;
+}
+@media (max-width: 1000px) and (min-width: 768px) {
+  .toolbar {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .toolbarActions {
+    width: 100%;
+  }
+  .toolbarActions [data-table-search] {
+    max-width: none;
+  }
+}
+@media (max-width: 767px) {
+  .cardHeader {
+    padding: 12px;
+  }
+  .toolbar {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px 8px;
+    &:has([data-table-tools][data-has-tools="true"]) .toolbarSummary {
+      visibility: hidden;
+    }
+  }
+  .toolbarSummary {
+    grid-column: 1;
+    grid-row: 1;
+    gap: 0;
+  }
+  .count {
+    font-size: 0.875rem;
+  }
+  .onlineBadge {
+    font-size: 0.6875rem;
+  }
+  .toolbarActions {
+    display: contents;
+  }
+  .toolbarActions [data-table-search] {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+    width: 100%;
+    order: initial;
+  }
+  .toolbarActions [data-table-tools] {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    gap: 2px;
+  }
+  .toolButton,
+  .deleteTool {
+    width: 30px;
+    height: 32px;
+  }
+  .mobileCard {
+    padding: 12px;
+  }
+  .mobileContent {
+    gap: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobileCard,
+  .table :global(tbody tr) {
+    transition: none;
+  }
 }
 
-.mobileEmpty {
-  width: 100%;
-  padding: 2rem 0;
-  text-align: center;
+.card {
+  padding: 0;
+}
+.mobileBody {
+  padding: 12px;
+}
+.stateContent {
+  padding: 20px;
 }

@@ -40,7 +40,7 @@ export function CallGroupDialOptionsPanel({ groupRef }: CallGroupDialOptionsPane
   if (!groupRef.trim()) {
     return (
       <Text variant="muted">
-        {t('routes.chain.togroup.optionsPickGroup', 'Сначала выберите группу вызова — здесь появятся её опции Dial.')}
+        {t('routes.chain.togroup.optionsPickGroup', 'Сначала выберите группу вызова - здесь появятся её опции Dial.')}
       </Text>
     );
   }

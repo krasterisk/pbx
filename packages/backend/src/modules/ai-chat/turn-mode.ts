@@ -39,7 +39,12 @@ export const UNTRUNCATED_TOOLS = new Set([
   'describe_number',
   'get_compiled_dialplan',
   'get_endpoint_registration',
+  'get_voice_robot_configuration',
+  'export_voice_robot_scenario',
 ]);
+
+const ROBOT_READ_TOOLS = new Set(['validate_voice_robot_scenario', 'check_voice_robot_readiness',
+  'export_voice_robot_scenario', 'test_voice_robot_match', 'test_voice_robot_data_list']);
 
 const READ_TOOL_NAME = /^(?:get_|list_|read_|find_|describe_|evaluate_|cc_get_|dialplan_dry_run$)/;
 
@@ -95,7 +100,16 @@ export function turnModeHint(message: string): string {
 }
 
 export function isReadToolName(name: string): boolean {
-  return READ_TOOL_NAME.test(name);
+  return READ_TOOL_NAME.test(name) || ROBOT_READ_TOOLS.has(name);
+}
+
+/** MCP discovery may exceed the provider's per-request tool limit. Keep discovery and the requested domains first. */
+export function selectAgentToolBudget<T extends { name: string }>(tools: T[], preferredNames: string[], maximum = 128): T[] {
+  if (tools.length <= maximum) return tools;
+  const discovery = new Set(['get_configuration_capabilities', 'list_skills', 'read_skill', 'get_pbx_state', 'propose_plan']);
+  const preferred = new Set(preferredNames);
+  return [...tools.filter(t => discovery.has(t.name)), ...tools.filter(t => !discovery.has(t.name) && preferred.has(t.name)),
+    ...tools.filter(t => !discovery.has(t.name) && !preferred.has(t.name))].slice(0, maximum);
 }
 
 export function toolsForMode<T extends { name: string }>(

@@ -18,12 +18,14 @@ describe('RobotsTable', () => {
   });
   it('opens a copy in the editor instead of immediately persisting it', () => {
     render(<RobotsTable />);
+    expect(screen.queryByRole('button', { name: 'aiVoiceDesigner.copy' })).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'common.tableSelectRow' }));
     fireEvent.click(screen.getByRole('button', { name: 'aiVoiceDesigner.copy' }));
     expect(screen.getByTestId('editor')).toHaveTextContent('1:copy');
   });
   it('filters the list by name', () => {
     render(<RobotsTable />);
-    fireEvent.change(screen.getByRole('textbox', { name: 'aiVoiceDesigner.search' }), { target: { value: 'absent' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'aiVoiceDesigner.search' }), { target: { value: 'absent' } });
     expect(screen.queryByText('Support')).not.toBeInTheDocument();
   });
 });

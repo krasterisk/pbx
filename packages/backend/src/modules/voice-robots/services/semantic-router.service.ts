@@ -22,6 +22,7 @@ export class SemanticRouterService implements OnModuleInit {
   private readonly embeddingCache = new Map<string, Float32Array>();
 
   onModuleInit(): void {
+    if (process.env.VOICE_ROBOTS_SEMANTIC_ENABLED === 'false') return;
     setTimeout(() => this.loadModel(), 0);
   }
 

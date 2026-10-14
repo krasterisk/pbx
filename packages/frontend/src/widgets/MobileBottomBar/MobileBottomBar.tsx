@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type MouseEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { NavItem, Text, isPlainNavigationClick } from '@/shared/ui';
+import { Button, NavItem, Text, isPlainNavigationClick } from '@/shared/ui';
 import { Flex } from '@/shared/ui/Stack';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
@@ -10,10 +10,11 @@ import { filterPagesByLevel, findModuleByPath } from '@/features/modules/lib/mod
 import type { UserLevel } from '@krasterisk/shared';
 import { findPageByPath } from '@/features/modules/lib/navigation';
 import { MobilePageMenu } from './MobilePageMenu';
+import { Menu } from 'lucide-react';
 import cls from './MobileBottomBar.module.scss';
 
 /** Phone page navigation: section label, then horizontally scrollable page buttons. */
-export const MobileBottomBar = memo(function MobileBottomBar() {
+export const MobileBottomBar = memo(function MobileBottomBar({ onOpenSections, sectionsOpen = false }: { onOpenSections?: () => void; sectionsOpen?: boolean } = {}) {
   const isMobile = useIsMobile(768);
   const { t } = useTranslation();
   const { pathname } = useLocation();
@@ -141,7 +142,12 @@ export const MobileBottomBar = memo(function MobileBottomBar() {
       aria-label={t('hub.breadcrumbLabel')}
     >
       <Flex className={cls.section} justify='center'>
-        <MobilePageMenu title={title} pages={pages} currentPage={currentPage} onSelect={revealSelected} />
+        {currentModule && pages.length > 0 ? <MobilePageMenu title={title} pages={pages} currentPage={currentPage} onSelect={revealSelected} />
+          : onOpenSections ? <Button variant='ghost' type='button' className={cls.moduleTrigger} data-testid='bottom-bar-module-trigger' aria-label={t('hub.catalog')} aria-haspopup='dialog' aria-expanded={sectionsOpen} onClick={onOpenSections}>
+            <Text as='span' className={cls.moduleLabel} data-testid='bottom-bar-section'>{title}</Text><Menu size={14} aria-hidden />
+          </Button> : <NavItem to='/modules' className={cls.moduleTrigger} data-testid='bottom-bar-module-trigger' aria-label={t('hub.catalog')}>
+            <Text as='span' className={cls.moduleLabel} data-testid='bottom-bar-section'>{title}</Text><Menu size={14} aria-hidden />
+          </NavItem>}
       </Flex>
       {pages.length > 1 && <Flex className={cls.pagesWrap} data-has-more={hasMore ? 'true' : undefined} data-has-previous={hasPrevious ? 'true' : undefined}>
       <Flex

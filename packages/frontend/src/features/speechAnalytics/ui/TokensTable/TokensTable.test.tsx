@@ -118,6 +118,8 @@ describe('TokensTable', () => {
     expect(screen.getByTestId('tokens-table')).toBeInTheDocument();
     expect(screen.getByText('CRM bridge')).toBeInTheDocument();
     expect(screen.queryByTestId('tokens-issue-cta')).not.toBeInTheDocument();
-    expect(screen.getByTestId('tokens-revoke-p1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Отозвать токен' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'common.selectRowAria' }));
+    expect(screen.getByRole('button', { name: 'Отозвать токен' })).toBeInTheDocument();
   });
 });

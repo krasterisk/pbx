@@ -23,7 +23,7 @@ export function buildLabelSchema(t: TFn): FieldSchema[] {
       hintKey: 'routes.chain.label.nameHint',
       hint: t(
         'routes.chain.label.nameHint',
-        'Латиница, цифры, _ и -. Без скобок и пробелов — имя используется в dialplan как метка перехода.',
+        'Латиница, цифры, _ и -. Без скобок и пробелов - имя используется в dialplan как метка перехода.',
       ),
     },
   ];

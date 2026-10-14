@@ -1,11 +1,19 @@
-import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { useEffect, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { useTranslation } from 'react-i18next';
+import { TableCard, TableToolbar } from "@/shared/ui";
+import { QueryErrorState } from "@/shared/ui/QueryErrorState";
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch } from "react-redux";
+import { useTranslation } from "react-i18next";
 import {
-  Search, Users, List, UsersRound, Plus, Pencil, Trash2, BookUser, Phone, PhoneCall,
-} from 'lucide-react';
-import { Input, Text, Button, Tooltip } from '@/shared/ui';
+  Search,
+  Users,
+  List,
+  UsersRound,
+  Plus,
+  BookUser,
+  Phone,
+  PhoneCall,
+} from "lucide-react";
+import { Input, Text, Button, Tooltip } from "@/shared/ui";
 import {
   useGetTransferDirectoryQuery,
   useGetOperatorCallHistoryQuery,
@@ -17,17 +25,20 @@ import {
   type IDirectoryGroup,
   type ICcContact,
   type IOperatorHistoryRow,
-} from '@/shared/api/endpoints/callCenterApi';
-import { UserLevel, selectCurrentUser, selectUserLevel } from '@/entities/User';
-import { useAppSelector } from '@/shared/hooks/useAppStore';
-import { requestOutboundDial, updateAgent } from '@/features/callcenter/model/slice/callCenterSlice';
-import { selectMyAgentInterface } from '@/features/callcenter/model/selectors/callCenterSelectors';
-import { isEndpointUnreachable } from '@/features/callcenter/ui/TransferDirectory/TransferDirectory';
+} from "@/shared/api/endpoints/callCenterApi";
+import { UserLevel, selectCurrentUser, selectUserLevel } from "@/entities/User";
+import { useAppSelector } from "@/shared/hooks/useAppStore";
+import {
+  requestOutboundDial,
+  updateAgent,
+} from "@/features/callcenter/model/slice/callCenterSlice";
+import { selectMyAgentInterface } from "@/features/callcenter/model/selectors/callCenterSelectors";
+import { isEndpointUnreachable } from "@/features/callcenter/ui/TransferDirectory/TransferDirectory";
 import {
   ContactBookForm,
   canManageContact,
-} from '@/features/callcenter/ui/ContactBookForm';
-import styles from './SoftphoneContacts.module.scss';
+} from "@/features/callcenter/ui/ContactBookForm";
+import styles from "./SoftphoneContacts.module.scss";
 
 const RECENT_LIMIT = 8;
 
@@ -44,12 +55,12 @@ export function buildRecentContacts(
   const seen = new Set<string>();
   const out: RecentContact[] = [];
   for (const row of rows) {
-    const number = (row.callerIdNum || '').trim();
+    const number = (row.callerIdNum || "").trim();
     if (!number || seen.has(number)) continue;
     seen.add(number);
     out.push({
       number,
-      label: (row.callerIdName || '').trim() || number,
+      label: (row.callerIdName || "").trim() || number,
     });
     if (out.length >= limit) break;
   }
@@ -57,9 +68,14 @@ export function buildRecentContacts(
 }
 
 function presenceDotClass(presence: string | undefined): string {
-  const state = (presence || '').toUpperCase();
+  const state = (presence || "").toUpperCase();
   if (isEndpointUnreachable(state)) return styles.dotOffline;
-  if (state === 'READY' || state === 'NOT_INUSE' || state === 'IDLE' || state === 'AVAILABLE') {
+  if (
+    state === "READY" ||
+    state === "NOT_INUSE" ||
+    state === "IDLE" ||
+    state === "AVAILABLE"
+  ) {
     return styles.dotOnline;
   }
   return styles.dotBusy;
@@ -71,37 +87,46 @@ function freeCountClass(free: number, total: number): string {
   return styles.freeOk;
 }
 
-function matchesTerm(haystacks: Array<string | undefined | null>, term: string): boolean {
+function matchesTerm(
+  haystacks: Array<string | undefined | null>,
+  term: string,
+): boolean {
   if (!term) return true;
-  return haystacks.some((h) => (h || '').toLowerCase().includes(term));
+  return haystacks.some((h) => (h || "").toLowerCase().includes(term));
 }
 
 export interface SoftphoneContactsProps {
   className?: string;
   /** Softphone transport mode - SIP CTAs need click_to_call; WebRTC does not. */
-  softphoneMode?: 'webrtc' | 'sip';
+  softphoneMode?: "webrtc" | "sip";
 }
 
 /**
  * Softphone Contacts tab catalog (D-11…D-14, D-25): five sticky sections with
  * unified search and click-to-call-only CTAs. Not mounted in SoftphoneWidget until 10-08.
  */
-export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: SoftphoneContactsProps) {
+export function SoftphoneContacts({
+  className,
+  softphoneMode = "webrtc",
+}: SoftphoneContactsProps) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
   const level = useAppSelector(selectUserLevel);
   const myAgentInterface = useAppSelector(selectMyAgentInterface);
   const myUserId = currentUser?.uniqueid ?? 0;
-  const isSupervisor = level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN;
+  const isSupervisor =
+    level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN;
   const { data: permissions } = useGetEffectivePermissionsQuery();
-  const sipClickBlocked = softphoneMode === 'sip' && permissions?.click_to_call === false;
+  const sipClickBlocked =
+    softphoneMode === "sip" && permissions?.click_to_call === false;
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<ICcContact | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ICcContact | null>(null);
+  const [selectedContactUid, setSelectedContactUid] = useState<number | null>(null);
   const [scrollToUid, setScrollToUid] = useState<number | null>(null);
 
   const {
@@ -123,11 +148,17 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
     refetch: refetchContacts,
   } = useGetMyContactsQuery();
   const [clickToCall, { isLoading: isCalling }] = useClickToCallMutation();
+  const selectedContact = contacts.find(
+    (row) => row.uid === selectedContactUid && canManageContact(row, myUserId, isSupervisor),
+  );
 
   const term = search.trim().toLowerCase();
 
   const recent = useMemo(
-    () => buildRecentContacts(history).filter((r) => matchesTerm([r.label, r.number], term)),
+    () =>
+      buildRecentContacts(history).filter((r) =>
+        matchesTerm([r.label, r.number], term),
+      ),
     [history, term],
   );
 
@@ -155,37 +186,40 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
 
   const isFetching = dirFetching || histFetching || contactsFetching;
   const hasAnyMatch =
-    recent.length > 0
-    || endpoints.length > 0
-    || queues.length > 0
-    || groups.length > 0
-    || book.length > 0;
-  const showBookEmpty = !term && contacts.length === 0 && !contactsFetching && !contactsError;
+    recent.length > 0 ||
+    endpoints.length > 0 ||
+    queues.length > 0 ||
+    groups.length > 0 ||
+    book.length > 0;
+  const showBookEmpty =
+    !term && contacts.length === 0 && !contactsFetching && !contactsError;
   const showUnifiedEmpty = Boolean(term) && !hasAnyMatch && !isFetching;
   const showLoadError = contactsError || dirError || histError;
 
-  const ctaLabel = t('callcenter.directory.callCta', 'Call');
+  const ctaLabel = t("callcenter.directory.callCta", "Call");
   const callHint = sipClickBlocked
     ? t(
-      'callcenter.settings.permissions.clickToCallDenied',
-      'Click-to-call is not granted for SIP mode',
-    )
-    : t('callcenter.directory.callHint', 'Place a call to this subscriber');
+        "callcenter.settings.permissions.clickToCallDenied",
+        "Click-to-call is not granted for SIP mode",
+      )
+    : t("callcenter.directory.callHint", "Place a call to this subscriber");
 
   const dial = async (target: string, pendingKey: string) => {
     if (sipClickBlocked) return;
     setPendingId(pendingKey);
     try {
       const res = await clickToCall({ target }).unwrap();
-      if (res.mode === 'webrtc' && res.target) {
+      if (res.mode === "webrtc" && res.target) {
         dispatch(requestOutboundDial(res.target));
       }
-      if (res.mode === 'pjsip' && res.target && myAgentInterface) {
-        dispatch(updateAgent({
-          interface: myAgentInterface,
-          dialTarget: res.target,
-          status: 'DIALING',
-        }));
+      if (res.mode === "pjsip" && res.target && myAgentInterface) {
+        dispatch(
+          updateAgent({
+            interface: myAgentInterface,
+            dialTarget: res.target,
+            status: "DIALING",
+          }),
+        );
       }
     } catch {
       /* server is source of truth - row stays interactive to retry */
@@ -213,22 +247,24 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
   };
 
   const handleContactSaved = (row: ICcContact) => {
-    setSearch('');
+    setSearch("");
     setScrollToUid(row.uid);
   };
 
   useEffect(() => {
     if (scrollToUid == null) return;
-    const el = document.querySelector(`[data-testid="book-row-${scrollToUid}"]`);
+    const el = document.querySelector(
+      `[data-testid="book-row-${scrollToUid}"]`,
+    );
     if (el instanceof HTMLElement) {
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
       setScrollToUid(null);
     }
   }, [scrollToUid, book]);
 
   return (
     <div
-      className={`${styles.wrap}${className ? ` ${className}` : ''}`}
+      className={`${styles.wrap}${className ? ` ${className}` : ""}`}
       data-testid="softphone-contacts"
     >
       <div className={styles.searchRow}>
@@ -236,41 +272,67 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={t('callcenter.directory.searchPlaceholder', 'Search by name or number...')}
-          aria-label={t('callcenter.directory.searchPlaceholder', 'Search by name or number...')}
+          placeholder={t(
+            "callcenter.directory.searchPlaceholder",
+            "Search by name or number...",
+          )}
+          aria-label={t(
+            "callcenter.directory.searchPlaceholder",
+            "Search by name or number...",
+          )}
         />
       </div>
 
       {showLoadError ? (
-        <QueryErrorState message={t('callcenter.contacts.loadFailed', 'Could not load contacts')} onRetry={handleRetry} retryLabel={t('callcenter.settings.retry', 'Retry')} data-testid="softphone-contacts-error" />
+        <QueryErrorState
+          message={t(
+            "callcenter.contacts.loadFailed",
+            "Could not load contacts",
+          )}
+          onRetry={handleRetry}
+          retryLabel={t("callcenter.settings.retry", "Retry")}
+          data-testid="softphone-contacts-error"
+        />
       ) : null}
 
       <div className={styles.list}>
         {showUnifiedEmpty ? (
           <div className={styles.empty} data-testid="softphone-contacts-empty">
             <Text className="font-semibold">
-              {t('callcenter.directory.emptyTitle', 'Nothing found')}
+              {t("callcenter.directory.emptyTitle", "Nothing found")}
             </Text>
             <Text variant="muted" className="text-sm">
-              {t('callcenter.directory.emptyBody', 'Try a different number or name')}
+              {t(
+                "callcenter.directory.emptyBody",
+                "Try a different number or name",
+              )}
             </Text>
           </div>
         ) : (
           <>
             {recent.length > 0 ? (
-              <section className={styles.section} data-testid="contacts-section-recent">
+              <section
+                className={styles.section}
+                data-testid="contacts-section-recent"
+              >
                 <div className={styles.sectionHeader}>
                   <Text className={styles.sectionTitle}>
-                    {t('callcenter.contacts.sectionRecent', 'Recent')}
+                    {t("callcenter.contacts.sectionRecent", "Recent")}
                   </Text>
                 </div>
                 {recent.map((row) => (
                   <div key={`recent-${row.number}`} className={styles.row}>
-                    <Phone className={`w-4 h-4 ${styles.typeIcon}`} aria-hidden />
+                    <Phone
+                      className={`w-4 h-4 ${styles.typeIcon}`}
+                      aria-hidden
+                    />
                     <div className={styles.rowMain}>
                       <Text className={styles.rowLabel}>{row.label}</Text>
                       {row.label !== row.number ? (
-                        <Text variant="muted" className={`text-xs ${styles.rowMeta}`}>
+                        <Text
+                          variant="muted"
+                          className={`text-xs ${styles.rowMeta}`}
+                        >
                           {row.number}
                         </Text>
                       ) : null}
@@ -281,9 +343,13 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
                         variant="outline"
                         size="sm"
                         className={styles.ctaBtn}
-                        disabled={isPending(`recent-${row.number}`) || sipClickBlocked}
+                        disabled={
+                          isPending(`recent-${row.number}`) || sipClickBlocked
+                        }
                         aria-label={`${ctaLabel} ${row.label}`}
-                        onClick={() => void dial(row.number, `recent-${row.number}`)}
+                        onClick={() =>
+                          void dial(row.number, `recent-${row.number}`)
+                        }
                       >
                         <PhoneCall className="w-4 h-4" />
                       </Button>
@@ -294,25 +360,41 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
             ) : null}
 
             {endpoints.length > 0 ? (
-              <section className={styles.section} data-testid="contacts-section-subscribers">
+              <section
+                className={styles.section}
+                data-testid="contacts-section-subscribers"
+              >
                 <div className={styles.sectionHeader}>
                   <Text className={styles.sectionTitle}>
-                    {t('callcenter.contacts.sectionSubscribers', 'Subscribers')}
+                    {t("callcenter.contacts.sectionSubscribers", "Subscribers")}
                   </Text>
                 </div>
                 {endpoints.map((entry) => (
                   <div key={`endpoint-${entry.id}`} className={styles.row}>
-                    <Users className={`w-4 h-4 ${styles.typeIcon}`} aria-hidden />
-                    <Tooltip content={entry.presence || t('callcenter.status.offline', 'Offline')}>
+                    <Users
+                      className={`w-4 h-4 ${styles.typeIcon}`}
+                      aria-hidden
+                    />
+                    <Tooltip
+                      content={
+                        entry.presence ||
+                        t("callcenter.status.offline", "Offline")
+                      }
+                    >
                       <span
                         className={`${styles.dot} ${presenceDotClass(entry.presence)}`}
                         role="img"
-                        aria-label={entry.presence || t('callcenter.status.offline', 'Offline')}
+                        aria-label={
+                          entry.presence ||
+                          t("callcenter.status.offline", "Offline")
+                        }
                       />
                     </Tooltip>
                     <div className={styles.rowMain}>
                       <Text className={styles.rowLabel}>{entry.label}</Text>
-                      <Text variant="muted" className="text-xs">{entry.extension}</Text>
+                      <Text variant="muted" className="text-xs">
+                        {entry.extension}
+                      </Text>
                     </div>
                     <Tooltip content={callHint}>
                       <Button
@@ -320,9 +402,13 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
                         variant="outline"
                         size="sm"
                         className={styles.ctaBtn}
-                        disabled={isPending(`endpoint-${entry.id}`) || sipClickBlocked}
+                        disabled={
+                          isPending(`endpoint-${entry.id}`) || sipClickBlocked
+                        }
                         aria-label={`${ctaLabel} ${entry.label}`}
-                        onClick={() => void dial(entry.extension, `endpoint-${entry.id}`)}
+                        onClick={() =>
+                          void dial(entry.extension, `endpoint-${entry.id}`)
+                        }
                       >
                         <PhoneCall className="w-4 h-4" />
                       </Button>
@@ -333,21 +419,35 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
             ) : null}
 
             {queues.length > 0 ? (
-              <section className={styles.section} data-testid="contacts-section-queues">
+              <section
+                className={styles.section}
+                data-testid="contacts-section-queues"
+              >
                 <div className={styles.sectionHeader}>
                   <Text className={styles.sectionTitle}>
-                    {t('callcenter.contacts.sectionQueues', 'Queues')}
+                    {t("callcenter.contacts.sectionQueues", "Queues")}
                   </Text>
                 </div>
                 {queues.map((entry) => (
                   <div key={`queue-${entry.id}`} className={styles.row}>
-                    <List className={`w-4 h-4 ${styles.typeIcon}`} aria-hidden />
+                    <List
+                      className={`w-4 h-4 ${styles.typeIcon}`}
+                      aria-hidden
+                    />
                     <div className={styles.rowMain}>
                       <Text className={styles.rowLabel}>{entry.label}</Text>
                     </div>
-                    <Tooltip content={t('callcenter.directory.freeHint', 'Agents ready in this queue')}>
-                      <span className={`${styles.freeCount} ${freeCountClass(entry.freeOperators, entry.totalOperators)}`}>
-                        {entry.freeOperators} {t('callcenter.directory.free', 'free')}
+                    <Tooltip
+                      content={t(
+                        "callcenter.directory.freeHint",
+                        "Agents ready in this queue",
+                      )}
+                    >
+                      <span
+                        className={`${styles.freeCount} ${freeCountClass(entry.freeOperators, entry.totalOperators)}`}
+                      >
+                        {entry.freeOperators}{" "}
+                        {t("callcenter.directory.free", "free")}
                       </span>
                     </Tooltip>
                     <Tooltip content={callHint}>
@@ -356,7 +456,9 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
                         variant="outline"
                         size="sm"
                         className={styles.ctaBtn}
-                        disabled={isPending(`queue-${entry.id}`) || sipClickBlocked}
+                        disabled={
+                          isPending(`queue-${entry.id}`) || sipClickBlocked
+                        }
                         aria-label={`${ctaLabel} ${entry.label}`}
                         onClick={() => void dial(entry.id, `queue-${entry.id}`)}
                       >
@@ -369,21 +471,35 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
             ) : null}
 
             {groups.length > 0 ? (
-              <section className={styles.section} data-testid="contacts-section-groups">
+              <section
+                className={styles.section}
+                data-testid="contacts-section-groups"
+              >
                 <div className={styles.sectionHeader}>
                   <Text className={styles.sectionTitle}>
-                    {t('callcenter.contacts.sectionGroups', 'Groups')}
+                    {t("callcenter.contacts.sectionGroups", "Groups")}
                   </Text>
                 </div>
                 {groups.map((entry) => (
                   <div key={`group-${entry.id}`} className={styles.row}>
-                    <UsersRound className={`w-4 h-4 ${styles.typeIcon}`} aria-hidden />
+                    <UsersRound
+                      className={`w-4 h-4 ${styles.typeIcon}`}
+                      aria-hidden
+                    />
                     <div className={styles.rowMain}>
                       <Text className={styles.rowLabel}>{entry.label}</Text>
                     </div>
-                    <Tooltip content={t('callcenter.directory.freeHint', 'Agents ready in this group')}>
-                      <span className={`${styles.freeCount} ${freeCountClass(entry.freeOperators, entry.totalOperators)}`}>
-                        {entry.freeOperators} {t('callcenter.directory.free', 'free')}
+                    <Tooltip
+                      content={t(
+                        "callcenter.directory.freeHint",
+                        "Agents ready in this group",
+                      )}
+                    >
+                      <span
+                        className={`${styles.freeCount} ${freeCountClass(entry.freeOperators, entry.totalOperators)}`}
+                      >
+                        {entry.freeOperators}{" "}
+                        {t("callcenter.directory.free", "free")}
                       </span>
                     </Tooltip>
                     <Tooltip content={callHint}>
@@ -392,7 +508,9 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
                         variant="outline"
                         size="sm"
                         className={styles.ctaBtn}
-                        disabled={isPending(`group-${entry.id}`) || sipClickBlocked}
+                        disabled={
+                          isPending(`group-${entry.id}`) || sipClickBlocked
+                        }
                         aria-label={`${ctaLabel} ${entry.label}`}
                         onClick={() => void dial(entry.id, `group-${entry.id}`)}
                       >
@@ -405,10 +523,13 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
             ) : null}
 
             {(!term && !contactsError) || book.length > 0 || showBookEmpty ? (
-              <section className={styles.section} data-testid="contacts-section-book">
+              <section
+                className={styles.section}
+                data-testid="contacts-section-book"
+              >
                 <div className={styles.sectionHeader}>
                   <Text className={styles.sectionTitle}>
-                    {t('callcenter.contacts.sectionBook', 'Book')}
+                    {t("callcenter.contacts.sectionBook", "Book")}
                   </Text>
                   <div className={styles.headerActions}>
                     <Button
@@ -417,79 +538,102 @@ export function SoftphoneContacts({ className, softphoneMode = 'webrtc' }: Softp
                       size="sm"
                       className={styles.iconBtn}
                       onClick={openCreate}
-                      aria-label={t('callcenter.softphone.addContact', 'Add contact')}
+                      aria-label={t(
+                        "callcenter.softphone.addContact",
+                        "Add contact",
+                      )}
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
+                <TableToolbar
+                  showSearch={false}
+                  showExport={false}
+                  selectedCount={selectedContact ? 1 : 0}
+                  onClearSelection={() => setSelectedContactUid(null)}
+                  onDeleteSelected={() => {
+                    if (selectedContact) setDeleteTarget(selectedContact);
+                  }}
+                  deleteLabel={t("common.deleteSelected", { count: 1 })}
+                />
                 {showBookEmpty ? (
-                  <div className={styles.sectionEmpty} data-testid="contacts-book-empty">
+                  <div
+                    className={styles.sectionEmpty}
+                    data-testid="contacts-book-empty"
+                  >
                     <Text className="font-semibold">
-                      {t('callcenter.contacts.bookEmptyTitle', 'Contact book is empty')}
+                      {t(
+                        "callcenter.contacts.bookEmptyTitle",
+                        "Contact book is empty",
+                      )}
                     </Text>
                     <Text variant="muted" className="text-sm">
                       {t(
-                        'callcenter.contacts.bookEmptyBody',
-                        'Add your first contact for quick dialing',
+                        "callcenter.contacts.bookEmptyBody",
+                        "Add your first contact for quick dialing",
                       )}
                     </Text>
                   </div>
                 ) : (
                   book.map((row) => {
-                    const manage = canManageContact(row, myUserId, isSupervisor);
+                    const manage = canManageContact(
+                      row,
+                      myUserId,
+                      isSupervisor,
+                    );
                     return (
-                      <div key={`book-${row.uid}`} className={styles.row} data-testid={`book-row-${row.uid}`}>
-                        <BookUser className={`w-4 h-4 ${styles.typeIcon}`} aria-hidden />
+                      <TableCard
+                        direction="row"
+                        align="center"
+                        onActivate={manage ? () => openEdit(row) : undefined}
+                        selection={manage ? {
+                          checked: selectedContact?.uid === row.uid,
+                          onCheckedChange: (checked) => setSelectedContactUid(checked ? row.uid : null),
+                          label: t("common.selectRowAria", { index: row.name }),
+                        } : undefined}
+                        key={`book-${row.uid}`}
+                        className={styles.row}
+                        data-testid={`book-row-${row.uid}`}
+                      >
+                        <BookUser
+                          className={`w-4 h-4 ${styles.typeIcon}`}
+                          aria-hidden
+                        />
                         <div className={styles.rowMain}>
                           <Text className={styles.rowLabel}>{row.name}</Text>
-                          <Text variant="muted" className="text-xs">{row.number}</Text>
+                          <Text variant="muted" className="text-xs">
+                            {row.number}
+                          </Text>
                           {row.note ? (
-                            <Text variant="muted" className={`text-xs ${styles.rowMeta}`}>
+                            <Text
+                              variant="muted"
+                              className={`text-xs ${styles.rowMeta}`}
+                            >
                               {row.note}
                             </Text>
                           ) : null}
                         </div>
                         <div className={styles.rowActions}>
-                          {manage ? (
-                            <>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className={styles.iconBtn}
-                                aria-label={`${t('common.edit', 'Edit')} ${row.name}`}
-                                onClick={() => openEdit(row)}
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className={styles.iconBtn}
-                                aria-label={`${t('common.delete', 'Delete')} ${row.name}`}
-                                onClick={() => setDeleteTarget(row)}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </>
-                          ) : null}
                           <Tooltip content={callHint}>
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
                               className={styles.ctaBtn}
-                              disabled={isPending(`book-${row.uid}`) || sipClickBlocked}
+                              disabled={
+                                isPending(`book-${row.uid}`) || sipClickBlocked
+                              }
                               aria-label={`${ctaLabel} ${row.name}`}
-                              onClick={() => void dial(row.number, `book-${row.uid}`)}
+                              onClick={() =>
+                                void dial(row.number, `book-${row.uid}`)
+                              }
                             >
                               <PhoneCall className="w-4 h-4" />
                             </Button>
                           </Tooltip>
                         </div>
-                      </div>
+                      </TableCard>
                     );
                   })
                 )}

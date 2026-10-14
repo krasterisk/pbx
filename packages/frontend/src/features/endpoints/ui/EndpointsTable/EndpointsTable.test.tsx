@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { EndpointsTable } from './EndpointsTable';
 
@@ -60,9 +60,22 @@ vi.mock('@/shared/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/ui')>();
   return {
     ...actual,
-    DataTable: () => <div data-testid="endpoints-datatable">table</div>,
+    Table: () => <div data-testid="endpoints-datatable">table</div>,
   };
 });
+
+
+function selectEntityForActions() {
+  const checkbox = screen.getAllByRole("checkbox").find(element => element.closest("tbody") || element.closest("[data-table-activatable]")) as HTMLInputElement | undefined;
+  if (!checkbox) throw new Error("Missing entity checkbox");
+  if (!checkbox.checked) fireEvent.click(checkbox);
+}
+
+function getSelectedDeleteAction() {
+  const button = document.querySelector<HTMLButtonElement>("[data-table-delete]");
+  if (!button) throw new Error("Missing selected entity delete action");
+  return button;
+}
 
 describe('EndpointsTable hybrid responsive (D-29)', () => {
   beforeEach(() => {
@@ -88,8 +101,10 @@ describe('EndpointsTable hybrid responsive (D-29)', () => {
     expect(screen.getByText('100')).toBeInTheDocument();
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'endpoints.btnSip' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'common.edit' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'common.delete' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'common.edit' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'endpoints.editRowAria:100' })).toBeInTheDocument();
+    selectEntityForActions();
+    expect(getSelectedDeleteAction()).toBeInTheDocument();
   });
 });
 

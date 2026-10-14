@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import type { ValueSource } from '@krasterisk/shared';
 import type { FieldSchema } from '../schema.types';
 
@@ -42,7 +43,7 @@ export function buildToGroupSchema(t: TFn): FieldSchema[] {
       hintKey: 'routes.chain.togroup.targetHint',
       hint: t(
         'routes.chain.togroup.targetHint',
-        '**Группа из списка** — набор и опции Dial берутся из выбранной группы\n**B-номер маршрута** — номер, который набрал абонент, подбирает группу с таким номером\n**Из переменной** — номер группы из переменной канала\n**Из справочника** — номер группы из поля записи\nГруппа должна быть создана заранее в разделе «Группы вызова».',
+        '**Группа из списка** - набор и опции Dial берутся из выбранной группы\n**B-номер маршрута** - номер, который набрал абонент, подбирает группу с таким номером\n**Из переменной** - номер группы из переменной канала\n**Из справочника** - номер группы из поля записи\nГруппа должна быть создана заранее в разделе «Группы вызова».',
       ),
     },
   ];
@@ -70,11 +71,9 @@ export function summarizeToGroup(
   }
   const value = src?.source === 'fixed' ? String(src.value ?? '').trim() : '';
   if (value) {
-    const catalog = refs?.callGroups as { items?: Array<{ value: string; label: string }> } | undefined;
-    const item = catalog?.items?.find((entry) => entry.value === value);
     return t('routes.chain.summary.togroup.fixed', 'Группа {{group}}').replace(
       '{{group}}',
-      item?.label ?? value,
+      summaryRefLabel(refs, 'callGroups', value, t),
     );
   }
   return t('routes.chain.summary.togroup.empty', 'Группа: не выбрана');

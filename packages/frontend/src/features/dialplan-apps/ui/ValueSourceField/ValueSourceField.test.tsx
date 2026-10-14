@@ -90,10 +90,11 @@ describe('ValueSourceField conference room catalog (16-04)', () => {
     expect(onChange).toHaveBeenCalledWith({ source: 'route_pattern' });
   });
 
-  it('keeps an orphan fixed uid selected with the missing-from-list copy', () => {
+  it('keeps an orphan fixed uid selected without displaying the raw identifier', () => {
     renderRoomField({ source: 'fixed', value: '999' });
-    const orphan = screen.getByRole('option', { name: /нет в списке/ });
+    const orphan = screen.getByRole('option', { name: 'Объект недоступен' });
     expect(orphan).toHaveValue('999');
+    expect(orphan).not.toHaveTextContent('999');
     expect(screen.getByRole('combobox', { name: 'Комната' })).toHaveValue('999');
   });
 

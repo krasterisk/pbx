@@ -268,6 +268,11 @@ describe('all-pages access and route links',()=>{
   const link=within(menu).getByRole('link',{name:'nav.trunks'});expect(link).toHaveAttribute('href','/trunks');
   fireEvent.click(link);expect(screen.queryByTestId('bottom-bar-page-menu')).toBeNull();expect(screen.getByTestId('bottom-bar-page-trunks')).toHaveAttribute('aria-current','page');
  });
+ it('opens section selection from a route absent in the catalog',()=>{
+  const onOpenSections=vi.fn();render(<MemoryRouter initialEntries={['/']}><MobileBottomBar onOpenSections={onOpenSections}/></MemoryRouter>);
+  expect(screen.getByTestId('bottom-bar-section')).toHaveTextContent('hub.catalog');fireEvent.click(screen.getByTestId('bottom-bar-module-trigger'));expect(onOpenSections).toHaveBeenCalledOnce();
+ });
+ it('provides a real Hub link when used without a shared menu controller',()=>{renderAt('/');expect(screen.getByTestId('bottom-bar-module-trigger')).toHaveAttribute('href','/modules');});
  it('does not open an empty page menu on the Hub',()=>{
   renderAt('/modules');expect(screen.queryByTestId('bottom-bar-section-trigger')).toBeNull();
  });

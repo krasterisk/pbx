@@ -35,6 +35,8 @@ const COLLAPSE_KEY = 'krasterisk.moduleShell.collapsed';
 
 interface ModuleShellProps {
   children?: ReactNode;
+  mobileMenuOpen?: boolean;
+  onMobileMenuOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -42,7 +44,7 @@ interface ModuleShellProps {
  * Full-width brand/action header → global expandable sidebar | content.
  * Sidebar footer «Модули» → Hub. Phone: top-left section menu and bottom page navigation.
  */
-export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellProps) {
+export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen, onMobileMenuOpenChange }: ModuleShellProps) {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
@@ -181,7 +183,7 @@ export const ModuleShell = memo(function ModuleShell({ children }: ModuleShellPr
       <Flex as="header" className={cls.topbar}>
         {!isMobile && <AppBrand className={cls.logo} id="shell-logo" compact={showSidebar && effectiveCollapsed} />}
 
-        {isMobile && <MobileModuleMenu />}
+        {isMobile && <MobileModuleMenu open={mobileMenuOpen} onOpenChange={onMobileMenuOpenChange} />}
 
         <Flex className={cls.spacer} />
 

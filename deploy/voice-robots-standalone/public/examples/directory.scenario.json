@@ -1,0 +1,31 @@
+{
+  "format": "krasterisk.voice-robot.scenario", "version": 1, "exportedAt": "2026-10-13T00:00:00.000Z",
+  "scenario": {
+    "greetingTtsText": "Здравствуйте! Это демонстрационный справочник. Скажите расписание, затем назовите город. Данные в примере учебные.",
+    "initialGroupKey": "group:1",
+    "fallbackBotAction": { "response": { "type": "tts", "value": "Скажите расписание для поиска или пока для завершения." }, "nextState": { "type": "switch_group", "target": "group:1" } },
+    "maxRetriesBotAction": { "response": { "type": "tts", "value": "Не удалось продолжить. До свидания!" }, "nextState": { "type": "hangup" } },
+    "dataLists": [
+      { "key": "list:1", "name": "Учебное расписание", "description": "Вымышленные данные для теста, замените своими",
+        "columns": [{ "key": "city", "label": "Город", "searchable": true }, { "key": "answer", "label": "Ответ", "searchable": false }],
+        "rows": [{ "city": "Красноярск", "answer": "Учебный офис в Красноярске работает с девяти до восемнадцати." }, { "city": "Москва", "answer": "Учебный офис в Москве работает с десяти до девятнадцати." }] }
+    ],
+    "groups": [
+      { "key": "group:1", "name": "Меню", "description": null, "priority": 0, "active": true, "is_global": false,
+        "keywords": [
+          { "keywords": "расписание", "negative_keywords": [], "synonyms": ["график", "часы работы"], "max_repeats": 0, "escalation_action": null, "priority": 0, "comment": "После вопроса ждёт отдельную реплику с городом", "tag": "schedule",
+            "bot_action": { "response": { "type": "tts", "value": "Назовите город: Красноярск или Москва." }, "nextState": { "type": "search_data_list" },
+              "dataListSearch": { "listKey": "list:1", "querySource": "last_utterance", "returnField": "answer", "resultVariable": "office",
+                "onFoundResponse": { "type": "tts", "value": "{{office}} Для нового поиска скажите расписание, для завершения — пока." },
+                "onFoundNextState": { "type": "switch_group", "target": "group:1" },
+                "notFoundResponse": { "type": "tts", "value": "Такой город не найден. Для нового поиска скажите расписание." },
+                "notFoundNextState": { "type": "switch_group", "target": "group:1" }, "maxNotFoundRetries": 1, "multiMatchStrategy": "best" } } }
+        ] },
+      { "key": "group:2", "name": "Завершение", "description": null, "priority": 1, "active": true, "is_global": true,
+        "keywords": [
+          { "keywords": "пока", "negative_keywords": [], "synonyms": ["до свидания"], "max_repeats": 0, "escalation_action": null, "priority": 0, "comment": null, "tag": "goodbye",
+            "bot_action": { "response": { "type": "tts", "value": "До свидания!" }, "nextState": { "type": "hangup" } } }
+        ] }
+    ]
+  }
+}

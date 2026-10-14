@@ -5,12 +5,12 @@ function fixture(connected = true) {
   const related = { findAll: jest.fn().mockResolvedValue([]) };
   const ami = {
     isConnected: jest.fn(() => connected),
-    pjsipShowRegistrations: jest.fn().mockResolvedValue({ events: [] }),
+    pjsipShowRegistrations: jest.fn().mockResolvedValue({ events: [], complete: true }),
     command: jest.fn().mockResolvedValue({ response: 'Success' }),
-    pjsipShowEndpoint: jest.fn().mockResolvedValue({ events: [{ event: 'ContactStatusDetail', status: 'Reachable' }] }),
+    pjsipShowEndpoint: jest.fn().mockResolvedValue({ events: [{ event: 'ContactStatusDetail', status: 'Reachable' }], complete: true }),
   };
   const service = new TrunksService(endpoints as never, related as never, related as never, related as never, related as never, {} as never, ami as never, {} as never);
-  return { service, endpoints, ami };
+  return { service, endpoints, ami, related };
 }
 
 describe('trunk list live status', () => {
@@ -39,5 +39,27 @@ describe('trunk list live status', () => {
     const { service, ami } = fixture(false);
     expect((await service.findAll(7))[0].reachabilityStatus).toBe('Unknown');
     expect(ami.pjsipShowEndpoint).not.toHaveBeenCalled();
+  });
+  it('does not infer physical unavailability from a complete endpoint without contacts', async () => {
+    const { service, ami } = fixture();
+    ami.pjsipShowEndpoint.mockResolvedValue({ events: [{ event: 'EndpointDetail', devicestate: 'Unavailable' }], complete: true } as never);
+    expect((await service.findAll(7))[0].reachabilityStatus).toBe('NoContacts');
+  });
+  it('ignores an explicitly partial reachability snapshot', async () => {
+    const { service, ami } = fixture();
+    ami.pjsipShowEndpoint.mockResolvedValue({ events: [{ event: 'ContactStatusDetail', status: 'Reachable' }], complete: false });
+    expect((await service.findAll(7))[0].reachabilityStatus).toBe('Unknown');
+  });
+  it.each(['Rejected', 'Unregistered'])('keeps registration %s independent of a reachable SIP contact', async status => {
+    const { service, ami, related } = fixture();
+    related.findAll.mockResolvedValue([{ id: 't_komandor_7' }] as never);
+    ami.pjsipShowRegistrations.mockResolvedValue({ events: [{ event: 'OutboundRegistrationDetail', objectname: 't_komandor_7', status }], complete: true } as never);
+    expect((await service.findAll(7))[0]).toMatchObject({ trunkType: 'auth', registrationStatus: status, reachabilityStatus: 'Reachable' });
+  });
+  it('ignores an explicitly partial registration snapshot', async () => {
+    const { service, ami, related } = fixture();
+    related.findAll.mockResolvedValue([{ id: 't_komandor_7' }] as never);
+    ami.pjsipShowRegistrations.mockResolvedValue({ events: [{ event: 'OutboundRegistrationDetail', objectname: 't_komandor_7', status: 'Rejected' }], complete: false } as never);
+    expect((await service.findAll(7))[0]).toMatchObject({ registrationStatus: 'unknown', reachabilityStatus: 'Reachable' });
   });
 });

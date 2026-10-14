@@ -1,0 +1,335 @@
+[
+  {
+    "file": "packages\\frontend\\src\\features\\ai-providers\\ui\\AiProvidersTable\\AiProvidersTable.tsx",
+    "line": 87,
+    "handler": "{() => onEdit(provider)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\ai-providers\\ui\\AiProvidersTable\\useAiProvidersTableColumns.tsx",
+    "line": 82,
+    "handler": "{() => onEdit(provider)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\aiRobots\\ui\\RobotsTable\\useRobotsTableColumns.tsx",
+    "line": 19,
+    "handler": "{() => onEdit(row.original)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\aiRobots\\ui\\RobotStudioPanel.tsx",
+    "line": 55,
+    "handler": "{() => {\r\n                  setEditingUid(agent.uid);\r\n                  setModalOpen(true);\r\n                }}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\autodial\\ui\\BasesList\\BasesList.tsx",
+    "line": 160,
+    "handler": "{() => dispatch(autodialPageActions.openEditBase(base.uid))}",
+    "card": "<Card className={cls.card}>"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\autodial\\ui\\CampaignsTable\\CampaignsTable.tsx",
+    "line": 243,
+    "handler": "{() =>\r\n                            dispatch(autodialPageActions.openEditCampaign(campaign.uid))\r\n                          }",
+    "card": "<Card className={cls.card}>"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\autodial\\ui\\ContactsGrid\\ContactsGrid.tsx",
+    "line": 190,
+    "handler": "{() =>\r\n                              dispatch(autodialPageActions.openEditContact(contact.uid))\r\n                            }",
+    "card": "<Card className={cls.card}>"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\call-groups\\ui\\CallGroupsTable\\CallGroupsTable.tsx",
+    "line": 227,
+    "handler": "{() =>\n                            dispatch(\n                              callGroupsPageActions.openEditModal(group.uid),\n                            )\n                          }",
+    "card": "<Flex\n                    key={group.uid}\n                    direction=\"column\"\n                    className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                    data-testid=\"call-groups-mobile-card\"\n                  >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\call-groups\\ui\\CallGroupsTable\\useCallGroupsTableColumns.tsx",
+    "line": 69,
+    "handler": "{() => dispatch(callGroupsPageActions.openEditModal(group.uid))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\callcenter\\ui\\PauseReasonsManager\\PauseReasonsManager.tsx",
+    "line": 224,
+    "handler": "{() => openEdit(row)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\callcenter\\ui\\ReportSchedulesManager\\ReportSchedulesManager.tsx",
+    "line": 283,
+    "handler": "{() => openEdit(row.original)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\callcenter\\ui\\SoftphoneWidget\\SoftphoneContacts.tsx",
+    "line": 456,
+    "handler": "{() => openEdit(row)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\callcenter\\ui\\TemplateBuilder\\FieldRow.tsx",
+    "line": 76,
+    "handler": "{onEdit}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\cloud-admin\\ui\\SellersTable\\SellersTable.tsx",
+    "line": 73,
+    "handler": "{() => {\n                  setEditing(seller);\n                  setModalOpen(true);\n                }}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\cloud-admin\\ui\\TenantsTable\\TenantsTable.tsx",
+    "line": 133,
+    "handler": "{() => dispatch(tenantsPageActions.openEditModal(tenant))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\cloud-admin\\ui\\TenantsTable\\useTenantsTableColumns.tsx",
+    "line": 90,
+    "handler": "{() => dispatch(tenantsPageActions.openEditModal(tenant))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\conferences\\ui\\ConferencesTable\\ConferencesTable.tsx",
+    "line": 314,
+    "handler": "{() =>\n                            dispatch(\n                              conferencesPageActions.openEditModal(room.uid),\n                            )\n                          }",
+    "card": "<Flex\n                    key={room.uid}\n                    direction=\"column\"\n                    className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                    data-testid=\"conferences-mobile-card\"\n                  >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\conferences\\ui\\ConferencesTable\\useConferencesTableColumns.tsx",
+    "line": 102,
+    "handler": "{() => dispatch(conferencesPageActions.openEditModal(room.uid))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\contexts\\ui\\ContextsTable\\useContextsTableColumns.tsx",
+    "line": 43,
+    "handler": "{() => dispatch(contextsActions.openEditModal(row))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\directories\\ui\\DirectoriesTable\\DirectoriesTable.tsx",
+    "line": 64,
+    "handler": "{() => dispatch(directoriesActions.openEditModal(item))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\directories\\ui\\DirectoriesTable\\useDirectoriesTableColumns.tsx",
+    "line": 54,
+    "handler": "{() => dispatch(directoriesActions.openEditModal(item))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\ivrs\\ui\\IvrsTable\\IvrsTable.tsx",
+    "line": 213,
+    "handler": "{() => dispatch(ivrsActions.openEditModal(ivr))}",
+    "card": "<Flex\n                  key={ivr.uid}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"ivrs-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\ivrs\\ui\\IvrsTable\\useIvrsTableColumns.tsx",
+    "line": 47,
+    "handler": "{() => dispatch(ivrsActions.openEditModal(ivr))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\ivrs\\ui\\SortableIvrPhraseItem\\SortableIvrPhraseItem.tsx",
+    "line": 237,
+    "handler": "{() => setIsEditing(true)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\komandorClaims\\ui\\KomandorClaimsTable.tsx",
+    "line": 180,
+    "handler": "{() => {\n                setCurrent(row.original);\n                setOpen(true);\n              }}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\moh\\ui\\MohTable\\MohTable.tsx",
+    "line": 221,
+    "handler": "{() => dispatch(mohActions.openEditModal(moh))}",
+    "card": "<Flex\n                  key={moh.name}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"moh-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\moh\\ui\\MohTable\\useMohTableColumns.tsx",
+    "line": 74,
+    "handler": "{() => dispatch(mohActions.openEditModal(moh))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\notifications\\ui\\NotificationIntegrationsTable\\NotificationIntegrationsTable.tsx",
+    "line": 222,
+    "handler": "{() =>\n                          dispatch(\n                            notificationsPageActions.openEditModal(\n                              integration.uid,\n                            ),\n                          )\n                        }",
+    "card": "<Flex\n                  key={integration.uid}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"notifications-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\notifications\\ui\\NotificationIntegrationsTable\\useNotificationIntegrationsTableColumns.tsx",
+    "line": 50,
+    "handler": "{() => dispatch(notificationsPageActions.openEditModal(integration.uid))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\numbers\\ui\\NumbersTable\\NumbersTable.tsx",
+    "line": 216,
+    "handler": "{() =>\n                          dispatch(numbersPageActions.openEditModal(row))\n                        }",
+    "card": "<Flex\n                  key={row.id}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"numbers-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\numbers\\ui\\NumbersTable\\useNumbersTableColumns.tsx",
+    "line": 39,
+    "handler": "{() => dispatch(numbersPageActions.openEditModal(row))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\prompts\\ui\\PromptsTable\\PromptsTable.tsx",
+    "line": 188,
+    "handler": "{() => dispatch(promptsActions.openEditModal(prompt))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\prompts\\ui\\PromptsTable\\usePromptsTableColumns.tsx",
+    "line": 83,
+    "handler": "{() => dispatch(promptsActions.openEditModal(prompt))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\provisionTemplates\\ui\\ProvisionTemplatesTable\\ProvisionTemplatesTable.tsx",
+    "line": 218,
+    "handler": "{() =>\n                          dispatch(provisionTemplatesActions.openEditModal(tpl))\n                        }",
+    "card": "<Flex\n                  key={tpl.uid}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"provision-templates-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\provisionTemplates\\ui\\ProvisionTemplatesTable\\useProvisionTemplatesTableColumns.tsx",
+    "line": 51,
+    "handler": "{() => dispatch(provisionTemplatesActions.openEditModal(row))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\queues\\ui\\QueuesTable\\QueuesTable.tsx",
+    "line": 228,
+    "handler": "{() =>\n                          dispatch(queuesPageActions.openEditModal(row.name))\n                        }",
+    "card": "<Flex\n                  key={row.name}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"queues-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\queues\\ui\\QueuesTable\\useQueuesTableColumns.tsx",
+    "line": 89,
+    "handler": "{() => dispatch(queuesPageActions.openEditModal(queue.name))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\roles\\ui\\RolesTable\\RolesTable.tsx",
+    "line": 215,
+    "handler": "{() =>\n                          dispatch(rolesPageActions.openEditModal(role))\n                        }",
+    "card": "<Flex\n                  key={role.id}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"roles-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\roles\\ui\\RolesTable\\useRolesTableColumns.tsx",
+    "line": 39,
+    "handler": "{() => dispatch(rolesPageActions.openEditModal(role))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\route-templates\\ui\\RouteTemplatesPage\\useRouteTemplatesTableColumns.tsx",
+    "line": 38,
+    "handler": "{() => args.onEdit(row)}",
+    "disabled": "disabled={builtin}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\routes\\ui\\RoutesTable\\RoutesTable.tsx",
+    "line": 268,
+    "handler": "{() =>\n                            dispatch(routesActions.openEditModal(route))\n                          }",
+    "card": "<Flex\n                    key={route.uid}\n                    direction=\"column\"\n                    className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                    data-testid=\"routes-mobile-card\"\n                  >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\routes\\ui\\RoutesTable\\useRoutesTableColumns.tsx",
+    "line": 90,
+    "handler": "{() => dispatch(routesActions.openEditModal(route))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\serviceRequests\\ui\\ServiceRequestsTable\\ServiceRequestsTable.tsx",
+    "line": 540,
+    "handler": "{() => handleEdit(record)}",
+    "card": "<Flex\n                    key={record.uid}\n                    direction=\"column\"\n                    className={`${cls.mobileCard} ${borderClass}`}\n                    data-testid=\"service-requests-mobile-card\"\n                  >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\serviceRequests\\ui\\ServiceRequestsTable\\useServiceRequestsTableColumns.tsx",
+    "line": 175,
+    "handler": "{() => onEdit(row.original)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\stt-engines\\ui\\SttEnginesTable\\SttEnginesTable.tsx",
+    "line": 128,
+    "handler": "{() => dispatch(sttEnginesActions.openEditModal(engine))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\stt-engines\\ui\\SttEnginesTable\\useSttEnginesTableColumns.tsx",
+    "line": 52,
+    "handler": "{() => dispatch(sttEnginesActions.openEditModal(engine))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\timeGroups\\ui\\TimeGroupsTable\\TimeGroupsTable.tsx",
+    "line": 232,
+    "handler": "{() =>\n                          dispatch(timeGroupsActions.openEditModal(tg))\n                        }",
+    "card": "<Flex\n                  key={tg.uid}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"timegroups-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\timeGroups\\ui\\TimeGroupsTable\\useTimeGroupsTableColumns.tsx",
+    "line": 98,
+    "handler": "{() => dispatch(timeGroupsActions.openEditModal(tg))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\trunks\\ui\\TrunksTable\\TrunksTable.tsx",
+    "line": 259,
+    "handler": "{() =>\n                            dispatch(trunksPageActions.openEditModal(trunk))\n                          }",
+    "card": "<Flex\n                    key={trunk.id}\n                    direction=\"column\"\n                    className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                    data-testid=\"trunks-mobile-card\"\n                  >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\trunks\\ui\\TrunksTable\\useTrunksTableColumns.tsx",
+    "line": 70,
+    "handler": "{() => dispatch(trunksPageActions.openEditModal(trunk))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\tts-engines\\ui\\TtsEnginesTable\\TtsEnginesTable.tsx",
+    "line": 128,
+    "handler": "{() => dispatch(ttsEnginesActions.openEditModal(engine))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\tts-engines\\ui\\TtsEnginesTable\\useTtsEnginesTableColumns.tsx",
+    "line": 52,
+    "handler": "{() => dispatch(ttsEnginesActions.openEditModal(engine))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\users\\ui\\UsersTable\\UsersTable.tsx",
+    "line": 248,
+    "handler": "{() =>\n                          dispatch(usersPageActions.openEditModal(user))\n                        }",
+    "card": "<Flex\n                  key={user.uniqueid}\n                  direction=\"column\"\n                  className={[tableStyles.card, cls.mobileCard].join(\" \")}\n                  data-testid=\"users-mobile-card\"\n                >"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\users\\ui\\UsersTable\\useUsersTableColumns.tsx",
+    "line": 78,
+    "handler": "{() => dispatch(usersPageActions.openEditModal(user))}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\voiceRobots\\ui\\DataListEditor\\DataListEditor.tsx",
+    "line": 541,
+    "handler": "{() => openEdit(list)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\voiceRobots\\ui\\VoiceRobotForm\\VoiceRobotKeywordsTab.tsx",
+    "line": 145,
+    "handler": "{(e) => { e.stopPropagation(); onEdit(keyword); }}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\voiceRobots\\ui\\VoiceRobotForm\\VoiceRobotKeywordsTab.tsx",
+    "line": 476,
+    "handler": "{() => { setEditName(group.name); setIsEditingName(true); }}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\voiceRobots\\ui\\VoiceRobotsTable\\useVoiceRobotsTableColumns.tsx",
+    "line": 59,
+    "handler": "{() => onEdit(robot)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\features\\voiceRobots\\ui\\VoiceRobotsTable\\VoiceRobotsTable.tsx",
+    "line": 107,
+    "handler": "{() => handleEdit(robot)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\pages\\AiAgentsPage\\AiAgentsPage.tsx",
+    "line": 48,
+    "handler": "{() => {\r\n          setEditingAgent(agent);\r\n          setAgentModalOpen(true);\r\n        }}"
+  },
+  {
+    "file": "packages\\frontend\\src\\pages\\CallCenterSettingsPage\\ui\\CardTemplatesTab\\CardTemplatesTab.tsx",
+    "line": 92,
+    "handler": "{() => { setEditId(tpl.uid); setMode('edit'); }}"
+  },
+  {
+    "file": "packages\\frontend\\src\\pages\\SpeechAnalyticsProjectsPage\\SpeechAnalyticsProjectsPage.tsx",
+    "line": 188,
+    "handler": "{() => setEditId(row.original.id)}"
+  },
+  {
+    "file": "packages\\frontend\\src\\pages\\SpeechAnalyticsProjectsPage\\SpeechAnalyticsProjectsPage.tsx",
+    "line": 237,
+    "handler": "{() => setEditId(project.id)}"
+  }
+]

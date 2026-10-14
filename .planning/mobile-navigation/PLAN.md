@@ -251,3 +251,39 @@ User assignment 2026-10-11; /root sole coordinator/executor, codex-direct. Basel
 ### N18 final evidence
 
 Implemented; targeted 5 files / 66 tests PASS; full frontend 331 files / 1769 tests PASS; backend 388 suites / 3662 tests PASS with existing 1 suite / 11 skipped; root lint / TypeScript PASS. Local mocked Chromium 22 checks PASS, errors=[]: desktop/compact direct single link and phone bottom/static/Sheet, multi-page regression, 320/390 dark/light. Foreign baseline ten hashes unchanged. [SUMMARY](SUMMARY.md). Coordination idle; human/device gates external, release not assigned.
+
+## N19 — r11: старт без недоступного Дашборда и рабочее меню разделов
+
+Assigned 2026-10-11, /root sole coordinator/executor, codex-direct. Baseline main/7263d499 (4.6.9 release with N18 in HEAD), foreign endpoints/dialplan/tsbuildinfo and attachment preserved. User screenshot reproduced case: root Dashboard renders while overview is tenant-hidden/off or dashboard page removed; footer falls back to inert catalog text. Previous empty-catalog mocks did not cover selected-module setup.
+
+- Resolve login target after catalog ready against visible active/RBAC pages. Keep valid configured role paths and service/custom links; unavailable root/known module target falls back to role-default if eligible/first available catalog page, or Hub if none. SUPERADMIN platform start preserved.
+- Root/deep-link guard uses same available target to avoid unavailable Dashboard/redirect loops; no hidden module inserted into menu and no backend/catalog setting changes. Wait catalog/role-start completion; error handling explicit.
+- AppLayout owns shared controlled mobile section Sheet state; header and fallback footer open same single Sheet. Unknown/no-page footer has real Sections trigger (standalone widget uses native Hub link), focus return to opening trigger when still mounted. One-page/no-duplication and multi-page behavior retained.
+- Owned features/modules lib availableStartPath + hooks role-start/license gate/tests; AppLayout composition, ModuleShell/MobileModuleMenu controlled props/tests, MobileBottomBar fallback/tests, architecture paragraph and own planning docs/index/registry row. Registry/API/router/backend/foreign files read-only.
+- Evidence: unit count/role/license/catalog-ready/pending/path preservation; integrated mocked Chromium with realistic catalog overview hidden/off/empty/disabled/reassigned, login pending and existing root, configured start/no available modules, mobile/menu/focus/desktop. Required targeted/type/lint/full frontend/backend. Mock API vs device/live API gates separate.
+
+
+### N19 final evidence
+
+Implemented and automated-tests-passed; local mocked Chromium 34 checks PASS, errors=[]. Targeted 20 files/147 tests, extended gate 7 tests and final resolver 13 tests PASS. Root/scoped lint and final TypeScript exit 0; full frontend 334 files/1799 tests exit 0, backend 388 suites/3662 tests PASS with existing skips. Screenshots self-reviewed; foreign ten hashes unchanged and diff --check PASS. [SUMMARY](SUMMARY.md). Coordination idle, no delegated writers; device/live API/human gates external, production publication not assigned.
+
+## N20 — r12: типографика навигации и заметное название приложения
+
+Assigned 2026-10-12 by user; /root sole coordinator/executor, codex-direct. Baseline main/7263d499 plus existing table, endpoints, dashboard and navigation dirty work preserved; no delegated writers.
+
+- Shared ModuleNavigation: sections 14px/600, nested pages 13px with smaller icons and indentation, distinct active page, compact desktop spacing; mobile links retain 44px touch targets. Preserve native links, RBAC/license filtering, independent expansion, compact rail and focus semantics.
+- Shared AppBrand: larger, prominent application name (20px desktop, 18px phone Sheet), existing logo asset; full and compact brand behavior retained. Sidebar footer follows menu typography.
+- Owned ModuleNavigation TSX/SCSS, AppBrand SCSS, sidebar footer SCSS, mobile menu SCSS only if needed, this PLAN/EXECUTION and registry row. No routing, API, locale, preference or backend changes.
+- Checks: existing navigation/ModuleShell/mobile menu tests, TypeScript, required root lint/backend/frontend; desktop and mobile rendered self-review with screenshot. External device/screen-reader/UAT remains a separate pending gate.
+
+N20 acceptance: implemented; 65 targeted tests, TypeScript/root lint, backend 3894 and frontend 1855 tests PASS. Authenticated local desktop and 320px mobile Sheet self-review PASS; screenshots in EXECUTION. Writer idle, no release assigned.
+
+## N21 - Compact section flyouts (2026-10-13)
+
+User accepted a panel next to the icon. /root sole writer/coordinator, codex-direct. Owned ModuleNavigation and bounded flyout component/styles/tests, ModuleShellSidebar caller/test compatibility, shared Popover stacking token and own PLAN/EXECUTION. Preserve dirty baseline and earlier sidebar resize correction. No routing/API/license/preference/backend changes.
+
+- Compact multi-page sections open a single 260px anchored non-modal panel instead of expanding the sidebar. Pointer hover opens after a short delay; click/keyboard activation opens persistently. Pointer travel into the panel must keep it open; hover must not steal focus. Navigation, Escape, outside interaction, route/mode change and sidebar scrolling close it; keyboard Escape returns focus to the trigger.
+- Title plus themed native route links, icons/current-page highlight, viewport collision handling and internal scrolling. Portal via shared UI; design tokens and SCSS modules, no native feature markup or em dashes. Single-page/locked sections retain direct destinations with compact tooltips. Permission/license filtering remains the existing catalog pipeline; expanded/mobile navigation retains its behavior.
+- Checks: targeted click/hover/timer/focus/Escape/outside/route/mode/filter/link and shell/resize/mobile regressions, scoped lint/SCSS/types, required repository gates. Actual-browser inspection is separate and may be tool-unavailable. No release assigned.
+
+N21 acceptance: implemented / automated-tests-passed. Final 59 targeted tests and 10 activation cases, TypeScript, root lint, backend 410 suites / 3979 tests and frontend 348 files / 1930 tests PASS. SCSS/source self-review and whitespace PASS. Actual-browser binding timed out before page access, so visual/hit geometry gate remains external; no independent review or release. Additional explicit 0035 migration assignment applied and source startup readiness passed, recorded in EXECUTION. Writer idle.

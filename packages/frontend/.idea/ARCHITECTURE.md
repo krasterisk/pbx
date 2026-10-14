@@ -111,21 +111,23 @@ krasterisk_v4/
   4. Не полагаться только на `invalidatesTags` + refetch: это даёт заметную задержку бегунка до ответа сети.
   - Формы с локальным `useState` + явной кнопкой «Сохранить» уже «optimistic» на уровне UI — правило про RTK-patch к ним не применяется, пока toggle не биндится напрямую к query cache.
   - Эталон: `updateMyNotifications` / `updateMyUiCustomization` в `shared/api/endpoints/callCenterApi.ts`.
-- **Table row actions (MUST):** Колонка действий в `DataTable` / списках (edit / copy / delete) **обязана** использовать `TableRowActions` + `TableRowAction` из `@/shared/ui`. Тот же паттерн — на мобильных карточках строки (hybrid mobile-card).
+- **Действия выбранных сущностей (MUST):** В CRUD-таблицах и карточках нет кнопок редактирования, копирования и удаления в строке. Редактирование — через `Table.onRowClick` / `TableRow.onActivate` / `TableCard.onActivate`. Копирование и удаление — только в общем `TableToolbar`, слева от поля поиска, через `onCopySelected` и `onDeleteSelected`.
   - Нельзя: нативный `<button>` / `Button variant="ghost" size="icon"` + Tailwind `hover:bg-white/5` / `hover:bg-accent` / `className="h-8 w-8"` на иконках — фон кнопки сливается с hover строки, иконка «пропадает».
   - Визуал: muted иконка → на hover только смена цвета (`foreground` / `destructive` для `danger`), **без** заливки фона.
-  - Порядок, если есть копирование: **Edit → Copy → Delete**. Copy только `dispatch(openCopyModal)`, без прямого API.
+  - Copy появляется только при выборе **ровно одной существующей записи** и наличии обработчика. Для клонирования открывается существующая форма copy; API создания вызывается после сохранения формы. ID берётся из полного набора данных через стабильный `getRowId`, не из индекса отфильтрованной страницы. `canCopySelected` сохраняет ограничения доступа.
   - `aria-label` обязателен; `title` задаётся только без `Tooltip` / `InfoTooltip`, чтобы не дублировать подсказки.
-  - Lucide внутри `TableRowAction`: только `<Pencil />` / `<Copy />` / `<Trash2 />` **без** `className`, `size`, `text-primary`, `text-destructive`. Размер задаёт `TableRowActions.module.scss` (`svg { width: 1rem; height: 1rem }`). Цвет по умолчанию - muted; destructive **только** на hover у `danger`.
+  - Delete появляется при наличии выделения; `deleteDisabled` сохраняет permission/read-only/busy guards. Обработчик открывает подтверждение с реальными допустимыми ID/названиями; мутация остаётся в feature. Встроенные шаблоны, default supplier и другие защищённые записи не передаются на удаление. Окончательное удаление архивного проекта сохраняет отдельное подтверждение.
   - **Запрещённые иконки edit:** `Edit2`, `FileEdit`, `SquarePen` - только `Pencil`.
   - **Запрещённый цвет «сразу»:** `className="w-4 h-4 text-primary"` / `text-destructive` на иконке - иконка кричит до hover и расходится с каноном.
   - **Запрещённый hover-фон:** `hover:bg-white/10` / `hover:bg-white/5` / `hover:bg-destructive/10` / `hover:bg-accent` на кнопке действия.
-  - Copy **не обязателен**: кнопка есть только если в slice есть `openCopyModal` (эталон без Copy - `ContextsTable`). Иначе только Edit + Delete.
+  - Copy не обязателен: новая операция клонирования не добавляется разделу без такой возможности. Для существующих clipboard-операций (например, ссылка TV) `onCopySelected` сохраняет их прежнюю семантику и также требует одиночного выделения.
   - Не дублировать `.actionBtn` в feature SCSS.
-  - Эталоны: `features/contexts/ui/ContextsTable/useContextsTableColumns.tsx`, `features/trunks/ui/TrunksTable/useTrunksTableColumns.tsx`, `features/users/ui/UsersTable/useUsersTableColumns.tsx`, `features/routes/ui/RoutesTable/RoutesTable.tsx`.
-  - Компонент: `shared/ui/TableRowActions`.
-  - Полный канон страницы + таблицы: см. «Паттерн страницы списка и таблицы» ниже (в т.ч. **§4.2** массовое выделение, **§4.2.1** кросс-страничный select / баннер «Выбрать все N», **§4.2.2** Dialog preview, **§4.2.3** CSV).
-- **Cross-page table selection (MUST):** В CRUD-`DataTable` с client-side пагинацией header checkbox выбирает **только текущую страницу**; выбор отдельных строк **сохраняется** между страницами; при «вся страница» и `filteredCount > pageSize` — баннер `renderBanner` («Выбрать все N» / «Снять»). Массовые действия и CSV работают по полному `rowSelection`. Bulk confirm — Dialog с коротким preview (лимит 8), не `window.confirm` со всеми именами. Эталон: `features/endpoints/ui/EndpointsTable`. Детали — «Паттерн страницы списка и таблицы» §4.2–4.2.3.
+  - Мобильные списки обязаны поддерживать выбор: `TableCard.selection` + `useCrossPageRowSelection.cardSelection(id, label)`; Label имеет 40px hit area. Для semantic-таблиц — `TableSelectionCell` и controlled selection. Checkbox и его площадка не открывают редактор.
+  - `TableRowActions` / `TableRowAction` остаются для специальных операций (SIP-доступ, playback, run-now, регистрация), с accessible label и общим стилем. `actions` панели — только дополнительные предметные операции; CRUD copy/delete не оформляются локальными кнопками.
+  - Локальные draft-редакторы полей, схем и массивов внутри формы сохраняют собственное удаление элементов: это изменение несохранённого документа, а не CRUD списка сущностей.
+  - Эталоны: `QueuesTable`, `ContextsTable`, `TrunksTable`, `RouteTemplatesPage`; общий API `shared/ui/Table` / `TableToolbar` / `TableCard`.
+  - Полный канон страницы + таблицы: см. «Паттерн страницы списка и таблицы» ниже (в т.ч. **§4.2** массовое выделение, **§4.2.1** кросс-страничный select в общем тулбаре, **§4.2.2** Dialog preview, **§4.2.3** CSV).
+- **Cross-page table selection (MUST):** В CRUD-`DataTable` с client-side пагинацией header checkbox выбирает **только текущую страницу**; выбор отдельных строк **сохраняется** между страницами; общий `TableToolbar` показывает счётчик, выбор всех найденных и сброс после первого выделения, без дополнительного баннера. Массовые действия и CSV работают по полному `rowSelection`. Bulk confirm — Dialog с коротким preview (лимит 8), не `window.confirm` со всеми именами. Эталон: `features/endpoints/ui/EndpointsTable`. Детали — «Паттерн страницы списка и таблицы» §4.2–4.2.3.
 - **Сворачиваемая карточка (MUST):** Повторяющиеся сущности в модалке (метрика, тема, файл загрузки) — карточка, **свёрнутая по умолчанию**. Ховер на всю карточку, не на текст. Канон — «Паттерн сворачиваемой карточки» ниже. Эталоны: `ProjectSettingsForm` (метрики, темы), `UploadForm` (файлы).
 - **Продуктовая страница (MUST):** Дашборд, список сущностей и страница ключей собираются одним каркасом: шапка с бейджем, пустое состояние, секция-карточка, ховер на весь элемент. Канон — «Паттерн продуктовой страницы» ниже. Эталоны: `SpeechAnalyticsDashboardPage`, `SpeechAnalyticsProjectsPage`, `AiConnectionsPage`.
 - **Focus ring inset (MUST):** обводка фокуса у полей ввода **обязана** рисоваться **внутри** рамки (`ring-inset`). Контейнеры модалок (`DialogContent size="large"` → `overflow: hidden`) и тело со скроллом (`.scrollBody` / `.formBody` → `overflow-y: auto`) **обрезают** внешний ring / `box-shadow` - слева/сверху «пропадает» половина выделения.
@@ -134,20 +136,18 @@ krasterisk_v4/
   - Эталоны: `shared/ui/Input`, `shared/ui/Select`, `shared/ui/Textarea`, `shared/ui/TagInput`. Новый контрол в `shared/ui` копирует этот же focus-паттерн.
 
 ```tsx
-import { TableRowActions, TableRowAction } from '@/shared/ui';
-import { Pencil, Copy, Trash2 } from 'lucide-react';
+import { TableToolbar } from '@/shared/ui';
 
-<TableRowActions>
-  <TableRowAction title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
-    <Pencil />
-  </TableRowAction>
-  <TableRowAction title={t('common.copy')} aria-label={t('common.copy')} onClick={onCopy}>
-    <Copy />
-  </TableRowAction>
-  <TableRowAction danger title={t('common.delete')} aria-label={t('common.delete')} onClick={onDelete}>
-    <Trash2 />
-  </TableRowAction>
-</TableRowActions>
+<TableToolbar
+  selectedCount={selection.selectedCount}
+  exportTable={{ data: entities, columns, getRowId: row => String(row.uid), rowSelection: selection.rowSelection }}
+  onCopySelected={row => dispatch(pageActions.openCopyModal(row))}
+  onDeleteSelected={selection.openBulkDelete}
+  deleteDisabled={isDeleting}
+  onClearSelection={selection.clearSelection}
+  searchValue={search}
+  onSearchChange={setSearch}
+/>
 ```
 
 - **No emoji icons (MUST):** Unicode-эмодзи **запрещены** как иконки UI (кнопки, лейблы, бейджи, tooltips, empty states, tab triggers). Для иконок используется **только Lucide React** (`lucide-react`). Подсказки у полей — текст (`Text` / `InfoTooltip` с Lucide), не символы вроде ℹ️ / ❓ / ✅.
@@ -188,6 +188,43 @@ Boolean-состояния «Активен», WebRTC, BLF, provisioning и ан
 Для мобильного viewport сохранять видимость действий, min-width: 0 у полей, перенос/scroll только у полосы вкладок и переход многоколоночных групп в одну колонку. Общая поверхность Dialog/Sheet и muted-акценты Tabs/Switch задаются в shared UI. Feature SCSS отвечает за специфические поля; не копировать палитру и размеры общей оболочки.
 
 Эталоны с общими компонентами: EndpointFormModal, TrunkFormModal, QueueFormModal, UserFormModal, IvrFormModal/IvrMainTab, ContextFormModal, DirectoryFormModal. Regression-контракт общего каркаса: `shared/ui/ModalLayout/ModalLayout.test.tsx` (Save вне скролла, Label/Switch, сохранение черновика при смене панели и сворачивании).
+
+### Единая таблица и панель поиска/экспорта (2026-10-12)
+
+Единственный публичный компонент таблиц — `Table` из `@/shared/ui` (`shared/ui/Table/Table.tsx`). Для списков принимает `data` + TanStack `columns`; для существующей семантической разметки принимает `TableHeader/TableBody/TableRow/TableHead/TableCell`. `DataTable` оставлен только как совместимый алиас **того же компонента**, отдельной реализации нет. Новые разделы используют имя `Table`. Контекст размера страницы — `shared/ui/Table/TablePageSizeContext`; старый путь также является алиасом.
+
+`showSearch` и `showExport` по умолчанию `true` и независимо управляют возможностью поиска и CSV. Без выделения панель показывает только поиск: экспорт, выбор всех, сброс, копирование, удаление и `actions` видны при `selectedCount > 0`. `showExport={false}` отключает экспорт и при выделении; программный `TableRef.exportCsv()` сохраняется. Controlled-поиск использует `globalFilter` + `onGlobalFilterChange`. `selectable`, `getRowId`, `rowSelection/onRowSelectionChange`, ref `TableRef`, пагинация, `renderHeader`, раскрытие и действия строки сохраняют прежние контракты. При изменении клиентского фильтра открывается первая страница, выделение сохраняется. Серверная пагинация остаётся у родителя; локальный экспорт содержит только переданные записи и подписан как экспорт загруженной страницы. Полный серверный экспорт можно передать через `onExport` и задать корректный `toolbar.exportLabel`.
+
+```tsx
+<Table data={rows} columns={columns} getRowId={row => String(row.id)}
+  showSearch={true} showExport={true}
+  globalFilter={query} onGlobalFilterChange={setQuery}
+  exportFilename="subscribers" selectable />
+```
+
+Оформление поверхностей, шапок, строк, hover/focus/selected, мобильных карточек и компактных icon-action групп задаётся только `shared/ui/Table/Table.module.scss`. Feature SCSS оставляет раскладку и смысловые состояния, не создаёт вторую палитру таблиц. `tableStyles` содержит общие классы для составных каталогов и карточек.
+
+Если раздел владеет серверными фильтрами, summary или мобильными карточками, его шапка использует `TableToolbar` из того же public API; вложенный `Table` отключает встроенные инструменты через `showSearch={false} showExport={false}` и при внешней карточке `surface={false}`. `TableToolbar` получает `searchValue/onSearchChange`, `tableRef` и `exportTable` (data, columns, getRowId, globalFilter, rowSelection, filename). На desktop используется ref текущей модели, включая сортировку; без смонтированной таблицы мобильный CSV использует те же accessors/selection/filter. `showSearch/showExport` доступны и панели. Копирование и удаление задаются через `onCopySelected/onDeleteSelected`; дополнительные предметные операции передаются через `actions`. Подтверждение удаления остаётся в фиче. Clear появляется только при выделении. Checkbox-ячейка изолирована от row activation.
+
+CSV содержит видимые data-колонки, исключает `actions`, `select`, пустые action-заголовки и `meta.exportable: false`. Выделение экспортируется целиком из доступного набора, включая строки вне текущего клиентского фильтра/страницы; без выделения экспортируется весь отфильтрованный клиентский набор. Структурные значения сериализуются JSON; CSV экранирует кавычки и содержит UTF-8 BOM. Технические предпросмотры редакторов/import mapping явно отключают ненужные инструменты. Call-center reports сохраняет собственный серверный CSV/XLSX/PDF export и отключает дублирующий локальный CSV.
+
+### Единая активация строк/карточек и тени (2026-10-12-r2)
+
+**Дополнение r4 — единый паттерн действий по выделению.** Это правило применяется при создании и изменении всех подобных страниц, таблиц и списков карточек сущностей, включая вложенные каталоги в формах. Колонки содержат данные и специальные операции, а не edit/copy/delete. `TableToolbar.onCopySelected(item)` доступен только при `selectedCount === 1`, известном объекте и положительном `canCopySelected`; `copyDisabled/copyLabel` задают состояние/подсказку. `onDeleteSelected()` открывает feature-owned подтверждение для допустимого выделения; `deleteDisabled/deleteLabel` показывают ограничения и число реально удаляемых записей. Прямой вызов delete API до подтверждения запрещён.
+
+Встроенный toolbar `Table` получает выбранный объект из модели без привязки к текущей странице. Внешняя панель находит объект по `exportTable.data`, `rowSelection` и `getRowId`, либо получает `selectedItem` явно из полного набора/cached identity. Нельзя передавать только отфильтрованные строки как источник copy. Для серверных списков неизвестная identity не заменяется первым объектом текущей страницы: copy скрыт до получения выбранной записи. Копирование сохраняет прежнюю операцию feature (copy-form либо clipboard), а не создаёт новую API-возможность.
+
+Выбор в semantic-таблице — `TableSelectionCell` + controlled selection; в карточке — `TableCard.selection` с `checked/onCheckedChange/label/disabled`. `useCrossPageRowSelection.cardSelection()` использует функциональное обновление по стабильному ID. При смене родительской сущности (например, базы контактов или робота) выбор сбрасывается. Clear отображается только при выделении. При настроенных selection actions toolbar сохраняет место даже для нулевого выбора; действия располагаются до поиска, широкое поле имеет фиксированную базу 24rem, в узком контейнере инструменты получают отдельную строку. CSS/иконки/tooltip кнопок copy/delete принадлежат общей панели, не feature.
+
+Мобильная шапка `tableStyles.directoryToolbar` использует один слот высотой 40px: сводка без выбора, иконки действий после выбора. Поиск остаётся ниже на том же месте; рамки вокруг пустых слотов нет. Дополнительные действия передаются компактными иконками с tooltip/aria-label. Селекторы вложенной панели используют `data-table-tools`, чтобы работать и при SCSS `composes` из feature.
+
+Карточки используют общие плотность, акцент, границу и выделение `TableCard`; длинные названия/описания/адреса переносятся без ellipsis, line clamp и скрытых строк. Подписанные параметры оформляются `TableCardDetails fields={[{ id, label, value }]}`: семантический `dl`, адаптивная сетка, стабильные ID. Название и статус располагаются выше параметров; связанные поля группируются, отсутствие данных не создаёт пустых блоков. Примеры: RoutesTable, TrunksTable, EndpointsTable. Специфичные статусы и команды остаются в feature, оформление сетки принадлежит shared.
+
+Запрет row CRUD не касается локального удаления несохранённых полей/элементов схемы или конфигурации в form builders. Такие редакторы не подменяют общий паттерн каталогов сущностей. Special row operations (SIP, запись разговора, старт/пауза, регистрация) сохраняют отдельный доступный control и общий activation guard; пустая универсальная колонка «Действия» не создаётся.
+
+В списках сущностей отдельная кнопка «Редактировать» отсутствует. Desktop: `Table.onRowClick`; semantic markup: `TableRow.onActivate`; mobile/card list: `TableCard.onActivate`. Все три используют один guard `tableActivation`: pointer + Enter/Space, только при доступности редактирования. `canActivateRow` выключает фокус/активацию read-only строк (например, встроенных шаблонов); карточка получает undefined callback. Checkbox-ячейка выбирается всей площадью и не открывает форму. Label, input/select/textarea, switch/checkbox/combobox, link, audio/video, contenteditable, кнопки, `data-table-actions` и `data-table-no-activate` изолированы от открытия. `TableRowActions` маркирует всю группу, включая промежутки; остальные действия не теряются. Отдельные локальные редакторы полей внутри form builders сохраняют свой собственный контракт. Эти правила заменяют исторические примеры отдельной edit-кнопки ниже.
+
+Внешние обёртки списка используют `tableStyles.section` (или SCSS composes); overflow visible сохраняет тень общей surface. Горизонтальная прокрутка принадлежит внутреннему scroller `Table`; повторный overflow-x auto на внешней обёртке запрещён. Ограниченные по высоте scroll regions сохраняют прокрутку и получают общий `scrollRegion` с 24 px запаса для тени. Shell остаётся владельцем скролла страницы. Общие `summaryCount`, `summaryIcon`, `entityName` задают формат summary и основных значений; feature SCSS хранит раскладку и предметные состояния.
 
 ### Система дизайн-токенов и стилизация через SCSS-модули
 
@@ -685,7 +722,7 @@ Boolean-состояния «Активен», WebRTC, BLF, provisioning и ан
   **Обоснование:** без `min-height: 0` flex-дети не сжимаются; без `> * { flex-shrink: 0 }` (где применимо) дочерние блоки сжимаются вместо скролла. Нативный `<div>` для layout в `features/` нежелателен — предпочтительны Stack; исключение — обёртка `formBody`/`scrollBody`, если Stack ломает flex-сжатие. Скролл-контейнер клипит outset-обводку фокуса - только `ring-inset` (см. MUST «Focus ring inset» выше).
 
 - **Табы в модалках:** Если форма сложная (>150 строк или сложная логика), она декомпозируется на «умный» родитель-модалку и дочерние компоненты-вкладки (напр. `[Feature]GeneralTab.tsx`, `[Feature]PromptsTab.tsx`).
-- **Table row actions:** Колонка иконок действий в таблицах — только `TableRowActions` / `TableRowAction` (см. MUST выше в «Дизайн-система и Стандарты»). Не дублировать `.actionBtn` в feature SCSS.
+- **Table actions:** Entity copy/delete — только selection props общего `TableToolbar`; edit — row/card activation. `TableRowActions` / `TableRowAction` используются только для специальных операций. Не дублировать `.actionBtn` в feature SCSS.
 
 #### Паттерн страницы списка и таблицы (MUST)
 
@@ -823,7 +860,7 @@ Boolean-состояния «Активен», WebRTC, BLF, provisioning и ан
 - Массовое выделение и удаление — **обязательны** для CRUD-списков (см. §4.2). Кнопка bulk-delete **не монтируется по условию** — слот всегда в потоке, иначе таблица «скачет».
 - Loading: `Loader2` + `@keyframes spin` в модуле, не `animate-spin`.
 - Hybrid (D-29): desktop — `data-hybrid="overflow-x-auto"` + `.tableScroll { overflow-x: auto }`; phone — карточки `data-hybrid="mobile-card"`. Тест проверяет `data-testid` / `data-hybrid`, не Tailwind-класс `overflow-x-auto`.
-- Row-actions на desktop **и** на mobile-card — только `TableRowActions` (см. MUST выше и §4.1).
+- На desktop и mobile-card edit/copy/delete не размещаются в строках. Специальные row operations используют `TableRowActions`; общие selection actions — `TableToolbar` (см. MUST выше и §4.1).
 - Колонки выносить в `use[Name]TableColumns.tsx`, общие классы импортировать из `[Name]Table.module.scss`.
 - Тест колонки действий проверяет `title` + `aria-label` у кнопок (эталон: `ContextsTable.test.tsx`).
 
@@ -839,36 +876,23 @@ Boolean-состояния «Активен», WebRTC, BLF, provisioning и ан
 
 | Действие | Иконка | Компонент | Когда |
 |----------|--------|-----------|--------|
-| Edit | `Pencil` | `TableRowAction` | всегда |
-| Copy | `Copy` | `TableRowAction` | только если есть `openCopyModal` |
-| Delete | `Trash2` | `TableRowAction danger` | всегда |
+| Редактирование | нажатие строки / карточки | `Table.onRowClick` / `TableCard.onActivate` | только для доступных сущностей |
+| Copy | `Copy` | `TableToolbar.onCopySelected` | ровно одна выбранная допустимая запись, feature поддерживает copy |
+| Delete | `Trash2` | `TableToolbar.onDeleteSelected` | выделение + permission/busy guard, затем подтверждение |
 | Тулбар (сущность) | иконка модуля (`Network`, `Cable`, …) | `size={20}` + `.toolbarIcon` | счётчик строк |
 | Поиск | `Search` | `size={16}` + `.searchIcon` (absolute в SCSS) | поле фильтра |
 | Bulk delete / loading | `Trash2` / `Loader2` | `size={16}` / `size={24}` + `.spinner` | CTA тулбара |
 
 ```tsx
-// ✅ канон (есть Copy)
-<TableRowActions>
-  <TableRowAction title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
-    <Pencil />
-  </TableRowAction>
-  <TableRowAction title={t('common.copy')} aria-label={t('common.copy')} onClick={onCopy}>
-    <Copy />
-  </TableRowAction>
-  <TableRowAction danger title={t('common.delete')} aria-label={t('common.delete')} onClick={onDelete}>
-    <Trash2 />
-  </TableRowAction>
-</TableRowActions>
-
-// ✅ канон без Copy (Contexts и другие модули без modalMode: 'copy')
-<TableRowActions>
-  <TableRowAction title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
-    <Pencil />
-  </TableRowAction>
-  <TableRowAction danger title={t('common.delete')} aria-label={t('common.delete')} onClick={onDelete}>
-    <Trash2 />
-  </TableRowAction>
-</TableRowActions>
+// Общий toolbar сам ограничивает Copy одиночным выбором.
+<TableToolbar
+  selectedCount={selection.selectedCount}
+  selectedItem={selectedEntity}
+  onCopySelected={openCopy}
+  onDeleteSelected={selection.openBulkDelete}
+  onClearSelection={selection.clearSelection}
+/>
+// Раздел без copy просто не передаёт onCopySelected.
 ```
 
 ```tsx
@@ -980,42 +1004,20 @@ Boolean-состояния «Активен», WebRTC, BLF, provisioning и ан
 
 i18n (ru + en) в блоке модуля: `deleteSelected` (`Удалить ({{count}})`), ключи confirm/banner/CSV из §4.2.1–4.2.3.
 
-##### 4.2.1. Кросс-страничный выбор (MUST) — паттерн «Gmail»
+##### 4.2.1. Кросс-страничный выбор (MUST) — единый тулбар
 
-При client-side пагинации `DataTable` checkbox в **шапке** выбирает **только текущую страницу** (`getToggleAllPageRowsSelectedHandler`). Это намеренно: случайный клик не должен выделить тысячи строк.
+Header checkbox выбирает только текущую страницу (getToggleAllPageRowsSelectedHandler), с indeterminate. Ручные ID сохраняются в controlled rowSelection при смене страницы.
 
-Индивидуальные checkbox на строках **обязаны** накапливать ID в `rowSelection` при смене страницы (TanStack хранит `Record<id, true>` по `getRowId` — не сбрасывать selection при пагинации).
+Единственный интерфейс массового выделения — TableToolbar: компактный счётчик, иконки выбора всех найденных и сброса, экспорт и разрешённые действия. Отдельные баннеры/ссылки «Выбраны все N» запрещены. Счётчик и кнопки появляются после первого выбора; их слоты сохраняют размеры панели и поиска. Если все найденные ID уже выбраны, кнопка выбора всех остаётся в своём слоте, но disabled; сравнивать ID, а не только количество. Структурный контроллер передаёт selectedIds; внутренний Table использует live filtered row model.
 
-Когда выбрана вся текущая страница и `filteredCount > pageSize`, таблица **обязана** показать баннер (слот `renderBanner` у `DataTable`):
+- Общий контроллер useCrossPageRowSelection передаётся как selection={selection}. TableToolbar получает exportTable с полным набором данных и стабильным getRowId; выбор всех использует тот же TanStack filtered model, что CSV, включая все клиентские страницы. Карточкам не требуется смонтированная desktop-таблица.
+- Для semantic/card-списка без модели передавать selectionRowIds — уже отфильтрованные стабильные ID. Допустим структурно совместимый контроллер для локального состояния. toolbar.selection у data-таблицы использует её live row model. Явные callbacks оставлены для предметных исключений.
+- Серверная пагинация: выбор всех ограничен реально загруженными записями; не выдавать его за выбор незагруженной базы.
+- TableCard.selection, header и toolbar управляют одним rowSelection. Массовые действия и CSV используют полный selectedIds, включая другие страницы.
+- Режим всех найденных (allMatchingSelected) остаётся частью контроллера/подтверждения, без второго UI. При смене фильтра сбрасывает выбор; ручное выделение сохраняется.
+- Ref API selectAllFiltered(), clearSelection(), exportCsv(options?) сохраняется. Header не использует getToggleAllRowsSelectedHandler.
 
-| Состояние | Баннер |
-|-----------|--------|
-| Вся страница, есть ещё строки по фильтру | «Выбрано N на этой странице» + link **«Выбрать все M»** → `tableRef.selectAllFiltered()` |
-| Уже выбраны все по фильтру | «Выбраны все M» + link **«Снять выделение»** → `tableRef.clearSelection()` |
-
-```mermaid
-flowchart TD
-  headerClick["Header checkbox"] --> pageOnly["Выбрана текущая страница"]
-  rowClick["Checkbox строки"] --> persist["ID копится в rowSelection на всех страницах"]
-  pageOnly --> banner{"filteredCount > pageSize?"}
-  banner -->|да| offerAll["Баннер: Выбрать все M"]
-  banner -->|нет| allDone["Выбраны все видимые"]
-  offerAll --> allFiltered["selectAllFiltered"]
-  persist --> actions["Удалить / CSV по полной выборке"]
-  allFiltered --> actions
-  actions --> confirm["Dialog: count + короткий preview"]
-```
-
-**Правила:**
-
-- **Запрещено** переводить header на `getToggleAllRowsSelectedHandler()` («сразу все») — небезопасно при больших списках.
-- Массовые действия (delete / CSV при выборе) используют **полный** `selectedIds`, не только строки текущей страницы.
-- Режим «все по фильтру» (`allMatchingSelected`): при смене `globalFilter` сбрасывать флаг и, если он был включён, саму выборку. Ручные ID по страницам при смене поиска не трогать, если режим «все» не был активен.
-- Баннер: только `Flex` / `HStack` / `Text` / `Button variant="link"` из `@/shared/ui` + SCSS модуля фичи (`.selectionBanner`). Без native `div` / `span` / `button` в `features/`.
-- `DataTable`: `selectAllAriaLabel`, `indeterminate` на header checkbox через `getIsSomePageRowsSelected()`.
-- Ref API: `selectAllFiltered()`, `clearSelection()`, `exportCsv(options?)`.
-
-Эталон: `features/endpoints/ui/EndpointsTable` + `shared/ui/DataTable`.
+Эталоны: shared/ui/Table, TableToolbar, useCrossPageRowSelection, features/endpoints/ui/EndpointsTable.
 
 ##### 4.2.2. Confirm bulk-delete — короткий preview (MUST)
 
@@ -1036,7 +1038,7 @@ Preview выносить в чистую функцию модуля (этало
 
 Одиночное удаление в row-actions может оставаться на `window.confirm` / отдельном Dialog — это другой поток.
 
-i18n (ru + en): `confirmBulkDelete`, `confirmBulkDeleteBody` / `…BodyMore`, `confirmBulkDeleteAll` / `…AllFiltered`, `confirmBulkDeleteIrreversible`, строки баннера (`selectionBannerPage`, `selectionBannerSelectAll`, `selectionBannerAll`, `selectionBannerClear`), `selectPageAria`.
+i18n (ru + en): `confirmBulkDelete`, `confirmBulkDeleteBody` / `…BodyMore`, `confirmBulkDeleteAll` / `…AllFiltered`, `confirmBulkDeleteIrreversible`, подсказки и счётчик тулбара (`tableSelectAll`, `selectionBannerCount`, `selectionBannerClear`), `selectPageAria`.
 
 ##### 4.2.3. CSV export и selection (MUST, если в тулбаре есть CSV)
 
@@ -1059,7 +1061,7 @@ i18n (ru + en): `confirmBulkDelete`, `confirmBulkDeleteBody` / `…BodyMore`, `c
 | Badge в шапке страницы | `<Icon size={24} />` внутри `.iconBadge` |
 | CTA «Создать» | `<Plus size={16} className={cls.createBtnIcon} />` |
 | Тулбар таблицы | `<Icon size={20} className={cls.toolbarIcon} />` |
-| Row-actions | `<Pencil />` / `<Copy />` / `<Trash2 />` без size/className |
+| Entity actions | edit через row/card, copy/delete через `TableToolbar` по выделению |
 | Поиск / spinner | `size={16}` / `size={24}` + цвет/анимация в SCSS |
 | Edit в таблице | только `Pencil`, не `Edit2` / `FileEdit` |
 
@@ -1070,7 +1072,7 @@ i18n (ru + en): `confirmBulkDelete`, `confirmBulkDeleteBody` / `…BodyMore`, `c
 - [ ] Шапка: iconBadge + `Text` h1 + subtitle + CTA
 - [ ] Обёртка таблицы `align="stretch"` + `width: 100%` (карточка на всю ширину контента)
 - [ ] Нет второго `Card` вокруг таблицы, у которой свой `Card`
-- [ ] `TableRowActions` на desktop и mobile; иконки `Pencil` / `Copy` / `Trash2` без `w-4 h-4` и без `text-primary` / `text-destructive`
+- [ ] В строках/карточках нет entity edit/copy/delete; copy только для одной identity, delete с выделением и подтверждением; mobile checkbox не открывает редактор
 - [ ] Нет `Edit2` / `FileEdit` и нет `hover:bg-white/10` на row-actions
 - [ ] Copy только при `openCopyModal` в slice
 - [ ] Тулбар: `size={20}` + `.toolbarIcon`; поиск: `Search` + `.searchIcon` в SCSS
@@ -1372,7 +1374,7 @@ Tailwind на полосе табов в JSX **не использовать**. 
 | Тулбар | Слева иконка `size={20}` цветом primary и счётчик (`1.125rem`, `font-weight: 600`). Справа поиск и массовое действие. Поиск: иконка абсолютно слева, поле `height: 2.25rem`, `padding-left: 2.5rem`, ширина `16rem` |
 | Слот массового действия | Кнопка удаления остаётся в потоке и при нуле выбранных прячется через `visibility: hidden` + `pointer-events: none` + `aria-hidden`. Место не схлопывается |
 | Телефон `≤640px` | Тулбар колонкой на всю ширину. Таблица заменяется карточками строки: `border`, `border-radius: var(--radius-md)`, `padding: 0.75rem 1rem`. Атрибуты `data-hybrid="mobile-card"` и `data-hybrid="overflow-x-auto"` |
-| Действия строки | `TableRowActions` (см. канон выше) |
+| Действия сущности | `TableToolbar.onCopySelected/onDeleteSelected` + row/card edit (см. канон выше) |
 | Подтверждение удаления | `Dialog`, не `window.confirm` |
 | Крупное создание и редактирование | `DialogContent size="large"` |
 
@@ -1519,7 +1521,7 @@ openCopyModal(state, action: PayloadAction<Item>) {
 
 #### 2. Таблица — кнопка Copy
 ```tsx
-// Кнопка копирования располагается между Edit и Delete (только TableRowAction):
+// Кнопка копирования располагается перед Delete (только TableRowAction):
 <TableRowAction
   title={t('common.copy')}
   aria-label={t('common.copy')}
@@ -1815,10 +1817,10 @@ FRONTEND_PORT=3010
 Используется обобщенный UI-компонент на базе `TanStack Table` (v8).
 - Пагинация, сортировка и "живой" фильтр работают на стороне клиента в браузере (Client-side), обеспечивая микросекундную задержку при поиске абонента по Extension/Name в масштабах до 10 000 строк.
 - Для выгрузки данных `DataTable` экспонирует `useImperativeHandle(ref)`: `exportCsv({ rows?: 'filtered' | 'selected' })`, `selectAllFiltered()`, `clearSelection()` — родитель (`EndpointsTable`) не вшивает кнопки внутрь таблицы.
-- **Selection (канон §4.2.1):** header checkbox = только текущая страница + `indeterminate`; ID строк накапливаются между страницами; слот `renderBanner` — «Выбрать все N» / «Снять выделение». Не использовать `getToggleAllRowsSelectedHandler` в шапке.
+- **Selection (канон §4.2.1):** header checkbox = только текущая страница + `indeterminate`; ID строк накапливаются между страницами; счётчик, выбор всех найденных и сброс — только общий `TableToolbar`. Не использовать `getToggleAllRowsSelectedHandler` в шапке.
 - **CSV (канон §4.2.3):** без выбора — все filtered (все страницы); с выбором — selected; пустой selected → fallback на filtered.
 - **Bulk delete confirm (канон §4.2.2):** Dialog + `buildBulkDeletePreview` (лимит 8), не `window.confirm` со всеми extension.
-- Колонка row-actions (edit/copy/delete): **только** `TableRowActions` + `TableRowAction` из `@/shared/ui` (см. MUST «Table row actions» выше).
+- Entity copy/delete — только общий `TableToolbar` по выделению. Для специальных row operations используется `TableRowActions` + `TableRowAction`; отдельная edit-кнопка отсутствует (см. MUST «Действия выбранных сущностей» выше).
 - Карточка и таблица **обязаны** растягиваться на 100% ширины контента (`align="stretch"` + `.card` / `.table { width: 100% }`). Канон: «Паттерн страницы списка и таблицы».
 - Стили ячеек и тулбара — SCSS-модуль фичи, не Tailwind в JSX.
 
@@ -1846,9 +1848,11 @@ Phase 8 replaces the legacy single-Sidebar IA with a **Module Hub** entry and an
 - Command palette is `shared/ui/CommandPalette` built from Dialog + Input (**no `cmdk`**).
 - Copy lives in `shared/config/locales/{ru,en}.ts` under `hub`, `marketplace`, `commandPalette`, `license`, `platform` — no em dash (`—`) in UI strings (NAV-14 / UI-SPEC Copywriting Contract).
 
-### Navigation contract (2026-10-11-r10)
+### Navigation contract (2026-10-11-r11)
 
 - Navigation uses the final catalog/RBAC/license/tenant/ownModels data from useHubModules. The navigation collection follows catalog order before Hub favorite sorting; Hub retains favorites-first.
+- Login waits for the catalog and validates the configured role start against visible active permitted pages via resolveAvailableStartPath. Hidden/off/empty/unlicensed Dashboard is not a fallback: use the first eligible catalog page, or /modules when none are available. Valid configured URLs keep their query/hash; service/custom routes and the public /ai-robots landing retain existing behavior. Root/deep-link guards share this resolver and defer to the pending login redirect.
+- AppLayout owns the controlled mobile section Sheet shared by the header and the no-page footer trigger. Without a current navigable section, the footer opens this same Sheet; a standalone footer uses a native /modules link. The Sheet initially focuses its noninteractive heading and restores focus to its still-mounted opening control.
 - features/modules/lib/navigation defines segment matching and one most-specific current page. ModuleShell, sidebar and bottom bar share this resolution; /modules and service routes do not become Dashboard.
 - Route destinations use shared NavItem (native links, anchor refs, modified/middle clicks); actions use Button. Drag ignores modifiers and suppresses only its release click.
 - MobilePageMenu and MobileModuleMenu own folders, SCSS, public indexes and tests. Desktop/left Sheet sections with one permitted page are direct native section links without disclosure or duplicated children. Multi-page sections contain independently expandable sections and all their permitted page links; the current section opens automatically, section headings toggle without navigating. Unavailable modules retain status/targeted Hub links; Modules remains last. Bottom Sheet lists all current-section pages with full labels, never search. Its heading contains only the section name and receives initial noninteractive focus; Close remains keyboard accessible. For a single permitted page the bottom bar shows only the centered static section name, with no Sheet trigger or duplicated page shortcut. For multiple pages the bottom page strip centers the whole list when it fits. Overflowing lists start naturally at the leading edge without artificial spacers; route/size/reselection only scrolls enough to fully reveal a clipped selected link within natural scroll bounds. No CSS snap or mandatory selected-item centering; manual touch/mouse scrolling remains available and both overflow directions are indicated.

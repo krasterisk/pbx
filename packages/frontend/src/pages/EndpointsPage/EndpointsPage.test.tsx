@@ -39,7 +39,10 @@ describe('EndpointsPage', () => {
     expect(screen.getByText('Внутренние номера и устройства')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Создать диапазон/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Добавить абонента/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Создать диапазон/i }).textContent).toBe('');
+    expect(screen.getByRole('button', { name: /Добавить абонента/i }).textContent).toBe('');
     expect(screen.getByTestId('endpoints-table-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('endpoints-table-stub')).not.toContainElement(screen.getByRole('heading', { name: 'Абоненты' }));
   });
 
   it('exposes hybrid-table overflow marker at page level', () => {

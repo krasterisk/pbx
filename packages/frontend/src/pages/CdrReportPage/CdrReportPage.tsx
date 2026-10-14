@@ -1,3 +1,5 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/shared/ui';
+import { DashboardJournalView } from '@/features/dashboard/ui/DashboardJournalView';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,7 +42,7 @@ const PAGE_SIZE = 50;
 
 type CdrReportTab = 'journal' | 'analytics' | 'voicemail';
 
-const CdrReportPage = memo(() => {
+const LegacyCdrReportPage = memo(() => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<CdrReportTab>('journal');
@@ -244,34 +246,34 @@ const CdrReportPage = memo(() => {
               ) : (voicemailMessages ?? []).length === 0 ? (
                 <Text variant="muted" className={cls.vmEmpty}>{t('cdr.voicemail.empty', 'Нет голосовых сообщений')}</Text>
               ) : (
-                <table className={cls.vmTable}>
-                  <thead>
-                    <tr>
-                      <th className={cls.vmTh}>{t('cdr.table.date', 'Дата')}</th>
-                      <th className={cls.vmTh}>{t('cdr.table.src', 'Кто звонил')}</th>
-                      <th className={cls.vmTh}>{t('cdr.table.dst', 'Куда')}</th>
-                      <th className={cls.vmTh}>{t('cdr.table.duration', 'Длительность')}</th>
-                      <th className={cls.vmTh}>{t('cdr.voicemail.transcript', 'Расшифровка')}</th>
-                      <th className={cls.vmTh}>{t('cdr.voicemail.processingStatus', 'Статус обработки')}</th>
-                      <th className={cls.vmTh}>{t('cdr.voicemail.detailsTitle', 'Детали сообщения')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className={cls.vmTable}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className={cls.vmTh}>{t('cdr.table.date', 'Дата')}</TableHead>
+                      <TableHead className={cls.vmTh}>{t('cdr.table.src', 'Кто звонил')}</TableHead>
+                      <TableHead className={cls.vmTh}>{t('cdr.table.dst', 'Куда')}</TableHead>
+                      <TableHead className={cls.vmTh}>{t('cdr.table.duration', 'Длительность')}</TableHead>
+                      <TableHead className={cls.vmTh}>{t('cdr.voicemail.transcript', 'Расшифровка')}</TableHead>
+                      <TableHead className={cls.vmTh}>{t('cdr.voicemail.processingStatus', 'Статус обработки')}</TableHead>
+                      <TableHead className={cls.vmTh}>{t('cdr.voicemail.detailsTitle', 'Детали сообщения')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {(voicemailMessages ?? []).map((msg) => (
-                      <tr key={msg.uid}>
-                        <td className={cls.vmTd}>
+                      <TableRow key={msg.uid}>
+                        <TableCell className={cls.vmTd}>
                           {msg.created_at
                             ? new Date(msg.created_at).toLocaleString('ru-RU')
                             : ''}
-                        </td>
-                        <td className={cls.vmTd}>{msg.caller_id}</td>
-                        <td className={cls.vmTd}>{msg.exten}</td>
-                        <td className={cls.vmTd}>{msg.duration_sec ?? 0}s</td>
-                        <td className={`${cls.vmTd} ${cls.vmTranscript}`}>
+                        </TableCell>
+                        <TableCell className={cls.vmTd}>{msg.caller_id}</TableCell>
+                        <TableCell className={cls.vmTd}>{msg.exten}</TableCell>
+                        <TableCell className={cls.vmTd}>{msg.duration_sec ?? 0}s</TableCell>
+                        <TableCell className={`${cls.vmTd} ${cls.vmTranscript}`}>
                           {msg.transcript || ''}
-                        </td>
-                        <td className={cls.vmTd}>{msg.transcript_status}</td>
-                        <td className={cls.vmTd}>
+                        </TableCell>
+                        <TableCell className={cls.vmTd}>{msg.transcript_status}</TableCell>
+                        <TableCell className={cls.vmTd}>
                           <Button
                             type="button"
                             variant="ghost"
@@ -283,11 +285,11 @@ const CdrReportPage = memo(() => {
                           >
                             <Voicemail size={14} />
                           </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               )}
             </Flex>
           )}
@@ -323,6 +325,11 @@ const CdrReportPage = memo(() => {
   );
 });
 
+LegacyCdrReportPage.displayName = 'LegacyCdrReportPage';
+const CdrReportPage = memo(() => {
+  const [search] = useSearchParams();
+  return search.get('dashboard') === '1' ? <DashboardJournalView /> : <LegacyCdrReportPage />;
+});
 CdrReportPage.displayName = 'CdrReportPage';
 
 export default CdrReportPage;

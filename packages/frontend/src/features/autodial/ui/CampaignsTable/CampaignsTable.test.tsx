@@ -34,7 +34,8 @@ describe('CampaignsTable deletion', () => {
     });
     render(<CampaignsTable />);
 
-    fireEvent.click(within(screen.getByTestId('autodial-campaign-card')).getByRole('button', { name: 'common.delete' }));
+    fireEvent.click(within(screen.getByTestId('autodial-campaign-card')).getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'common.deleteSelected' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'common.delete' }));
 
@@ -47,7 +48,8 @@ describe('CampaignsTable deletion', () => {
     mocks.deleteCampaign.mockReturnValue({ unwrap: () => Promise.resolve({}) });
     render(<CampaignsTable />);
 
-    fireEvent.click(within(screen.getByTestId('autodial-campaign-card')).getByRole('button', { name: 'common.delete' }));
+    fireEvent.click(within(screen.getByTestId('autodial-campaign-card')).getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'common.deleteSelected' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'common.delete' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

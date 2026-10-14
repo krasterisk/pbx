@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import type { FieldSchema } from '../schema.types';
 
 type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
@@ -16,9 +17,9 @@ export function buildAiVoiceRobotSchema(t: TFn): FieldSchema[] {
   ];
 }
 
-export function summarizeAiVoiceRobot(params: Record<string, unknown>, t: TFn): string {
+export function summarizeAiVoiceRobot(params: Record<string, unknown>, t: TFn, refs?: Record<string, unknown>): string {
   const id = String(params.robot_uid ?? params.deployment_id ?? '').trim();
   return id
-    ? t('routes.chain.ai_voice_robot.summary', 'AI-робот {{id}}').replace('{{id}}', id)
+    ? summaryRefLabel(refs, 'aiVoiceRobots', id, t)
     : t('routes.chain.ai_voice_robot.summaryEmpty', 'AI-робот: не выбран');
 }

@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import type { FieldSchema } from '../schema.types';
 
 type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
@@ -46,11 +47,9 @@ export function summarizeConfBridge(
   }
   const uid = room?.source === 'fixed' ? String(room.value ?? '').trim() : '';
   if (uid) {
-    const catalog = refs?.conferenceRooms as { items?: Array<{ value: string; label: string }> } | undefined;
-    const item = catalog?.items?.find((entry) => entry.value === uid);
     return t('routes.chain.summary.confbridge.fixed', 'Комната {{room}}').replace(
       '{{room}}',
-      item?.label ?? uid,
+      summaryRefLabel(refs, 'conferenceRooms', uid, t),
     );
   }
   return t('routes.chain.summary.confbridge.empty', 'Комната: не выбрана');

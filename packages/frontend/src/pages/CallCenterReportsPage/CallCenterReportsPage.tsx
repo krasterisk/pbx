@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { ColumnDef } from '@tanstack/react-table';
 import { BarChart3, Inbox } from 'lucide-react';
 import {
-  VStack, Flex, Text, Button, Input, Select, DataTable, Skeleton,
+  VStack, Flex, Text, Button, Input, Select, Table, Skeleton,
 } from '@/shared/ui';
 import {
   CC_REPORT_IDS,
@@ -335,7 +335,7 @@ export function CallCenterReportsPage() {
         data-testid="hybrid-table"
         data-hybrid="overflow-x-auto"
       >
-        <DataTable<Record<string, unknown>>
+        <Table<Record<string, unknown>> showExport={false}
           data={rows}
           columns={tableColumns}
           getRowId={(row) => String(

@@ -18,6 +18,7 @@ import { LoggerService } from '../logger/logger.service';
 import { ModulesRegistryService } from './modules-registry.service';
 import { BillingBalanceService } from './billing/billing-balance.service';
 import { TenantIdentityService } from '../tenant-identity/tenant-identity.service';
+import { normalizeTenantDashboardFields } from './tenant-dashboard-fields';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -32,6 +33,10 @@ export interface CreateTenantDto {
   max_extensions?: number;
   max_trunks?: number;
   max_queues?: number;
+  plan_name?: string | null;
+  plan_expires_at?: string | null;
+  max_concurrent_calls?: number | null;
+  timezone?: string;
   trial_days?: number;       // По умолчанию 14 дней
   seller_id?: number;        // По умолчанию — дефолтный поставщик
 }
@@ -47,6 +52,10 @@ export interface UpdateTenantDto {
   max_extensions?: number;
   max_trunks?: number;
   max_queues?: number;
+  plan_name?: string | null;
+  plan_expires_at?: string | null;
+  max_concurrent_calls?: number | null;
+  timezone?: string;
   seller_id?: number;
   sa_own_models?: boolean;
 }
@@ -137,6 +146,7 @@ export class TenantsService {
   }
 
   async provision(dto: CreateTenantDto, createdBy: number): Promise<{ tenant: Tenant; adminUser: User }> {
+    const dashboardFields = normalizeTenantDashboardFields(dto, this.configService.get<string>('PBX_DEFAULT_TIMEZONE', 'UTC'));
     // Проверяем уникальность slug
     if (dto.slug) {
       const existingSlug = await this.tenantModel.findOne({ where: { slug: dto.slug } });
@@ -179,6 +189,8 @@ export class TenantsService {
         max_extensions: dto.max_extensions ?? 10,
         max_trunks: dto.max_trunks ?? 2,
         max_queues: dto.max_queues ?? 3,
+        timezone: this.configService.get<string>('PBX_DEFAULT_TIMEZONE', 'UTC'),
+        ...dashboardFields,
         created_by: createdBy,
       } as any, { transaction: t });
 
@@ -245,7 +257,7 @@ export class TenantsService {
       await this.sellersService.findOne(dto.seller_id);
     }
 
-    await tenant.update(dto);
+    await tenant.update({ ...dto, ...normalizeTenantDashboardFields(dto) });
 
     if (updatedBy) {
       this.loggerService.logAction(

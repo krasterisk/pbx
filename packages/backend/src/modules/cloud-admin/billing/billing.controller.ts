@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Body, Param, ParseIntPipe,
-  UseGuards, Req, Query,
+  UseGuards, Req, Query, NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags, ApiBearerAuth, ApiOperation, ApiQuery,
@@ -11,6 +11,9 @@ import {
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { SuperAdminGuard } from '../../auth/superadmin.guard';
 import { BillingBalanceService } from './billing-balance.service';
+import { InjectModel } from '@nestjs/sequelize';
+import { Tenant } from '../tenant.model';
+import { resolveTenantIdFromJwt } from '../tenant-binding';
 
 class DepositDto {
   @IsNumber()
@@ -97,18 +100,23 @@ export class BillingAdminController {
 @UseGuards(JwtAuthGuard)
 @Controller('billing')
 export class BillingTenantController {
-  constructor(private readonly billingService: BillingBalanceService) {}
+  constructor(
+    private readonly billingService: BillingBalanceService,
+    @InjectModel(Tenant) private readonly tenants: typeof Tenant,
+  ) {}
 
-  /** Получить свой баланс — tenantId из vpbx_user_uid */
+  private async tenantId(req: { user?: { tenant_id?: number; vpbx_user_uid?: number } }): Promise<number> {
+    const id = await resolveTenantIdFromJwt(req.user, (uid) => this.tenants.findOne({
+      where: { vpbx_user_uid: uid }, attributes: ['id'],
+    }));
+    if (id === null) throw new NotFoundException('Tenant cabinet is not configured');
+    return id;
+  }
+
   @Get('balance')
   @ApiOperation({ summary: 'Мой баланс' })
   async getMyBalance(@Req() req: any) {
-    // Resolve tenant_id from vpbx_user_uid via balance table (or use tenant lookup)
-    // Simplified: we use vpbx_user_uid directly to find a tenant
-    // Full solution: inject TenantsService and call findByVpbxUid
-    const vpbxUid = req.user.vpbx_user_uid;
-    // For now we pass vpbx_user_uid as proxy tenant_id (matches billing_balances.tenant_id)
-    return this.billingService.getBalance(vpbxUid);
+    return this.billingService.getBalance(await this.tenantId(req));
   }
 
   @Get('transactions')
@@ -120,6 +128,8 @@ export class BillingTenantController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    return this.billingService.getTransactions(req.user.vpbx_user_uid, Number(limit) || 50, Number(offset) || 0);
+    const size = Math.min(100, Math.max(1, Math.floor(Number(limit) || 50)));
+    const skip = Math.min(1_000_000, Math.max(0, Math.floor(Number(offset) || 0)));
+    return this.billingService.getTransactions(await this.tenantId(req), size, skip);
   }
 }

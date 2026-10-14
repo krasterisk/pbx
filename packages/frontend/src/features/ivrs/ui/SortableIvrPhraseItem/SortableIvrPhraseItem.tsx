@@ -1,8 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GripVertical, Trash2, Pencil } from 'lucide-react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   getIvrPromptsValidationIssues,
   type IIvrPhrase,
@@ -10,8 +8,8 @@ import {
   type IvrPromptsValidationEngine,
 } from '@krasterisk/shared';
 import type { ITtsEngine } from '@/entities/engines';
-import { Button, Select, Text, Textarea } from '@/shared/ui';
-import { VStack, Flex, HStack } from '@/shared/ui/Stack';
+import { Button, Select, Text, Textarea, Input, Label, Tooltip, VStack, HStack } from '@/shared/ui';
+import { SortableRegionItem, SortableRegionHandle } from '@/shared/ui/SortableRegion';
 import { IvrPhraseTtsFields } from '../IvrPhraseTtsFields/IvrPhraseTtsFields';
 import cls from './SortableIvrPhraseItem.module.scss';
 
@@ -66,28 +64,10 @@ export function SortableIvrPhraseItem({
     }
   }, [hasError, phrase.kind]);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+  const engine = phrase.kind === 'tts' ? (engines.find((e) => e.uid === phrase.engine_uid) ?? null) : null;
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.85 : 1,
-  };
-
-  const engine = phrase.kind === 'tts'
-    ? engines.find((e) => e.uid === phrase.engine_uid) ?? null
-    : null;
-
-  const engineName = engine?.name
-    ?? (phrase.kind === 'tts' && phrase.engine_uid > 0 ? `#${phrase.engine_uid}` : '-');
+  const engineName =
+    engine?.name ?? (phrase.kind === 'tts' && phrase.engine_uid > 0 ? `#${phrase.engine_uid}` : '-');
 
   const handleTtsPatch = useCallback(
     (patch: Partial<Extract<IIvrPhrase, { kind: 'tts' }>>) => {
@@ -105,108 +85,55 @@ export function SortableIvrPhraseItem({
     onPreviewTts(phrase.text.trim(), phrase.engine_uid, phrase.settings);
   };
 
-  const rowIssues = phrase.kind === 'tts'
-    ? getIvrPromptsValidationIssues([phrase], { engines: engineOptions })
-    : [];
+  const rowIssues =
+    phrase.kind === 'tts' ? getIvrPromptsValidationIssues([phrase], { engines: engineOptions }) : [];
 
-  const previewDisabled = phrase.kind === 'tts'
-    ? (
-      isPreviewLoading
-      || !phrase.text.trim()
-      || !phrase.engine_uid
-      || rowIssues.length > 0
-    )
-    : !phrase.filename;
+  const previewDisabled =
+    phrase.kind === 'tts'
+      ? isPreviewLoading || !phrase.text.trim() || !phrase.engine_uid || rowIssues.length > 0
+      : !phrase.filename;
 
   const showError = hasError || rowIssues.length > 0;
 
+  const panelId = id + '-settings';
+  const title =
+    phrase.kind === 'audio' ? getPromptLabel(phrase.filename) : phrase.text || t('ivrs.editor.text');
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`${cls.promptItem} ${isDragging ? cls.promptItemDragging : ''} ${
-        phrase.kind === 'tts' ? cls.promptItemTts : ''
-      } ${phrase.kind === 'tts' && isEditing ? cls.promptItemTtsExpanded : ''} ${
-        showError ? cls.promptItemInvalid : ''
-      }`}
-    >
-      <Flex align="start" gap="8" className={cls.promptRow}>
-        <button
+    <SortableRegionItem id={id} className={cls.promptItem + (showError ? ' ' + cls.promptItemInvalid : '')}>
+      <HStack align="center" gap="8" max className={cls.promptRow}>
+        <Tooltip content={t('ivrs.prompts.dragHandle')}>
+          <SortableRegionHandle
+            className={cls.dragHandle}
+            aria-label={t('ivrs.prompts.dragHandle') + ': ' + (index + 1)}
+          />
+        </Tooltip>
+        <Button
           type="button"
-          className={cls.dragHandle}
-          title={t('ivrs.prompts.dragHandle', 'Перетащите для изменения порядка')}
-          {...attributes}
-          {...listeners}
+          variant="ghost"
+          className={cls.toggle}
+          aria-expanded={isEditing}
+          aria-controls={panelId}
+          disabled={isEditing && rowIssues.length > 0}
+          onClick={() => setIsEditing((open) => !open)}
         >
-          <GripVertical size={16} />
-        </button>
-
-        <Text as="span" className={cls.promptIndex}>
-          {index + 1}
-        </Text>
-
-        <span className={phrase.kind === 'tts' ? cls.badgeTts : cls.badgeAudio}>
-          {phrase.kind === 'tts'
-            ? t('ivrs.prompts.badgeTts', 'TTS')
-            : t('ivrs.prompts.badgeAudio', 'Аудио')}
-        </span>
-
-        {phrase.kind === 'audio' ? (
-          <Text as="span" className={cls.promptName}>
-            {getPromptLabel(phrase.filename)}
+          {isEditing ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}
+          <Text as="span" className={cls.promptIndex}>
+            {index + 1}
           </Text>
-        ) : (
-          <div className={cls.ttsBody}>
-            {!isEditing ? (
-              <Text as="span" className={cls.ttsSummary}>
-                {phrase.text.slice(0, 120)}
-                {phrase.text.length > 120 ? '…' : ''}
-                {' · '}
-                {engineName}
-                {' · '}
-                {summarizeTtsSettings(
-                  phrase,
-                  t('ivrs.prompts.engineDefaults', 'настройки движка'),
-                )}
-              </Text>
-            ) : (
-              <VStack gap="10" className={cls.ttsEdit}>
-                <Textarea
-                  value={phrase.text}
-                  onChange={(e) => handleTtsPatch({ text: e.target.value })}
-                  placeholder={t('ivrs.prompts.textPlaceholder', 'Текст фразы для синтеза')}
-                  rows={2}
-                  className={cls.ttsTextarea}
-                />
-                <VStack gap="4">
-                  <Text variant="small">{t('ivrs.prompts.engine', 'TTS-движок')}</Text>
-                  <Select
-                    value={phrase.engine_uid > 0 ? String(phrase.engine_uid) : ''}
-                    onChange={(e) => {
-                      const uid = parseInt(e.target.value, 10);
-                      handleTtsPatch({ engine_uid: uid || 0 });
-                    }}
-                  >
-                    <option value="">{t('ivrs.prompts.selectEngine', 'Выберите движок')}</option>
-                    {engines.map((eng) => (
-                      <option key={eng.uid} value={String(eng.uid)}>
-                        {eng.name} ({eng.type})
-                      </option>
-                    ))}
-                  </Select>
-                </VStack>
-                <IvrPhraseTtsFields
-                  engine={engine}
-                  settings={phrase.settings ?? {}}
-                  onChange={(settings) => handleTtsPatch({
-                    settings: Object.keys(settings).length ? settings : undefined,
-                  })}
-                />
-              </VStack>
-            )}
-          </div>
-        )}
-
+          <VStack align="stretch" gap="4" className={cls.summary}>
+            <Text as="span" className={cls.promptName}>
+              {title}
+            </Text>
+            <Text as="span" variant="muted" className={cls.metadata}>
+              {phrase.kind === 'tts'
+                ? engineName + ' · ' + summarizeTtsSettings(phrase, t('ivrs.prompts.engineDefaults'))
+                : t('ivrs.prompts.badgeAudio')}
+            </Text>
+          </VStack>
+          <Text as="span" className={cls.badge}>
+            {t(phrase.kind === 'tts' ? 'ivrs.prompts.badgeTts' : 'ivrs.prompts.badgeAudio')}
+          </Text>
+        </Button>
         <HStack gap="4" className={cls.rowActions}>
           <Button
             type="button"
@@ -215,49 +142,67 @@ export function SortableIvrPhraseItem({
             disabled={previewDisabled}
             onClick={handlePreview}
           >
-            {phrase.kind === 'audio' && isAudioPlaying
-              ? t('ivrs.prompts.stop', 'Стоп')
-              : t('ivrs.prompts.preview', 'Прослушать')}
+            {phrase.kind === 'audio' && isAudioPlaying ? t('ivrs.prompts.stop') : t('ivrs.prompts.preview')}
           </Button>
-          {phrase.kind === 'tts' && (
-            isEditing ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={rowIssues.length > 0}
-                onClick={() => {
-                  if (rowIssues.length > 0) return;
-                  setIsEditing(false);
-                }}
-              >
-                {t('ivrs.prompts.collapseEdit', 'Свернуть')}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditing(true)}
-              >
-                <Pencil size={14} />
-                {t('common.edit', 'Редактировать')}
-              </Button>
-            )
-          )}
+          <Tooltip content={t('common.delete')}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cls.deleteBtn}
+              aria-label={t('common.delete') + ': ' + (index + 1)}
+              onClick={() => onRemove(index)}
+            >
+              <Trash2 size={16} aria-hidden />
+            </Button>
+          </Tooltip>
         </HStack>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cls.deleteBtn}
-          onClick={() => onRemove(index)}
-          title={t('common.delete', 'Удалить')}
-        >
-          <Trash2 size={14} />
-        </Button>
-      </Flex>
-    </div>
+      </HStack>
+      {isEditing && (
+        <VStack id={panelId} align="stretch" gap="12" max className={cls.itemBody}>
+          {phrase.kind === 'audio' ? (
+            <VStack align="stretch" gap="4" max>
+              <Label htmlFor={id + '-file'}>{t('ivrs.editor.filename')}</Label>
+              <Input id={id + '-file'} value={phrase.filename} readOnly />
+            </VStack>
+          ) : (
+            <>
+              <VStack align="stretch" gap="4" max>
+                <Label htmlFor={id + '-text'}>{t('ivrs.editor.text')}</Label>
+                <Textarea
+                  id={id + '-text'}
+                  value={phrase.text}
+                  rows={3}
+                  onChange={(event) => handleTtsPatch({ text: event.target.value })}
+                  placeholder={t('ivrs.prompts.textPlaceholder')}
+                />
+              </VStack>
+              <VStack align="stretch" gap="4" max>
+                <Label htmlFor={id + '-engine'}>{t('ivrs.prompts.engine')}</Label>
+                <Select
+                  id={id + '-engine'}
+                  value={phrase.engine_uid > 0 ? String(phrase.engine_uid) : ''}
+                  onChange={(event) => handleTtsPatch({ engine_uid: parseInt(event.target.value, 10) || 0 })}
+                >
+                  <option value="">{t('ivrs.prompts.selectEngine')}</option>
+                  {engines.map((engine) => (
+                    <option key={engine.uid} value={String(engine.uid)}>
+                      {engine.name} ({engine.type})
+                    </option>
+                  ))}
+                </Select>
+              </VStack>
+              <IvrPhraseTtsFields
+                engine={engine}
+                settings={phrase.settings ?? {}}
+                onChange={(settings) =>
+                  handleTtsPatch({ settings: Object.keys(settings).length ? settings : undefined })
+                }
+              />
+            </>
+          )}
+        </VStack>
+      )}
+    </SortableRegionItem>
   );
 }

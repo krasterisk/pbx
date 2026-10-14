@@ -4,6 +4,7 @@
    ───────────────────────────────────────────────────── */
 
 .card {
+  composes: surface from "../../../../shared/ui/Table/Table.module.scss";
   width: 100%;
   min-width: 0;
 }
@@ -15,6 +16,7 @@
 }
 
 .toolbar {
+  composes: directoryToolbar from "../../../../shared/ui/Table/Table.module.scss";
   flex-wrap: nowrap;
   gap: 1rem;
   min-height: 2.25rem;
@@ -27,14 +29,11 @@
 }
 
 .toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
+ composes: summaryIcon from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .count {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: summaryCount from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .registeredBadge {
@@ -113,13 +112,12 @@
 }
 
 .name {
-  font-weight: 600;
-  color: var(--color-primary);
+ composes: entityName from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .mono {
   font-size: 0.875rem;
-  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
 }
 
 .mutedMono {
@@ -129,7 +127,7 @@
 
 .contextChip {
   font-size: 0.75rem;
-  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-muted) 80%, transparent);
@@ -159,47 +157,52 @@
   border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
 }
 
-.statusDot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 9999px;
+.statusIcons {
   flex-shrink: 0;
 }
 
-.statusDotRegistered {
-  composes: statusDot;
-  background: var(--color-success);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
-}
-
-.statusDotRejected {
-  composes: statusDot;
-  background: var(--color-destructive);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--color-destructive) 50%, transparent);
-}
-
-.statusDotUnknown {
-  composes: statusDot;
-  background: var(--color-muted-foreground);
-}
-
-.statusLabel {
-  font-size: 0.75rem;
-}
-
-.statusRegistered {
-  composes: statusLabel;
-  color: var(--color-success);
-}
-
-.statusRejected {
-  composes: statusLabel;
-  color: var(--color-destructive);
-}
-
-.statusUnknown {
-  composes: statusLabel;
+.statusIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--color-muted-foreground);
+  cursor: help;
+  flex-shrink: 0;
+
+  &[data-status-tone="success"] { color: var(--color-success); }
+  &[data-status-tone="danger"] { color: var(--color-destructive); }
+  &[data-status-tone="warning"] { color: var(--color-warning); }
+
+  &:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+  &:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+
+  @media (pointer: coarse) {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
+.actionTooltipTarget {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+
+  &:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+}
+
+:global(.light) .statusIcon {
+  &[data-status-tone="success"] {
+    color: color-mix(in srgb, var(--color-success) 70%, var(--color-foreground));
+  }
+
+  &[data-status-tone="warning"] {
+    color: color-mix(in srgb, var(--color-warning) 70%, var(--color-foreground));
+  }
 }
 
 .mobileList {
@@ -208,10 +211,6 @@
 
 .mobileCard {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
 }
 
 .mobileEmpty {

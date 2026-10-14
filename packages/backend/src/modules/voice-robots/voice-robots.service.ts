@@ -31,6 +31,7 @@ import { AsteriskDialplanUtils, prefixSamePriority, renderActionChain } from '..
 export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
   private readonly logger = new Logger(VoiceRobotsService.name);
   private readonly activeSessions = new Map<string, VoiceRobotSession>();
+  private readonly pendingSessions = new Set<string>();
   private readonly defaultExternalHost: string;
 
   constructor(
@@ -528,6 +529,15 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       return;
     }
 
+    if (this.pendingSessions.has(channelId)) return;
+    const configuredLimit = Number(this.configService.get('VOICE_ROBOTS_MAX_SESSIONS'));
+    if (configuredLimit > 0 && this.activeSessions.size + this.pendingSessions.size >= configuredLimit) {
+      this.logger.warn('Voice robot concurrency limit reached');
+      await this.ariClient.hangupChannel(channelId).catch(() => {});
+      return;
+    }
+    this.pendingSessions.add(channelId);
+
     try {
       const robot = await this.voiceRobotModel.findByPk(robotUid);
       if (!robot || robot.active !== 1) {
@@ -540,7 +550,14 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
       // The channel variable VPBX_USER_UID is set by the dialplan before Stasis().
       try {
         const channelData = await this.ariClient.getChannel(channelId);
-        const callerUserUid = channelData?.channelvars?.VPBX_USER_UID;
+        const requireTenant = this.configService.get<string>('VOICE_ROBOTS_REQUIRE_TENANT') === 'true';
+        const callerUserUid = requireTenant
+          ? await this.ariClient.getChannelVar(channelId, 'VPBX_USER_UID')
+          : channelData?.channelvars?.VPBX_USER_UID;
+        if (requireTenant && !/^(0|[1-9]\d*)$/.test(String(callerUserUid))) {
+          await this.ariClient.hangupChannel(channelId);
+          return;
+        }
         if (callerUserUid && Number(callerUserUid) !== robot.user_uid) {
           this.logger.error(`SECURITY: Tenant mismatch! Channel user ${callerUserUid} ≠ robot owner ${robot.user_uid}`);
           await this.ariClient.hangupChannel(channelId);
@@ -550,6 +567,10 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
           this.logger.warn(`SECURITY: VPBX_USER_UID not set on channel ${channelId}. Allowing for backwards compatibility.`);
         }
       } catch (e: any) {
+        if (this.configService.get<string>('VOICE_ROBOTS_REQUIRE_TENANT') === 'true') {
+          await this.ariClient.hangupChannel(channelId).catch(() => {});
+          return;
+        }
         this.logger.warn(`Could not verify tenant isolation for ${channelId}: ${e.message}`);
       }
 
@@ -637,6 +658,8 @@ export class VoiceRobotsService implements OnApplicationShutdown, OnModuleInit {
     } catch (e: any) {
       this.logger.error(`Failed to start session for ${channelId}: ${e.message}`, e.stack);
       this.ariClient.hangupChannel(channelId).catch(() => {});
+    } finally {
+      this.pendingSessions.delete(channelId);
     }
   }
 

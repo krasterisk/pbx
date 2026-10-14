@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { Phone } from 'lucide-react';
@@ -195,5 +196,18 @@ describe('stable section menu and unavailable context',()=>{
   renderMenu();const links=screen.getByRole('navigation',{name:'hub.catalog'}).querySelectorAll('a,button');
   expect(links[0]).toHaveAttribute('data-testid','phone-module-core');expect(links[links.length-1]).toHaveAttribute('data-testid','phone-module-hub');
   expect(screen.getByTestId('phone-module-ai')).toHaveAttribute('href','/modules?module=ai');expect(screen.getByTestId('phone-module-ai')).toHaveTextContent('hub.notConnected');
+ });
+});
+
+function ControlledMenu() {
+ const [open,setOpen]=useState(false);
+ return <><button data-testid='footer-trigger' onClick={()=>setOpen(true)}>Sections</button><MobileModuleMenu open={open} onOpenChange={setOpen}/></>;
+}
+describe('controlled shared section Sheet',()=>{
+ it('opens from another trigger, uses one Sheet and restores focus to that trigger',async()=>{
+  vi.mocked(useHubModules).mockReturnValue({active:[core],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
+  const user=userEvent.setup();render(<MemoryRouter initialEntries={['/endpoints']}><ControlledMenu/></MemoryRouter>);
+  const trigger=screen.getByTestId('footer-trigger');await user.click(trigger);expect(screen.getAllByTestId('phone-module-menu')).toHaveLength(1);expect(screen.getByRole('heading',{name:'hub.catalog'})).toHaveFocus();
+  await user.keyboard('{Escape}');await waitFor(()=>expect(screen.queryByTestId('phone-module-menu')).toBeNull());await waitFor(()=>expect(trigger).toHaveFocus());
  });
 });

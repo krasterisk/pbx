@@ -64,11 +64,11 @@
 }
 
 .tableWrap {
-  overflow-x: auto;
+ composes: section from '../../../../shared/ui/Table/Table.module.scss';
+
   min-width: 0;
   flex: 1;
   min-height: 0;
-  -webkit-overflow-scrolling: touch;
 }
 
 .table {

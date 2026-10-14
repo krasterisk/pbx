@@ -1,0 +1,8 @@
+.item {
+  position: relative;
+  min-width: 0;
+  &[data-dragging] {
+    z-index: var(--z-index-dropdown);
+    opacity: 0.85;
+  }
+}

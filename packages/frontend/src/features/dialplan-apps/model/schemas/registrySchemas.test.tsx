@@ -113,20 +113,21 @@ describe('New action types UI (D-44 / D-45 / D-47 / D-49)', () => {
 
   it('summarize(totrunk) returns proper summary for list and legacy single with CID', () => {
     const config = dialplanAppsRegistry.totrunk;
-    expect(config.summarize({ trunk: 'PJSIP/trunk1' }, t)).toBe('Транк PJSIP/trunk1');
-    expect(config.summarize({ trunk: 'PJSIP/trunk1', callerid: '79001234567' }, t)).toBe('Транк PJSIP/trunk1 (CID: 79001234567)');
+    const refs = { trunkIds: { items: [{ value: 'trunk1', label: 'Провайдер' }, { value: 't_alpha_100', label: 'Основной' }], isLoading: false } };
+    expect(config.summarize({ trunk: 'PJSIP/trunk1' }, t, refs)).toBe('Транк Провайдер');
+    expect(config.summarize({ trunk: 'PJSIP/trunk1', callerid: '79001234567' }, t, refs)).toBe('Транк Провайдер (CID: 79001234567)');
     expect(config.summarize({
       trunk: 'PJSIP/trunk1',
       callerId: { mode: 'directory', directoryUid: 7, valueFieldUid: 18, keySource: { source: 'original_caller' }, onMissing: 'keep_original' },
-    }, t)).toBe('Транк PJSIP/trunk1 (CID: справочник)');
-    expect(config.summarize({ trunks: [{ trunkId: 't_alpha_100', callerId: { mode: 'static', value: '' } }] }, t))
-      .toBe('Транк t_alpha_100');
+    }, t, refs)).toBe('Транк Провайдер (CID: справочник)');
+    expect(config.summarize({ trunks: [{ trunkId: 't_alpha_100', callerId: { mode: 'static', value: '' } }] }, t, refs))
+      .toBe('Транк Основной');
     expect(config.summarize({
       trunks: [{
         trunkId: 't_alpha_100',
         callerId: { mode: 'pool', numbers: ['7900', '7901'], pick: 'random' },
       }],
-    }, t)).toBe('Транк t_alpha_100 (CID: пул 2)');
+    }, t, refs)).toBe('Транк Основной (CID: пул 2)');
     expect(config.summarize({
       mode: 'sequential',
       trunks: [

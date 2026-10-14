@@ -42,8 +42,8 @@ import { selectCurrentUser } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { copyStep } from '../../model/clipboard';
 import { createActionId } from '../../model/actionIds';
-import { useGetVoiceRobotsQuery } from '@/shared/api/endpoints/voiceRobotsApi';
-import { useGetTrunksQuery } from '@/shared/api/endpoints/trunkApi';
+import { useSchemaRefs } from '../../model/useSchemaRefs';
+import type { OptionsSource } from '../../model/schema.types';
 import { ChainLabelsProvider, collectChainLabelNames } from '../../model/chainLabels';
 import {
   editorReducer,
@@ -203,21 +203,19 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const templateActionsEnabled = showTemplateActions && host === 'route' && !readOnly;
 
   const resolvedAllowed = allowedTypes ?? typesForHost(host);
-  const hasVoiceRobot = actions.some((action) => action.type === 'voicerobot');
-  const hasTrunk = actions.some((action) => action.type === 'totrunk');
-  const { data: trunks = [] } = useGetTrunksQuery(undefined, { skip: !hasTrunk });
-  const { data: voiceRobots = [] } = useGetVoiceRobotsQuery(undefined, { skip: !hasVoiceRobot });
-  const rowRefs = useMemo(
-    () => ({
-      trunkIds: {
-        items: trunks.map((trunk) => ({ value: trunk.id, label: trunk.name || trunk.id })),
-      },
-      voiceRobots: {
-        items: voiceRobots.map((robot) => ({ value: String(robot.uid), label: robot.name })),
-      },
-    }),
-    [voiceRobots, trunks],
-  );
+  const summarySources = useMemo(() => {
+    const sources = new Set<OptionsSource>();
+    for (const action of actions) {
+      const schema = action.type ? dialplanAppsRegistry[action.type]?.schema : undefined;
+      for (const field of schema ?? []) {
+        if (field.optionsSource) sources.add(field.optionsSource);
+        if (field.kind === 'value-source') sources.add('dialplanDirectories');
+      }
+      if (action.type === 'totrunk') sources.add('trunkIds');
+    }
+    return [...sources];
+  }, [actions]);
+  const rowRefs = useSchemaRefs(summarySources);
   const atLimit = maxSteps != null && actions.length >= maxSteps;
   const terminalIndex = firstAlwaysTerminalIndex(actions);
   const unreachableCount = terminalIndex >= 0 ? Math.max(0, actions.length - terminalIndex - 1) : 0;

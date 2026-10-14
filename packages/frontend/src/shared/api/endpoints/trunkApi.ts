@@ -18,7 +18,7 @@ export interface ITrunkListItem {
   maxChannels?: number;
   registrationExpiration: number | null;
   registrationStatus: string | null;
-  reachabilityStatus?: 'Reachable' | 'Unreachable' | 'Unqualified' | 'Unknown';
+  reachabilityStatus?: 'Reachable' | 'Unreachable' | 'Unqualified' | 'NoContacts' | 'Unknown';
   serverUri: string;
   clientUri: string;
 }
@@ -72,6 +72,12 @@ export interface IUpdateTrunk {
   advanced?: Record<string, any>;
 }
 
+export interface ITrunkRegistrationResult {
+  id: string;
+  status: 'requested' | 'skipped' | 'failed';
+  reason?: string;
+}
+
 const trunkApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (builder) => ({
@@ -117,6 +123,22 @@ const trunkApi = rtkApi.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'Trunks', id: 'LIST' }],
     }),
+
+    registerTrunk: builder.mutation<{ id: string; status: 'requested' }, string>({
+      query: (trunkId) => ({ url: `/trunks/${encodeURIComponent(trunkId)}/register`, method: 'POST' }),
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Trunks', id },
+        { type: 'Trunks', id: 'LIST' },
+      ],
+    }),
+
+    bulkRegisterTrunks: builder.mutation<{ results: ITrunkRegistrationResult[] }, string[]>({
+      query: (ids) => ({ url: '/trunks/bulk/register', method: 'POST', body: { ids } }),
+      invalidatesTags: (_result, _error, ids) => [
+        ...ids.map((id) => ({ type: 'Trunks' as const, id })),
+        { type: 'Trunks', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -127,5 +149,7 @@ export const {
   useUpdateTrunkMutation,
   useDeleteTrunkMutation,
   useBulkDeleteTrunksMutation,
+  useRegisterTrunkMutation,
+  useBulkRegisterTrunksMutation,
 } = trunkApi;
 

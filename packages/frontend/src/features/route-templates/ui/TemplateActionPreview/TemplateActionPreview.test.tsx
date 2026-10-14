@@ -71,9 +71,8 @@ describe('TemplateActionPreview', () => {
 
     expectNoMarkerLeak(ivrMarker);
     expect(document.body.textContent ?? '').not.toContain(groupMarker);
-    expect(screen.getByText('IVR #Main IVR')).toBeInTheDocument();
+    expect(screen.getAllByText('Main IVR')).toHaveLength(2);
     expect(screen.getByText('Группа 12')).toBeInTheDocument();
-    expect(screen.getByText('Main IVR')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
   });
 });

@@ -19,6 +19,19 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   private destroyed = false;
   /** True after the first successful AMI connect — used to detect reconnects. */
   private hasConnectedOnce = false;
+  private readonly internalObservers = new Set<(event: Record<string, any>) => void>();
+
+  /** Server-only event bus. Never forwards raw tenant data to a public socket. */
+  subscribeInternalEvents(listener: (event: Record<string, any>) => void): () => void {
+    this.internalObservers.add(listener);
+    return () => this.internalObservers.delete(listener);
+  }
+
+  private publishInternal(event: Record<string, any>): void {
+    for (const observer of this.internalObservers) {
+      try { observer(event); } catch (error) { this.logger.warn(`Internal AMI observer failed: ${error}`); }
+    }
+  }
 
   constructor(
     private readonly config: ConfigService,
@@ -177,8 +190,11 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
       // Calling keepConnected() would create a parallel double-reconnect loop.
       this.ami = new AsteriskManager(port, host, login, secret, true);
 
+      this.ami.on('rawevent', (event: Record<string, any>) => this.publishInternal(event));
+
       this.ami.on('connect', () => {
         this.connected = true;
+        this.publishInternal({ event: 'DashboardConnection', connected: true });
         this.connecting = false;
         this.reconnectDelay = this.BASE_RECONNECT_DELAY; // reset backoff on success
         this.logger.log(`✅ Connected to AMI at ${host}:${port}`);
@@ -231,6 +247,7 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
 
       this.ami.on('close', () => {
         this.connected = false;
+        this.publishInternal({ event: 'DashboardConnection', connected: false });
         this.connecting = false;
         // Don't call connect() directly — use scheduled reconnect with backoff.
         // keepConnected() is NOT used because it creates its own uncontrolled retry loop.
@@ -546,50 +563,64 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
    * lowercasing behavior, not a live Asterisk instance; see 09-RESEARCH.md
    * Environment Availability / 09-VALIDATION manual check.]
    */
-  async getActiveChannels(): Promise<{ events: any[] }> {
+  async getActiveChannels(): Promise<{ events: any[]; complete: boolean }> {
+    return this.collectCompleteList('CoreShowChannels', ['coreshowchannel'], 'coreshowchannelscomplete');
+  }
+
+  /** Bulk inventory for the dashboard collector; no individual endpoint actions. */
+  async collectDashboardEndpoints(signal?: AbortSignal): Promise<{ events: any[]; complete: boolean }> {
+    return this.collectCompleteList('PJSIPShowEndpoints', ['endpointlist'], 'endpointlistcomplete', this.dashboardInventoryTimeout(), signal);
+  }
+  async collectDashboardContacts(signal?: AbortSignal): Promise<{ events: any[]; complete: boolean }> {
+    return this.collectCompleteList('PJSIPShowContacts', ['contactlist'], 'contactlistcomplete', this.dashboardInventoryTimeout(), signal);
+  }
+  async collectDashboardRegistrations(signal?: AbortSignal): Promise<{ events: any[]; complete: boolean }> {
+    return this.collectCompleteList('PJSIPShowRegistrationsOutbound', ['outboundregistrationdetail'], 'outboundregistrationdetailcomplete', this.dashboardInventoryTimeout(), signal);
+  }
+  private dashboardInventoryTimeout(): number {
+    const configured = Number(this.config.get('DASHBOARD_AMI_INVENTORY_TIMEOUT_MS', 120000));
+    return Number.isFinite(configured) ? Math.max(15000, Math.min(180000, configured)) : 120000;
+  }
+
+  private async collectCompleteList(action: string, rows: string[], completion: string, timeoutMs = 15000, signal?: AbortSignal): Promise<{ events: any[]; complete: boolean }> {
+    if (signal?.aborted) return { events: [], complete: false };
+    if (!this.connected || !this.ami) throw new Error('AMI not connected');
+    const manager = this.ami;
+    const actionId = `dashboard-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     return new Promise((resolve, reject) => {
-      if (!this.connected) {
-        reject(new Error('AMI not connected'));
-        return;
-      }
-
-      const events: any[] = [];
-      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
-      let settled = false;
-
-      const finish = () => {
+      const events: any[] = []; let settled = false;
+      const finish = (complete: boolean, error?: any) => {
         if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        this.ami.removeListener('rawevent', handler);
-        resolve({ events });
+        settled = true; clearTimeout(timer);
+        manager.removeListener('rawevent', handler); manager.removeListener('close', closed);
+        signal?.removeEventListener('abort', aborted);
+        if (error) reject(error); else resolve({ events, complete });
       };
-
-      const handler = (evt: any) => {
-        if (evt.actionid !== actionId) return;
-        if (evt.event === 'CoreShowChannel') {
-          events.push(evt);
-        }
-        if (evt.event === 'CoreShowChannelsComplete') {
-          finish();
+      const handler = (event: any) => {
+        if (event.actionid !== actionId) return;
+        const name = String(event.event || '').toLowerCase();
+        if (name === completion) { finish(true); return; }
+        if (rows.includes(name)) {
+          if (events.length >= 100000) { finish(false); return; }
+          events.push(event);
         }
       };
-
-      this.ami.on('rawevent', handler);
-
-      const timer = setTimeout(finish, 5000);
-
-      this.ami.action(
-        { action: 'CoreShowChannels', actionid: actionId },
-        (err: any, _res: any) => {
-          if (err) {
-            clearTimeout(timer);
-            settled = true;
-            this.ami.removeListener('rawevent', handler);
-            reject(err);
-          }
-        },
-      );
+      const closed = () => finish(false); const aborted = () => finish(false);
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      manager.on('rawevent', handler); manager.on('close', closed);
+      signal?.addEventListener('abort', aborted, { once: true });
+      if (signal?.aborted) { finish(false); return; }
+      try {
+        manager.action({ action, actionid: actionId }, (error: any, response: any) => {
+          // Asterisk22 returns this terminal empty marker (without ContactListComplete)
+          // for static-only AoRs: ShowContacts enumerates dynamic Sorcery contacts.
+          // Only this exact action/response with no observed rows proves an empty list.
+          const reply = response?.response === 'Error' ? response : error;
+          if (action === 'PJSIPShowContacts' && !events.length && reply?.response === 'Error' && String(reply.message || '').trim() === 'No Contacts found') finish(true);
+          else if (error && error.response !== 'Success') finish(false, error);
+          else if (response?.response === 'Error') finish(false, new Error(response.message || `${action} rejected`));
+        });
+      } catch (error) { finish(false, error); }
     });
   }
 
@@ -889,9 +920,80 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
 
   // --- Trunk Management (PJSIP Registration) ---
 
+  private readonly guardedRegistrationManagers = new WeakSet<object>();
+  private readonly registrationActionGuards = new WeakMap<object, () => boolean>();
+
+  /** The manager replays held actions through its public action method after login. */
+  private guardRegistrationReplay(manager: any): void {
+    if (this.guardedRegistrationManagers.has(manager)) return;
+    this.guardedRegistrationManagers.add(manager);
+    const originalAction = manager.action.bind(manager);
+    manager.action = (action: Record<string, any>, callback: any) => {
+      const allowed = this.registrationActionGuards.get(callback);
+      if (allowed && !allowed()) {
+        callback(new Error('AMI registration request expired or disconnected'));
+        return action.actionid;
+      }
+      return originalAction(action, callback);
+    };
+  }
+
   /** Register a specific outbound registration by name */
   async pjsipRegister(registrationName: string): Promise<any> {
-    return this.action({ action: 'PJSIPRegister', registration: registrationName });
+    if (!/^[a-zA-Z0-9_.-]+$/.test(registrationName) || registrationName.length > 255) {
+      throw new Error('Invalid registration identifier');
+    }
+    if (!this.connected || !this.ami) throw new Error('AMI not connected');
+    const manager = this.ami;
+    if (!manager.isConnected()) throw new Error('AMI not connected');
+    this.guardRegistrationReplay(manager);
+    const actionId = `register-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const deadline = Date.now() + 5000;
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let responseActionId = actionId;
+      let pingActionId = `${actionId}-ready`;
+      const finish = (error?: Error, response?: any) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        manager.removeListener('close', closed);
+        manager.removeListener(responseActionId, callback);
+        manager.removeListener(pingActionId, ready);
+        if (error) reject(error); else resolve(response);
+      };
+      const closed = () => finish(new Error('AMI disconnected during registration request'));
+      const timer = setTimeout(() => finish(new Error('AMI registration timeout')), 5000);
+      const callback = (error: any, response: any) => {
+        if (Date.now() >= deadline) { finish(new Error('AMI registration timeout')); return; }
+        // Some asterisk-manager versions put a Success response in the error slot.
+        const reply = response ?? error;
+        if (String(reply?.response ?? reply?.Response ?? '').toLowerCase() === 'success') finish(undefined, reply);
+        else finish(new Error('AMI registration request rejected'));
+      };
+      const ready = (error: any, response: any) => {
+        if (settled) return;
+        if (Date.now() >= deadline) { finish(new Error('AMI registration timeout')); return; }
+        manager.removeListener(pingActionId, ready);
+        const reply = response ?? error;
+        if (String(reply?.response ?? reply?.Response ?? '').toLowerCase() !== 'success') {
+          finish(new Error('AMI not connected or authenticated')); return;
+        }
+        if (manager !== this.ami || !manager.isConnected()) { finish(new Error('AMI not connected')); return; }
+        try {
+          responseActionId = manager.action({ action: 'PJSIPRegister', registration: registrationName, actionid: actionId }, callback) || actionId;
+        } catch { finish(new Error('AMI registration request rejected')); }
+      };
+      // Callback identity survives asterisk-manager's private holding queue. Even if
+      // a synchronous write failure queues REGISTER, its replay after timeout is denied.
+      this.registrationActionGuards.set(callback, () => !settled && Date.now() < deadline && manager === this.ami && manager.isConnected());
+      manager.on('close', closed);
+      try {
+        // Ping is read-only and held until the manager is authenticated. Never queue
+        // a mutation while login is pending; a late Ping cannot start expired work.
+        pingActionId = manager.action({ action: 'Ping', actionid: pingActionId }, ready) || pingActionId;
+      } catch { finish(new Error('AMI registration request rejected')); }
+    });
   }
 
   /** Unregister a specific outbound registration by name */
@@ -943,60 +1045,10 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
    * PJSIPShowEndpoint event-list: EndpointDetail (+ ContactStatusDetail…) then
    * EndpointDetailComplete — used for SIP softphone registration badge (D-35).
    */
-  async pjsipShowEndpoint(endpointId: string): Promise<{ events: any[] }> {
-    return new Promise((resolve, reject) => {
-      if (!this.connected) {
-        reject(new Error('AMI not connected'));
-        return;
-      }
-
-      const events: any[] = [];
-      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
-      let settled = false;
-
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        this.ami.removeListener('rawevent', handler);
-        resolve({ events });
-      };
-
-      const handler = (evt: any) => {
-        if (evt.actionid && evt.actionid !== actionId) return;
-        const eventName = String(evt.event || '').toLowerCase();
-        if (
-          eventName === 'endpointdetail'
-          || eventName === 'contactstatusdetail'
-          || eventName === 'contactlist'
-          || eventName === 'authdetail'
-          || eventName === 'aordetail'
-          || eventName === 'transportdetail'
-          || eventName === 'identifydetail'
-        ) {
-          events.push(evt);
-        }
-        if (eventName === 'endpointdetailcomplete') {
-          finish();
-        }
-      };
-
-      this.ami.on('rawevent', handler);
-
-      const timer = setTimeout(finish, 5000);
-
-      this.ami.action(
-        { action: 'PJSIPShowEndpoint', endpoint: endpointId, actionid: actionId },
-        (err: any, _res: any) => {
-          if (err && err.response !== 'Success') {
-            clearTimeout(timer);
-            settled = true;
-            this.ami.removeListener('rawevent', handler);
-            reject(err);
-          }
-        },
-      );
-    });
+  async pjsipShowEndpoint(endpointId: string): Promise<{ events: any[]; complete: boolean }> {
+    if (!/^[a-zA-Z0-9_.-]+$/.test(endpointId) || endpointId.length > 255) throw new Error('Invalid endpoint identifier');
+    return this.collectTrunkList({ action: 'PJSIPShowEndpoint', endpoint: endpointId },
+      ['endpointdetail', 'contactstatusdetail', 'contactlist', 'authdetail', 'aordetail', 'transportdetail', 'identifydetail'], 'endpointdetailcomplete');
   }
 
   /**
@@ -1006,56 +1058,48 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
    * OutboundRegistrationDetail events, ending with
    * OutboundRegistrationDetailComplete.
    */
-  async pjsipShowRegistrations(): Promise<{ events: any[] }> {
+  async pjsipShowRegistrations(): Promise<{ events: any[]; complete: boolean }> {
+    return this.collectTrunkList({ action: 'PJSIPShowRegistrationsOutbound' }, ['outboundregistrationdetail'], 'outboundregistrationdetailcomplete');
+  }
+
+  /** Trunk lists reject incomplete snapshots rather than presenting a partial status as current. */
+  private collectTrunkList(action: Record<string, string>, rows: string[], completion: string): Promise<{ events: any[]; complete: boolean }> {
+    if (!this.connected || !this.ami) return Promise.reject(new Error('AMI not connected'));
+    const manager = this.ami;
+    const actionId = `trunk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     return new Promise((resolve, reject) => {
-      if (!this.connected) {
-        reject(new Error('AMI not connected'));
-        return;
-      }
-
       const events: any[] = [];
-      const actionId = String(Date.now()) + String(Math.random()).slice(2, 6);
       let settled = false;
-
-      const finish = () => {
+      let responseActionId = actionId;
+      const finish = (error?: Error) => {
         if (settled) return;
         settled = true;
-        this.ami.removeListener('rawevent', handler);
-        resolve({ events });
+        clearTimeout(timer);
+        manager.removeListener('rawevent', handler);
+        manager.removeListener('close', closed);
+        manager.removeListener(responseActionId, callback);
+        if (error) reject(error); else resolve({ events, complete: true });
       };
-
-      const handler = (evt: any) => {
-        if (evt.actionid !== actionId) return;
-        if (evt.event === 'OutboundRegistrationDetail') {
-          events.push(evt);
-        }
-        if (evt.event === 'OutboundRegistrationDetailComplete') {
-          finish();
+      const handler = (event: any) => {
+        if ((event.actionid ?? event.ActionID) !== actionId) return;
+        const name = String(event.event ?? event.Event ?? '').toLowerCase();
+        if (name === completion) { finish(); return; }
+        if (rows.includes(name)) {
+          if (events.length >= 100000) { finish(new Error('AMI trunk list overflow')); return; }
+          events.push(event);
         }
       };
-
-      this.ami.on('rawevent', handler);
-
-      // Timeout safety — if Complete event never arrives
-      const timer = setTimeout(finish, 5000);
-
-      this.ami.action(
-        { action: 'PJSIPShowRegistrationsOutbound', actionid: actionId },
-        (err: any, _res: any) => {
-          if (err) {
-            clearTimeout(timer);
-            settled = true;
-            this.ami.removeListener('rawevent', handler);
-            reject(err);
-          }
-        },
-      );
-
-      // Clear timeout when finished cleanly
-      const origFinish = finish;
-      const wrappedFinish = () => { clearTimeout(timer); origFinish(); };
-      // Override finish reference for the handler's Complete event
-      Object.defineProperty(handler, '_finish', { value: wrappedFinish });
+      const closed = () => finish(new Error('AMI disconnected during trunk list'));
+      const timer = setTimeout(() => finish(new Error('AMI trunk list timeout')), 5000);
+      const callback = (error: any, response: any) => {
+        if (error && String(error.response ?? error.Response ?? '').toLowerCase() !== 'success') finish(new Error('AMI trunk list rejected'));
+        else if (String(response?.response ?? response?.Response ?? '').toLowerCase() === 'error') finish(new Error('AMI trunk list rejected'));
+      };
+      manager.on('rawevent', handler);
+      manager.on('close', closed);
+      try {
+        responseActionId = manager.action({ ...action, actionid: actionId }, callback) || actionId;
+      } catch { finish(new Error('AMI trunk list rejected')); }
     });
   }
 

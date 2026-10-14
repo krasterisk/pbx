@@ -1,0 +1,178 @@
+{
+  "kind": "local-Chromium-with-realistic-mocked-catalog",
+  "checks": [
+    {
+      "name": "390-hidden-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "390-hidden-fallback-sections-opens-one-sheet-and-restores-focus",
+      "result": "pass"
+    },
+    {
+      "name": "390-hidden-section-selection-restores-regular-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "390-empty-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "390-empty-fallback-sections-opens-one-sheet-and-restores-focus",
+      "result": "pass"
+    },
+    {
+      "name": "390-empty-section-selection-restores-regular-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "390-off-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "390-off-fallback-sections-opens-one-sheet-and-restores-focus",
+      "result": "pass"
+    },
+    {
+      "name": "390-off-section-selection-restores-regular-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "390-disabled-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "390-disabled-fallback-sections-opens-one-sheet-and-restores-focus",
+      "result": "pass"
+    },
+    {
+      "name": "390-disabled-section-selection-restores-regular-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "320-hidden-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "320-hidden-fallback-sections-opens-one-sheet-and-restores-focus",
+      "result": "pass"
+    },
+    {
+      "name": "320-hidden-section-selection-restores-regular-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "320-empty-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "320-empty-fallback-sections-opens-one-sheet-and-restores-focus",
+      "result": "pass"
+    },
+    {
+      "name": "320-empty-section-selection-restores-regular-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "320-off-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "320-off-fallback-sections-opens-one-sheet-and-restores-focus",
+      "result": "pass"
+    },
+    {
+      "name": "320-off-section-selection-restores-regular-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "320-disabled-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "320-disabled-fallback-sections-opens-one-sheet-and-restores-focus",
+      "result": "pass"
+    },
+    {
+      "name": "320-disabled-section-selection-restores-regular-page-navigation",
+      "result": "pass"
+    },
+    {
+      "name": "1280-hidden-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "1280-empty-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "1280-off-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "1280-disabled-root-starts-permitted-PBX-and-selects-page",
+      "result": "pass",
+      "trace": [
+        "/endpoints"
+      ]
+    },
+    {
+      "name": "screenshot-state-pending-root-Sections-trigger-is-actionable",
+      "result": "pass"
+    },
+    {
+      "name": "pending-start-resolves-to-selected-available-page",
+      "result": "pass"
+    },
+    {
+      "name": "configured-start-waits-for-catalog-preserves-query-and-selection",
+      "result": "pass"
+    },
+    {
+      "name": "none-lands-on-actionable-Hub-without-redirect-loop",
+      "result": "pass"
+    },
+    {
+      "name": "enabled-dashboard-retained-without-duplicate",
+      "result": "pass"
+    },
+    {
+      "name": "error-lands-on-actionable-Hub-without-redirect-loop",
+      "result": "pass"
+    }
+  ],
+  "errors": []
+}

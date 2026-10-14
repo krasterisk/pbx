@@ -1,18 +1,32 @@
-import { memo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { toast } from 'react-toastify';
-import { Button, Card, CardContent, CardHeader, CardTitle, Label, Switch, Text } from '@/shared/ui';
-import { HStack, VStack } from '@/shared/ui/Stack';
-import { useGetAiAgentsQuery, useGetAiProvidersQuery, useGetAiToolsetsQuery } from '@/shared/api/endpoints/aiAgentsApi';
-import { AiAgentModal } from '@/features/ai-agents/ui/AiAgentModal/AiAgentModal';
+import { TableCard } from "@/shared/ui";
+import { memo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Label,
+  Switch,
+  Text,
+} from "@/shared/ui";
+import { HStack, VStack } from "@/shared/ui/Stack";
+import {
+  useGetAiAgentsQuery,
+  useGetAiProvidersQuery,
+  useGetAiToolsetsQuery,
+} from "@/shared/api/endpoints/aiAgentsApi";
+import { AiAgentModal } from "@/features/ai-agents/ui/AiAgentModal/AiAgentModal";
 import {
   useCreateAiVoiceDeploymentMutation,
   useGetAiVoiceCapabilitiesQuery,
   useGetAiVoiceDeploymentsQuery,
   usePublishAiVoiceAgentMutation,
   useSetAiVoiceDeploymentReadyMutation,
-} from '../api/aiVoiceApi';
+} from "../api/aiVoiceApi";
 
 export const RobotStudioPanel = memo(() => {
   const { t } = useTranslation();
@@ -30,83 +44,105 @@ export const RobotStudioPanel = memo(() => {
 
   return (
     <VStack gap="16" max data-testid="ai-robots-studio">
-      <Text variant="h1" as="h1">{t('aiRobots.studio')}</Text>
-      <Text variant="muted">{t('aiRobots.studioHint')}</Text>
+      <Text variant="h1" as="h1">
+        {t("aiRobots.studio")}
+      </Text>
+      <Text variant="muted">{t("aiRobots.studioHint")}</Text>
       {caps?.realtime === false ? (
-        <Text variant="muted">{t('aiRobots.realtimeUnavailable')}</Text>
+        <Text variant="muted">{t("aiRobots.realtimeUnavailable")}</Text>
       ) : null}
       <HStack gap="12">
-        <Button onClick={() => { setEditingUid(null); setModalOpen(true); }}>
-          {t('aiRobots.newRobot')}
+        <Button
+          onClick={() => {
+            setEditingUid(null);
+            setModalOpen(true);
+          }}
+        >
+          {t("aiRobots.newRobot")}
         </Button>
         <Button asChild variant="outline">
-          <Link to="/ai-robots/sessions">{t('aiRobots.openSessions')}</Link>
+          <Link to="/ai-robots/sessions">{t("aiRobots.openSessions")}</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link to="/ai-robots/preview">{t('aiRobots.openPreview')}</Link>
+          <Link to="/ai-robots/preview">{t("aiRobots.openPreview")}</Link>
         </Button>
       </HStack>
       {agents.map((agent) => (
-        <Card key={agent.uid}>
-          <CardHeader><CardTitle>{agent.name}</CardTitle></CardHeader>
+        <TableCard
+          onActivate={() => {
+            setEditingUid(agent.uid);
+            setModalOpen(true);
+          }}
+          key={agent.uid}
+        >
+          <CardHeader>
+            <CardTitle>{agent.name}</CardTitle>
+          </CardHeader>
           <CardContent>
             <HStack gap="12" align="center">
-              <Text variant="muted">{agent.mode} · rev {agent.draft_revision ?? 1}</Text>
+              <Text variant="muted">
+                {agent.mode} · rev {agent.draft_revision ?? 1}
+              </Text>
+
               <Button
                 variant="outline"
+                disabled={agent.mode !== "cascade"}
                 onClick={() => {
-                  setEditingUid(agent.uid);
-                  setModalOpen(true);
-                }}
-              >
-                {t('common.edit')}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={agent.mode !== 'cascade'}
-                onClick={() => {
-                  void publish({ uid: agent.uid, operationKey: crypto.randomUUID() })
+                  void publish({
+                    uid: agent.uid,
+                    operationKey: crypto.randomUUID(),
+                  })
                     .unwrap()
-                    .catch(() => toast.error(t('aiRobots.publishFailed')));
+                    .catch(() => toast.error(t("aiRobots.publishFailed")));
                 }}
               >
-                {t('aiRobots.publish')}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  void createDeployment({ agentUid: agent.uid, kind: 'internal' })
-                    .unwrap()
-                    .catch(() => toast.error(t('aiRobots.deployFailed')));
-                }}
-              >
-                {t('aiRobots.deployInternal')}
+                {t("aiRobots.publish")}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => {
-                  void createDeployment({ agentUid: agent.uid, kind: 'browser_test' })
+                  void createDeployment({
+                    agentUid: agent.uid,
+                    kind: "internal",
+                  })
                     .unwrap()
-                    .catch(() => toast.error(t('aiRobots.deployFailed')));
+                    .catch(() => toast.error(t("aiRobots.deployFailed")));
                 }}
               >
-                {t('aiRobots.deployBrowser')}
+                {t("aiRobots.deployInternal")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  void createDeployment({
+                    agentUid: agent.uid,
+                    kind: "browser_test",
+                  })
+                    .unwrap()
+                    .catch(() => toast.error(t("aiRobots.deployFailed")));
+                }}
+              >
+                {t("aiRobots.deployBrowser")}
               </Button>
             </HStack>
           </CardContent>
-        </Card>
+        </TableCard>
       ))}
       {deployments.map((row) => (
         <Card key={row.id}>
-          <CardHeader><CardTitle>{row.kind}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>{row.kind}</CardTitle>
+          </CardHeader>
           <CardContent>
             <HStack gap="12" align="center">
-              <Text variant="muted">{row.id} · {row.status}</Text>
-              <Label htmlFor={`ready-${row.id}`}>{t('aiRobots.ready')}</Label>
+              <Text variant="muted">
+                {row.id} · {row.status}
+              </Text>
+              <Label htmlFor={`ready-${row.id}`}>{t("aiRobots.ready")}</Label>
               <Switch
                 id={`ready-${row.id}`}
-                checked={row.status === 'ready'}
-                disabled={row.kind === 'external_sip'}
+                checked={row.status === "ready"}
+                disabled={row.kind === "external_sip"}
                 onCheckedChange={(ready) => {
                   void setReady({ id: row.id, ready });
                 }}
@@ -120,11 +156,14 @@ export const RobotStudioPanel = memo(() => {
           agent={editing}
           providers={providers}
           toolsets={toolsets}
-          onClose={() => { setModalOpen(false); setEditingUid(null); }}
+          onClose={() => {
+            setModalOpen(false);
+            setEditingUid(null);
+          }}
         />
       ) : null}
     </VStack>
   );
 });
 
-RobotStudioPanel.displayName = 'RobotStudioPanel';
+RobotStudioPanel.displayName = "RobotStudioPanel";

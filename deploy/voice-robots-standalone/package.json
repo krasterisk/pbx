@@ -1,0 +1,31 @@
+{
+  "name": "krasterisk-v3-voice-robots-isolated",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@krasterisk/shared": "file:./shared",
+    "@grpc/grpc-js": "1.14.3",
+    "@grpc/proto-loader": "0.8.0",
+    "@nestjs/common": "11.1.18",
+    "@nestjs/config": "4.0.3",
+    "@nestjs/core": "11.1.18",
+    "@nestjs/event-emitter": "3.0.1",
+    "@nestjs/platform-express": "11.1.18",
+    "@nestjs/sequelize": "11.0.1",
+    "axios": "1.16.0",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.14.4",
+    "express": "5.2.1",
+    "fastest-levenshtein": "1.0.16",
+    "mysql2": "3.20.0",
+    "onnxruntime-node": "1.24.3",
+    "reflect-metadata": "0.2.2",
+    "sequelize": "6.37.8",
+    "sequelize-typescript": "2.1.6",
+    "ws": "6.2.3",
+    "zod": "4.4.3"
+  }
+}

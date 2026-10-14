@@ -3,6 +3,7 @@ import { parseTemplateSlotMarker, type IRouteAction, type ITemplateSlot } from '
 import { Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { dialplanAppsRegistry } from '@/features/dialplan-apps/model/registry';
+import { summarySlotLabels } from '@/features/dialplan-apps/model/summaryLabels';
 import { sanitizeParamsForPreview } from '../../model/sanitizeParamsForPreview';
 import styles from './TemplateActionPreview.module.scss';
 
@@ -28,7 +29,7 @@ function collectMarkers(value: unknown, acc: string[]): void {
 
 export function TemplateActionPreview({ actions, slots = [] }: TemplateActionPreviewProps) {
   const { t } = useTranslation();
-  const byId = new Map(slots.map((slot) => [slot.id, slot]));
+  const templateSlotLabels = summarySlotLabels(slots, t);
 
   return (
     <VStack gap="8" className={styles.list} role="list">
@@ -36,7 +37,7 @@ export function TemplateActionPreview({ actions, slots = [] }: TemplateActionPre
         const config = action.type ? dialplanAppsRegistry[action.type] : undefined;
         const displayParams = sanitizeParamsForPreview(action.params ?? {}, slots);
         const summary = config?.summarize
-          ? config.summarize(displayParams, t)
+          ? config.summarize(displayParams, t, { templateSlotLabels })
           : action.type || t('routes.selectAction', 'Выберите действие');
         const markers: string[] = [];
         collectMarkers(action.params, markers);
@@ -49,7 +50,7 @@ export function TemplateActionPreview({ actions, slots = [] }: TemplateActionPre
                 <HStack gap="4" className={styles.chips}>
                   {markers.map((id) => (
                     <Text key={id} as="span" className={styles.chip}>
-                      {byId.get(id)?.label || id}
+                      {templateSlotLabels[id] || t('routes.chain.summaryReference.templateSlot', 'Параметр шаблона')}
                     </Text>
                   ))}
                 </HStack>

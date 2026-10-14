@@ -59,7 +59,9 @@ vi.mock('../IvrMenuItemsEditor/IvrMenuItemsEditor', () => ({
 }));
 
 vi.mock('@/features/route-references/ui/UsageTab', () => ({
-  UsageTab: () => <div data-testid="usage-tab" />,
+  UsageTab: ({ kind, uid }: { kind: string; uid: number }) => (
+    <div data-testid="usage-tab" data-kind={kind} data-uid={uid} />
+  ),
 }));
 
 vi.mock('@/features/route-references/ui/DeleteBlockedDialog', () => ({
@@ -107,9 +109,13 @@ describe('IvrFormModal usage tab (D-48 / Surface O)', () => {
     const tabs = within(screen.getByRole('navigation')).getAllByRole('button');
     expect(tabs[tabs.length - 1]).toHaveTextContent('Где используется');
     fireEvent.click(tabs[tabs.length - 1]);
-    expect(screen.getByTestId('usage-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('usage-tab')).toHaveAttribute('data-kind', 'ivr');
+    expect(screen.getByTestId('usage-tab')).toHaveAttribute('data-uid', '7');
 
     rerender(<IvrFormModal isOpen onClose={vi.fn()} ivr={null} mode="create" />);
+    expect(screen.queryByRole('button', { name: 'Где используется' })).toBeNull();
+    expect(screen.getByTestId('ivr-main-tab')).toBeInTheDocument();
+    rerender(<IvrFormModal isOpen onClose={vi.fn()} ivr={ivr} mode="copy" />);
     expect(screen.queryByRole('button', { name: 'Где используется' })).toBeNull();
   });
 });

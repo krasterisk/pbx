@@ -29,8 +29,7 @@ export function catalogSourceLabels(
       staticGroup: section,
       required: t('routes.chain.source.requiredConference', 'Выберите комнату'),
       placeholderSelect: t('conferences.selectRoom', 'Выберите комнату'),
-      orphan: (value) =>
-        t('conferences.orphanRoom', '{{room}} (нет в списке)').replace('{{room}}', value),
+      orphan: () => t('routes.chain.summaryReference.unavailable', 'Объект недоступен'),
       sectionKey: 'routes.chain.catalog.conferencesSection',
       sectionFallback: 'Конференции',
       sectionHref: '/conferences',
@@ -43,8 +42,7 @@ export function catalogSourceLabels(
       staticGroup: section,
       required: t('routes.chain.source.requiredCallGroup', 'Выберите группу'),
       placeholderSelect: t('routes.apps.group.selectGroup', 'Выберите группу вызовов'),
-      orphan: (value) =>
-        t('routes.chain.source.groupOrphan', '{{group}} (нет в списке)').replace('{{group}}', value),
+      orphan: () => t('routes.chain.summaryReference.unavailable', 'Объект недоступен'),
       sectionKey: 'routes.chain.catalog.callGroupsSection',
       sectionFallback: 'Группы вызова',
       sectionHref: '/call-groups',

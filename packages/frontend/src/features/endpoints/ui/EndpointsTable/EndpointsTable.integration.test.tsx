@@ -65,19 +65,78 @@ describe('EndpointsTable real table and columns', () => {
   it('selects all matching pages and uses accessible row actions with a real delete dialog', async () => {
     const user = userEvent.setup();
     render(<EndpointsTable />);
-    const edits = screen.getAllByRole('button', { name: ru.common.edit });
-    expect(edits).toHaveLength(50);
-    expect(edits.every(button => button.getAttribute('title') === ru.common.edit)).toBe(true);
-    await user.click(edits[0]);
+    expect(screen.queryByRole('button', { name: ru.common.edit })).not.toBeInTheDocument();
+    const row = screen.getByRole('row', { name: 'Редактировать абонента 1000' });
+    await user.click(row);
     expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'endpointsPage/openEditModal' }));
-    await user.click(screen.getAllByRole('button', { name: ru.common.delete })[0]);
+    mocks.dispatch.mockClear();
+    await user.click(within(row).getByRole('button', { name: ru.endpoints.btnSip }));
+    expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'endpointsPage/openCredentialsModal' }));
+    expect(mocks.dispatch).toHaveBeenCalledTimes(1);
+    mocks.dispatch.mockClear();
+    await user.click(within(row).getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Удалить (1)' }));
+    expect(mocks.dispatch).not.toHaveBeenCalled();
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить (1)' }));
-    expect(mocks.remove).toHaveBeenCalledWith('e1000');
+    expect(mocks.bulkDelete).toHaveBeenCalledWith(['e1000']);
+    expect(mocks.remove).not.toHaveBeenCalled();
     await user.click(screen.getByRole('checkbox', { name: 'Выбрать текущую страницу абонентов' }));
-    const banner = screen.getByTestId('table-selection-banner');
-    await user.click(within(banner).getByRole('button', { name: /105/ }));
+    expect(screen.queryByTestId('table-selection-banner')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('50');
+    await user.click(screen.getByRole('button', { name: ru.endpoints.selectionAll }));
+    expect(screen.getByRole('status')).toHaveTextContent('105');
     expect(screen.getByRole('button', { name: 'Удалить (105)' })).toBeInTheDocument();
   }, 20000);
+
+  it('edits focused rows with Enter/Space while nested controls remain independent', async () => {
+    const user = userEvent.setup(); mocks.data = makeRows(2);
+    render(<EndpointsTable />);
+    const row = screen.getByRole('row', { name: 'Редактировать абонента 1000' });
+    row.focus(); await user.keyboard('{Enter}'); await user.keyboard(' ');
+    expect(mocks.dispatch).toHaveBeenCalledTimes(2);
+    mocks.dispatch.mockClear();
+    const checkbox = within(row).getByRole('checkbox');
+    checkbox.focus(); await user.keyboard(' ');
+    expect(checkbox).toBeChecked();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('selects from the padding around desktop and mobile checkboxes without editing', async () => {
+    const user = userEvent.setup(); mocks.data = makeRows(2);
+    const desktop = render(<EndpointsTable />);
+    const checkbox = screen.getByRole('checkbox', { name: 'Выбрать абонента 1000' });
+    await user.click(checkbox.closest('td')!);
+    expect(checkbox).toBeChecked();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+    desktop.unmount(); mocks.mobile = true;
+    render(<EndpointsTable />);
+    const mobileCheckbox = screen.getByRole('checkbox', { name: 'Выбрать абонента 1000' });
+    await user.click(mobileCheckbox.closest('label')!);
+    expect(mobileCheckbox).toBeChecked();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('keeps mobile card editing, SIP/delete and conditional clear selection independent', async () => {
+    const user = userEvent.setup(); mocks.mobile = true; mocks.data = makeRows(2);
+    render(<EndpointsTable />);
+    expect(screen.queryByRole('button', { name: ru.endpoints.selectionClear })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Редактировать абонента 1000' }));
+    expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'endpointsPage/openEditModal', payload: mocks.data[0] }));
+    mocks.dispatch.mockClear();
+    await user.click(screen.getByRole('checkbox', { name: 'Выбрать абонента 1001' }));
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: ru.endpoints.selectionClear }));
+    expect(screen.queryByRole('button', { name: ru.endpoints.selectionClear })).not.toBeInTheDocument();
+    const card = screen.getAllByTestId('endpoints-mobile-card')[0];
+    await user.click(within(card).getByRole('button', { name: ru.endpoints.btnSip }));
+    expect(mocks.dispatch).toHaveBeenCalledTimes(1);
+    expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'endpointsPage/openCredentialsModal' }));
+    mocks.dispatch.mockClear();
+    await user.click(within(card).getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Удалить (1)' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
 
   it('supports selection, CSV and bulk delete on mobile cards', async () => {
     const user = userEvent.setup(); mocks.mobile = true; mocks.data = makeRows(2);

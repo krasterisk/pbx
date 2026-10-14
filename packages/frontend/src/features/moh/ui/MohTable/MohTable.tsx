@@ -1,29 +1,22 @@
-import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { memo, useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { type Table } from '@tanstack/react-table';
-import { Music, Search, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { TableCard } from "@/shared/ui";
+
 import {
-  Card,
-  CardHeader,
-  CardContent,
-  Input,
-  Button,
-  DataTable,
-  Text,
-  TableRowActions,
-  TableRowAction,
-  TableSelectionBanner,
-  BulkDeleteDialog,
-} from '@/shared/ui';
-import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import { useGetMohClassesQuery, useDeleteMohClassMutation } from '@/shared/api/endpoints/mohApi';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
-import { mohActions } from '../../model/slice/mohSlice';
-import { useMohTableColumns } from './useMohTableColumns';
-import cls from './MohTable.module.scss';
+useDeleteMohClassMutation,
+useGetMohClassesQuery,
+} from "@/shared/api/endpoints/mohApi";
+import { useAppDispatch } from "@/shared/hooks/useAppStore";
+import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { BulkDeleteDialog, Card, CardContent, CardHeader, Table, TableToolbar, Text, tableStyles } from "@/shared/ui";
+import { QueryErrorState } from "@/shared/ui/QueryErrorState";
+import { Flex,HStack,VStack } from "@/shared/ui/Stack";
+
+import { Loader2,Music } from "lucide-react";
+import { memo,useCallback,useMemo,useState } from "react";
+import { useTranslation } from "react-i18next";
+import { mohActions } from "../../model/slice/mohSlice";
+import cls from "./MohTable.module.scss";
+import { useMohTableColumns } from "./useMohTableColumns";
 
 const PAGE_SIZE = 50;
 
@@ -31,10 +24,15 @@ export const MohTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: mohClasses = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetMohClassesQuery();
+  const {
+    data: mohClasses = [],
+    isLoading,
+    isError: isListLoadError,
+    refetch: retryListLoad,
+  } = useGetMohClassesQuery();
   const [deleteMoh] = useDeleteMohClassMutation();
 
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [globalFilter, setGlobalFilter] = useState("");
   const selection = useCrossPageRowSelection({ globalFilter });
   const [isDeleting, setIsDeleting] = useState(false);
   const columns = useMohTableColumns();
@@ -43,8 +41,8 @@ export const MohTable = memo(() => {
     const q = globalFilter.trim().toLowerCase();
     if (!q) return mohClasses;
     return mohClasses.filter((moh) => {
-      const name = (moh.displayName || '').toLowerCase();
-      const sort = (moh.sort || '').toLowerCase();
+      const name = (moh.displayName || "").toLowerCase();
+      const sort = (moh.sort || "").toLowerCase();
       return name.includes(q) || sort.includes(q);
     });
   }, [mohClasses, globalFilter]);
@@ -70,20 +68,7 @@ export const MohTable = memo(() => {
     }
   }, [selection, deleteMoh]);
 
-  const renderSelectionBanner = useCallback(
-    (table: Table<(typeof mohClasses)[number]>) => (
-      <TableSelectionBanner
-        table={table}
-        pageSize={PAGE_SIZE}
-        allMatchingSelected={selection.allMatchingSelected}
-        selectedIds={selection.selectedIds}
-        selectedCount={selection.selectedCount}
-        onSelectAllMatching={selection.selectAllMatching}
-        onClear={selection.clearSelection}
-      />
-    ),
-    [selection],
-  );
+
 
   const bulkDeleteDialog = (
     <BulkDeleteDialog
@@ -102,41 +87,45 @@ export const MohTable = memo(() => {
     <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
         <Music size={20} className={cls.toolbarIcon} />
-        <Text className={cls.count}>{t('moh.count', { count: mohClasses.length })}</Text>
+        <Text className={cls.count}>
+          {t("moh.count", { count: mohClasses.length })}
+        </Text>
       </HStack>
       <HStack gap="8" align="center" className={cls.toolbarActions}>
-        {!isMobile && (
-          <Button
-            variant="destructive"
-            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selection.selectedCount === 0}
-            aria-hidden={selection.selectedCount === 0}
-            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
-            onClick={selection.openBulkDelete}
-          >
-            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('moh.deleteSelected', { count: selection.selectedCount })}
-          </Button>
-        )}
-        <Flex align="center" className={cls.searchWrap}>
-          <Search size={16} className={cls.searchIcon} />
-          <Input
-            id="moh-search"
-            placeholder={t('common.search')}
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className={cls.searchInput}
-          />
-        </Flex>
+        <TableToolbar
+
+          tableRef={selection.tableRef}
+          searchId="moh-search"
+          searchPlaceholder={t("common.search")}
+          searchValue={globalFilter}
+          onSearchChange={(value) => setGlobalFilter(value)}
+          exportTable={{
+            data: mohClasses,
+            columns: columns,
+            getRowId: (row) => row.name,
+            globalFilter: globalFilter,
+            rowSelection: selection.rowSelection,
+            filename: "moh_export",
+          }}
+          selection={selection}  onDeleteSelected={selection.openBulkDelete} deleteDisabled={isDeleting} deleteLabel={t("moh.deleteSelected", {
+                    count: selection.selectedCount,
+                  })}
+        />
       </HStack>
     </Flex>
   );
 
-  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
+  if (isListLoadError)
+    return (
+      <QueryErrorState
+        message={t("common.queryLoadError")}
+        onRetry={() => void retryListLoad()}
+      />
+    );
   if (isLoading) {
     return (
-      <Card className={cls.card}>
-        <CardHeader>{toolbar}</CardHeader>
+      <Card className={[tableStyles.surface, cls.card].join(" ")}>
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <Flex align="center" justify="center" className={cls.loading}>
             <Loader2 size={24} className={cls.spinner} />
@@ -148,58 +137,43 @@ export const MohTable = memo(() => {
 
   if (isMobile) {
     return (
-      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
-        <CardHeader>{toolbar}</CardHeader>
+      <Card
+        className={[tableStyles.surface, cls.card].join(" ")}
+        data-testid="hybrid-table"
+        data-hybrid="mobile-card"
+      >
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <VStack gap="8" max className={cls.mobileList}>
             {filtered.length === 0 ? (
               <Text variant="muted" className={cls.mobileEmpty}>
-                {t('moh.empty.title')}
+                {t("moh.empty.title")}
               </Text>
             ) : (
               filtered.map((moh) => (
-                <Flex
+                <TableCard
+                  onActivate={() => dispatch(mohActions.openEditModal(moh))}
+
                   key={moh.name}
                   direction="column"
-                  className={cls.mobileCard}
-                  data-testid="moh-mobile-card"
+                  className={[tableStyles.card, cls.mobileCard].join(" ")}
+                  data-testid="moh-mobile-card" selection={selection.cardSelection(String(moh.name), t("common.selectRowAria", { index: String(moh.name) }))}
                 >
                   <HStack justify="between" align="start" max>
                     <VStack gap="4">
                       <HStack gap="8" align="center">
                         <Music size={16} className={cls.musicIcon} />
-                        <Text as="span" className={cls.name}>{moh.displayName}</Text>
+                        <Text as="span" className={cls.name}>
+                          {moh.displayName}
+                        </Text>
                       </HStack>
                       <Text as="span" className={cls.tracksBadge}>
                         {moh.entries?.length || 0}
                       </Text>
                     </VStack>
-                    <TableRowActions>
-                      <TableRowAction
-                        title={t('common.edit')}
-                        aria-label={t('common.edit')}
-                        onClick={() => dispatch(mohActions.openEditModal(moh))}
-                      >
-                        <Pencil />
-                      </TableRowAction>
-                      <TableRowAction
-                        danger
-                        title={t('common.delete')}
-                        aria-label={t('common.delete')}
-                        onClick={() => {
-                          const confirmed = window.confirm(
-                            t('moh.confirmDelete').replace('{{name}}', moh.displayName),
-                          );
-                          if (confirmed) {
-                            deleteMoh(moh.name);
-                          }
-                        }}
-                      >
-                        <Trash2 />
-                      </TableRowAction>
-                    </TableRowActions>
+
                   </HStack>
-                </Flex>
+                </TableCard>
               ))
             )}
           </VStack>
@@ -210,8 +184,12 @@ export const MohTable = memo(() => {
   }
 
   return (
-    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
-      <CardHeader>{toolbar}</CardHeader>
+    <Card
+      className={[tableStyles.surface, cls.card].join(" ")}
+      data-testid="hybrid-table"
+      data-hybrid="overflow-x-auto"
+    >
+      <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
       <CardContent className={cls.cardContent}>
         <Flex
           direction="column"
@@ -219,7 +197,11 @@ export const MohTable = memo(() => {
           className={cls.tableScroll}
           data-testid="moh-table-scroll"
         >
-          <DataTable
+          <Table
+            onRowClick={(moh) => dispatch(mohActions.openEditModal(moh))}
+            surface={false}
+            showSearch={false}
+            showExport={false}
             ref={selection.tableRef}
             className={cls.table}
             data={mohClasses}
@@ -230,10 +212,10 @@ export const MohTable = memo(() => {
             onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
             pageSize={PAGE_SIZE}
-            emptyText={t('moh.empty.title')}
+            emptyText={t("moh.empty.title")}
             exportFilename="moh_export"
-            selectAllAriaLabel={t('common.selectPageAria')}
-            renderBanner={renderSelectionBanner}
+            selectAllAriaLabel={t("common.selectPageAria")}
+
           />
         </Flex>
       </CardContent>
@@ -242,4 +224,4 @@ export const MohTable = memo(() => {
   );
 });
 
-MohTable.displayName = 'MohTable';
+MohTable.displayName = "MohTable";

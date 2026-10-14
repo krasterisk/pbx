@@ -1,8 +1,37 @@
-import { ModalBody, ModalSection } from '@/shared/ui';
+import { ModalBody, ModalSection } from "@/shared/ui";
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { RefreshCw, Loader2 } from "lucide-react";
-import { Button, Input, PasswordInput, Select, Textarea, InfoTooltip, Switch, Label, Text, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui";
+import {
+  RefreshCw,
+  Loader2,
+  UserRound,
+  KeyRound,
+  Network,
+  ShieldCheck,
+  PhoneCall,
+  MonitorCog,
+  SlidersHorizontal,
+} from "lucide-react";
+import {
+  Button,
+  Input,
+  PasswordInput,
+  Select,
+  Textarea,
+  InfoTooltip,
+  Switch,
+  Label,
+  Text,
+  Dialog,
+  FormDialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/shared/ui";
 import { VStack, HStack, Flex } from "@/shared/ui/Stack";
 import cls from "./EndpointFormModal.module.scss";
 import { useAppSelector, useAppDispatch } from "@/shared/hooks/useAppStore";
@@ -31,7 +60,10 @@ import { AdvancedSettingsBuilder } from "../AdvancedSettingsBuilder";
 import { toast } from "react-toastify";
 import { apiErrorMessage, validNetworks } from "../../lib/formValidation";
 import { validatePjsipSettings } from "@/shared/lib/pjsipSettings";
-import { useGetTenantSettingsQuery, ENDPOINT_EXPERT_MODE_SETTING } from "@/entities/tenantSettings";
+import {
+  useGetTenantSettingsQuery,
+  ENDPOINT_EXPERT_MODE_SETTING,
+} from "@/entities/tenantSettings";
 import { useDefaultContext } from "@/shared/lib/useDefaultContext";
 
 const ENDPOINT_TABS = [
@@ -54,8 +86,20 @@ const ENDPOINT_TABS = [
 
 type EndpointTab = (typeof ENDPOINT_TABS)[number]["id"];
 
-function BasicSettings({ expertMode, children }: { expertMode: boolean; children: ReactNode }) {
-  return expertMode ? <TabsContent value="basic">{children}</TabsContent> : <VStack max align="stretch">{children}</VStack>;
+function BasicSettings({
+  expertMode,
+  children,
+}: {
+  expertMode: boolean;
+  children: ReactNode;
+}) {
+  return expertMode ? (
+    <TabsContent value="basic">{children}</TabsContent>
+  ) : (
+    <VStack max align="stretch">
+      {children}
+    </VStack>
+  );
 }
 
 const CODEC_OPTIONS = [
@@ -106,7 +150,8 @@ export const EndpointFormModal = () => {
 
   const [activeTab, setActiveTab] = useState<EndpointTab>("basic");
   const { data: tenantSettings } = useGetTenantSettingsQuery();
-  const globalExpertMode = tenantSettings?.[ENDPOINT_EXPERT_MODE_SETTING] === true;
+  const globalExpertMode =
+    tenantSettings?.[ENDPOINT_EXPERT_MODE_SETTING] === true;
   const [sessionExpertMode, setSessionExpertMode] = useState(false);
   const expertMode = globalExpertMode || sessionExpertMode;
 
@@ -238,7 +283,13 @@ export const EndpointFormModal = () => {
     }
   }, [mode, selected, isOpen]);
 
-  const chooseContext = useDefaultContext(isOpen, mode === "create", contexts, "endpoints", setContext);
+  const chooseContext = useDefaultContext(
+    isOpen,
+    mode === "create",
+    contexts,
+    "endpoints",
+    setContext,
+  );
 
   const handleClose = useCallback(() => {
     dispatch(endpointsPageActions.closeModal());
@@ -390,37 +441,32 @@ export const EndpointFormModal = () => {
             void handleSubmit();
           }}
         >
-            <HStack gap="8" className={cls.expertToggle}>
-              <Switch id="ep-expert-mode" checked={expertMode} onCheckedChange={changeExpertMode} disabled={isLoading || globalExpertMode} />
-              <Label htmlFor="ep-expert-mode">{t("endpoints.expertMode")}</Label>
-              <InfoTooltip text={t("endpoints.expertModeHint")} />
-            </HStack>
           <Tabs
             value={expertMode ? activeTab : "basic"}
             onValueChange={(value) => setActiveTab(value as EndpointTab)}
             className={cls.tabs}
           >
-            {expertMode && <TabsList
-              aria-label={
-                mode === "create"
-                  ? t("endpoints.addEndpoint")
-                  : t("endpoints.editEndpoint")
-              }
-            >
-              {ENDPOINT_TABS.map((tab) => (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  data-testid={`endpoint-tab-${tab.id}`}
-                >
-                  {t(tab.labelKey)}
-                </TabsTrigger>
-              ))}
-            </TabsList>}
+            {expertMode && (
+              <TabsList
+                aria-label={
+                  mode === "create"
+                    ? t("endpoints.addEndpoint")
+                    : t("endpoints.editEndpoint")
+                }
+              >
+                {ENDPOINT_TABS.map((tab) => (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    data-testid={`endpoint-tab-${tab.id}`}
+                  >
+                    {t(tab.labelKey)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            )}
 
             <ModalBody
-
-
               className={cls.formBody}
               data-testid="endpoint-form-body"
               data-viewport="360,768,1440"
@@ -428,452 +474,520 @@ export const EndpointFormModal = () => {
             >
               <BasicSettings expertMode={expertMode}>
                 <VStack align="stretch" gap="16" max>
-<ModalSection title={t("modal.sections.identity")}>
-<VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Label htmlFor="ep-extension" className={cls.fieldLabel}>
-                        {t("endpoints.extension")} *
-                      </Label>
-                      <InfoTooltip text={t("endpoints.extensionDesc")} />
-                    </HStack>
-                    <Input
-                      id="ep-extension"
-                      maxLength={20}
-                      aria-invalid={!!errors.extension}
-                      aria-describedby={
-                        errors.extension ? "ep-extension-error" : undefined
-                      }
-                      value={extension}
-                      onChange={(e) => setExtension(e.target.value)}
-                      placeholder="100"
-                      disabled={mode === "edit"}
-                      className={cls.mono}
-                    />
-                    {fieldError("extension")}
-                  </VStack>
-<VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Label htmlFor="ep-name" className={cls.fieldLabel}>
-                        {t("endpoints.displayName")}
-                      </Label>
-                      <InfoTooltip text={t("endpoints.displayNameDesc")} />
-                    </HStack>
-                    <Input
-                      id="ep-name"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder={t("endpoints.displayNamePlaceholder")}
-                    />
-                  </VStack>
-<VStack align="stretch" gap="4">
-                    <Label htmlFor="ep-dept" className={cls.fieldLabel}>
-                      {t("endpoints.department")}
-                    </Label>
-                    <Input
-                      id="ep-dept"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      placeholder={t("endpoints.departmentPlaceholder")}
-                    />
-                  </VStack>
-</ModalSection>
-<ModalSection title={t("modal.sections.connection")}>
-<HStack
-                    align="center"
-                    justify="between"
-                    className={cls.toggleRow}
-                  >
-                    <HStack gap="4" align="center">
-                      <Label className={cls.toggleLabel} htmlFor="ep-webrtc">
-                        {t("endpoints.webrtcClient")}
-                      </Label>
-                      <InfoTooltip text={t("endpoints.webrtcClientHint")} />
-                    </HStack>
-                    <Switch
-                      id="ep-webrtc"
-                      checked={webrtcEnabled}
-                      onCheckedChange={(checked) => setWebrtcEnabled(checked)}
-                    />
-                  </HStack>
-<VStack align="stretch" gap="8" max>
-                    <Label htmlFor="ep-password" className={cls.fieldLabel}>
-                      {t("endpoints.password")}
-                      {mode === "create" ? " *" : ""}
-                    </Label>
-                    <HStack gap="8" max>
-                      <Flex className={cls.passwordControl}>
-                        <PasswordInput
-                          id="ep-password"
-                          value={password}
-                          onChange={(event) => setPassword(event.target.value)}
-                          placeholder={
-                            mode === "edit" ? t("users.passwordUnchanged") : ""
-                          }
-                          className={cls.mono}
-                          aria-invalid={!!errors.password}
-                          aria-describedby={
-                            errors.password ? "ep-password-error" : undefined
-                          }
+                  <ModalSection
+                    title={t("modal.sections.identity")}
+                    icon={UserRound}
+                    className={cls.section}
+                    action={
+                      <HStack gap="8" className={cls.expertToggle}>
+                        <Switch
+                          id="ep-expert-mode"
+                          checked={expertMode}
+                          onCheckedChange={changeExpertMode}
+                          disabled={isLoading || globalExpertMode}
                         />
-                      </Flex>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        title={t("endpoints.autoGenPassword")}
-                        aria-label={t("endpoints.autoGenPassword")}
-                        className={cls.generate}
-                        onClick={() => setPassword(generatePassword())}
-                      >
-                        <RefreshCw size={16} />
-                      </Button>
-                    </HStack>
-                    {fieldError("password")}
+                        <Label htmlFor="ep-expert-mode">
+                          {t("endpoints.expertMode")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.expertModeHint")} />
+                      </HStack>
+                    }
+                  >
                     <VStack align="stretch" gap="4">
                       <HStack gap="4" align="center">
-                        <Label htmlFor="ep-context" className={cls.fieldLabel}>
-                          {t("endpoints.context")} *
+                        <Label
+                          htmlFor="ep-extension"
+                          className={cls.fieldLabel}
+                        >
+                          {t("endpoints.extension")} *
                         </Label>
-                        <InfoTooltip text={t("endpoints.contextDesc")} />
+                        <InfoTooltip text={t("endpoints.extensionDesc")} />
                       </HStack>
-                      <Select
-                        id="ep-context"
-                        value={context}
-                        onChange={(event) => chooseContext(event.target.value)}
-                        required
-                        aria-invalid={!!errors.context}
+                      <Input
+                        id="ep-extension"
+                        maxLength={20}
+                        aria-invalid={!!errors.extension}
                         aria-describedby={
-                          errors.context ? "ep-context-error" : undefined
+                          errors.extension ? "ep-extension-error" : undefined
                         }
-                        options={[
-                          { value: "", label: t("endpoints.selectContext"), disabled: true },
-                          ...contexts.map((c) => ({
-                            value: c.name,
-                            label: c.comment
-                              ? c.name + " (" + c.comment + ")"
-                              : c.name,
-                          })),
-                        ]}
+                        value={extension}
+                        onChange={(e) => setExtension(e.target.value)}
+                        placeholder="100"
+                        disabled={mode === "edit"}
+                        className={cls.mono}
                       />
-                      {fieldError("context")}
+                      {fieldError("extension")}
                     </VStack>
-                  </VStack>
-</ModalSection>
-</VStack>
-              </BasicSettings>
-
-              <TabsContent value="network">
-<ModalSection>
-                <VStack align="stretch" gap="16">
-                  <VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Label htmlFor="ep-transport" className={cls.fieldLabel}>
-                        {t("endpoints.transport")}
-                      </Label>
-                      <InfoTooltip text={t("endpoints.transportDesc")} />
-                    </HStack>
-                    <Select
-                      id="ep-transport"
-                      value={transport}
-                      onChange={(event) => setTransport(event.target.value)}
-                      options={TRANSPORT_OPTIONS.map((option) => ({
-                        ...option,
-                        label: option.value ? option.label : t(option.label),
-                      }))}
-                    />
-                  </VStack>
-
-                  <VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Label className={cls.fieldLabel}>
-                        {t("endpoints.natProfile")}
-                      </Label>
-                      <InfoTooltip text={t("endpoints.natDesc")} />
-                    </HStack>
-                    <HStack gap="8" wrap="wrap">
-                      {PRIMARY_NAT_PROFILE_OPTIONS.map((p) => (
-                        <Button
-                          key={p.value}
-                          type="button"
-                          onClick={() => {
-                            setNatProfile(p.value);
-                            // Keep Advanced tab in sync with the chosen profile
-                            const patch = buildNatProfilePatch(p.value);
-                            setAdvancedState((prev) => {
-                              const next = { ...prev };
-                              for (const [key, val] of Object.entries(patch)) {
-                                if (val == null) delete next[key];
-                                else next[key] = val;
-                              }
-                              return next;
-                            });
-                          }}
-                          variant={
-                            natProfile === p.value ? "default" : "outline"
-                          }
-                          aria-pressed={natProfile === p.value}
-                        >
-                          {t(p.labelKey)}
-                        </Button>
-                      ))}
-                    </HStack>
-                  </VStack>
-
-                  <VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Label className={cls.fieldLabel}>
-                        {t("endpoints.codecs")}
-                      </Label>
-                      <InfoTooltip text={t("endpoints.codecsDesc")} />
-                    </HStack>
-                    <Flex
-                      wrap="wrap"
-                      gap="8"
-                      aria-invalid={!!errors.codecs}
-                      aria-describedby={
-                        errors.codecs ? "ep-codecs-error" : undefined
-                      }
-                    >
-                      {CODEC_OPTIONS.map((codec) => (
-                        <Button
-                          key={codec}
-                          type="button"
-                          onClick={() => toggleCodec(codec)}
-                          variant={
-                            codecs.includes(codec) ? "default" : "outline"
-                          }
-                          size="sm"
-                          className={cls.mono}
-                          aria-pressed={codecs.includes(codec)}
-                        >
-                          {codec}
-                        </Button>
-                      ))}
-                    </Flex>
-                    {fieldError("codecs")}
-                  </VStack>
-                </VStack>
-              </ModalSection>
-</TabsContent>
-
-              <TabsContent value="security">
-<ModalSection>
-                <VStack align="stretch" gap="16">
-                  <HStack gap="4" align="center">
-                    <Text as="h4" className={cls.securityTitle}>
-                      {t("endpoints.ipFilterTitle")}
-                    </Text>
-                    <InfoTooltip text={t("endpoints.ipFilterDesc")} />
-                  </HStack>
-                  <VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Label htmlFor="ep-deny" className={cls.securityLabel}>
-                        {t("endpoints.denyNetworks")}
-                      </Label>
-                      <InfoTooltip text={t("endpoints.denyNetworksHint")} />
-                    </HStack>
-                    <Input
-                      id="ep-deny"
-                      aria-invalid={!!errors.deny}
-                      aria-describedby={
-                        errors.deny ? "ep-deny-error" : undefined
-                      }
-                      value={deny}
-                      onChange={(e) => setDeny(e.target.value)}
-                      placeholder="192.168.1.0/24"
-                      className={cls.mono}
-                    />
-                    {fieldError("deny")}
-                  </VStack>
-
-                  <VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Label htmlFor="ep-permit" className={cls.securityLabel}>
-                        {t("endpoints.permitNetworks")}
-                      </Label>
-                      <InfoTooltip text={t("endpoints.permitNetworksHint")} />
-                    </HStack>
-                    <Input
-                      id="ep-permit"
-                      aria-invalid={!!errors.permit}
-                      aria-describedby={
-                        errors.permit ? "ep-permit-error" : undefined
-                      }
-                      value={permit}
-                      onChange={(e) => setPermit(e.target.value)}
-                      placeholder="192.168.1.0/24, 10.0.0.5/32"
-                      className={cls.mono}
-                    />
-                    {fieldError("permit")}
-                  </VStack>
-                </VStack>
-              </ModalSection>
-</TabsContent>
-
-              <TabsContent value="calls">
-<ModalSection>
-                <VStack align="stretch" gap="16">
-                  <VStack align="stretch" gap="4">
-                    <HStack gap="8" align="center">
-                      <Switch
-                        id="ep-blf"
-                        checked={blfEnabled}
-                        onCheckedChange={(checked) => setBlfEnabled(checked)
-                        }
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="4" align="center">
+                        <Label htmlFor="ep-name" className={cls.fieldLabel}>
+                          {t("endpoints.displayName")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.displayNameDesc")} />
+                      </HStack>
+                      <Input
+                        id="ep-name"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder={t("endpoints.displayNamePlaceholder")}
                       />
-                      <Label htmlFor="ep-blf">
-                        {t("endpoints.blfEnabled")}
+                    </VStack>
+                    <VStack align="stretch" gap="4">
+                      <Label htmlFor="ep-dept" className={cls.fieldLabel}>
+                        {t("endpoints.department")}
                       </Label>
-                      <InfoTooltip text={t("endpoints.blfDescription")} />
+                      <Input
+                        id="ep-dept"
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        placeholder={t("endpoints.departmentPlaceholder")}
+                      />
+                    </VStack>
+                  </ModalSection>
+                  <ModalSection
+                    title={t("modal.sections.connection")}
+                    icon={KeyRound}
+                    className={cls.section}
+                  >
+                    <HStack
+                      align="center"
+                      justify="between"
+                      className={cls.toggleRow}
+                    >
+                      <HStack gap="4" align="center">
+                        <Label className={cls.toggleLabel} htmlFor="ep-webrtc">
+                          {t("endpoints.webrtcClient")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.webrtcClientHint")} />
+                      </HStack>
+                      <Switch
+                        id="ep-webrtc"
+                        checked={webrtcEnabled}
+                        onCheckedChange={(checked) => setWebrtcEnabled(checked)}
+                      />
                     </HStack>
-                  </VStack>
-                  <VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Text as="span" className={cls.fieldLabel}>
-                        {t("endpoints.namedCallGroup")}
-                      </Text>
-                      <InfoTooltip text={t("endpoints.namedCallGroupDesc")} />
-                    </HStack>
-                    <PickupGroupSelect
-                      label=""
-                      selectedSlugs={namedCallGroup}
-                      onChange={setNamedCallGroup}
-                    />
-                  </VStack>
-                  <VStack align="stretch" gap="4">
-                    <HStack gap="4" align="center">
-                      <Text as="span" className={cls.fieldLabel}>
-                        {t("endpoints.namedPickupGroup")}
-                      </Text>
-                      <InfoTooltip text={t("endpoints.namedPickupGroupDesc")} />
-                    </HStack>
-                    <PickupGroupSelect
-                      label=""
-                      selectedSlugs={namedPickupGroup}
-                      onChange={setNamedPickupGroup}
-                    />
-                  </VStack>
-                </VStack>
-              </ModalSection>
-</TabsContent>
-
-              <TabsContent value="provision">
-<ModalSection>
-                <VStack align="stretch" gap="16">
-                  <HStack gap="12" className={cls.toggleRow} max>
-                    <Switch
-                      id="ep-provision"
-                      checked={provisionEnabled}
-                      onCheckedChange={(checked) => setProvisionEnabled(checked)
-                      }
-                    />
-                    <HStack gap="4">
-                      <Label htmlFor="ep-provision">
-                        {t("endpoints.provEnable")}
+                    <VStack align="stretch" gap="8" max>
+                      <Label htmlFor="ep-password" className={cls.fieldLabel}>
+                        {t("endpoints.password")}
+                        {mode === "create" ? " *" : ""}
                       </Label>
-                      <InfoTooltip text={t("endpoints.provEnableHint")} />
-                    </HStack>
-                  </HStack>
-
-                  {provisionEnabled && (
-                    <>
+                      <HStack gap="8" max>
+                        <Flex className={cls.passwordControl}>
+                          <PasswordInput
+                            id="ep-password"
+                            value={password}
+                            onChange={(event) =>
+                              setPassword(event.target.value)
+                            }
+                            placeholder={
+                              mode === "edit"
+                                ? t("users.passwordUnchanged")
+                                : ""
+                            }
+                            className={cls.mono}
+                            aria-invalid={!!errors.password}
+                            aria-describedby={
+                              errors.password ? "ep-password-error" : undefined
+                            }
+                          />
+                        </Flex>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title={t("endpoints.autoGenPassword")}
+                          aria-label={t("endpoints.autoGenPassword")}
+                          className={cls.generate}
+                          onClick={() => setPassword(generatePassword())}
+                        >
+                          <RefreshCw size={16} />
+                        </Button>
+                      </HStack>
+                      {fieldError("password")}
                       <VStack align="stretch" gap="4">
-                        <Label htmlFor="ep-mac" className={cls.fieldLabel}>
-                          {t("endpoints.provMac")}
-                        </Label>
-                        <Input
-                          id="ep-mac"
-                          aria-invalid={!!errors.mac}
-                          aria-describedby={
-                            errors.mac ? "ep-mac-error" : undefined
-                          }
-                          value={macAddress}
-                          onChange={(e) =>
-                            setMacAddress(
-                              e.target.value
-                                .toLowerCase()
-                                .replace(/[^a-f0-9]/g, ""),
-                            )
-                          }
-                          placeholder="a0b1c2d3e4f5"
-                          className={cls.mac}
-                        />
-                        {fieldError("mac")}
-                      </VStack>
-
-                      <VStack align="stretch" gap="4">
-                        <Label htmlFor="ep-tpl" className={cls.fieldLabel}>
-                          {t("endpoints.provTemplate")}
-                        </Label>
+                        <HStack gap="4" align="center">
+                          <Label
+                            htmlFor="ep-context"
+                            className={cls.fieldLabel}
+                          >
+                            {t("endpoints.context")} *
+                          </Label>
+                          <InfoTooltip text={t("endpoints.contextDesc")} />
+                        </HStack>
                         <Select
-                          id="ep-tpl"
-                          value={provisionTemplateId}
+                          id="ep-context"
+                          value={context}
                           onChange={(event) =>
-                            setProvisionTemplateId(
-                              event.target.value
-                                ? Number(event.target.value)
-                                : "",
-                            )
+                            chooseContext(event.target.value)
                           }
-                          aria-invalid={!!errors.tpl}
+                          required
+                          aria-invalid={!!errors.context}
                           aria-describedby={
-                            errors.tpl ? "ep-tpl-error" : undefined
+                            errors.context ? "ep-context-error" : undefined
                           }
                           options={[
                             {
                               value: "",
-                              label: t("endpoints.provTemplateSelect"),
+                              label: t("endpoints.selectContext"),
+                              disabled: true,
                             },
-                            ...templates.map((tpl) => ({
-                              value: tpl.uid,
-                              label: tpl.vendor
-                                ? tpl.name + " (" + tpl.vendor + ")"
-                                : tpl.name,
+                            ...contexts.map((c) => ({
+                              value: c.name,
+                              label: c.comment
+                                ? c.name + " (" + c.comment + ")"
+                                : c.name,
                             })),
                           ]}
                         />
-                        {fieldError("tpl")}
-                        {templates.length === 0 && (
-                          <Text as="span" className={cls.warning}>
-                            {t("endpoints.provTemplateEmpty")}
-                          </Text>
-                        )}
+                        {fieldError("context")}
                       </VStack>
-
-                      <VStack align="stretch" gap="4">
-                        <Label htmlFor="ep-vars" className={cls.fieldLabel}>
-                          {t("endpoints.provVars")}
-                        </Label>
-                        <Textarea
-                          id="ep-vars"
-                          value={pvVars}
-                          onChange={(e) => setPvVars(e.target.value)}
-                          placeholder={
-                            "$custom_port=5062\n$button1_type=speeddial"
-                          }
-                          className={cls.variables}
-                        />
-                      </VStack>
-                    </>
-                  )}
+                    </VStack>
+                  </ModalSection>
                 </VStack>
-              </ModalSection>
-</TabsContent>
+              </BasicSettings>
+
+              <TabsContent value="network">
+                <ModalSection
+                  title={t("endpoints.tabNetwork")}
+                  icon={Network}
+                  className={cls.section}
+                >
+                  <VStack align="stretch" gap="16">
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="4" align="center">
+                        <Label
+                          htmlFor="ep-transport"
+                          className={cls.fieldLabel}
+                        >
+                          {t("endpoints.transport")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.transportDesc")} />
+                      </HStack>
+                      <Select
+                        id="ep-transport"
+                        value={transport}
+                        onChange={(event) => setTransport(event.target.value)}
+                        options={TRANSPORT_OPTIONS.map((option) => ({
+                          ...option,
+                          label: option.value ? option.label : t(option.label),
+                        }))}
+                      />
+                    </VStack>
+
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="4" align="center">
+                        <Label className={cls.fieldLabel}>
+                          {t("endpoints.natProfile")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.natDesc")} />
+                      </HStack>
+                      <HStack gap="8" wrap="wrap">
+                        {PRIMARY_NAT_PROFILE_OPTIONS.map((p) => (
+                          <Button
+                            key={p.value}
+                            type="button"
+                            onClick={() => {
+                              setNatProfile(p.value);
+                              // Keep Advanced tab in sync with the chosen profile
+                              const patch = buildNatProfilePatch(p.value);
+                              setAdvancedState((prev) => {
+                                const next = { ...prev };
+                                for (const [key, val] of Object.entries(
+                                  patch,
+                                )) {
+                                  if (val == null) delete next[key];
+                                  else next[key] = val;
+                                }
+                                return next;
+                              });
+                            }}
+                            variant={
+                              natProfile === p.value ? "default" : "outline"
+                            }
+                            aria-pressed={natProfile === p.value}
+                          >
+                            {t(p.labelKey)}
+                          </Button>
+                        ))}
+                      </HStack>
+                    </VStack>
+
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="4" align="center">
+                        <Label className={cls.fieldLabel}>
+                          {t("endpoints.codecs")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.codecsDesc")} />
+                      </HStack>
+                      <Flex
+                        wrap="wrap"
+                        gap="8"
+                        aria-invalid={!!errors.codecs}
+                        aria-describedby={
+                          errors.codecs ? "ep-codecs-error" : undefined
+                        }
+                      >
+                        {CODEC_OPTIONS.map((codec) => (
+                          <Button
+                            key={codec}
+                            type="button"
+                            onClick={() => toggleCodec(codec)}
+                            variant={
+                              codecs.includes(codec) ? "default" : "outline"
+                            }
+                            size="sm"
+                            className={cls.mono}
+                            aria-pressed={codecs.includes(codec)}
+                          >
+                            {codec}
+                          </Button>
+                        ))}
+                      </Flex>
+                      {fieldError("codecs")}
+                    </VStack>
+                  </VStack>
+                </ModalSection>
+              </TabsContent>
+
+              <TabsContent value="security">
+                <ModalSection
+                  title={t("endpoints.tabSecurity")}
+                  icon={ShieldCheck}
+                  className={cls.section}
+                >
+                  <VStack align="stretch" gap="16">
+                    <HStack gap="4" align="center">
+                      <Text as="h4" className={cls.securityTitle}>
+                        {t("endpoints.ipFilterTitle")}
+                      </Text>
+                      <InfoTooltip text={t("endpoints.ipFilterDesc")} />
+                    </HStack>
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="4" align="center">
+                        <Label htmlFor="ep-deny" className={cls.securityLabel}>
+                          {t("endpoints.denyNetworks")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.denyNetworksHint")} />
+                      </HStack>
+                      <Input
+                        id="ep-deny"
+                        aria-invalid={!!errors.deny}
+                        aria-describedby={
+                          errors.deny ? "ep-deny-error" : undefined
+                        }
+                        value={deny}
+                        onChange={(e) => setDeny(e.target.value)}
+                        placeholder="192.168.1.0/24"
+                        className={cls.mono}
+                      />
+                      {fieldError("deny")}
+                    </VStack>
+
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="4" align="center">
+                        <Label
+                          htmlFor="ep-permit"
+                          className={cls.securityLabel}
+                        >
+                          {t("endpoints.permitNetworks")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.permitNetworksHint")} />
+                      </HStack>
+                      <Input
+                        id="ep-permit"
+                        aria-invalid={!!errors.permit}
+                        aria-describedby={
+                          errors.permit ? "ep-permit-error" : undefined
+                        }
+                        value={permit}
+                        onChange={(e) => setPermit(e.target.value)}
+                        placeholder="192.168.1.0/24, 10.0.0.5/32"
+                        className={cls.mono}
+                      />
+                      {fieldError("permit")}
+                    </VStack>
+                  </VStack>
+                </ModalSection>
+              </TabsContent>
+
+              <TabsContent value="calls">
+                <ModalSection
+                  title={t("endpoints.tabCalls")}
+                  icon={PhoneCall}
+                  className={cls.section}
+                >
+                  <VStack align="stretch" gap="16">
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="8" align="center">
+                        <Switch
+                          id="ep-blf"
+                          checked={blfEnabled}
+                          onCheckedChange={(checked) => setBlfEnabled(checked)}
+                        />
+                        <Label htmlFor="ep-blf">
+                          {t("endpoints.blfEnabled")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.blfDescription")} />
+                      </HStack>
+                    </VStack>
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="4" align="center">
+                        <Text as="span" className={cls.fieldLabel}>
+                          {t("endpoints.namedCallGroup")}
+                        </Text>
+                        <InfoTooltip text={t("endpoints.namedCallGroupDesc")} />
+                      </HStack>
+                      <PickupGroupSelect
+                        label=""
+                        selectedSlugs={namedCallGroup}
+                        onChange={setNamedCallGroup}
+                      />
+                    </VStack>
+                    <VStack align="stretch" gap="4">
+                      <HStack gap="4" align="center">
+                        <Text as="span" className={cls.fieldLabel}>
+                          {t("endpoints.namedPickupGroup")}
+                        </Text>
+                        <InfoTooltip
+                          text={t("endpoints.namedPickupGroupDesc")}
+                        />
+                      </HStack>
+                      <PickupGroupSelect
+                        label=""
+                        selectedSlugs={namedPickupGroup}
+                        onChange={setNamedPickupGroup}
+                      />
+                    </VStack>
+                  </VStack>
+                </ModalSection>
+              </TabsContent>
+
+              <TabsContent value="provision">
+                <ModalSection
+                  title={t("endpoints.tabProvision")}
+                  icon={MonitorCog}
+                  className={cls.section}
+                >
+                  <VStack align="stretch" gap="16">
+                    <HStack gap="12" className={cls.toggleRow} max>
+                      <Switch
+                        id="ep-provision"
+                        checked={provisionEnabled}
+                        onCheckedChange={(checked) =>
+                          setProvisionEnabled(checked)
+                        }
+                      />
+                      <HStack gap="4">
+                        <Label htmlFor="ep-provision">
+                          {t("endpoints.provEnable")}
+                        </Label>
+                        <InfoTooltip text={t("endpoints.provEnableHint")} />
+                      </HStack>
+                    </HStack>
+
+                    {provisionEnabled && (
+                      <>
+                        <VStack align="stretch" gap="4">
+                          <Label htmlFor="ep-mac" className={cls.fieldLabel}>
+                            {t("endpoints.provMac")}
+                          </Label>
+                          <Input
+                            id="ep-mac"
+                            aria-invalid={!!errors.mac}
+                            aria-describedby={
+                              errors.mac ? "ep-mac-error" : undefined
+                            }
+                            value={macAddress}
+                            onChange={(e) =>
+                              setMacAddress(
+                                e.target.value
+                                  .toLowerCase()
+                                  .replace(/[^a-f0-9]/g, ""),
+                              )
+                            }
+                            placeholder="a0b1c2d3e4f5"
+                            className={cls.mac}
+                          />
+                          {fieldError("mac")}
+                        </VStack>
+
+                        <VStack align="stretch" gap="4">
+                          <Label htmlFor="ep-tpl" className={cls.fieldLabel}>
+                            {t("endpoints.provTemplate")}
+                          </Label>
+                          <Select
+                            id="ep-tpl"
+                            value={provisionTemplateId}
+                            onChange={(event) =>
+                              setProvisionTemplateId(
+                                event.target.value
+                                  ? Number(event.target.value)
+                                  : "",
+                              )
+                            }
+                            aria-invalid={!!errors.tpl}
+                            aria-describedby={
+                              errors.tpl ? "ep-tpl-error" : undefined
+                            }
+                            options={[
+                              {
+                                value: "",
+                                label: t("endpoints.provTemplateSelect"),
+                              },
+                              ...templates.map((tpl) => ({
+                                value: tpl.uid,
+                                label: tpl.vendor
+                                  ? tpl.name + " (" + tpl.vendor + ")"
+                                  : tpl.name,
+                              })),
+                            ]}
+                          />
+                          {fieldError("tpl")}
+                          {templates.length === 0 && (
+                            <Text as="span" className={cls.warning}>
+                              {t("endpoints.provTemplateEmpty")}
+                            </Text>
+                          )}
+                        </VStack>
+
+                        <VStack align="stretch" gap="4">
+                          <Label htmlFor="ep-vars" className={cls.fieldLabel}>
+                            {t("endpoints.provVars")}
+                          </Label>
+                          <Textarea
+                            id="ep-vars"
+                            value={pvVars}
+                            onChange={(e) => setPvVars(e.target.value)}
+                            placeholder={
+                              "$custom_port=5062\n$button1_type=speeddial"
+                            }
+                            className={cls.variables}
+                          />
+                        </VStack>
+                      </>
+                    )}
+                  </VStack>
+                </ModalSection>
+              </TabsContent>
 
               <TabsContent
                 value="advanced"
                 forceMount
                 hidden={!expertMode || activeTab !== "advanced"}
               >
-<ModalSection>
-                {fieldError("advanced")}
-                <AdvancedSettingsBuilder
-                  value={advancedState}
-                  onChange={setAdvancedState}
-                  onValidationChange={setAdvancedValid}
-                />
-              </ModalSection>
-</TabsContent>
+                <ModalSection
+                  title={t("endpoints.tabAdvanced")}
+                  icon={SlidersHorizontal}
+                  className={cls.section}
+                >
+                  {fieldError("advanced")}
+                  <AdvancedSettingsBuilder
+                    value={advancedState}
+                    onChange={setAdvancedState}
+                    onValidationChange={setAdvancedValid}
+                  />
+                </ModalSection>
+              </TabsContent>
             </ModalBody>
           </Tabs>
 

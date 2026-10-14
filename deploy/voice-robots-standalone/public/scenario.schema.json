@@ -1,0 +1,1879 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "krasterisk.voice-robot.scenario"
+    },
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+    },
+    "scenario": {
+      "type": "object",
+      "properties": {
+        "greetingTtsText": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 12000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "initialGroupKey": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fallbackBotAction": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "response": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "tts",
+                        "prompt"
+                      ]
+                    },
+                    "value": {
+                      "type": "string",
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "additionalProperties": false
+                },
+                "nextState": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "listen",
+                        "switch_group",
+                        "transfer_exten",
+                        "webhook",
+                        "search_data_list",
+                        "hangup"
+                      ]
+                    },
+                    "target": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 2048
+                        },
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "additionalProperties": false
+                },
+                "slots": {
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "digits",
+                          "phone",
+                          "yes_no",
+                          "date",
+                          "choice",
+                          "freetext"
+                        ]
+                      },
+                      "prompt": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "tts",
+                              "prompt"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "maxLength": 12000
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "choices": {
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "synonyms": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "synonyms"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "maxRetries": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10
+                      },
+                      "retryPrompt": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "tts",
+                              "prompt"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "maxLength": 12000
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "validationPattern": {
+                        "type": "string",
+                        "maxLength": 512
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "type",
+                      "prompt"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "webhookPayload": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "webhookResponseTemplate": {
+                  "type": "string",
+                  "maxLength": 12000
+                },
+                "webhookAuth": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "bearer",
+                        "custom"
+                      ]
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "customHeaders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "value"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "mode"
+                  ],
+                  "additionalProperties": false
+                },
+                "dtmfAlternative": {
+                  "type": "string"
+                },
+                "delayMs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 30000
+                },
+                "dataListSearch": {
+                  "type": "object",
+                  "properties": {
+                    "listKey": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^list:[A-Za-z0-9_-]+$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "querySource": {
+                      "type": "string",
+                      "enum": [
+                        "last_utterance",
+                        "slot"
+                      ]
+                    },
+                    "querySlotName": {
+                      "type": "string"
+                    },
+                    "returnField": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "resultVariable": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                    },
+                    "notFoundResponse": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "tts",
+                            "prompt"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "maxLength": 12000
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "onFoundResponse": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "tts",
+                            "prompt"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "maxLength": 12000
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "onFoundNextState": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "listen",
+                            "switch_group",
+                            "transfer_exten",
+                            "webhook",
+                            "search_data_list",
+                            "hangup"
+                          ]
+                        },
+                        "target": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 2048
+                            },
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "notFoundNextState": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "listen",
+                            "switch_group",
+                            "transfer_exten",
+                            "webhook",
+                            "search_data_list",
+                            "hangup"
+                          ]
+                        },
+                        "target": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 2048
+                            },
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxNotFoundRetries": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    "multiMatchStrategy": {
+                      "type": "string",
+                      "enum": [
+                        "best",
+                        "random"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "listKey",
+                    "querySource",
+                    "returnField",
+                    "resultVariable"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "response",
+                "nextState"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maxRetriesBotAction": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "response": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "tts",
+                        "prompt"
+                      ]
+                    },
+                    "value": {
+                      "type": "string",
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "additionalProperties": false
+                },
+                "nextState": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "listen",
+                        "switch_group",
+                        "transfer_exten",
+                        "webhook",
+                        "search_data_list",
+                        "hangup"
+                      ]
+                    },
+                    "target": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 2048
+                        },
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "additionalProperties": false
+                },
+                "slots": {
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "digits",
+                          "phone",
+                          "yes_no",
+                          "date",
+                          "choice",
+                          "freetext"
+                        ]
+                      },
+                      "prompt": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "tts",
+                              "prompt"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "maxLength": 12000
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "choices": {
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "synonyms": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "synonyms"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "maxRetries": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10
+                      },
+                      "retryPrompt": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "tts",
+                              "prompt"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "maxLength": 12000
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "validationPattern": {
+                        "type": "string",
+                        "maxLength": 512
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "type",
+                      "prompt"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "webhookPayload": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "webhookResponseTemplate": {
+                  "type": "string",
+                  "maxLength": 12000
+                },
+                "webhookAuth": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "bearer",
+                        "custom"
+                      ]
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "customHeaders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "value"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "mode"
+                  ],
+                  "additionalProperties": false
+                },
+                "dtmfAlternative": {
+                  "type": "string"
+                },
+                "delayMs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 30000
+                },
+                "dataListSearch": {
+                  "type": "object",
+                  "properties": {
+                    "listKey": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^list:[A-Za-z0-9_-]+$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "querySource": {
+                      "type": "string",
+                      "enum": [
+                        "last_utterance",
+                        "slot"
+                      ]
+                    },
+                    "querySlotName": {
+                      "type": "string"
+                    },
+                    "returnField": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "resultVariable": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                    },
+                    "notFoundResponse": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "tts",
+                            "prompt"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "maxLength": 12000
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "onFoundResponse": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "tts",
+                            "prompt"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "maxLength": 12000
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "onFoundNextState": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "listen",
+                            "switch_group",
+                            "transfer_exten",
+                            "webhook",
+                            "search_data_list",
+                            "hangup"
+                          ]
+                        },
+                        "target": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 2048
+                            },
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "notFoundNextState": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "listen",
+                            "switch_group",
+                            "transfer_exten",
+                            "webhook",
+                            "search_data_list",
+                            "hangup"
+                          ]
+                        },
+                        "target": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 2048
+                            },
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxNotFoundRetries": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    "multiMatchStrategy": {
+                      "type": "string",
+                      "enum": [
+                        "best",
+                        "random"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "listKey",
+                    "querySource",
+                    "returnField",
+                    "resultVariable"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "response",
+                "nextState"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dataLists": {
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^list:[A-Za-z0-9_-]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 12000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "columns": {
+                "minItems": 1,
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255
+                    },
+                    "searchable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "label",
+                    "searchable"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "rows": {
+                "maxItems": 5000,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string",
+                    "maxLength": 12000
+                  }
+                }
+              }
+            },
+            "required": [
+              "key",
+              "name",
+              "description",
+              "columns",
+              "rows"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "groups": {
+          "minItems": 1,
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^group:[A-Za-z0-9_-]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 12000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "priority": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "is_global": {
+                "type": "boolean"
+              },
+              "keywords": {
+                "maxItems": 200,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "keywords": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "negative_keywords": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 2000
+                      }
+                    },
+                    "synonyms": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      }
+                    },
+                    "max_repeats": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100000
+                    },
+                    "comment": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 512
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "tag": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 255
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "bot_action": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "response": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "tts",
+                                    "prompt"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 12000
+                                }
+                              },
+                              "required": [
+                                "type"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "nextState": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "listen",
+                                    "switch_group",
+                                    "transfer_exten",
+                                    "webhook",
+                                    "search_data_list",
+                                    "hangup"
+                                  ]
+                                },
+                                "target": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 2048
+                                    },
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "slots": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "maxLength": 64,
+                                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "digits",
+                                      "phone",
+                                      "yes_no",
+                                      "date",
+                                      "choice",
+                                      "freetext"
+                                    ]
+                                  },
+                                  "prompt": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "none",
+                                          "tts",
+                                          "prompt"
+                                        ]
+                                      },
+                                      "value": {
+                                        "type": "string",
+                                        "maxLength": 12000
+                                      }
+                                    },
+                                    "required": [
+                                      "type"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "choices": {
+                                    "maxItems": 100,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "value": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "label": {
+                                          "type": "string"
+                                        },
+                                        "synonyms": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "value",
+                                        "synonyms"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "maxRetries": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 10
+                                  },
+                                  "retryPrompt": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "none",
+                                          "tts",
+                                          "prompt"
+                                        ]
+                                      },
+                                      "value": {
+                                        "type": "string",
+                                        "maxLength": 12000
+                                      }
+                                    },
+                                    "required": [
+                                      "type"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "validationPattern": {
+                                    "type": "string",
+                                    "maxLength": 512
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "type",
+                                  "prompt"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "webhookPayload": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            },
+                            "webhookResponseTemplate": {
+                              "type": "string",
+                              "maxLength": 12000
+                            },
+                            "webhookAuth": {
+                              "type": "object",
+                              "properties": {
+                                "mode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "bearer",
+                                    "custom"
+                                  ]
+                                },
+                                "token": {
+                                  "type": "string"
+                                },
+                                "customHeaders": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "value": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "value"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "mode"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "dtmfAlternative": {
+                              "type": "string"
+                            },
+                            "delayMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 30000
+                            },
+                            "dataListSearch": {
+                              "type": "object",
+                              "properties": {
+                                "listKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "pattern": "^list:[A-Za-z0-9_-]+$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "querySource": {
+                                  "type": "string",
+                                  "enum": [
+                                    "last_utterance",
+                                    "slot"
+                                  ]
+                                },
+                                "querySlotName": {
+                                  "type": "string"
+                                },
+                                "returnField": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "resultVariable": {
+                                  "type": "string",
+                                  "maxLength": 64,
+                                  "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                                },
+                                "notFoundResponse": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "tts",
+                                        "prompt"
+                                      ]
+                                    },
+                                    "value": {
+                                      "type": "string",
+                                      "maxLength": 12000
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "onFoundResponse": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "tts",
+                                        "prompt"
+                                      ]
+                                    },
+                                    "value": {
+                                      "type": "string",
+                                      "maxLength": 12000
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "onFoundNextState": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "listen",
+                                        "switch_group",
+                                        "transfer_exten",
+                                        "webhook",
+                                        "search_data_list",
+                                        "hangup"
+                                      ]
+                                    },
+                                    "target": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 2048
+                                        },
+                                        {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "notFoundNextState": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "listen",
+                                        "switch_group",
+                                        "transfer_exten",
+                                        "webhook",
+                                        "search_data_list",
+                                        "hangup"
+                                      ]
+                                    },
+                                    "target": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 2048
+                                        },
+                                        {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "maxNotFoundRetries": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 10
+                                },
+                                "multiMatchStrategy": {
+                                  "type": "string",
+                                  "enum": [
+                                    "best",
+                                    "random"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "listKey",
+                                "querySource",
+                                "returnField",
+                                "resultVariable"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "response",
+                            "nextState"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "escalation_action": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "response": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "tts",
+                                    "prompt"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 12000
+                                }
+                              },
+                              "required": [
+                                "type"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "nextState": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "listen",
+                                    "switch_group",
+                                    "transfer_exten",
+                                    "webhook",
+                                    "search_data_list",
+                                    "hangup"
+                                  ]
+                                },
+                                "target": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 2048
+                                    },
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "slots": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "maxLength": 64,
+                                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "digits",
+                                      "phone",
+                                      "yes_no",
+                                      "date",
+                                      "choice",
+                                      "freetext"
+                                    ]
+                                  },
+                                  "prompt": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "none",
+                                          "tts",
+                                          "prompt"
+                                        ]
+                                      },
+                                      "value": {
+                                        "type": "string",
+                                        "maxLength": 12000
+                                      }
+                                    },
+                                    "required": [
+                                      "type"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "choices": {
+                                    "maxItems": 100,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "value": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "label": {
+                                          "type": "string"
+                                        },
+                                        "synonyms": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "value",
+                                        "synonyms"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "maxRetries": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 10
+                                  },
+                                  "retryPrompt": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "none",
+                                          "tts",
+                                          "prompt"
+                                        ]
+                                      },
+                                      "value": {
+                                        "type": "string",
+                                        "maxLength": 12000
+                                      }
+                                    },
+                                    "required": [
+                                      "type"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "validationPattern": {
+                                    "type": "string",
+                                    "maxLength": 512
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "type",
+                                  "prompt"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "webhookPayload": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            },
+                            "webhookResponseTemplate": {
+                              "type": "string",
+                              "maxLength": 12000
+                            },
+                            "webhookAuth": {
+                              "type": "object",
+                              "properties": {
+                                "mode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "bearer",
+                                    "custom"
+                                  ]
+                                },
+                                "token": {
+                                  "type": "string"
+                                },
+                                "customHeaders": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "value": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "value"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "mode"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "dtmfAlternative": {
+                              "type": "string"
+                            },
+                            "delayMs": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 30000
+                            },
+                            "dataListSearch": {
+                              "type": "object",
+                              "properties": {
+                                "listKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "pattern": "^list:[A-Za-z0-9_-]+$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "querySource": {
+                                  "type": "string",
+                                  "enum": [
+                                    "last_utterance",
+                                    "slot"
+                                  ]
+                                },
+                                "querySlotName": {
+                                  "type": "string"
+                                },
+                                "returnField": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "resultVariable": {
+                                  "type": "string",
+                                  "maxLength": 64,
+                                  "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                                },
+                                "notFoundResponse": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "tts",
+                                        "prompt"
+                                      ]
+                                    },
+                                    "value": {
+                                      "type": "string",
+                                      "maxLength": 12000
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "onFoundResponse": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "none",
+                                        "tts",
+                                        "prompt"
+                                      ]
+                                    },
+                                    "value": {
+                                      "type": "string",
+                                      "maxLength": 12000
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "onFoundNextState": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "listen",
+                                        "switch_group",
+                                        "transfer_exten",
+                                        "webhook",
+                                        "search_data_list",
+                                        "hangup"
+                                      ]
+                                    },
+                                    "target": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 2048
+                                        },
+                                        {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "notFoundNextState": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "listen",
+                                        "switch_group",
+                                        "transfer_exten",
+                                        "webhook",
+                                        "search_data_list",
+                                        "hangup"
+                                      ]
+                                    },
+                                    "target": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 2048
+                                        },
+                                        {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "maxNotFoundRetries": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 10
+                                },
+                                "multiMatchStrategy": {
+                                  "type": "string",
+                                  "enum": [
+                                    "best",
+                                    "random"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "listKey",
+                                "querySource",
+                                "returnField",
+                                "resultVariable"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "response",
+                            "nextState"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "keywords",
+                    "negative_keywords",
+                    "synonyms",
+                    "max_repeats",
+                    "priority",
+                    "comment",
+                    "tag",
+                    "bot_action",
+                    "escalation_action"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "key",
+              "name",
+              "description",
+              "priority",
+              "active",
+              "is_global",
+              "keywords"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "greetingTtsText",
+        "initialGroupKey",
+        "fallbackBotAction",
+        "maxRetriesBotAction",
+        "dataLists",
+        "groups"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "exportedAt",
+    "scenario"
+  ],
+  "additionalProperties": false
+}

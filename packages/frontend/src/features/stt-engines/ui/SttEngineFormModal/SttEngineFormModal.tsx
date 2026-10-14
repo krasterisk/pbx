@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/ui';
 import { Button, Input, VStack, HStack, WebhookAuthConfig, type AuthMode, Label, Select } from '@/shared/ui';
 import { ISttEngine } from '@/entities/engines';
+import { isStandaloneApp } from '@/shared/api/apiBase';
 import {
   useCreateSttEngineMutation, useUpdateSttEngineMutation,
 } from '@/shared/api/endpoints/sttEnginesApi';
@@ -24,7 +25,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
   const [updateEngine, { isLoading: isUpdating }] = useUpdateSttEngineMutation();
 
   const [name, setName] = useState('');
-  const [type, setType] = useState<EngineType>('google');
+  const [type, setType] = useState<EngineType>(isStandaloneApp() ? 'yandex' : 'google');
   const [token, setToken] = useState('');
   const [customUrl, setCustomUrl] = useState('');
   const [authMode, setAuthMode] = useState<AuthMode>('none');
@@ -52,7 +53,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
       const hdrs = engine.custom_headers || {};
       setCustomHeaders(Object.entries(hdrs).map(([key, value]) => ({ key, value: String(value) })));
     } else {
-      setName(''); setType('google'); setToken(''); setCustomUrl('');
+      setName(''); setType(isStandaloneApp() ? 'yandex' : 'google'); setToken(''); setCustomUrl('');
       setAuthMode('none'); setLanguageCode('ru-RU'); setModel('general');
       setFolderId(''); setEouSensitivity('DEFAULT');
       setCustomHeaders([]);
@@ -109,7 +110,7 @@ export function SttEngineFormModal({ isOpen, onClose, engine }: SttEngineFormMod
           <VStack align="stretch" gap="4">
             <Label>{t('sttEngines.type', 'Тип')}</Label>
             <Select value={type} onChange={(e) => setType(e.target.value as EngineType)}>
-              <option value="google">{t('sttEngines.typeGoogle', 'Google Speech-to-Text')}</option>
+              {!isStandaloneApp() && <option value="google">{t('sttEngines.typeGoogle', 'Google Speech-to-Text')}</option>}
               <option value="yandex">{t('sttEngines.typeYandex', 'Yandex SpeechKit')}</option>
               <option value="custom">{t('sttEngines.typeCustom', 'Custom API')}</option>
             </Select>

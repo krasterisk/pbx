@@ -17,6 +17,10 @@ export interface ITenant {
   max_extensions: number;
   max_trunks: number;
   max_queues: number;
+  plan_name?: string | null;
+  plan_expires_at?: string | null;
+  max_concurrent_calls?: number | null;
+  timezone?: string;
   sa_own_models?: boolean;
   created_by: number | null;
   created_at: string;
@@ -42,6 +46,10 @@ export interface ICreateTenant {
   max_extensions?: number;
   max_trunks?: number;
   max_queues?: number;
+  plan_name?: string | null;
+  plan_expires_at?: string | null;
+  max_concurrent_calls?: number | null;
+  timezone?: string;
   trial_days?: number;
   seller_id?: number;
 }
@@ -57,6 +65,10 @@ export interface IUpdateTenant {
   max_extensions?: number;
   max_trunks?: number;
   max_queues?: number;
+  plan_name?: string | null;
+  plan_expires_at?: string | null;
+  max_concurrent_calls?: number | null;
+  timezone?: string;
   seller_id?: number;
   sa_own_models?: boolean;
 }

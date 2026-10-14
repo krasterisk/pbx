@@ -1,9 +1,6 @@
-import { ModalSection, ModalToggle } from '@/shared/ui';
-import { Switch } from '@/shared/ui';
 import { useTranslation } from 'react-i18next';
-import { VStack, HStack } from '@/shared/ui/Stack';
-import { Input, Label } from '@/shared/ui';
-import { InfoTooltip } from '@/shared/ui/Tooltip/Tooltip';
+import { Settings2, Timer, PhoneForwarded } from 'lucide-react';
+import { ModalSection, ModalToggle, VStack, HStack, Input, Label, InfoTooltip } from '@/shared/ui';
 import cls from './IvrMainTab.module.scss';
 
 export interface IvrMainTabProps {
@@ -44,122 +41,126 @@ export function IvrMainTab(props: IvrMainTabProps) {
 
   return (
     <VStack align="stretch" gap="16" max>
-<ModalSection title={t("modal.sections.identity")} action={<ModalToggle compact id="ivr-active" label={t("ivrs.fields.active")} tooltip={t("ivrs.tooltips.active")} checked={active} onCheckedChange={onActiveChange} />}>
-<VStack gap="4" max className={cls.field}>
-        <Label htmlFor="ivr-name">{t('ivrs.fields.name', 'Системное имя')}</Label>
-        <Input
-          id="ivr-name"
-          placeholder={t('ivrs.placeholders.name', 'Например: Основное меню')}
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-        />
-      </VStack>
-</ModalSection>
-<ModalSection title={t("ivrs.fields.timeoutsSection")}>
-<VStack gap="4" max className={cls.field}>
-          <HStack gap="4" align="center" className={cls.labelRow}>
-            <Label htmlFor="ivr-wait-exten">
-              {t('ivrs.fields.waitExten', 'Ожидание выбора после фразы (сек)')}
-            </Label>
-            <InfoTooltip
-              text={t(
-                'ivrs.tooltips.waitExten',
-                'WaitExten: сколько секунд ждать нажатие пункта меню после проигрывания фраз. По истечении срабатывает маршрут «t» (timeout), если он настроен',
-              )}
-            />
-          </HStack>
+      <ModalSection
+        title={t('ivrs.editor.parameters')}
+        icon={Settings2}
+        action={
+          <ModalToggle
+            compact
+            id="ivr-active"
+            label={t('ivrs.fields.active')}
+            tooltip={t('ivrs.tooltips.active')}
+            checked={active}
+            onCheckedChange={onActiveChange}
+          />
+        }
+      >
+        <VStack align="stretch" gap="4" max className={cls.field}>
+          <Label htmlFor="ivr-name">{t('ivrs.fields.name', 'Системное имя')}</Label>
           <Input
-            id="ivr-wait-exten"
-            type="number"
-            min={1}
-            placeholder="10"
-            value={waitExten}
-            onChange={(e) => onWaitExtenChange(e.target.value)}
+            id="ivr-name"
+            placeholder={t('ivrs.placeholders.name', 'Например: Основное меню')}
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
           />
         </VStack>
-<VStack gap="4" max className={cls.field}>
-          <HStack gap="4" align="center" className={cls.labelRow}>
-            <Label htmlFor="ivr-timeout-response">
-              {t('ivrs.fields.timeoutResponse', 'Таймаут первой цифры (сек)')}
-            </Label>
-            <InfoTooltip
-              text={t(
-                'ivrs.tooltips.timeoutResponse',
-                'TIMEOUT(response): сколько секунд ждать первую DTMF-цифру - во время и после проигрывания фразы (Background). Важно при прямом донаборе',
-              )}
+      </ModalSection>
+      <ModalSection title={t('ivrs.fields.timeoutsSection')} icon={Timer}>
+        <VStack align="stretch" max className={cls.timers}>
+          <VStack align="stretch" gap="4" max className={cls.field}>
+            <HStack gap="4" align="center" className={cls.labelRow}>
+              <Label htmlFor="ivr-wait-exten">
+                {t('ivrs.fields.waitExten', 'Ожидание выбора после фразы (сек)')}
+              </Label>
+              <InfoTooltip
+                text={t(
+                  'ivrs.tooltips.waitExten',
+                  'WaitExten: сколько секунд ждать нажатие пункта меню после проигрывания фраз. По истечении срабатывает маршрут «t» (timeout), если он настроен',
+                )}
+              />
+            </HStack>
+            <Input
+              id="ivr-wait-exten"
+              type="number"
+              min={1}
+              placeholder="10"
+              value={waitExten}
+              onChange={(e) => onWaitExtenChange(e.target.value)}
             />
-          </HStack>
-          <Input
-            id="ivr-timeout-response"
-            type="number"
-            min={1}
-            placeholder="10"
-            value={timeoutResponse}
-            onChange={(e) => onTimeoutResponseChange(e.target.value)}
-          />
-        </VStack>
-<VStack gap="4" max className={cls.field}>
-          <HStack gap="4" align="center" className={cls.labelRow}>
-            <Label htmlFor="ivr-timeout-digit">
-              {t('ivrs.fields.timeoutDigit', 'Пауза между цифрами (сек)')}
-            </Label>
-            <InfoTooltip
-              text={t(
-                'ivrs.tooltips.timeoutDigit',
-                'TIMEOUT(digit): пауза между последующими DTMF-цифрами при наборе многозначного паттерна или прямом донаборе внутреннего номера',
-              )}
+          </VStack>
+          <VStack align="stretch" gap="4" max className={cls.field}>
+            <HStack gap="4" align="center" className={cls.labelRow}>
+              <Label htmlFor="ivr-timeout-response">
+                {t('ivrs.fields.timeoutResponse', 'Таймаут первой цифры (сек)')}
+              </Label>
+              <InfoTooltip
+                text={t(
+                  'ivrs.tooltips.timeoutResponse',
+                  'TIMEOUT(response): сколько секунд ждать первую DTMF-цифру - во время и после проигрывания фразы (Background). Важно при прямом донаборе',
+                )}
+              />
+            </HStack>
+            <Input
+              id="ivr-timeout-response"
+              type="number"
+              min={1}
+              placeholder="10"
+              value={timeoutResponse}
+              onChange={(e) => onTimeoutResponseChange(e.target.value)}
             />
-          </HStack>
-          <Input
-            id="ivr-timeout-digit"
-            type="number"
-            min={1}
-            placeholder="5"
-            value={timeoutDigit}
-            onChange={(e) => onTimeoutDigitChange(e.target.value)}
-          />
+          </VStack>
+          <VStack align="stretch" gap="4" max className={cls.field}>
+            <HStack gap="4" align="center" className={cls.labelRow}>
+              <Label htmlFor="ivr-timeout-digit">
+                {t('ivrs.fields.timeoutDigit', 'Пауза между цифрами (сек)')}
+              </Label>
+              <InfoTooltip
+                text={t(
+                  'ivrs.tooltips.timeoutDigit',
+                  'TIMEOUT(digit): пауза между последующими DTMF-цифрами при наборе многозначного паттерна или прямом донаборе внутреннего номера',
+                )}
+              />
+            </HStack>
+            <Input
+              id="ivr-timeout-digit"
+              type="number"
+              min={1}
+              placeholder="5"
+              value={timeoutDigit}
+              onChange={(e) => onTimeoutDigitChange(e.target.value)}
+            />
+          </VStack>
+          <VStack align="stretch" gap="4" max className={cls.field}>
+            <HStack gap="4" align="center" className={cls.labelRow}>
+              <Label htmlFor="ivr-max-count">
+                {t('ivrs.fields.maxCount', 'Ограничение переходов (0 - без предела)')}
+              </Label>
+              <InfoTooltip
+                text={t(
+                  'ivrs.tooltips.maxCount',
+                  'Максимальное количество ошибочных попыток ввода, после которого вызов будет обработан по маршруту ошибки. 0 - без ограничений',
+                )}
+              />
+            </HStack>
+            <Input
+              id="ivr-max-count"
+              type="number"
+              placeholder="3"
+              value={maxCount}
+              onChange={(e) => onMaxCountChange(parseInt(e.target.value, 10) || 0)}
+            />
+          </VStack>
         </VStack>
-<VStack gap="4" max className={cls.field}>
-        <HStack gap="4" align="center" className={cls.labelRow}>
-          <Label htmlFor="ivr-max-count">
-            {t('ivrs.fields.maxCount', 'Ограничение переходов (0 - без предела)')}
-          </Label>
-          <InfoTooltip
-            text={t(
-              'ivrs.tooltips.maxCount',
-              'Максимальное количество ошибочных попыток ввода, после которого вызов будет обработан по маршруту ошибки. 0 - без ограничений',
-            )}
-          />
-        </HStack>
-        <Input
-          id="ivr-max-count"
-          type="number"
-          placeholder="3"
-          value={maxCount}
-          onChange={(e) => onMaxCountChange(parseInt(e.target.value, 10) || 0)}
-        />
-      </VStack>
-</ModalSection>
-<ModalSection title={t("modal.sections.settings")}>
-<HStack justify="between" align="center" className={cls.toggleRow}>
-        <HStack gap="4" align="center">
-          <Label htmlFor="ivr-direct-dial" className={cls.toggleLabel}>
-            {t('ivrs.fields.directDial', 'Прямой донабор')}
-          </Label>
-          <InfoTooltip
-            text={t(
-              'ivrs.tooltips.directDial',
-              'Позволяет абоненту набрать внутренний номер напрямую, не дожидаясь окончания голосового приветствия',
-            )}
-          />
-        </HStack>
-        <Switch
+      </ModalSection>
+      <ModalSection title={t('ivrs.editor.dialing')} icon={PhoneForwarded}>
+        <ModalToggle
           id="ivr-direct-dial"
+          label={t('ivrs.fields.directDial')}
+          tooltip={t('ivrs.tooltips.directDial')}
           checked={directDial}
-          onCheckedChange={(checked) => onDirectDialChange(checked)}
+          onCheckedChange={onDirectDialChange}
         />
-      </HStack>
-</ModalSection>
-</VStack>
+      </ModalSection>
+    </VStack>
   );
 }

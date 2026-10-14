@@ -23,14 +23,11 @@
 }
 
 .toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
+ composes: summaryIcon from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .count {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: summaryCount from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .searchWrap {
@@ -74,14 +71,7 @@
 }
 
 .name {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--color-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 22rem;
+ composes: entityName from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .muted {

@@ -43,7 +43,8 @@
 }
 
 .createBtn {
-  box-shadow: 0 10px 15px color-mix(in srgb, var(--color-primary) 20%, transparent);
+  box-shadow: 0 10px 15px
+    color-mix(in srgb, var(--color-primary) 20%, transparent);
 
   @media (max-width: 640px) {
     width: 100%;
@@ -89,18 +90,11 @@
 .card,
 .table,
 .tableWrap {
-  width: 100%;
-  min-width: 0;
+  composes: section from "../../shared/ui/Table/Table.module.scss";
 }
 
 .tableWrap {
-  align-self: stretch;
-  overflow-x: auto;
-
-  > * {
-    width: 100%;
-    min-width: 0;
-  }
+  composes: section from "../../shared/ui/Table/Table.module.scss";
 }
 
 .cardContent {
@@ -110,6 +104,7 @@
 }
 
 .toolbar {
+  composes: directoryToolbar from "../../shared/ui/Table/Table.module.scss";
   flex-wrap: nowrap;
   gap: 1rem;
   min-height: 2.25rem;
@@ -122,14 +117,11 @@
 }
 
 .toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
+ composes: summaryIcon from "../../shared/ui/Table/Table.module.scss";
 }
 
 .count {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: summaryCount from "../../shared/ui/Table/Table.module.scss";
 }
 
 .toolbarActions {
@@ -173,11 +165,6 @@
 
 .mobileCard {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-background);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .dialogContent {

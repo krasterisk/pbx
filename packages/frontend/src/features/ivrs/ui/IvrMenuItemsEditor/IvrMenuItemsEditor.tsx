@@ -1,10 +1,9 @@
-import { memo, useState } from 'react';
+import { memo, useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { Button, Input, Text } from '@/shared/ui';
-import { VStack, HStack, Flex } from '@/shared/ui/Stack';
+import { Plus, Trash2, ChevronDown, ChevronRight, ListTree } from 'lucide-react';
+import { Button, Input, Label, Text, Tooltip, ModalSection, VStack, HStack } from '@/shared/ui';
 import { DialplanAppsEditor, allowedTypesForHost } from '@/features/dialplan-apps';
-import { IIvrMenuItem } from '@/entities/ivr';
+import type { IIvrMenuItem } from '@/entities/ivr';
 import cls from './IvrMenuItemsEditor.module.scss';
 
 interface IvrMenuItemsEditorProps {
@@ -14,6 +13,7 @@ interface IvrMenuItemsEditorProps {
 
 export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEditorProps) => {
   const { t } = useTranslation();
+  const editorId = useId();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const handleAdd = () => {
@@ -31,7 +31,9 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
     const updated = [...menuItems];
     updated.splice(index, 1);
     onChange(updated);
-    if (expandedIndex === index) setExpandedIndex(null);
+    setExpandedIndex((previous) =>
+      previous === index ? null : previous != null && previous > index ? previous - 1 : previous,
+    );
   };
 
   const updateDigit = (index: number, digit: string) => {
@@ -51,74 +53,87 @@ export const IvrMenuItemsEditor = memo(({ menuItems, onChange }: IvrMenuItemsEdi
   };
 
   return (
-    <div className={cls.sectionPanel}>
-      <Flex justify="between" align="center" className={cls.headerRow}>
-        <Text variant="small" className={cls.sectionTitle}>
-          {t('ivrs.menuItems.title', 'Пункты меню (DTMF Возможные сочетания)')}
-        </Text>
-        <Button onClick={handleAdd} size="sm" variant="outline">
-          <Plus size={16} />
-          {t('ivrs.menuItems.add', 'Добавить пункт')}
+    <ModalSection
+      title={t('ivrs.menuItems.title')}
+      icon={ListTree}
+      action={
+        <Button type="button" onClick={handleAdd} size="sm" variant="outline">
+          <Plus size={16} aria-hidden />
+          {t('ivrs.menuItems.add')}
         </Button>
-      </Flex>
-
-      <VStack gap="8" max>
+      }
+    >
+      <VStack align="stretch" gap="12" max>
         {menuItems.map((item, idx) => {
           const isExpanded = expandedIndex === idx;
-
+          const title = item.digit || t('ivrs.editor.newItem');
+          const panelId = editorId + '-' + idx;
           return (
-            <div key={idx} className={cls.itemCard}>
-              <HStack justify="between" align="center" className={cls.itemHeader} max>
-                <HStack gap="16" align="center" max>
-                  <Text as="span" className={cls.digitLabel}>
-                    {t('ivrs.menuItems.digitLabel', 'Нажатие / Паттерн:')}
+            <VStack key={idx} align="stretch" max className={cls.itemCard}>
+              <HStack align="center" gap="8" max className={cls.itemHeader}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className={cls.toggle}
+                  aria-expanded={isExpanded}
+                  aria-controls={panelId}
+                  onClick={() => toggleExpand(idx)}
+                >
+                  {isExpanded ? (
+                    <ChevronDown size={16} aria-hidden />
+                  ) : (
+                    <ChevronRight size={16} aria-hidden />
+                  )}
+                  <Text as="span" className={cls.itemTitle}>
+                    {title}
                   </Text>
-                  <Input
-                    className={cls.digitInput}
-                    placeholder="Например: 1, 2, t, i"
-                    value={item.digit}
-                    onChange={(e) => updateDigit(idx, e.target.value)}
-                  />
-                  <Text as="span" variant="xs" className={cls.actionsHint}>
-                    {item.actions.length} {t('ivrs.menuItems.actionsCount', 'действий')}
+                  <Text as="span" variant="muted" className={cls.actionsHint}>
+                    {item.actions.length} {t('ivrs.menuItems.actionsCount')}
                   </Text>
-                </HStack>
-
-                <HStack gap="4">
-                  <Button variant="ghost" size="icon" onClick={() => toggleExpand(idx)}>
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </Button>
+                <Tooltip content={t('common.delete')}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cls.deleteButton}
+                    aria-label={t('common.delete') + ': ' + title}
+                    onClick={() => handleRemove(idx)}
+                  >
+                    <Trash2 size={16} aria-hidden />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleRemove(idx)}>
-                    <Trash2 size={16} className={cls.deleteIcon} />
-                  </Button>
-                </HStack>
+                </Tooltip>
               </HStack>
-
               {isExpanded && (
-                <div className={cls.itemBody}>
+                <VStack id={panelId} align="stretch" gap="16" max className={cls.itemBody}>
+                  <VStack align="stretch" gap="4" max>
+                    <Label htmlFor={panelId + '-digit'}>{t('ivrs.menuItems.digitLabel')}</Label>
+                    <Input
+                      id={panelId + '-digit'}
+                      placeholder={t('ivrs.editor.digitPlaceholder')}
+                      value={item.digit}
+                      onChange={(event) => updateDigit(idx, event.target.value)}
+                    />
+                  </VStack>
                   <DialplanAppsEditor
                     host="ivr"
                     labels={{ namespace: 'ivrs.menuItems' }}
                     allowedTypes={allowedTypesForHost('ivr')}
                     actions={item.actions}
-                    onChange={(newActions) => updateActions(idx, newActions)}
+                    onChange={(actions) => updateActions(idx, actions)}
                   />
-                </div>
+                </VStack>
               )}
-            </div>
+            </VStack>
           );
         })}
-
         {menuItems.length === 0 && (
-          <Text variant="small" className={cls.emptyState}>
-            {t(
-              'ivrs.menuItems.empty',
-              'Нет пунктов меню. Нажмите «Добавить пункт», чтобы создать маршрут.',
-            )}
+          <Text variant="muted" className={cls.emptyState}>
+            {t('ivrs.menuItems.empty')}
           </Text>
         )}
       </VStack>
-    </div>
+    </ModalSection>
   );
 });
 

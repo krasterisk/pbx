@@ -1,13 +1,13 @@
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { createColumnHelper } from "@tanstack/react-table";
-import { Pencil, Trash2, Key } from "lucide-react";
-import { VStack } from "@/shared/ui/Stack";
-import { TableRowActions, TableRowAction, Text } from "@/shared/ui";
-import { useAppDispatch } from "@/shared/hooks/useAppStore";
-import { endpointsPageActions } from "../../model/slice/endpointsPageSlice";
 import { EndpointStatus, endpointCallerName } from "@/entities/endpoint";
 import type { IEndpointListItem } from "@/shared/api/endpoints/endpointApi";
+import { useAppDispatch } from "@/shared/hooks/useAppStore";
+import { TableRowAction, TableRowActions, Text } from "@/shared/ui";
+import { VStack } from "@/shared/ui/Stack";
+import { createColumnHelper } from "@tanstack/react-table";
+import { Key } from "lucide-react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { endpointsPageActions } from "../../model/slice/endpointsPageSlice";
 import cls from "./EndpointsTable.module.scss";
 
 const columnHelper = createColumnHelper<IEndpointListItem>();
@@ -117,21 +117,6 @@ export const useEndpointsTableColumns = (
                 }
               >
                 <Key />
-              </TableRowAction>
-              <TableRowAction
-                title={t("common.edit")}
-                aria-label={t("common.edit")}
-                onClick={() => dispatch(endpointsPageActions.openEditModal(ep))}
-              >
-                <Pencil />
-              </TableRowAction>
-              <TableRowAction
-                danger
-                title={t("common.delete")}
-                aria-label={t("common.delete")}
-                onClick={() => onDelete(ep)}
-              >
-                <Trash2 />
               </TableRowAction>
             </TableRowActions>
           );

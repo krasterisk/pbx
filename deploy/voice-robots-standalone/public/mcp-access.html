@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MCP — Голосовые роботы</title>
+<link rel="stylesheet" href="/modules/voice-robots/mcp-access.css?v=5">
+<script src="/modules/voice-robots/integration-child.js?v=5" defer></script>
+<script src="/modules/voice-robots/mcp-access.js?v=5" defer></script></head>
+<body>
+<nav id="mcp-links"><a href="standalone.html#/voice-robots">← К роботам</a></nav>
+<header class="hero"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="5"/><path d="m12 12 9 9m-4-4 3-3m-7-1 3-3"/></svg></div><div><h1>Ключи MCP</h1><p>Подключение AI-клиентов к голосовым роботам вашего кабинета</p></div></header>
+<div class="setup">
+<section class="card"><div class="card-head"><h2>Создать ключ</h2><span class="badge">Новый доступ</span></div><div class="card-body">
+<form id="issue"><label for="name">Название<input id="name" value="LLM — настройка роботов" placeholder="Например, рабочий AI-клиент" required maxlength="80"></label>
+<div class="fields"><label for="scope">Права доступа<select id="scope"><option value="read">Только чтение и текстовые проверки</option><option value="configure">Чтение и настройка роботов</option></select></label><label for="days">Срок, дней<input id="days" type="number" min="1" max="30" value="7" required></label></div>
+<p class="hint" id="scope-hint"></p><div class="actions end"><button class="button primary" type="submit">＋ Создать ключ</button></div></form>
+<p id="status" class="status" role="status" aria-live="polite"></p></div></section>
+<section class="card connect"><div class="card-head"><h2>Подключение клиента</h2><span class="badge">MCP</span></div><div class="card-body"><div class="eyebrow">Адрес сервера</div><div class="endpoint" id="endpoint"></div><button class="button small" id="copy-endpoint" type="button">Копировать адрес</button><ol class="steps"><li>Создайте ключ с нужными правами.</li><li>В настройках клиента выберите <strong>Streamable HTTP</strong> и укажите этот адрес.</li><li>Добавьте ключ в приватный заголовок <strong>Authorization: Bearer &lt;ключ&gt;</strong>.</li></ol><p class="subtext">Ключ действует только для роботов текущего кабинета.</p></div></section>
+</div>
+<section class="card secret" id="secret" hidden><div class="card-head"><h2>Сохраните ключ</h2><span class="badge">Показывается один раз</span></div><div class="card-body"><p class="subtext">Сохраните его в приватных настройках MCP-клиента перед закрытием страницы.</p><label for="token">Ваш ключ<textarea id="token" readonly spellcheck="false"></textarea></label><div class="actions"><button class="button primary" id="copy" type="button">Копировать ключ</button><button class="button" id="hide-secret" type="button">Сохранено, скрыть</button></div></div></section>
+<section class="card"><div class="card-head"><div><h2>Ключи кабинета</h2><p class="subtext" id="key-count">Загрузка…</p></div><button class="button small" id="refresh" type="button">Обновить</button></div><div id="keys" class="table-wrap" hidden></div><div id="empty" class="empty" hidden><div class="icon" aria-hidden="true">⌘</div><h3>Ключей пока нет</h3><p>Создайте доступ для своего AI-клиента. Здесь можно посмотреть права, срок действия и отозвать ключ.</p></div></section>
+<footer class="footer"><span>Нужна помощь с подключением или сценарием робота?</span><a href="AGENTS.md" target="_blank" rel="noopener">Инструкция для LLM ↗</a></footer>
+<dialog id="revoke-dialog" aria-labelledby="revoke-title"><h2 id="revoke-title">Отозвать ключ?</h2><p>Клиент, использующий ключ «<span id="revoke-name"></span>», потеряет доступ к роботам.</p><div class="actions end"><button class="button" id="cancel-revoke" type="button">Отмена</button><button class="button danger" id="confirm-revoke" type="button">Отозвать ключ</button></div></dialog>
+</body></html>

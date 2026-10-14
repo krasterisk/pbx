@@ -5,6 +5,8 @@ import { AgentSkillRegistryService } from './agent-skill-registry.service';
 import { jsonSchemaOf } from './ai-mutation.contract';
 import { McpToolsService } from '../mcp/mcp-tools.service';
 import { collectCoverageFailures, MODULE_COVERAGE, listModuleDirectories } from './module-coverage.registry';
+import { VoiceRobotToolsService } from '../voice-robots/voice-robot-tools.service';
+import { selectAgentToolBudget } from '../ai-chat/turn-mode';
 
 function adapterFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -28,6 +30,7 @@ describe('registered configuration capabilities', () => {
       expect(factory).toBeDefined();
       const adapter = Object.create(factory!.prototype);
       adapter.domain = domain;
+      if (domain === 'voice-robots') adapter.robotTools = new VoiceRobotToolsService({} as never, {} as never, {} as never);
       registry.register(adapter);
     }
     expect(collectCoverageFailures({ coverage: MODULE_COVERAGE, directories: listModuleDirectories(), registeredDomains: registry.getDomains() })).toEqual([]);
@@ -42,7 +45,10 @@ describe('registered configuration capabilities', () => {
     const mcp = new McpToolsService(registry, {} as never, {} as never);
     mcp.registerAll();
     const discovered = mcp.getToolsList(42);
-    expect(discovered.length).toBeLessThanOrEqual(128);
+    const robotNames = mcp.getToolNamesForDomains(['voice-robots']);
+    const modelTools = selectAgentToolBudget(discovered, robotNames);
+    expect(modelTools.length).toBeLessThanOrEqual(128);
+    expect(robotNames.every(name => modelTools.some(tool => tool.name === name))).toBe(true);
     expect(discovered.map((tool) => tool.name).sort()).toEqual(registry.getAllTools().map((tool) => tool.name).sort());
     const modules = registry.getDomains().sort().map((domain) => ({
       domain,

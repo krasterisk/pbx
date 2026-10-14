@@ -1,8 +1,8 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { Button } from '@/shared/ui/Button';
-import { HStack } from '@/shared/ui/Stack';
-import { classNames } from '@/shared/lib/classNames/classNames';
-import styles from './TableRowActions.module.scss';
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Button } from "@/shared/ui/Button";
+import { HStack } from "@/shared/ui/Stack";
+import { classNames } from "@/shared/lib/classNames/classNames";
+import styles from "./TableRowActions.module.scss";
 
 export interface TableRowActionsProps {
   children: ReactNode;
@@ -10,18 +10,27 @@ export interface TableRowActionsProps {
 }
 
 /**
- * Cell wrapper for DataTable / list row icon actions (edit / copy / delete).
+ * Cell wrapper for special domain operations (SIP access, playback, run-now).
+ * Entity copy/delete belong to TableToolbar selection actions; editing uses row activation.
  * Use instead of raw `<button>` + Tailwind hover - those clash with row hover and “disappear”.
  */
 export function TableRowActions({ children, className }: TableRowActionsProps) {
   return (
-    <HStack gap="4" align="center" className={classNames(styles.actions, {}, [className])}>
+    <HStack
+      gap="4"
+      align="center"
+      data-table-actions
+      className={classNames(styles.actions, {}, [className])}
+    >
       {children}
     </HStack>
   );
 }
 
-export interface TableRowActionProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface TableRowActionProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "children"
+> {
   children: ReactNode;
   /** Destructive action (delete) - muted by default, destructive color on hover only */
   danger?: boolean;
@@ -36,7 +45,7 @@ export function TableRowAction({
   children,
   danger = false,
   className,
-  type = 'button',
+  type = "button",
   ...props
 }: TableRowActionProps) {
   return (
@@ -44,7 +53,11 @@ export function TableRowAction({
       type={type}
       variant="ghost"
       size="sm"
-      className={classNames(danger ? styles.actionBtnDanger : styles.actionBtn, {}, [className])}
+      className={classNames(
+        danger ? styles.actionBtnDanger : styles.actionBtn,
+        {},
+        [className],
+      )}
       {...props}
     >
       {children}

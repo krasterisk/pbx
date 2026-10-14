@@ -1,33 +1,22 @@
-import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { memo, useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { type Table } from '@tanstack/react-table';
-import { FileCode, Search, Loader2, Trash2, Pencil } from 'lucide-react';
+import { TableCard } from "@/shared/ui";
+
 import {
-  Card,
-  CardHeader,
-  CardContent,
-  Input,
-  Button,
-  DataTable,
-  Text,
-  TableRowActions,
-  TableRowAction,
-  TableSelectionBanner,
-  BulkDeleteDialog,
-} from '@/shared/ui';
-import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import {
-  useGetProvisionTemplatesQuery,
   useBulkDeleteProvisionTemplatesMutation,
-  useDeleteProvisionTemplateMutation,
-} from '@/shared/api/api';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
-import { provisionTemplatesActions } from '../../model/slice/provisionTemplatesSlice';
-import { useProvisionTemplatesTableColumns } from './useProvisionTemplatesTableColumns';
-import cls from './ProvisionTemplatesTable.module.scss';
+  useGetProvisionTemplatesQuery,
+} from "@/shared/api/api";
+import { useAppDispatch } from "@/shared/hooks/useAppStore";
+import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { BulkDeleteDialog, Card, CardContent, CardHeader, Table, TableToolbar, Text, tableStyles } from "@/shared/ui";
+import { QueryErrorState } from "@/shared/ui/QueryErrorState";
+import { Flex, HStack, VStack } from "@/shared/ui/Stack";
+
+import { FileCode, Loader2 } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { provisionTemplatesActions } from "../../model/slice/provisionTemplatesSlice";
+import cls from "./ProvisionTemplatesTable.module.scss";
+import { useProvisionTemplatesTableColumns } from "./useProvisionTemplatesTableColumns";
 
 const PAGE_SIZE = 50;
 
@@ -35,11 +24,17 @@ export const ProvisionTemplatesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: templates = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetProvisionTemplatesQuery();
-  const [deleteTemplate] = useDeleteProvisionTemplateMutation();
-  const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteProvisionTemplatesMutation();
+  const {
+    data: templates = [],
+    isLoading,
+    isError: isListLoadError,
+    refetch: retryListLoad,
+  } = useGetProvisionTemplatesQuery();
 
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [bulkDelete, { isLoading: isDeleting }] =
+    useBulkDeleteProvisionTemplatesMutation();
+
+  const [globalFilter, setGlobalFilter] = useState("");
   const selection = useCrossPageRowSelection({ globalFilter });
 
   const columns = useProvisionTemplatesTableColumns();
@@ -48,9 +43,9 @@ export const ProvisionTemplatesTable = memo(() => {
     const q = globalFilter.trim().toLowerCase();
     if (!q) return templates;
     return templates.filter((tpl) => {
-      const name = (tpl.name || '').toLowerCase();
-      const vendor = (tpl.vendor || '').toLowerCase();
-      const model = (tpl.model || '').toLowerCase();
+      const name = (tpl.name || "").toLowerCase();
+      const vendor = (tpl.vendor || "").toLowerCase();
+      const model = (tpl.model || "").toLowerCase();
       return name.includes(q) || vendor.includes(q) || model.includes(q);
     });
   }, [templates, globalFilter]);
@@ -71,20 +66,7 @@ export const ProvisionTemplatesTable = memo(() => {
     selection.afterBulkDelete();
   }, [selection, bulkDelete]);
 
-  const renderSelectionBanner = useCallback(
-    (table: Table<(typeof templates)[number]>) => (
-      <TableSelectionBanner
-        table={table}
-        pageSize={PAGE_SIZE}
-        allMatchingSelected={selection.allMatchingSelected}
-        selectedIds={selection.selectedIds}
-        selectedCount={selection.selectedCount}
-        onSelectAllMatching={selection.selectAllMatching}
-        onClear={selection.clearSelection}
-      />
-    ),
-    [selection],
-  );
+
 
   const bulkDeleteDialog = (
     <BulkDeleteDialog
@@ -103,41 +85,48 @@ export const ProvisionTemplatesTable = memo(() => {
     <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
         <FileCode size={20} className={cls.toolbarIcon} />
-        <Text className={cls.count}>{t('provisionTemplates.count', { count: templates.length })}</Text>
+        <Text className={cls.count}>
+          {t("provisionTemplates.count", { count: templates.length })}
+        </Text>
       </HStack>
       <HStack gap="8" align="center" className={cls.toolbarActions}>
-        {!isMobile && (
-          <Button
-            variant="destructive"
-            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selection.selectedCount === 0}
-            aria-hidden={selection.selectedCount === 0}
-            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
-            onClick={selection.openBulkDelete}
-          >
-            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('provisionTemplates.deleteSelected', { count: selection.selectedCount })}
-          </Button>
-        )}
-        <Flex align="center" className={cls.searchWrap}>
-          <Search size={16} className={cls.searchIcon} />
-          <Input
-            id="templates-search"
-            placeholder={t('common.search')}
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className={cls.searchInput}
-          />
-        </Flex>
+        <TableToolbar
+          tableRef={selection.tableRef}
+          searchId="templates-search"
+          searchPlaceholder={t("common.search")}
+          searchValue={globalFilter}
+          onSearchChange={(value) => setGlobalFilter(value)}
+          exportTable={{
+            data: templates,
+            columns: columns,
+            getRowId: (row) => String(row.uid),
+            globalFilter: globalFilter,
+            rowSelection: selection.rowSelection,
+            filename: "provision_templates_export",
+          }}
+          selection={selection}
+
+          onDeleteSelected={selection.openBulkDelete}
+          deleteDisabled={isDeleting}
+          deleteLabel={t("provisionTemplates.deleteSelected", {
+            count: selection.selectedCount,
+          })}
+        />
       </HStack>
     </Flex>
   );
 
-  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
+  if (isListLoadError)
+    return (
+      <QueryErrorState
+        message={t("common.queryLoadError")}
+        onRetry={() => void retryListLoad()}
+      />
+    );
   if (isLoading) {
     return (
-      <Card className={cls.card}>
-        <CardHeader>{toolbar}</CardHeader>
+      <Card className={[tableStyles.surface, cls.card].join(" ")}>
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <Flex align="center" justify="center" className={cls.loading}>
             <Loader2 size={24} className={cls.spinner} />
@@ -149,52 +138,45 @@ export const ProvisionTemplatesTable = memo(() => {
 
   if (isMobile) {
     return (
-      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
-        <CardHeader>{toolbar}</CardHeader>
+      <Card
+        className={[tableStyles.surface, cls.card].join(" ")}
+        data-testid="hybrid-table"
+        data-hybrid="mobile-card"
+      >
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <VStack gap="8" max className={cls.mobileList}>
             {filtered.length === 0 ? (
               <Text variant="muted" className={cls.mobileEmpty}>
-                {t('provisionTemplates.empty')}
+                {t("provisionTemplates.empty")}
               </Text>
             ) : (
               filtered.map((tpl) => (
-                <Flex
+                <TableCard
+                  onActivate={() =>
+                    dispatch(provisionTemplatesActions.openEditModal(tpl))
+                  }
                   key={tpl.uid}
                   direction="column"
-                  className={cls.mobileCard}
+                  className={[tableStyles.card, cls.mobileCard].join(" ")}
                   data-testid="provision-templates-mobile-card"
+                  selection={selection.cardSelection(
+                    String(tpl.uid),
+                    t("common.selectRowAria", { index: String(tpl.uid) }),
+                  )}
                 >
                   <HStack justify="between" align="start" max>
                     <VStack gap="4">
-                      <Text as="span" className={cls.name}>{tpl.name}</Text>
+                      <Text as="span" className={cls.name}>
+                        {tpl.name}
+                      </Text>
                       <Text as="span" className={cls.muted}>
-                        {[tpl.vendor, tpl.model].filter(Boolean).join(' · ') || '-'}
+                        {[tpl.vendor, tpl.model].filter(Boolean).join(" · ") ||
+                          "-"}
                       </Text>
                     </VStack>
-                    <TableRowActions>
-                      <TableRowAction
-                        title={t('common.edit')}
-                        aria-label={t('common.edit')}
-                        onClick={() => dispatch(provisionTemplatesActions.openEditModal(tpl))}
-                      >
-                        <Pencil />
-                      </TableRowAction>
-                      <TableRowAction
-                        danger
-                        title={t('common.delete')}
-                        aria-label={t('common.delete')}
-                        onClick={() => {
-                          if (window.confirm(t('provisionTemplates.confirmDelete', { name: tpl.name }))) {
-                            deleteTemplate(tpl.uid);
-                          }
-                        }}
-                      >
-                        <Trash2 />
-                      </TableRowAction>
-                    </TableRowActions>
                   </HStack>
-                </Flex>
+                </TableCard>
               ))
             )}
           </VStack>
@@ -205,8 +187,12 @@ export const ProvisionTemplatesTable = memo(() => {
   }
 
   return (
-    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
-      <CardHeader>{toolbar}</CardHeader>
+    <Card
+      className={[tableStyles.surface, cls.card].join(" ")}
+      data-testid="hybrid-table"
+      data-hybrid="overflow-x-auto"
+    >
+      <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
       <CardContent className={cls.cardContent}>
         <Flex
           direction="column"
@@ -214,7 +200,13 @@ export const ProvisionTemplatesTable = memo(() => {
           className={cls.tableScroll}
           data-testid="provision-templates-table-scroll"
         >
-          <DataTable
+          <Table
+            onRowClick={(tpl) =>
+              dispatch(provisionTemplatesActions.openEditModal(tpl))
+            }
+            surface={false}
+            showSearch={false}
+            showExport={false}
             ref={selection.tableRef}
             className={cls.table}
             data={templates}
@@ -225,10 +217,10 @@ export const ProvisionTemplatesTable = memo(() => {
             onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
             pageSize={PAGE_SIZE}
-            emptyText={t('provisionTemplates.empty')}
+            emptyText={t("provisionTemplates.empty")}
             exportFilename="provision_templates_export"
-            selectAllAriaLabel={t('common.selectPageAria')}
-            renderBanner={renderSelectionBanner}
+            selectAllAriaLabel={t("common.selectPageAria")}
+
           />
         </Flex>
       </CardContent>
@@ -237,4 +229,4 @@ export const ProvisionTemplatesTable = memo(() => {
   );
 });
 
-ProvisionTemplatesTable.displayName = 'ProvisionTemplatesTable';
+ProvisionTemplatesTable.displayName = "ProvisionTemplatesTable";

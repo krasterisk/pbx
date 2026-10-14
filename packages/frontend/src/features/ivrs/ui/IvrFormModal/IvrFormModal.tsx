@@ -1,5 +1,4 @@
-import { ModalTabs } from '@/shared/ui';
-import { ModalBody } from '@/shared/ui';
+import { Link2 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -10,12 +9,20 @@ import {
   DialogFooter,
   Button,
   Tooltip,
+  ModalTabs,
+  ModalBody,
+  ModalSection,
+  HStack,
 } from '@/shared/ui';
 
 import { getIvrPromptsValidationIssues, normalizeIvrPrompts, type IIvrPhrase } from '@krasterisk/shared';
 import { IIvr, IIvrMenuItem } from '@/entities/ivr';
 import { toast } from 'react-toastify';
-import { useCreateIvrMutation, useDeleteIvrMutation, useUpdateIvrMutation } from '@/shared/api/endpoints/ivrsApi';
+import {
+  useCreateIvrMutation,
+  useDeleteIvrMutation,
+  useUpdateIvrMutation,
+} from '@/shared/api/endpoints/ivrsApi';
 import { extractRouteReferences, useGetUsageQuery } from '@/shared/api/endpoints/routeReferencesApi';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
 import { getPhraseValidationMessage } from '../../lib/ivrPromptsValidation';
@@ -37,15 +44,14 @@ interface IvrFormModalProps {
 
 export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'create' }: IvrFormModalProps) {
   const { t } = useTranslation();
-  const [createIvr] = useCreateIvrMutation();
-  const [updateIvr] = useUpdateIvrMutation();
+  const [createIvr, { isLoading: isCreating }] = useCreateIvrMutation();
+  const [updateIvr, { isLoading: isUpdating }] = useUpdateIvrMutation();
   const [deleteIvr, { isLoading: isDeleting }] = useDeleteIvrMutation();
+  const isSaving = Boolean(isCreating || isUpdating);
+  const ivrUid = ivr?.uid;
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [conflictRefs, setConflictRefs] = useState<ReturnType<typeof extractRouteReferences>>([]);
-  const usageQuery = useGetUsageQuery(
-    { kind: 'ivr', uid: ivr?.uid ?? 0 },
-    { skip: mode !== 'edit' || !ivr },
-  );
+  const usageQuery = useGetUsageQuery({ kind: 'ivr', uid: ivr?.uid ?? 0 }, { skip: mode !== 'edit' || !ivr });
   const { data: tenantSettings, isLoading: tenantSettingsLoading } = useGetTenantSettingsQuery();
   const showFlowchart = !tenantSettingsLoading && (tenantSettings?.['routes.show_flowchart'] ?? true);
 
@@ -64,31 +70,46 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
   const { data: ttsEngines = [] } = useGetTtsEnginesQuery();
 
   const phraseValidationIssues = useMemo(
-    () => getIvrPromptsValidationIssues(prompts, {
-      engines: ttsEngines.map((e) => ({
-        uid: e.uid,
-        type: e.type,
-        settings: e.settings,
-      })),
-    }),
+    () =>
+      getIvrPromptsValidationIssues(prompts, {
+        engines: ttsEngines.map((e) => ({
+          uid: e.uid,
+          type: e.type,
+          settings: e.settings,
+        })),
+      }),
     [prompts, ttsEngines],
   );
 
-  const canSave = Boolean(name.trim()) && phraseValidationIssues.length === 0;
+  useEffect(() => {
+    if (!isOpen) return;
+    setActiveTab('main');
+    setInvalidPhraseIndexes([]);
+    setConflictRefs([]);
+    setDeleteOpen(false);
+  }, [isOpen, mode, ivrUid]);
+
+  useEffect(() => {
+    if (
+      (activeTab === 'flowchart' && !showFlowchart) ||
+      (activeTab === 'usage' && (mode !== 'edit' || !ivrUid))
+    )
+      setActiveTab('main');
+  }, [activeTab, showFlowchart, mode, ivrUid]);
 
   useEffect(() => {
     if ((mode === 'edit' || mode === 'copy') && ivr) {
-      setName(mode === 'copy' ? '' : (ivr.name || ''));
+      setName(mode === 'copy' ? '' : ivr.name || '');
       setWaitExten(ivr.timeout ? String(ivr.timeout) : '10');
       setTimeoutResponse(
         ivr.timeout_response != null && ivr.timeout_response !== ''
           ? String(ivr.timeout_response)
-          : (ivr.timeout ? String(ivr.timeout) : '10'),
+          : ivr.timeout
+            ? String(ivr.timeout)
+            : '10',
       );
       setTimeoutDigit(
-        ivr.timeout_digit != null && ivr.timeout_digit !== ''
-          ? String(ivr.timeout_digit)
-          : '5',
+        ivr.timeout_digit != null && ivr.timeout_digit !== '' ? String(ivr.timeout_digit) : '5',
       );
       setMaxCount(ivr.max_count || 0);
       setActive(ivr.active === 1);
@@ -109,6 +130,7 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
   }, [ivr, isOpen, mode]);
 
   const onSubmit = async () => {
+    if (isSaving) return;
     if (!name.trim()) {
       toast.warning(t('ivrs.validation.nameRequired', 'Укажите название IVR'));
       setActiveTab('main');
@@ -145,22 +167,21 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
         await createIvr(payload).unwrap();
       }
       onClose();
-    } catch (err: any) {
-      toast.error(err?.data?.message || t('common.error', 'Ошибка сохранения'));
+    } catch {
+      toast.error(t('modal.errors.save'));
     }
   };
 
   const usageRefs = conflictRefs.length ? conflictRefs : (usageQuery.data?.references ?? []);
   const deleteBlocked = Boolean(
-    mode === 'edit'
-    && ivr
-    && (usageQuery.isLoading || usageQuery.isError || usageRefs.length > 0),
+    mode === 'edit' && ivr && (usageQuery.isLoading || usageQuery.isError || usageRefs.length > 0),
   );
-  const deleteHint = usageQuery.isLoading || usageQuery.isError
-    ? t('references.errorHint', 'Пока проверка не прошла, удаление недоступно')
-    : usageRefs.length > 0
-      ? t('references.deleteBlockedTitle', 'Сначала уберите ссылки')
-      : undefined;
+  const deleteHint =
+    usageQuery.isLoading || usageQuery.isError
+      ? t('references.errorHint', 'Пока проверка не прошла, удаление недоступно')
+      : usageRefs.length > 0
+        ? t('references.deleteBlockedTitle', 'Сначала уберите ссылки')
+        : undefined;
 
   const onDelete = async () => {
     if (!ivr || deleteBlocked) return;
@@ -183,12 +204,8 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
     { id: 'main', label: t('ivrs.tabs.main', 'Основные') },
     { id: 'sounds_prompts', label: t('ivrs.tabs.sounds_prompts', 'Фразы') },
     { id: 'routes', label: t('ivrs.tabs.routes', 'Пункты') },
-    ...(showFlowchart
-      ? [{ id: 'flowchart', label: t('ivrs.tabs.flowchart', 'Схема') }]
-      : []),
-    ...(mode === 'edit' && ivr
-      ? [{ id: 'usage', label: t('references.tab', 'Где используется') }]
-      : []),
+    ...(showFlowchart ? [{ id: 'flowchart', label: t('ivrs.tabs.flowchart', 'Схема') }] : []),
+    ...(mode === 'edit' && ivr ? [{ id: 'usage', label: t('references.tab', 'Где используется') }] : []),
   ];
 
   const title =
@@ -199,16 +216,25 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
         : t('ivrs.modal.create', 'Создать IVR');
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isSaving) onClose();
+      }}
+    >
       <FormDialogContent size="large" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <ModalTabs items={tabs} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={title} />
+        <ModalTabs
+          items={tabs}
+          value={activeTab}
+          onChange={(value) => setActiveTab(value as typeof activeTab)}
+          label={title}
+        />
 
-        <ModalBody  className={cls.body}>
-
+        <ModalBody inert={isSaving || undefined}>
           {activeTab === 'main' && (
             <IvrMainTab
               name={name}
@@ -240,9 +266,7 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
             />
           )}
 
-          {activeTab === 'routes' && (
-            <IvrMenuItemsEditor menuItems={menuItems} onChange={setMenuItems} />
-          )}
+          {activeTab === 'routes' && <IvrMenuItemsEditor menuItems={menuItems} onChange={setMenuItems} />}
 
           {activeTab === 'flowchart' && showFlowchart && (
             <IvrFlowchartTab
@@ -256,20 +280,20 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
           )}
 
           {activeTab === 'usage' && mode === 'edit' && ivr && (
-            <UsageTab kind="ivr" uid={ivr.uid} />
+            <ModalSection title={t('references.tab')} icon={Link2}>
+              <UsageTab kind="ivr" uid={ivr.uid} />
+            </ModalSection>
           )}
-
-</ModalBody>
+        </ModalBody>
 
         <DialogFooter className={cls.footer}>
           {mode === 'edit' && ivr && (
             <Tooltip content={deleteHint}>
-              <span>
+              <HStack className={cls.deleteSlot}>
                 <Button
                   type="button"
                   variant="destructive"
-                  disabled={deleteBlocked || isDeleting}
-                  aria-describedby={deleteBlocked ? 'ivr-delete-blocked' : undefined}
+                  disabled={deleteBlocked || isDeleting || isSaving}
                   data-testid="ivr-delete"
                   onClick={() => {
                     setConflictRefs([]);
@@ -278,14 +302,14 @@ export function IvrFormModal({ isOpen, onClose, ivr, mode = ivr ? 'edit' : 'crea
                 >
                   {t('common.delete', 'Удалить')}
                 </Button>
-              </span>
+              </HStack>
             </Tooltip>
           )}
-          <Button variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
             {t('common.cancel', 'Отмена')}
           </Button>
-          <Button onClick={onSubmit} disabled={!canSave}>
-            {t('common.save', 'Сохранить')}
+          <Button type="button" onClick={onSubmit} disabled={isSaving}>
+            {t(isSaving ? 'common.saving' : 'common.save')}
           </Button>
         </DialogFooter>
       </FormDialogContent>

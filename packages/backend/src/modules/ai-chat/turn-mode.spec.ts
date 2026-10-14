@@ -3,6 +3,7 @@ import {
   diagnoseNeedsEvidence,
   parseTurnModeDecision,
   toolsForMode,
+  selectAgentToolBudget,
 } from './turn-mode';
 
 describe('turn mode', () => {
@@ -33,6 +34,16 @@ describe('turn mode', () => {
     expect(diagnoseNeedsEvidence('Причина: маршрут смотрит не туда.', new Set())).toBe(true);
     expect(diagnoseNeedsEvidence('Причина: маршрут смотрит не туда.', new Set(['describe_number']))).toBe(false);
     expect(diagnoseNeedsEvidence('У вас три очереди.', new Set())).toBe(false);
+  });
+
+  it('retains all requested robot tools plus discovery inside a 128-tool model budget', () => {
+    const tools = [...Array.from({ length: 130 }, (_, i) => ({ name: `other_${i}` })),
+      { name: 'create_voice_robot' }, { name: 'get_configuration_capabilities' }, { name: 'test_voice_robot_match' }];
+    const result = selectAgentToolBudget(tools, ['create_voice_robot', 'test_voice_robot_match']);
+    expect(result).toHaveLength(128);
+    expect(result.map(t => t.name)).toEqual(expect.arrayContaining(['create_voice_robot', 'get_configuration_capabilities', 'test_voice_robot_match']));
+    expect(toolsForMode(tools, 'diagnose', false).map(t => t.name)).toContain('test_voice_robot_match');
+    expect(toolsForMode(tools, 'read', false).map(t => t.name)).not.toContain('create_voice_robot');
   });
 
   it('does not clip a single-object dialplan read', () => {

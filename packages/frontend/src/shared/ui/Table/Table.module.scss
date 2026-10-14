@@ -1,0 +1,395 @@
+.surface {
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-card);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.section {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  overflow: visible;
+  > * {
+    width: 100%;
+    min-width: 0;
+  }
+}
+.scrollRegion {
+  box-sizing: border-box;
+  padding: 24px;
+}
+.interactive {
+  cursor: pointer;
+}
+.summaryCount {
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.summaryIcon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+.entityName {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  caption-side: bottom;
+  font-size: 0.875rem;
+}
+.table .header {
+  background: color-mix(in srgb, var(--color-muted) 45%, var(--color-card));
+}
+.row {
+  border-bottom: 1px solid var(--color-border);
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.body .row {
+  &:last-child {
+    border-bottom: 0;
+  }
+  &:hover {
+    background: color-mix(in srgb, var(--color-primary) 4%, var(--color-card));
+    box-shadow: inset 2px 0 var(--color-primary);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-card));
+  }
+  &[data-selected="true"],
+  &[data-state="selected"] {
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-card));
+  }
+}
+.table .head {
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+}
+.table .cell {
+  padding: 12px 16px;
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+.table .selectionCell {
+  width: 48px;
+  cursor: pointer;
+  input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+  }
+}
+.table .cell[data-primary="true"] {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.footer {
+  background: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+  font-weight: 500;
+}
+.caption {
+  padding: 12px;
+  color: var(--color-muted-foreground);
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  container-type: inline-size;
+}
+.directoryToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  min-height: 50px;
+  gap: 24px;
+}
+.toolbarPanel {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 4%, var(--color-card)),
+    var(--color-card)
+  );
+}
+.search {
+  position: relative;
+  flex: 0 0 24rem;
+  min-width: 0;
+  max-width: 24rem;
+}
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+}
+.searchInput {
+  height: 38px;
+  padding-left: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+}
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  min-width: 0;
+  max-width: 100%;
+  flex-shrink: 1;
+  > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  button {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  &[data-has-tools="false"] {
+    visibility: hidden;
+    pointer-events: none;
+    border-color: transparent;
+    background: transparent;
+  }
+  &:empty {
+    display: none;
+  }
+}
+.toolSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+.selectionCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 72px;
+  height: 32px;
+  flex: 0 0 72px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@container (max-width: 600px) {
+  .search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .tools {
+    margin-right: auto;
+  }
+}
+.toolButton {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-muted-foreground);
+  &:hover {
+    color: var(--color-primary);
+    background: var(--color-muted);
+  }
+}
+.deleteTool:hover {
+  color: var(--color-destructive);
+}
+.card.selectableCard {
+  padding-left: 52px;
+}
+.cardSelection {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.card {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  :where(div, p, span, a, code, dt, dd) {
+    min-width: 0;
+    max-width: 100%;
+  }
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-primary) 3%, var(--color-card)),
+    var(--color-card)
+  );
+  box-shadow: var(--shadow-sm);
+  border-left: 3px solid
+    color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+  &[data-selected="true"] {
+    border-color: color-mix(
+      in srgb,
+      var(--color-primary) 50%,
+      var(--color-border)
+    );
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-card));
+  }
+  &:focus-within,
+  &:hover {
+    border-color: color-mix(
+      in srgb,
+      var(--color-primary) 35%,
+      var(--color-border)
+    );
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  min-width: 0;
+}
+.cardDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+  gap: 8px 16px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+}
+.cardField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  dt {
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    color: var(--color-muted-foreground);
+  }
+  dd {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--color-foreground);
+  }
+}
+@media (max-width: 767px) {
+  .directoryToolbar {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    > :first-child {
+      min-height: 40px;
+    }
+    [data-table-tools] {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    &:has([data-table-tools][data-has-tools="true"]) > :first-child {
+      visibility: hidden;
+    }
+  }
+  .toolbarPanel {
+    padding: 12px;
+  }
+  .tools {
+    gap: 0;
+  }
+  .selectionCount {
+    width: 64px;
+    flex-basis: 64px;
+  }
+  .toolButton {
+    width: 30px;
+  }
+  .toolSlot {
+    width: 30px;
+    flex-basis: 30px;
+  }
+  .card {
+    padding: 12px;
+  }
+  .card.selectableCard {
+    padding-left: 52px;
+    > .cardDetails {
+      margin-left: -40px;
+      width: calc(100% + 40px);
+      max-width: none;
+    }
+  }
+  .card :where(div):has(> span) {
+    flex-wrap: wrap;
+  }
+  /* Desktop ellipsis/monospace utilities must never truncate mobile card data. */
+  .card :is(p, span, a, code, dt, dd, h1, h2, h3, h4):not(:global(.sr-only)) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    overflow: visible;
+    max-height: none;
+    -webkit-line-clamp: unset;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    transition: none;
+  }
+}

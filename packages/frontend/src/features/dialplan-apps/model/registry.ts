@@ -28,6 +28,7 @@ import {
   renderDialModifyExtension,
 } from '../ui/DialModifyField/DialModifyField';
 import { normalizeTenantDisplayValue } from './normalizeTenantDisplayValue';
+import { summaryRefLabel, summaryDirectoryField } from './summaryLabels';
 
 const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'summarize' | 'terminal' | 'allowedIn' | 'optionFlags'> & Partial<IDialplanAppConfig>> = {
   // --- TELEPHONY & MEDIA ---
@@ -66,7 +67,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
         optionsSource: 'endpoints',
         hintKey: 'routes.chain.source.extenHint',
         hint:
-          '**Из списка** — выберите абонента проекта (номер без суффикса тенанта)\n**B-номер маршрута** — номер, который набрал абонент\n**Из переменной / справочника** — как у транка',
+          '**Из списка** - выберите абонента проекта (номер без суффикса тенанта)\n**B-номер маршрута** - номер, который набрал абонент\n**Из переменной / справочника** - как у транка',
       },
       {
         key: 'webrtc',
@@ -94,7 +95,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
         render: renderDialModifyTarget,
       },
     ],
-    summarize: (params, t) => {
+    summarize: (params, t, refs) => {
       const target = params?.target;
       if (target?.source === 'route_pattern') {
         return t('routes.chain.summary.toexten.routePattern', 'Набор B-номера маршрута');
@@ -108,14 +109,14 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       if (target?.source === 'directory' && target.directoryUid && target.valueFieldUid) {
         return t('routes.chain.summary.toexten.directory', 'Абонент из справочника (поле {{field}})').replace(
           '{{field}}',
-          String(target.valueFieldUid),
+          summaryDirectoryField(refs, target.directoryUid, target.valueFieldUid, t),
         );
       }
       const fixed = target?.source === 'fixed' ? String(target.value ?? '').trim() : '';
       if (fixed) {
         return t('routes.chain.summary.toexten.fixed', 'Абонент {{exten}}').replace(
           '{{exten}}',
-          normalizeTenantDisplayValue(fixed),
+          summaryRefLabel(refs, 'endpoints', fixed, t, normalizeTenantDisplayValue(fixed)),
         );
       }
       return t('routes.chain.summary.toexten.empty', 'Абонент: не выбран');
@@ -133,7 +134,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       title: 'Очередь',
       tooltipKey: 'routes.chain.section.paramsTooltip',
       tooltip:
-        '**Статичная очередь** — из списка\n**B-номер маршрута** — имя очереди = набранный номер\n**Из справочника** — по номеру звонящего и полю записи\n**Из переменной** — имя канала без ${}, например MY_QUEUE',
+        '**Статичная очередь** - из списка\n**B-номер маршрута** - имя очереди = набранный номер\n**Из справочника** - по номеру звонящего и полю записи\n**Из переменной** - имя канала без ${}, например MY_QUEUE',
       hideFieldLabels: true,
     },
     schema: [
@@ -175,7 +176,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
         optionsSource: 'prompts',
       },
     ],
-    summarize: (params, t) => {
+    summarize: (params, t, refs) => {
       const target = params?.target;
       if (target?.source === 'route_pattern') {
         return t('routes.chain.summary.toqueue.routePattern', 'Очередь: B-номер маршрута');
@@ -186,14 +187,14 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       if (target?.source === 'directory' && target.directoryUid && target.valueFieldUid) {
         return t('routes.chain.summary.toqueue.directory', 'Очередь из справочника (поле {{field}})').replace(
           '{{field}}',
-          String(target.valueFieldUid),
+          summaryDirectoryField(refs, target.directoryUid, target.valueFieldUid, t),
         );
       }
       const fixed = (target?.source === 'fixed' && target.value) || params?.queue;
       if (fixed) {
         return t('routes.chain.summary.toqueue.fixed', 'Очередь {{queue}}').replace(
           '{{queue}}',
-          normalizeTenantDisplayValue(String(fixed)),
+          summaryRefLabel(refs, 'queues', fixed, t, normalizeTenantDisplayValue(String(fixed))),
         );
       }
       return t('routes.chain.summary.toqueue.empty', 'Очередь: не выбрана');
@@ -210,7 +211,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
       title: 'Группа вызова',
       tooltipKey: 'routes.chain.togroup.targetHint',
       tooltip:
-        '**Группа из списка** — набор и опции Dial берутся из выбранной группы\n**B-номер маршрута** — номер, который набрал абонент, подбирает группу с таким номером\n**Из справочника** — по номеру звонящего и полю записи\n**Из переменной** — номер канала без ${}',
+        '**Группа из списка** - набор и опции Dial берутся из выбранной группы\n**B-номер маршрута** - номер, который набрал абонент, подбирает группу с таким номером\n**Из справочника** - по номеру звонящего и полю записи\n**Из переменной** - номер канала без ${}',
       hideFieldLabels: true,
     },
     schema: buildToGroupSchema((key: string, fallback?: string) => fallback ?? key),
@@ -257,7 +258,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
         valueSourceMode: 'dial',
         hintKey: 'routes.chain.source.dialHint',
         hint:
-          '**B-номер маршрута** — номер, который набрал звонящий\n**Фиксированное значение** — постоянный номер для набора\n**Из переменной** — номер из переменной канала\n**Из справочника** — номер из поля записи по CallerID',
+          '**B-номер маршрута** - номер, который набрал звонящий\n**Фиксированное значение** - постоянный номер для набора\n**Из переменной** - номер из переменной канала\n**Из справочника** - номер из поля записи по CallerID',
       },
       {
         key: 'rewrite',
@@ -269,9 +270,9 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
         render: renderDialModifyExtension,
       },
     ],
-    summarize: (params, t) => {
+    summarize: (params, t, refs) => {
       const ctx = String(params.context ?? '').trim() || '…';
-      return t('routes.chain.toroute.summary', 'Контекст {{context}}').replace('{{context}}', ctx);
+      return t('routes.chain.toroute.summary', 'Контекст {{context}}').replace('{{context}}', summaryRefLabel(refs, 'contexts', ctx, t, ctx));
     },
   },
   playback: {

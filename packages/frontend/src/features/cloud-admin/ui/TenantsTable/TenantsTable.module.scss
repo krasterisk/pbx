@@ -47,7 +47,10 @@
   border-radius: var(--radius-lg);
   padding: 16px 20px;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
   text-align: left;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   white-space: normal;
@@ -61,8 +64,13 @@
 
 .statCardActive {
   border-color: var(--color-primary) !important;
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-primary) 8%,
+    transparent
+  ) !important;
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
 .statValue {
@@ -84,9 +92,15 @@
 }
 
 /* 4. Stat colour variants */
-.statActive .statValue    { color: var(--color-success); }
-.statTrial .statValue     { color: var(--color-warning); }
-.statSuspended .statValue { color: var(--color-destructive); }
+.statActive .statValue {
+  color: var(--color-success);
+}
+.statTrial .statValue {
+  color: var(--color-warning);
+}
+.statSuspended .statValue {
+  color: var(--color-destructive);
+}
 
 /* 5. Search */
 .searchWrapper {
@@ -137,14 +151,11 @@
 }
 
 .toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
+ composes: summaryIcon from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .count {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: summaryCount from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .toolbarActions {
@@ -195,8 +206,7 @@
 }
 
 .name {
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: entityName from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .muted {
@@ -206,8 +216,4 @@
 
 .mobileCard {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
 }

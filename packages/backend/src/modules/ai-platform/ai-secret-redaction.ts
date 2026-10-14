@@ -15,6 +15,13 @@ function redact(value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   const out: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (key === 'webhookAuth' && child && typeof child === 'object') {
+      const auth = child as Record<string, unknown>;
+      out[key] = redact({ ...auth, ...(Array.isArray(auth.customHeaders) ? { customHeaders: auth.customHeaders.map(h => ({
+        key: h?.key ?? '', value: h?.value ? '[REDACTED]' : '',
+      })) } : {}) });
+      continue;
+    }
     if (SECRET_KEY.test(key)) {
       out[key] = typeof child === 'string' && child.length === 0 ? '' : '[REDACTED]';
       continue;
@@ -32,6 +39,12 @@ export function assertNoSecretArgs(args: Record<string, unknown>): void {
     }
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (key === 'webhookAuth' && child && typeof child === 'object') {
+        const headers = (child as Record<string, unknown>).customHeaders;
+        if (Array.isArray(headers) && headers.some(h => h?.value != null && h.value !== '')) {
+          throw new Error(`SECRET_ARG_FORBIDDEN:${path ? `${path}.` : ''}webhookAuth.customHeaders`);
+        }
+      }
       // Canonical bulk creation requests generated credentials; this is not a secret.
       if (key === 'passwordPattern' && child === 'auto') continue;
       if (SECRET_KEY.test(key) && child != null && child !== '') {

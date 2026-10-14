@@ -31,14 +31,11 @@
 }
 
 .toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
+ composes: summaryIcon from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .count {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: summaryCount from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .searchWrap {
@@ -143,17 +140,21 @@
   border-radius: 9999px;
 }
 
-.sentiment[data-sentiment='positive'] {
+.sentiment[data-sentiment="positive"] {
   color: var(--color-success);
   background: color-mix(in srgb, var(--color-success) 12%, transparent);
 }
 
-.sentiment[data-sentiment='neutral'] {
+.sentiment[data-sentiment="neutral"] {
   color: var(--color-muted-foreground);
-  background: color-mix(in srgb, var(--color-muted-foreground) 12%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-muted-foreground) 12%,
+    transparent
+  );
 }
 
-.sentiment[data-sentiment='negative'] {
+.sentiment[data-sentiment="negative"] {
   color: var(--color-destructive);
   background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
 }
@@ -202,7 +203,9 @@
 
   :global(tr).row,
   :global(tr).rowOpen {
-    transition: background-color 0.16s ease, box-shadow 0.16s ease;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease;
   }
 
   :global(tr).row:hover,
@@ -224,14 +227,18 @@
 }
 
 .name {
-  font-weight: 600;
+ composes: entityName from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .scorePill {
   width: fit-content;
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
-  background: color-mix(in srgb, var(--color-warning, var(--color-primary)) 14%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-warning, var(--color-primary)) 14%,
+    transparent
+  );
 }
 
 .topics {
@@ -259,7 +266,9 @@
   justify-content: flex-start;
   text-align: left;
   white-space: normal;
-  transition: border-color 0.16s ease, background-color 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease;
 }
 
 .mobileList .mobileCard:hover {

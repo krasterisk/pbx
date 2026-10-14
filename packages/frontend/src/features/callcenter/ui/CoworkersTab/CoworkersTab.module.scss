@@ -1,6 +1,7 @@
 /* CoworkersTab — desktop table / mobile fixed-size cards */
 
 .wrap {
+  composes: scrollRegion from '../../../../shared/ui/Table/Table.module.scss';
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -10,7 +11,8 @@
 }
 
 .tableWrap {
-  overflow-x: auto;
+ composes: section from '../../../../shared/ui/Table/Table.module.scss';
+
   min-width: 0;
 }
 

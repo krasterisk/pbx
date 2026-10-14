@@ -37,7 +37,8 @@ describe('IvrFlowchartTab', () => {
     );
 
     expect(screen.getByTestId('ivr-flowchart-tab')).toBeInTheDocument();
-    expect(screen.getByTestId('dry-run-form')).toBeInTheDocument();
+    expect(screen.queryByTestId('dry-run-form')).toBeNull();
+    expect(screen.queryByText(/Схема только для просмотра|черновику, включая/i)).toBeNull();
     expect(screen.getByTestId('flowchart-canvas')).toHaveAttribute('data-host', 'ivr');
     const edges = screen.getAllByTestId('flowchart-ivr-edge').map((el) => el.textContent);
     expect(edges).toContain('Кнопка 1');
@@ -50,27 +51,13 @@ describe('IvrFlowchartTab', () => {
   });
 
   it('adds a max fallback node when max_count > 0 and no max item exists', () => {
-    render(
-      <IvrFlowchartTab
-        name="Main"
-        maxCount={2}
-        menuItems={[{ digit: '1', actions: [hangup] }]}
-      />,
-    );
+    render(<IvrFlowchartTab name="Main" maxCount={2} menuItems={[{ digit: '1', actions: [hangup] }]} />);
 
-    expect(screen.getByTestId('flowchart-ivr-max-fallback')).toHaveTextContent(
-      'Исчерпаны проходы по меню',
-    );
+    expect(screen.getByTestId('flowchart-ivr-max-fallback')).toHaveTextContent('Исчерпаны проходы по меню');
   });
 
   it('does not invent t/i branches that are missing from the draft', () => {
-    render(
-      <IvrFlowchartTab
-        name="Main"
-        maxCount={0}
-        menuItems={[{ digit: '2', actions: [hangup] }]}
-      />,
-    );
+    render(<IvrFlowchartTab name="Main" maxCount={0} menuItems={[{ digit: '2', actions: [hangup] }]} />);
 
     expect(screen.queryByText('Не нажали кнопку')).toBeNull();
     expect(screen.queryByText('Нажали неверную кнопку')).toBeNull();

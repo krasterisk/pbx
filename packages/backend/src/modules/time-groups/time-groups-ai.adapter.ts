@@ -1,3 +1,4 @@
+import { stateFingerprint, timeGroupState } from '../ai-platform/ai-state-fingerprint';
 import { Injectable, Logger, Optional, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import type { ITimeGroupInterval } from '@krasterisk/shared';
@@ -19,7 +20,7 @@ import {
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
 const DEFAULT_TIMEZONE = 'Europe/Moscow';
-const SCHEMA_VERSION = 'time-groups-1';
+const SCHEMA_VERSION = 'time-groups-3';
 const TIME_HM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const intervalInput = z.strictObject({
@@ -28,6 +29,7 @@ const intervalInput = z.strictObject({
   days_of_week: z.string().min(1).optional().describe('mon-fri | mon,wed,fri | *'),
   days_of_month: z.string().min(1).optional().describe('1-15 | 12 | *'),
   months: z.string().min(1).optional().describe('jan-jun | jan | *'),
+  timezone: z.string().max(80).optional().describe('IANA timezone, например Asia/Krasnoyarsk'),
 });
 
 const intervalArgs = z.strictObject({
@@ -36,6 +38,7 @@ const intervalArgs = z.strictObject({
   days_of_week: z.string().min(1),
   days_of_month: z.string().min(1),
   months: z.string().min(1),
+  timezone: z.string().max(80).optional(),
 });
 
 const createInput = z.strictObject({
@@ -59,6 +62,7 @@ const updateInput = z.strictObject({
 
 const updateArgs = z.strictObject({
   uid: z.number().int().positive(),
+  expected_hash: z.string().length(64),
   name: z.string().min(1),
   comment: z.string().optional(),
   intervals: z.array(intervalArgs).min(1),
@@ -232,6 +236,7 @@ export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
         if (refused) return refused;
         const applyArgs: UpdateArgs = {
           uid: input.uid,
+          expected_hash: stateFingerprint(timeGroupState(current)),
           name: (input.name ?? current.name).trim(),
           intervals,
         };
@@ -252,7 +257,8 @@ export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
       },
       revalidate: async (args, ctx) => {
         try {
-          await this.timeGroupsService.findOne(args.uid, ctx.vpbxUserUid);
+          const current = await this.timeGroupsService.findOne(args.uid, ctx.vpbxUserUid);
+          if (stateFingerprint(timeGroupState(current)) !== args.expected_hash) return { ok: false, reason: 'Календарь изменился после согласования' };
         } catch {
           return { ok: false, reason: `Календарь ${args.uid} не найден у тенанта` };
         }
@@ -270,6 +276,7 @@ export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
             intervals: args.intervals,
           },
           ctx.vpbxUserUid,
+          args.expected_hash,
         );
         return { uid: updated.uid, name: updated.name };
       },
@@ -283,6 +290,7 @@ export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
       days_of_week: (row.days_of_week ?? '*').trim().toLowerCase() || '*',
       days_of_month: (row.days_of_month ?? '*').trim() || '*',
       months: (row.months ?? '*').trim().toLowerCase() || '*',
+      ...(row.timezone?.trim()?{timezone:row.timezone.trim()}:{}),
     }));
   }
 
@@ -291,6 +299,8 @@ export class TimeGroupsAiAdapter implements DomainAiAdapter, OnModuleInit {
       return { refused: true, message: 'Нужен хотя бы один интервал календаря' };
     }
     for (const interval of intervals) {
+      if(interval.timezone){try{if(!/^[A-Za-z0-9_+/-]{1,80}$/.test(interval.timezone))throw new Error();new Intl.DateTimeFormat('en',{timeZone:interval.timezone});}catch{return {refused:true,message:'Неверный часовой пояс календаря'};}}
+      if(interval.time_start===interval.time_end)return {refused:true,message:'Начало и конец интервала должны различаться'};
       if (!TIME_HM.test(interval.time_start) || !TIME_HM.test(interval.time_end)) {
         return { refused: true, message: `Неверное время ${interval.time_start}–${interval.time_end}` };
       }
@@ -364,6 +374,7 @@ export function evaluateSchedule(
   at: Date,
   timeZone: string,
 ): { inside: boolean; next_boundary: string | null; timezone: string } {
+  const zones=[...new Set(intervals.map(i=>i.timezone||timeZone))];if(zones.length===1)timeZone=zones[0];
   const inside = isInside(intervals, at, timeZone);
   let nextBoundary: string | null = null;
   const limit = 8 * 24 * 60;
@@ -378,8 +389,7 @@ export function evaluateSchedule(
 }
 
 function isInside(intervals: ITimeGroupInterval[], at: Date, timeZone: string): boolean {
-  const wall = zonedWall(at, timeZone);
-  return intervals.some((interval) => intervalMatches(interval, wall));
+  return intervals.some((interval) => intervalMatches(interval, zonedWall(at,interval.timezone||timeZone)));
 }
 
 function intervalMatches(
@@ -404,6 +414,7 @@ function formatReadableInterval(interval: ITimeGroupInterval): string {
   if (interval.days_of_week && interval.days_of_week !== '*') parts.push(interval.days_of_week);
   if (interval.days_of_month && interval.days_of_month !== '*') parts.push(`dom ${interval.days_of_month}`);
   if (interval.months && interval.months !== '*') parts.push(interval.months);
+  if(interval.timezone)parts.push(interval.timezone);
   return parts.join(', ');
 }
 
@@ -457,7 +468,7 @@ function expandTokens(spec: string | undefined, universe: readonly string[]): Se
       const start = universe.indexOf(from);
       const end = universe.indexOf(to);
       if (start >= 0 && end >= 0) {
-        for (let i = start; i <= end; i++) out.add(universe[i]);
+        for(let i=start;;i=(i+1)%universe.length){out.add(universe[i]);if(i===end)break;}
       }
     } else if (trimmed) {
       out.add(trimmed);
@@ -473,7 +484,7 @@ function expandDom(spec: string | undefined): Set<number> | null {
     const trimmed = part.trim();
     if (trimmed.includes('-')) {
       const [from, to] = trimmed.split('-').map(Number);
-      for (let i = from; i <= to; i++) out.add(i);
+      if(Number.isInteger(from)&&Number.isInteger(to)&&from>=1&&from<=31&&to>=1&&to<=31)for(let i=from;;i=i%31+1){out.add(i);if(i===to)break;}
     } else if (trimmed) {
       out.add(Number(trimmed));
     }
@@ -494,7 +505,7 @@ function isTokenSpec(spec: string, universe: readonly string[]): boolean {
     if (!trimmed) return false;
     if (trimmed.includes('-')) {
       const [from, to] = trimmed.split('-');
-      return universe.includes(from) && universe.includes(to);
+      return trimmed.split('-').length===2&&universe.includes(from) && universe.includes(to);
     }
     return universe.includes(trimmed);
   });
@@ -507,7 +518,7 @@ function isDomSpec(spec: string): boolean {
     if (!trimmed) return false;
     if (trimmed.includes('-')) {
       const [from, to] = trimmed.split('-').map(Number);
-      return Number.isInteger(from) && Number.isInteger(to) && from >= 1 && to <= 31 && from <= to;
+      return Number.isInteger(from) && Number.isInteger(to) && from >= 1 && from <= 31 && to >= 1 && to <= 31 && trimmed.split('-').length===2;
     }
     const day = Number(trimmed);
     return Number.isInteger(day) && day >= 1 && day <= 31;

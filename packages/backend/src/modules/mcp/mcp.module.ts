@@ -1,3 +1,16 @@
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
+import { VoiceRobotsModule } from '../voice-robots/voice-robots.module';
+import { SupportAiAdapter } from '../support/support-ai.adapter';
+import { VoiceRobot } from '../voice-robots/voice-robot.model';
+import { VoiceRobotLog } from '../voice-robots/voice-robot-log.model';
+import { IntegrationCredentialsModule } from '../integration-credentials/integration-credentials.module';
+import { IntegrationPrincipal, IntegrationGrant } from '../integration-credentials/integration-credential.models';
+import { User } from '../users/user.model';
+import { SupportPlan } from '../support/support-plan.model';
+import { SupportService } from '../support/support.service';
+import { SupportController } from '../support/support.controller';
+import { SupportRuntimeVerifier } from '../support/support-runtime-verifier';
+import { TimeGroupsModule } from '../time-groups/time-groups.module';
 import { Module, forwardRef } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ConfigModule } from '@nestjs/config';
@@ -37,7 +50,11 @@ import { LoggerModule } from '../logger/logger.module';
 @Module({
     imports: [
         ConfigModule,
-        SequelizeModule.forFeature([Context]),
+        IntegrationCredentialsModule,
+        TimeGroupsModule,
+        AiConnectivityModule,
+        VoiceRobotsModule,
+        SequelizeModule.forFeature([Context, User, IntegrationPrincipal, IntegrationGrant, SupportPlan, VoiceRobot, VoiceRobotLog]),
         EndpointsModule,
         TrunksModule,
         IvrsModule,
@@ -51,9 +68,12 @@ import { LoggerModule } from '../logger/logger.module';
         AiPlatformModule,
         LoggerModule,
     ],
-    controllers: [McpController],
+    controllers: [McpController, SupportController],
     providers: [
         McpSessionService,
+        SupportService,
+        SupportAiAdapter,
+        SupportRuntimeVerifier,
         McpToolsService,
         JwtOrServiceTokenGuard,
         ServiceTokenGuard,

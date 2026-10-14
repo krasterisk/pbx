@@ -57,6 +57,7 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       callGroups: {
         items: (callGroups.data ?? []).map((group) => ({
           value: group.exten || String(group.uid),
+          aliases: [String(group.uid)],
           label: group.exten ? `${group.exten} - ${group.name}` : group.name,
         })),
         isLoading: callGroups.isLoading,
@@ -87,6 +88,7 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       queues: {
         items: (queues.data ?? []).map((queue) => ({
           value: queue.exten || queue.name,
+          aliases: [queue.name],
           label: queue.display_name ? `${queue.exten || queue.name} - ${queue.display_name}` : queue.exten || queue.name,
         })),
         isLoading: queues.isLoading,
@@ -98,6 +100,7 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
         items: (directories.data ?? []).map((directory) => ({
           value: String(directory.uid),
           label: directory.name,
+          fields: directory.fields?.map(field => ({ value: String(field.uid), label: field.label || field.key })),
         })),
         isLoading: directories.isLoading,
         sectionHref: '/directories',

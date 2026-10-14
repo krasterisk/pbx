@@ -41,11 +41,7 @@ function ControlledTable({ data, pageSize = 2 }: { data: Row[]; pageSize?: numbe
         export-selected
       </button>
       <button type="button" data-testid="go-next-page" onClick={() => {
-        // Drive pagination via table ref is not exposed; click the next chevron in the DOM.
-        const buttons = screen.getAllByRole('button');
-        const iconButtons = buttons.filter((b) => !b.getAttribute('data-testid') && b.querySelector('svg'));
-        // ClientPaginationControls order: first, prev, next, last
-        fireEvent.click(iconButtons[2]);
+        fireEvent.click(screen.getByRole('button', { name: 'common.nextPage' }));
       }}>
         go-next
       </button>
@@ -60,7 +56,7 @@ function ControlledTable({ data, pageSize = 2 }: { data: Row[]; pageSize?: numbe
         pageSize={pageSize}
         selectAllAriaLabel="Select page"
         exportFilename="test-export"
-        renderBanner={(table) => (
+        renderHeader={(table) => (
           <div data-testid="banner">
             selected=
             {Object.keys(table.getState().rowSelection).filter((k) => table.getState().rowSelection[k]).length}

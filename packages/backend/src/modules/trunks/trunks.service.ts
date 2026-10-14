@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, BadGatewayException, GatewayTimeoutException, ServiceUnavailableException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { PsEndpoint } from '../endpoints/ps-endpoint.model';
@@ -62,9 +62,24 @@ export interface UpdateTrunkDto {
   advanced?: Record<string, any>;
 }
 
+export type TrunkRegistrationRequestReason = 'registration_not_configured' | 'ami_unavailable' | 'ami_rejected' | 'ami_timeout' | 'busy' | 'invalid_registration';
+export interface TrunkRegistrationRequestResult {
+  id: string;
+  status: 'requested' | 'skipped' | 'failed';
+  reason?: TrunkRegistrationRequestReason;
+}
+
 @Injectable()
 export class TrunksService {
   private readonly logger = new Logger(TrunksService.name);
+  private readonly registrationRequests = new Map<string, { promise: Promise<TrunkRegistrationRequestResult>; expires: number }>();
+  private readonly registrationQueue: Array<() => void> = [];
+  private activeRegistrationRequests = 0;
+  private readonly registrationConcurrency = 8;
+  private readonly registrationQueueLimit = 100;
+  private readonly registrationCooldownMs = 10000;
+  private readonly registrationTimeoutMs = 6000;
+  private readonly registrationCacheLimit = 512;
 
   constructor(
     @InjectModel(PsEndpoint) private endpointModel: typeof PsEndpoint,
@@ -144,10 +159,10 @@ export class TrunksService {
     try {
       if (regMap.size > 0 && this.amiService.isConnected()) {
         const result = await this.amiService.pjsipShowRegistrations();
-        if (result && Array.isArray(result.events)) {
+        if (result && result.complete !== false && Array.isArray(result.events)) {
           result.events.forEach((evt: any) => {
-            if (evt.event === 'OutboundRegistrationDetail') {
-              regStatuses.set(evt.objectname || '', evt.status || '');
+            if (/^outboundregistrationdetail$/i.test(String(evt.event ?? evt.Event ?? ''))) {
+              regStatuses.set(evt.objectname ?? evt.ObjectName ?? '', evt.status ?? evt.Status ?? '');
             }
           });
         }
@@ -162,8 +177,8 @@ export class TrunksService {
       for (let offset = 0; offset < trunkEndpoints.length; offset += 8) {
         await Promise.all(trunkEndpoints.slice(offset, offset + 8).map(async (endpoint) => {
           try {
-            const { events } = await this.amiService.pjsipShowEndpoint(endpoint.id);
-            reachability.set(endpoint.id, trunkReachability(events));
+            const { events, complete } = await this.amiService.pjsipShowEndpoint(endpoint.id);
+            reachability.set(endpoint.id, complete === false ? 'Unknown' : trunkReachability(events, complete === true));
           } catch {
             reachability.set(endpoint.id, 'Unknown');
           }
@@ -231,6 +246,115 @@ export class TrunksService {
       registration: reg?.toJSON() || null,
       identify: idIp?.toJSON() || null,
     };
+  }
+
+  /** Request one REGISTER. Acceptance is distinct from the eventual SIP result. */
+  async register(trunkId: string, vpbxUserUid: number, userId: number): Promise<{ id: string; status: 'requested' }> {
+    const { ids, registrations } = await this.registrationTargets([trunkId], vpbxUserUid, userId);
+    const registration = registrations.get(ids[0]);
+    if (!registration) throw new BadRequestException('Outbound registration is not configured for this trunk');
+    const result = await this.requestRegistration(ids[0], registration, vpbxUserUid, userId);
+    if (result.status !== 'requested') {
+      if (result.reason === 'ami_timeout') throw new GatewayTimeoutException('Registration request timed out');
+      if (result.reason === 'busy' || result.reason === 'ami_unavailable') throw new ServiceUnavailableException('Registration request is temporarily unavailable');
+      throw new BadGatewayException('Registration request was not accepted');
+    }
+    return { id: result.id, status: 'requested' };
+  }
+
+  /** Validate the entire selection before the first AMI mutation. */
+  async bulkRegister(trunkIds: unknown, vpbxUserUid: number, userId: number): Promise<{ results: TrunkRegistrationRequestResult[] }> {
+    const { ids, registrations } = await this.registrationTargets(trunkIds, vpbxUserUid, userId);
+    const results = await Promise.all(ids.map((id) => {
+      const registration = registrations.get(id);
+      return registration
+        ? this.requestRegistration(id, registration, vpbxUserUid, userId)
+        : Promise.resolve({ id, status: 'skipped' as const, reason: 'registration_not_configured' as const });
+    }));
+    return { results };
+  }
+
+  private async registrationTargets(trunkIds: unknown, vpbxUserUid: number, userId: number) {
+    if (!Number.isSafeInteger(vpbxUserUid) || vpbxUserUid < 0 || !Number.isSafeInteger(userId) || userId < 0) {
+      throw new BadRequestException('Invalid authenticated user context');
+    }
+    if (!Array.isArray(trunkIds) || !trunkIds.length || trunkIds.length > 100
+      || trunkIds.some(id => typeof id !== 'string' || id.length > 255 || !/^t_[a-zA-Z0-9_.-]+$/.test(id))
+      || new Set(trunkIds).size !== trunkIds.length) {
+      throw new BadRequestException('Expected 1 to 100 unique trunk identifiers');
+    }
+    const ids = trunkIds as string[];
+    const endpoints = await this.endpointModel.findAll({
+      where: { id: ids, tenantid: String(vpbxUserUid) }, attributes: ['id'],
+    });
+    const owned = new Set(endpoints.map(endpoint => endpoint.id));
+    if (ids.some(id => !owned.has(id))) throw new NotFoundException('One or more trunks were not found');
+    const rows = await this.registrationModel.findAll({ where: { id: ids }, attributes: ['id', 'endpoint'] });
+    return { ids, registrations: new Map(rows.map(row => [row.id, row])) };
+  }
+
+  private requestRegistration(id: string, registration: PsRegistration, tenant: number, actor: number): Promise<TrunkRegistrationRequestResult> {
+    const now = Date.now();
+    for (const [key, entry] of this.registrationRequests) {
+      if (entry.expires <= now) this.registrationRequests.delete(key);
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(registration.id) || registration.id !== id || (registration.endpoint && registration.endpoint !== id)) {
+      return Promise.resolve({ id, status: 'failed', reason: 'invalid_registration' });
+    }
+    const key = `${tenant}:${registration.id}`;
+    const existing = this.registrationRequests.get(key);
+    if (existing) return existing.promise;
+    if (this.registrationRequests.size >= this.registrationCacheLimit || this.registrationQueue.length >= this.registrationQueueLimit) {
+      return Promise.resolve({ id, status: 'failed', reason: 'busy' });
+    }
+    // Set the entry before running work, including when the AMI callback settles immediately.
+    const entry = { promise: Promise.resolve({ id, status: 'failed' as const } as TrunkRegistrationRequestResult), expires: Infinity };
+    entry.promise = this.scheduleRegistration(id, () => this.sendRegistration(id, registration.id, tenant, actor))
+      .then(result => {
+        entry.expires = Date.now() + this.registrationCooldownMs;
+        return result;
+      });
+    this.registrationRequests.set(key, entry);
+    return entry.promise;
+  }
+
+  private scheduleRegistration(id: string, run: () => Promise<TrunkRegistrationRequestResult>): Promise<TrunkRegistrationRequestResult> {
+    return new Promise(resolve => {
+      const start = () => {
+        this.activeRegistrationRequests++;
+        void Promise.resolve().then(run).catch(() => ({ id, status: 'failed' as const, reason: 'ami_rejected' as const })).then(resolve).finally(() => {
+          this.activeRegistrationRequests--;
+          this.registrationQueue.shift()?.();
+        });
+      };
+      if (this.activeRegistrationRequests < this.registrationConcurrency) start();
+      else this.registrationQueue.push(start);
+    });
+  }
+
+  private async sendRegistration(id: string, registrationId: string, tenant: number, actor: number): Promise<TrunkRegistrationRequestResult> {
+    if (!this.amiService.isConnected()) return { id, status: 'failed', reason: 'ami_unavailable' };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let result: TrunkRegistrationRequestResult;
+    try {
+      const reply = await Promise.race([
+        this.amiService.pjsipRegister(registrationId),
+        new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error('AMI registration timeout')), this.registrationTimeoutMs); }),
+      ]);
+      result = String(reply?.response ?? reply?.Response ?? '').toLowerCase() === 'success'
+        ? { id, status: 'requested' }
+        : { id, status: 'failed', reason: 'ami_rejected' };
+    } catch (error) {
+      // Do not expose raw AMI errors, provider URIs, or credentials in API/audit output.
+      const message = String((error as Error)?.message);
+      result = { id, status: 'failed', reason: /timeout/i.test(message) ? 'ami_timeout' : /disconnect|not connected/i.test(message) ? 'ami_unavailable' : 'ami_rejected' };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    void Promise.resolve().then(() => this.loggerService.logAction(actor, 'register', 'trunk', null, tenant,
+      `Outbound registration request ${id}: ${result.status}${result.reason ? ` (${result.reason})` : ''}`,
+      result.status === 'requested' ? 'success' : 'error')).catch(() => this.logger.warn(`Could not audit registration request for ${id}`));
+    return result;
   }
 
   /**

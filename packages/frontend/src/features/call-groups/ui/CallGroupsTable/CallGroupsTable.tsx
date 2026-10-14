@@ -1,32 +1,25 @@
-import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { memo, useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { type Table } from '@tanstack/react-table';
-import { UsersRound, Search, Loader2, Trash2, Pencil, Copy } from 'lucide-react';
+import { TableCard } from "@/shared/ui";
+
 import {
-  Card,
-  CardHeader,
-  CardContent,
-  Input,
-  Button,
-  DataTable,
-  Text,
-  TableRowActions,
-  TableRowAction,
-  TableSelectionBanner,
-  BulkDeleteDialog,
-} from '@/shared/ui';
-import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import {
-  useGetCallGroupsQuery,
   useDeleteCallGroupMutation,
-} from '@/shared/api/endpoints/callGroupApi';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
-import { callGroupsPageActions } from '../../model/slice/callGroupsPageSlice';
-import { formatCallGroupStrategy, useCallGroupsTableColumns } from './useCallGroupsTableColumns';
-import cls from './CallGroupsTable.module.scss';
+  useGetCallGroupsQuery,
+} from "@/shared/api/endpoints/callGroupApi";
+import { useAppDispatch } from "@/shared/hooks/useAppStore";
+import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { BulkDeleteDialog, Card, CardContent, CardHeader, Table, TableToolbar, Text, tableStyles } from "@/shared/ui";
+import { QueryErrorState } from "@/shared/ui/QueryErrorState";
+import { Flex, HStack, VStack } from "@/shared/ui/Stack";
+
+import { Loader2, UsersRound } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { callGroupsPageActions } from "../../model/slice/callGroupsPageSlice";
+import cls from "./CallGroupsTable.module.scss";
+import {
+  formatCallGroupStrategy,
+  useCallGroupsTableColumns,
+} from "./useCallGroupsTableColumns";
 
 const PAGE_SIZE = 50;
 
@@ -34,10 +27,15 @@ export const CallGroupsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: callGroups = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetCallGroupsQuery();
+  const {
+    data: callGroups = [],
+    isLoading,
+    isError: isListLoadError,
+    refetch: retryListLoad,
+  } = useGetCallGroupsQuery();
   const [deleteCallGroup] = useDeleteCallGroupMutation();
 
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [globalFilter, setGlobalFilter] = useState("");
   const selection = useCrossPageRowSelection({ globalFilter });
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -47,9 +45,9 @@ export const CallGroupsTable = memo(() => {
     const q = globalFilter.trim().toLowerCase();
     if (!q) return callGroups;
     return callGroups.filter((row) => {
-      const name = (row.name || '').toLowerCase();
-      const strategy = (row.strategy || '').toLowerCase();
-      const exten = (row.exten || '').toLowerCase();
+      const name = (row.name || "").toLowerCase();
+      const strategy = (row.strategy || "").toLowerCase();
+      const exten = (row.exten || "").toLowerCase();
       return name.includes(q) || strategy.includes(q) || exten.includes(q);
     });
   }, [callGroups, globalFilter]);
@@ -75,20 +73,7 @@ export const CallGroupsTable = memo(() => {
     }
   }, [selection, deleteCallGroup]);
 
-  const renderSelectionBanner = useCallback(
-    (table: Table<(typeof callGroups)[number]>) => (
-      <TableSelectionBanner
-        table={table}
-        pageSize={PAGE_SIZE}
-        allMatchingSelected={selection.allMatchingSelected}
-        selectedIds={selection.selectedIds}
-        selectedCount={selection.selectedCount}
-        onSelectAllMatching={selection.selectAllMatching}
-        onClear={selection.clearSelection}
-      />
-    ),
-    [selection],
-  );
+
 
   const bulkDeleteDialog = (
     <BulkDeleteDialog
@@ -107,41 +92,51 @@ export const CallGroupsTable = memo(() => {
     <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
         <UsersRound size={20} className={cls.toolbarIcon} />
-        <Text className={cls.count}>{t('callGroups.count', { count: callGroups.length })}</Text>
+        <Text className={cls.count}>
+          {t("callGroups.count", { count: callGroups.length })}
+        </Text>
       </HStack>
       <HStack gap="8" align="center" className={cls.toolbarActions}>
-        {!isMobile && (
-          <Button
-            variant="destructive"
-            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selection.selectedCount === 0}
-            aria-hidden={selection.selectedCount === 0}
-            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
-            onClick={selection.openBulkDelete}
-          >
-            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('callGroups.deleteSelected', { count: selection.selectedCount })}
-          </Button>
-        )}
-        <Flex align="center" className={cls.searchWrap}>
-          <Search size={16} className={cls.searchIcon} />
-          <Input
-            id="call-groups-search"
-            placeholder={t('common.search')}
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className={cls.searchInput}
-          />
-        </Flex>
+        <TableToolbar
+          tableRef={selection.tableRef}
+          searchId="call-groups-search"
+          searchPlaceholder={t("common.search")}
+          searchValue={globalFilter}
+          onSearchChange={(value) => setGlobalFilter(value)}
+          exportTable={{
+            data: callGroups,
+            columns: columns,
+            getRowId: (row) => String(row.uid),
+            globalFilter: globalFilter,
+            rowSelection: selection.rowSelection,
+            filename: "call_groups_export",
+          }}
+          selection={selection}
+          onCopySelected={(item) =>
+            dispatch(callGroupsPageActions.openCopyModal(item.uid))
+          }
+
+          onDeleteSelected={selection.openBulkDelete}
+          deleteDisabled={isDeleting}
+          deleteLabel={t("callGroups.deleteSelected", {
+            count: selection.selectedCount,
+          })}
+        />
       </HStack>
     </Flex>
   );
 
-  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
+  if (isListLoadError)
+    return (
+      <QueryErrorState
+        message={t("common.queryLoadError")}
+        onRetry={() => void retryListLoad()}
+      />
+    );
   if (isLoading) {
     return (
-      <Card className={cls.card}>
-        <CardHeader>{toolbar}</CardHeader>
+      <Card className={[tableStyles.surface, cls.card].join(" ")}>
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <Flex align="center" justify="center" className={cls.loading}>
             <Loader2 size={24} className={cls.spinner} />
@@ -153,63 +148,48 @@ export const CallGroupsTable = memo(() => {
 
   if (isMobile) {
     return (
-      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
-        <CardHeader>{toolbar}</CardHeader>
+      <Card
+        className={[tableStyles.surface, cls.card].join(" ")}
+        data-testid="hybrid-table"
+        data-hybrid="mobile-card"
+      >
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <VStack gap="8" max className={cls.mobileList}>
             {filtered.length === 0 ? (
               <Text variant="muted" className={cls.mobileEmpty}>
-                {t('callGroups.noGroups')}
+                {t("callGroups.noGroups")}
               </Text>
             ) : (
               filtered.map((group) => {
                 const memberCount = group.members?.length ?? 0;
                 return (
-                  <Flex
+                  <TableCard
+                    onActivate={() =>
+                      dispatch(callGroupsPageActions.openEditModal(group.uid))
+                    }
                     key={group.uid}
                     direction="column"
-                    className={cls.mobileCard}
+                    className={[tableStyles.card, cls.mobileCard].join(" ")}
                     data-testid="call-groups-mobile-card"
+                    selection={selection.cardSelection(
+                      String(group.uid),
+                      t("common.selectRowAria", { index: String(group.uid) }),
+                    )}
                   >
                     <HStack justify="between" align="start" max>
                       <VStack gap="4">
-                        <Text as="span" className={cls.name}>{group.name}</Text>
+                        <Text as="span" className={cls.name}>
+                          {group.name}
+                        </Text>
                         <Text as="span" className={cls.muted}>
                           {formatCallGroupStrategy(group.strategy, t)}
-                          {' · '}
-                          {memberCount} {t('callGroups.members')}
+                          {" · "}
+                          {memberCount} {t("callGroups.members")}
                         </Text>
                       </VStack>
-                      <TableRowActions>
-                        <TableRowAction
-                          title={t('common.edit')}
-                          aria-label={t('common.edit')}
-                          onClick={() => dispatch(callGroupsPageActions.openEditModal(group.uid))}
-                        >
-                          <Pencil />
-                        </TableRowAction>
-                        <TableRowAction
-                          title={t('common.copy')}
-                          aria-label={t('common.copy')}
-                          onClick={() => dispatch(callGroupsPageActions.openCopyModal(group.uid))}
-                        >
-                          <Copy />
-                        </TableRowAction>
-                        <TableRowAction
-                          danger
-                          title={t('common.delete')}
-                          aria-label={t('common.delete')}
-                          onClick={() => {
-                            if (window.confirm(t('callGroups.confirmDelete', { name: group.name }))) {
-                              deleteCallGroup(group.uid);
-                            }
-                          }}
-                        >
-                          <Trash2 />
-                        </TableRowAction>
-                      </TableRowActions>
                     </HStack>
-                  </Flex>
+                  </TableCard>
                 );
               })
             )}
@@ -221,8 +201,12 @@ export const CallGroupsTable = memo(() => {
   }
 
   return (
-    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
-      <CardHeader>{toolbar}</CardHeader>
+    <Card
+      className={[tableStyles.surface, cls.card].join(" ")}
+      data-testid="hybrid-table"
+      data-hybrid="overflow-x-auto"
+    >
+      <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
       <CardContent className={cls.cardContent}>
         <Flex
           direction="column"
@@ -230,7 +214,13 @@ export const CallGroupsTable = memo(() => {
           className={cls.tableScroll}
           data-testid="call-groups-table-scroll"
         >
-          <DataTable
+          <Table
+            onRowClick={(group) =>
+              dispatch(callGroupsPageActions.openEditModal(group.uid))
+            }
+            surface={false}
+            showSearch={false}
+            showExport={false}
             ref={selection.tableRef}
             className={cls.table}
             data={callGroups}
@@ -241,10 +231,10 @@ export const CallGroupsTable = memo(() => {
             onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
             pageSize={PAGE_SIZE}
-            emptyText={t('callGroups.noGroups')}
+            emptyText={t("callGroups.noGroups")}
             exportFilename="call_groups_export"
-            selectAllAriaLabel={t('common.selectPageAria')}
-            renderBanner={renderSelectionBanner}
+            selectAllAriaLabel={t("common.selectPageAria")}
+
           />
         </Flex>
       </CardContent>
@@ -253,4 +243,4 @@ export const CallGroupsTable = memo(() => {
   );
 });
 
-CallGroupsTable.displayName = 'CallGroupsTable';
+CallGroupsTable.displayName = "CallGroupsTable";

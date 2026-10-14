@@ -47,7 +47,8 @@
 }
 
 .createBtn {
-  box-shadow: 0 10px 15px color-mix(in srgb, var(--color-primary) 20%, transparent);
+  box-shadow: 0 10px 15px
+    color-mix(in srgb, var(--color-primary) 20%, transparent);
 
   @media (max-width: 640px) {
     width: 100%;
@@ -59,14 +60,5 @@
 }
 
 .tableWrap {
-  width: 100%;
-  min-width: 0;
-  align-self: stretch;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-
-  > * {
-    width: 100%;
-    min-width: 0;
-  }
+  composes: section from "../../shared/ui/Table/Table.module.scss";
 }

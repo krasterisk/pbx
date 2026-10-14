@@ -89,6 +89,22 @@ export class Tenant extends Model {
   @Column({ type: DataType.INTEGER })
   declare max_queues: number;
 
+  /** Display-only PBX tariff; catalogue and enforcement remain separate. */
+  @Column({ type: DataType.STRING(128), allowNull: true })
+  declare plan_name: string | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare plan_expires_at: Date | null;
+
+  /** null means unknown, not unlimited. */
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare max_concurrent_calls: number | null;
+
+  @Default('UTC')
+  @AllowNull(false)
+  @Column({ type: DataType.STRING(64) })
+  declare timezone: string;
+
   /** Кто создал (superadmin user id) */
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare created_by: number | null;

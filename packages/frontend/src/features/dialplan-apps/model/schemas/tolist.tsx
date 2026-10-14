@@ -23,7 +23,7 @@ export function buildToListSchema(t: TFn): FieldSchema[] {
       hintKey: 'routes.chain.tolist.numbersHint',
       hint: t(
         'routes.chain.tolist.numbersHint',
-        'Каждый номер — отдельный элемент. Модификация номера для списка не применяется.',
+        'Каждый номер - отдельный элемент. Модификация номера для списка не применяется.',
       ),
       render: ({ params, onChange, readOnly }) => (
         <TagInput

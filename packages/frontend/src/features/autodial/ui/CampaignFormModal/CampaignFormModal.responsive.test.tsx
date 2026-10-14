@@ -28,6 +28,7 @@ describe('Autodial form modals - static shell and responsive grids', () => {
     const contactCss = read('../ContactFormModal/ContactFormModal.module.scss');
     const importTsx = read('../ImportWizard/ImportWizard.tsx');
     const importCss = read('../ImportWizard/ImportWizard.module.scss');
+    const sharedTableCss = read('../../../../shared/ui/Table/Table.module.scss');
 
     expect(baseTsx).toMatch(/size="large"/);
     expect(contactTsx).toMatch(/size="large"/);
@@ -42,6 +43,8 @@ describe('Autodial form modals - static shell and responsive grids', () => {
     expect(contactCss).toMatch(/\.narrow[\s\S]*@media \(max-width:\s*640px\)[\s\S]*width:\s*100%/);
 
     expect(importCss).toMatch(/overflow-y:\s*auto/);
-    expect(importCss).toMatch(/overflow-x:\s*auto/);
+    expect(importCss).toMatch(/\.tableScroll\s*\{[^}]*composes:\s*section/);
+    expect(sharedTableCss).toMatch(/\.scroll\s*\{[^}]*overflow-x:\s*auto/);
+    expect(sharedTableCss).toMatch(/\.section\s*\{[^>]*overflow:\s*visible/);
   });
 });

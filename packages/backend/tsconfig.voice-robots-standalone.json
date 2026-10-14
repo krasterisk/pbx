@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": { "outDir": "./dist-voice-robots", "incremental": false },
+  "include": ["src/standalone-voice-robots/main.ts"],
+  "exclude": ["node_modules", "dist*", "**/*.spec.ts"]
+}

@@ -109,3 +109,4 @@ export * from './callerid';
 export * from './notifyParams';
 
 export * from './directoryStep';
+export * from './types/dashboard.types';

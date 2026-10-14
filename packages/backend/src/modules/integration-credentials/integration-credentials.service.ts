@@ -1,3 +1,4 @@
+import { SUPPORT_SCOPES } from '../support/support-policy';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
@@ -19,7 +20,10 @@ import {
 import type { TenantContext } from './tenant-context';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const SCOPES: Record<AiProductModuleCode, { kind: string; values: ReadonlySet<string> }> = {
+type IntegrationProduct = AiProductModuleCode | 'pbx_support';
+function isIntegrationProduct(value: unknown): value is IntegrationProduct { return value === 'pbx_support' || (typeof value === 'string' && isAiProductCode(value)); }
+const SCOPES: Record<IntegrationProduct, { kind: string; values: ReadonlySet<string> }> = {
+  pbx_support: { kind: 'pbx', values: SUPPORT_SCOPES },
   speech_analytics: { kind: 'project', values: new Set([
     'analytics:upload', 'analytics:read', 'analytics:transcript',
     'analytics:audio', 'analytics:cancel',
@@ -35,7 +39,7 @@ export interface IntegrationKeyReceipt {
 }
 
 export interface GrantInput {
-  resourceKind: 'project' | 'deployment';
+  resourceKind: 'project' | 'deployment' | 'pbx';
   resourceId: string;
   scope: string;
 }
@@ -357,7 +361,7 @@ export class IntegrationCredentialsService {
   }
 
   async selfCapabilities(context: TenantContext): Promise<{
-    principalId: string; product: AiProductModuleCode; permissionRevision: string;
+    principalId: string; product: IntegrationProduct; permissionRevision: string;
     state: 'available' | 'not_configured' | 'temporarily_unavailable'; action: string | null;
     grants: Array<{ resourceKind: string; resourceId: string; scope: string }>;
   }> {
@@ -368,7 +372,7 @@ export class IntegrationCredentialsService {
       where: { id: context.principalId, tenant_uid: context.tenantUid, status: 'active' },
       attributes: ['id', 'product', 'permission_revision'],
     });
-    if (!principal || !isAiProductCode(principal.product)
+    if (!principal || !isIntegrationProduct(principal.product)
       || String(principal.permission_revision) !== context.permissionRevision) {
       throw new UnauthorizedException({ code: 'credential_invalid' });
     }
@@ -382,7 +386,7 @@ export class IntegrationCredentialsService {
       try {
         await this.resources.authorize(context, {
           product: principal.product, action: row.scope,
-          resourceKind: row.resource_kind as 'project' | 'deployment', resourceId: row.resource_id,
+          resourceKind: row.resource_kind as 'project' | 'deployment' | 'pbx', resourceId: row.resource_id,
         });
         usable.push({ resourceKind: row.resource_kind, resourceId: row.resource_id, scope: row.scope });
       } catch (error) {
@@ -400,16 +404,16 @@ export class IntegrationCredentialsService {
       permissionRevision: String(principal.permission_revision),
       state: usable.length ? 'available' : 'not_configured',
       action: usable.length ? null : principal.product === 'speech_analytics'
-        ? 'create_project' : 'create_deployment', grants: usable };
+        ? 'create_project' : principal.product === 'pbx_support' ? 'configure_support_grants' : 'create_deployment', grants: usable };
   }
 
   async create(
     context: TenantContext,
-    input: { label: string; product: AiProductModuleCode; operationId: string; expiresAt?: Date | null },
+    input: { label: string; product: IntegrationProduct; operationId: string; expiresAt?: Date | null },
     now = new Date(),
   ): Promise<IntegrationKeyReceipt> {
     const actor = await this.adminActor(context);
-    if (!UUID.test(input.operationId) || !isAiProductCode(input.product)
+    if (!UUID.test(input.operationId) || !isIntegrationProduct(input.product)
       || typeof input.label !== 'string' || !input.label.trim()
       || input.label.length > 120
       || (input.expiresAt != null && (!Number.isFinite(input.expiresAt.getTime())
@@ -432,7 +436,7 @@ export class IntegrationCredentialsService {
         return { principalId: prior.principal_id, generation: prior.resulting_generation,
           token: null, replay: true };
       }
-      const access = await this.products.decide(context.tenantUid, input.product, now, transaction);
+      const access = input.product === 'pbx_support' ? { allowed: true, reason: null } : await this.products.decide(context.tenantUid, input.product, now, transaction);
       if (!access.allowed) throw new ForbiddenException({ code: access.reason });
       const principalId = randomUUID();
       const credentialId = randomUUID();
@@ -570,7 +574,7 @@ export class IntegrationCredentialsService {
       if (String(principal.permission_revision) !== expectedRevision) {
         throw new ConflictException({ code: 'permission_revision_stale' });
       }
-      const allowed = SCOPES[principal.product as AiProductModuleCode];
+      const allowed = SCOPES[principal.product as IntegrationProduct];
       const seen = new Set<string>();
       for (const input of inputs) {
         if (!allowed || input.resourceKind !== allowed.kind
@@ -581,7 +585,7 @@ export class IntegrationCredentialsService {
         if (seen.has(key)) throw new BadRequestException({ code: 'integration_grant_duplicate' });
         seen.add(key);
         await this.resources.authorize(context, {
-          product: principal.product as AiProductModuleCode, action: 'grant',
+          product: principal.product as IntegrationProduct, action: 'grant',
           resourceKind: input.resourceKind, resourceId: input.resourceId,
         });
       }
@@ -612,7 +616,7 @@ export class IntegrationCredentialsService {
     const principal = await this.principals.findOne({
       where: { id: credential.principal_id, tenant_uid: credential.tenant_uid },
     });
-    if (!principal || principal.status !== 'active' || !isAiProductCode(principal.product)) {
+    if (!principal || principal.status !== 'active' || !isIntegrationProduct(principal.product)) {
       throw new UnauthorizedException({ code: 'credential_invalid' });
     }
     const current = await this.credentials.findOne({
@@ -629,7 +633,7 @@ export class IntegrationCredentialsService {
         || new Date(tenant.trial_ends_at).getTime() <= now.getTime()))) {
       throw new ForbiddenException({ code: 'tenant_inactive' });
     }
-    const access = await this.products.decide(credential.tenant_uid,
+    const access = principal.product === 'pbx_support' ? { allowed: true, reason: null } : await this.products.decide(credential.tenant_uid,
       principal.product as AiProductModuleCode, now);
     if (!access.allowed) throw new ForbiddenException({ code: access.reason });
     // Track lastUsed for SA token list (D-32) without storing the secret again.

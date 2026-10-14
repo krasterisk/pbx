@@ -4,6 +4,7 @@
    ───────────────────────────────────────────────────── */
 
 .card {
+  composes: surface from "../../../../shared/ui/Table/Table.module.scss";
   width: 100%;
   min-width: 0;
 }
@@ -15,6 +16,7 @@
 }
 
 .toolbar {
+  composes: directoryToolbar from "../../../../shared/ui/Table/Table.module.scss";
   flex-wrap: nowrap;
   gap: 1rem;
   min-height: 2.25rem;
@@ -27,14 +29,11 @@
 }
 
 .toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
+ composes: summaryIcon from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .count {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: summaryCount from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .toolbarActions {
@@ -111,9 +110,7 @@
 }
 
 .name {
-  composes: cell;
-  font-weight: 600;
-  color: var(--color-foreground);
+ composes: entityName from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .muted {
@@ -152,10 +149,6 @@
 
 .mobileCard {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-muted) 10%, transparent);
 }
 
 .mobileEmpty {

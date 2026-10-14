@@ -1,50 +1,46 @@
-import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
-import { type Table } from '@tanstack/react-table';
-import { ClipboardList, Download, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
-import { toast } from 'react-toastify';
+import type { IServiceRequest } from "@/entities/serviceRequest";
 import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  DataTable,
-  RecordingButton,
-  Skeleton,
-  TableRowAction,
-  TableRowActions,
-  TableSelectionBanner,
-  BulkDeleteDialog,
-  Text,
-} from '@/shared/ui';
-import { Flex, HStack, VStack } from '@/shared/ui/Stack';
+  REQUEST_STATUS_OPTIONS,
+  SMS_STATUS_OPTIONS,
+} from "@/entities/serviceRequest";
+import type { ServiceRequestQueryParams } from "@/shared/api/endpoints/serviceRequestApi";
 import {
   useDeleteServiceRequestMutation,
   useGetServiceRequestsQuery,
   useLazyGetServiceRequestsQuery,
-} from '@/shared/api/endpoints/serviceRequestApi';
-import type { ServiceRequestQueryParams } from '@/shared/api/endpoints/serviceRequestApi';
-import type { IServiceRequest } from '@/entities/serviceRequest';
-import { REQUEST_STATUS_OPTIONS, SMS_STATUS_OPTIONS } from '@/entities/serviceRequest';
-import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
-import { ServiceRequestModal } from '../ServiceRequestModal';
-import type { ServiceRequestFilters } from '../ServiceRequestsFilter';
+} from "@/shared/api/endpoints/serviceRequestApi";
+import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { Badge, BulkDeleteDialog, Button, Card, CardContent, CardHeader, RecordingButton, Skeleton, Table, TableCard, TableRowActions, tableStyles, TableToolbar, Text } from "@/shared/ui";
+import { QueryErrorState } from "@/shared/ui/QueryErrorState";
+import { Flex, HStack, VStack } from "@/shared/ui/Stack";
+
+import { ClipboardList, Plus } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
+import { ServiceRequestModal } from "../ServiceRequestModal";
+import type { ServiceRequestFilters } from "../ServiceRequestsFilter";
+import cls from "./ServiceRequestsTable.module.scss";
 import {
   SMS_BADGE_VARIANT,
   STATUS_BADGE_VARIANT,
   useServiceRequestsTableColumns,
-} from './useServiceRequestsTableColumns';
-import cls from './ServiceRequestsTable.module.scss';
+} from "./useServiceRequestsTableColumns";
 
 interface ServiceRequestsTableProps {
   filters: ServiceRequestFilters;
 }
 
 const PAGE_SIZE = 30;
-const CSV_DELIMITER = ';';
+const CSV_DELIMITER = ";";
 
 const STATUS_ROW_CLASS: Record<string, string> = {
   new: cls.rowNew,
@@ -72,7 +68,9 @@ function buildQueryParams(
     district: filters.districts?.length ? filters.districts : undefined,
     topic: filters.topics?.length ? filters.topics : undefined,
     search: filters.search,
-    territorial_zone: filters.territorialZones?.length ? filters.territorialZones : undefined,
+    territorial_zone: filters.territorialZones?.length
+      ? filters.territorialZones
+      : undefined,
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
   };
@@ -82,7 +80,7 @@ function exportServiceRequestsToCsv(
   rows: IServiceRequest[],
   t: (...args: [key: string] | [key: string, fallback: string]) => string,
 ) {
-  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const statusLabel = (val: string) => {
     const opt = REQUEST_STATUS_OPTIONS.find((o) => o.value === val);
     return opt ? t(opt.labelKey, opt.fallback) : val;
@@ -93,27 +91,29 @@ function exportServiceRequestsToCsv(
   };
 
   const headers = [
-    t('serviceRequests.table.index'),
-    t('serviceRequests.table.date'),
-    t('serviceRequests.table.operator'),
-    t('serviceRequests.table.client'),
-    t('serviceRequests.table.account'),
-    t('serviceRequests.table.phone'),
-    t('serviceRequests.table.topic'),
-    t('serviceRequests.table.zone'),
-    t('serviceRequests.table.locality'),
-    t('serviceRequests.table.district'),
-    t('serviceRequests.table.address'),
-    t('serviceRequests.table.request'),
-    t('serviceRequests.table.schedule'),
-    t('serviceRequests.table.status'),
-    t('serviceRequests.table.sms'),
-  ].map(esc).join(CSV_DELIMITER);
+    t("serviceRequests.table.index"),
+    t("serviceRequests.table.date"),
+    t("serviceRequests.table.operator"),
+    t("serviceRequests.table.client"),
+    t("serviceRequests.table.account"),
+    t("serviceRequests.table.phone"),
+    t("serviceRequests.table.topic"),
+    t("serviceRequests.table.zone"),
+    t("serviceRequests.table.locality"),
+    t("serviceRequests.table.district"),
+    t("serviceRequests.table.address"),
+    t("serviceRequests.table.request"),
+    t("serviceRequests.table.schedule"),
+    t("serviceRequests.table.status"),
+    t("serviceRequests.table.sms"),
+  ]
+    .map(esc)
+    .join(CSV_DELIMITER);
 
   const csvRows = rows.map((row) =>
     [
       row.request_number || `#${row.uid}`,
-      new Date(row.call_received_at).toLocaleDateString('ru-RU'),
+      new Date(row.call_received_at).toLocaleDateString("ru-RU"),
       row.operator_name,
       row.counterparty_name,
       row.account_or_inn,
@@ -127,36 +127,56 @@ function exportServiceRequestsToCsv(
       row.schedule_comment,
       statusLabel(row.request_status),
       smsLabel(row.sms_status),
-    ].map(esc).join(CSV_DELIMITER),
+    ]
+      .map(esc)
+      .join(CSV_DELIMITER),
   );
 
-  const csvContent = [headers, ...csvRows].join('\n');
-  const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+  const csvContent = [headers, ...csvRows].join("\n");
+  const blob = new Blob([`\uFEFF${csvContent}`], {
+    type: "text/csv;charset=utf-8;",
+  });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = `service-requests_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.style.display = 'none';
+  a.style.display = "none";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-function MobileField({ label, children }: { label: string; children: ReactNode }) {
+function MobileField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <Flex className={cls.mobileField} max>
-      <Text as="span" className={cls.mobileLabel}>{label}</Text>
+      <Text as="span" className={cls.mobileLabel}>
+        {label}
+      </Text>
       <Flex className={cls.mobileValue}>{children}</Flex>
     </Flex>
   );
 }
 
-function MobileOptionalField({ label, text }: { label: string; text: string | null | undefined }) {
+function MobileOptionalField({
+  label,
+  text,
+}: {
+  label: string;
+  text: string | null | undefined;
+}) {
   if (!text) return null;
   return (
     <MobileField label={label}>
-      <Text as="span" className={cls.cell}>{text}</Text>
+      <Text as="span" className={cls.cell}>
+        {text}
+      </Text>
     </MobileField>
   );
 }
@@ -168,19 +188,34 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<IServiceRequest | undefined>(undefined);
+  const [selectedRecord, setSelectedRecord] = useState<
+    IServiceRequest | undefined
+  >(undefined);
   const selectionFilterKey = useMemo(() => JSON.stringify(filters), [filters]);
-  const selection = useCrossPageRowSelection({ globalFilter: selectionFilterKey });
+  const selection = useCrossPageRowSelection({
+    globalFilter: selectionFilterKey,
+  });
   const labelCacheRef = useRef(new Map<string, string>());
 
-  useEffect(() => { setCurrentPage(0); }, [filters]);
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [filters]);
 
   const queryParams = useMemo(
-    () => buildQueryParams(filters, { limit: PAGE_SIZE, offset: currentPage * PAGE_SIZE }),
+    () =>
+      buildQueryParams(filters, {
+        limit: PAGE_SIZE,
+        offset: currentPage * PAGE_SIZE,
+      }),
     [filters, currentPage],
   );
 
-  const { data, isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetServiceRequestsQuery(queryParams);
+  const {
+    data,
+    isLoading,
+    isError: isListLoadError,
+    refetch: retryListLoad,
+  } = useGetServiceRequestsQuery(queryParams);
   const [triggerExport] = useLazyGetServiceRequestsQuery();
   const [deleteReq] = useDeleteServiceRequestMutation();
 
@@ -188,13 +223,13 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
   const totalCount = data?.count ?? 0;
 
   const hasFilter = Boolean(
-    filters.search?.trim()
-    || filters.statuses?.length
-    || filters.districts?.length
-    || filters.topics?.length
-    || filters.territorialZones?.length
-    || filters.dateFrom
-    || filters.dateTo,
+    filters.search?.trim() ||
+    filters.statuses?.length ||
+    filters.districts?.length ||
+    filters.topics?.length ||
+    filters.territorialZones?.length ||
+    filters.dateFrom ||
+    filters.dateTo,
   );
 
   const selectedLabels = useMemo(() => {
@@ -204,7 +239,9 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         row.request_number || row.counterparty_name || String(row.uid),
       );
     }
-    return selection.selectedIds.map((id) => labelCacheRef.current.get(id) || id);
+    return selection.selectedIds.map(
+      (id) => labelCacheRef.current.get(id) || id,
+    );
   }, [selection.selectedIds, rows]);
 
   const handleEdit = useCallback((record: IServiceRequest) => {
@@ -212,16 +249,20 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
     setModalOpen(true);
   }, []);
 
-  const handleDelete = useCallback(async (id: number) => {
-    if (!window.confirm(t('common.confirmDelete', 'Удалить эту запись?'))) return;
-    try {
-      await deleteReq(id).unwrap();
-      toast.success(t('common.deleted', 'Удалено'));
-    } catch (err: unknown) {
-      const message = (err as { data?: { message?: string } })?.data?.message;
-      toast.error(message || t('common.error'));
-    }
-  }, [deleteReq, t]);
+  const handleDelete = useCallback(
+    async (id: number) => {
+      if (!window.confirm(t("common.confirmDelete", "Удалить эту запись?")))
+        return;
+      try {
+        await deleteReq(id).unwrap();
+        toast.success(t("common.deleted", "Удалено"));
+      } catch (err: unknown) {
+        const message = (err as { data?: { message?: string } })?.data?.message;
+        toast.error(message || t("common.error"));
+      }
+    },
+    [deleteReq, t],
+  );
 
   const handleConfirmBulkDelete = useCallback(async () => {
     const ids = selection.selectedIds.map(Number);
@@ -230,29 +271,16 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
     try {
       await Promise.all(ids.map((id) => deleteReq(id).unwrap()));
       selection.afterBulkDelete();
-      toast.success(t('common.deleted', 'Удалено'));
+      toast.success(t("common.deleted", "Удалено"));
     } catch (err: unknown) {
       const message = (err as { data?: { message?: string } })?.data?.message;
-      toast.error(message || t('common.error'));
+      toast.error(message || t("common.error"));
     } finally {
       setIsDeleting(false);
     }
   }, [selection, deleteReq, t]);
 
-  const renderSelectionBanner = useCallback(
-    (table: Table<IServiceRequest>) => (
-      <TableSelectionBanner
-        table={table}
-        pageSize={PAGE_SIZE}
-        allMatchingSelected={selection.allMatchingSelected}
-        selectedIds={selection.selectedIds}
-        selectedCount={selection.selectedCount}
-        onSelectAllMatching={selection.selectAllMatching}
-        onClear={selection.clearSelection}
-      />
-    ),
-    [selection],
-  );
+
 
   const bulkDeleteDialog = (
     <BulkDeleteDialog
@@ -269,16 +297,18 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
 
   const handleExport = useCallback(async () => {
     if (totalCount === 0) {
-      toast.info(t('common.noData'));
+      toast.info(t("common.noData"));
       return;
     }
     setIsExporting(true);
     try {
-      const result = await triggerExport(buildQueryParams(filters, { limit: totalCount, offset: 0 })).unwrap();
+      const result = await triggerExport(
+        buildQueryParams(filters, { limit: totalCount, offset: 0 }),
+      ).unwrap();
       exportServiceRequestsToCsv(result.rows, t);
     } catch (err: unknown) {
       const message = (err as { data?: { message?: string } })?.data?.message;
-      toast.error(message || t('common.error'));
+      toast.error(message || t("common.error"));
     } finally {
       setIsExporting(false);
     }
@@ -294,27 +324,25 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
       <HStack gap="8" align="center">
         <ClipboardList size={20} className={cls.toolbarIcon} />
         <Text className={cls.count}>
-          {t('serviceRequests.table.count', { count: totalCount })}
+          {t("serviceRequests.table.count", { count: totalCount })}
         </Text>
       </HStack>
       <HStack gap="8" align="center" className={cls.toolbarActions}>
-        {!isMobile && (
-          <Button
-            variant="destructive"
-            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selection.selectedCount === 0}
-            aria-hidden={selection.selectedCount === 0}
-            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
-            onClick={selection.openBulkDelete}
-          >
-            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('serviceRequests.deleteSelected', { count: selection.selectedCount })}
-          </Button>
-        )}
-        <Button variant="ghost" size="sm" onClick={handleExport} disabled={isExporting}>
-          {isExporting ? <Loader2 size={16} className={cls.spinner} /> : <Download size={16} />}
-          <Text as="span">{t('serviceRequests.table.export')}</Text>
-        </Button>
+        <TableToolbar
+          tableRef={selection.tableRef}
+          selectionRowIds={rows.map((row) => String(row.uid))}
+          showSearch={false}
+          onExport={() => void handleExport()}
+          exportDisabled={isExporting}
+          exportLabel={t("serviceRequests.table.export")}
+          selection={selection}
+
+          onDeleteSelected={selection.openBulkDelete}
+          deleteDisabled={isDeleting}
+          deleteLabel={t("serviceRequests.deleteSelected", {
+            count: selection.selectedCount,
+          })}
+        />
         <Button
           size="sm"
           onClick={() => {
@@ -324,7 +352,9 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
         >
           <Plus size={16} className={cls.createBtnIcon} />
           <Text as="span">
-            {isMobile ? t('serviceRequests.table.createShort') : t('serviceRequests.table.create')}
+            {isMobile
+              ? t("serviceRequests.table.createShort")
+              : t("serviceRequests.table.create")}
           </Text>
         </Button>
       </HStack>
@@ -339,14 +369,26 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
     />
   );
 
-  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
+  if (isListLoadError)
+    return (
+      <QueryErrorState
+        message={t("common.queryLoadError")}
+        onRetry={() => void retryListLoad()}
+      />
+    );
   if (isLoading && isMobile) {
     return (
-      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+      <Card
+        className={cls.card}
+        data-testid="hybrid-table"
+        data-hybrid="mobile-card"
+      >
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
           <VStack gap="8" max>
-            {[1, 2, 3].map((i) => <Skeleton key={i} className={cls.skeletonRow} />)}
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className={cls.skeletonRow} />
+            ))}
           </VStack>
         </CardContent>
         {modal}
@@ -357,20 +399,34 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
 
   if (isMobile) {
     return (
-      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
+      <Card
+        className={cls.card}
+        data-testid="hybrid-table"
+        data-hybrid="mobile-card"
+      >
         <CardHeader>{toolbar}</CardHeader>
         <CardContent>
           <VStack gap="8" max className={cls.mobileList}>
             {rows.length === 0 ? (
-              <Text variant="muted" className={cls.mobileEmpty}>{t('common.noData')}</Text>
+              <Text variant="muted" className={cls.mobileEmpty}>
+                {t("common.noData")}
+              </Text>
             ) : (
               rows.map((record) => {
-                const statusOpt = REQUEST_STATUS_OPTIONS.find((o) => o.value === record.request_status);
-                const smsOpt = SMS_STATUS_OPTIONS.find((o) => o.value === record.sms_status);
-                const borderClass = STATUS_CARD_CLASS[record.request_status] || '';
+                const statusOpt = REQUEST_STATUS_OPTIONS.find(
+                  (o) => o.value === record.request_status,
+                );
+                const smsOpt = SMS_STATUS_OPTIONS.find(
+                  (o) => o.value === record.sms_status,
+                );
+                const borderClass =
+                  STATUS_CARD_CLASS[record.request_status] || "";
                 return (
-                  <Flex
+                  <TableCard
+                    onActivate={() => handleEdit(record)}
+                    data-selected={!!selection.rowSelection[String(record.uid)]}
                     key={record.uid}
+                      selection={selection.cardSelection(String(record.uid), t('common.selectRowAria', { index: record.request_number || String(record.uid) }))}
                     direction="column"
                     className={`${cls.mobileCard} ${borderClass}`}
                     data-testid="service-requests-mobile-card"
@@ -380,21 +436,49 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
                         <Text as="span" className={cls.number}>
                           {record.request_number || `#${record.uid}`}
                         </Text>
-                        <Badge variant={STATUS_BADGE_VARIANT[record.request_status] || 'outline'}>
-                          {statusOpt ? t(statusOpt.labelKey, statusOpt.fallback) : record.request_status}
+                        <Badge
+                          variant={
+                            STATUS_BADGE_VARIANT[record.request_status] ||
+                            "outline"
+                          }
+                        >
+                          {statusOpt
+                            ? t(statusOpt.labelKey, statusOpt.fallback)
+                            : record.request_status}
                         </Badge>
-                        <MobileField label={t('serviceRequests.table.date')}>
+                        <MobileField label={t("serviceRequests.table.date")}>
                           <Text as="span" className={cls.cell}>
-                            {new Date(record.call_received_at).toLocaleDateString('ru-RU')}
+                            {new Date(
+                              record.call_received_at,
+                            ).toLocaleDateString("ru-RU")}
                           </Text>
                         </MobileField>
-                        <MobileOptionalField label={t('serviceRequests.table.operator')} text={record.operator_name} />
-                        <MobileOptionalField label={t('serviceRequests.table.client')} text={record.counterparty_name} />
-                        <MobileOptionalField label={t('serviceRequests.table.phone')} text={record.phone} />
-                        <MobileOptionalField label={t('serviceRequests.table.topic')} text={record.topic} />
-                        <MobileField label={t('serviceRequests.table.sms')}>
-                          <Badge variant={SMS_BADGE_VARIANT[record.sms_status] || 'secondary'}>
-                            {smsOpt ? t(smsOpt.labelKey, smsOpt.fallback) : record.sms_status}
+                        <MobileOptionalField
+                          label={t("serviceRequests.table.operator")}
+                          text={record.operator_name}
+                        />
+                        <MobileOptionalField
+                          label={t("serviceRequests.table.client")}
+                          text={record.counterparty_name}
+                        />
+                        <MobileOptionalField
+                          label={t("serviceRequests.table.phone")}
+                          text={record.phone}
+                        />
+                        <MobileOptionalField
+                          label={t("serviceRequests.table.topic")}
+                          text={record.topic}
+                        />
+                        <MobileField label={t("serviceRequests.table.sms")}>
+                          <Badge
+                            variant={
+                              SMS_BADGE_VARIANT[record.sms_status] ||
+                              "secondary"
+                            }
+                          >
+                            {smsOpt
+                              ? t(smsOpt.labelKey, smsOpt.fallback)
+                              : record.sms_status}
                           </Badge>
                         </MobileField>
                       </VStack>
@@ -402,24 +486,9 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
                         {record.call_uniqueid && (
                           <RecordingButton uniqueid={record.call_uniqueid} />
                         )}
-                        <TableRowAction
-                          title={t('common.edit')}
-                          aria-label={t('common.edit')}
-                          onClick={() => handleEdit(record)}
-                        >
-                          <Pencil />
-                        </TableRowAction>
-                        <TableRowAction
-                          danger
-                          title={t('common.delete')}
-                          aria-label={t('common.delete')}
-                          onClick={() => void handleDelete(record.uid)}
-                        >
-                          <Trash2 />
-                        </TableRowAction>
                       </TableRowActions>
                     </HStack>
-                  </Flex>
+                  </TableCard>
                 );
               })
             )}
@@ -432,7 +501,11 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
   }
 
   return (
-    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
+    <Card
+      className={[tableStyles.surface, cls.card].join(" ")}
+      data-testid="hybrid-table"
+      data-hybrid="overflow-x-auto"
+    >
       <CardHeader>{toolbar}</CardHeader>
       <CardContent className={cls.cardContent}>
         <Flex
@@ -441,7 +514,10 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
           className={cls.tableScroll}
           data-testid="service-requests-table-scroll"
         >
-          <DataTable
+          <Table
+            onRowClick={handleEdit}
+            surface={false}
+            showSearch={false}
             ref={selection.tableRef}
             className={cls.table}
             columns={columns}
@@ -451,14 +527,16 @@ export function ServiceRequestsTable({ filters }: ServiceRequestsTableProps) {
             rowSelection={selection.rowSelection}
             onRowSelectionChange={selection.onRowSelectionChange}
             pageSize={PAGE_SIZE}
-            getRowClassName={(row) => STATUS_ROW_CLASS[row.request_status] || ''}
+            getRowClassName={(row) =>
+              STATUS_ROW_CLASS[row.request_status] || ""
+            }
             paginationMode="server"
             totalRows={totalCount}
             currentPage={currentPage}
             onPageChange={setCurrentPage}
-            emptyText={t('common.noData')}
-            selectAllAriaLabel={t('common.selectPageAria')}
-            renderBanner={renderSelectionBanner}
+            emptyText={t("common.noData")}
+            selectAllAriaLabel={t("common.selectPageAria")}
+
           />
         </Flex>
       </CardContent>

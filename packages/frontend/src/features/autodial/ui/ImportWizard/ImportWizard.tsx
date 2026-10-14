@@ -344,7 +344,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
               </HStack>
 
               <div className={cls.tableScroll}>
-                <Table>
+                <Table showSearch={false} showExport={false}>
                   <TableHeader>
                     <TableRow>
                       {previewData.headers.map((header, index) => (

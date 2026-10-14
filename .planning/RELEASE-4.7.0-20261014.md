@@ -1,0 +1,8 @@
+# Release 4.7.0 — PLAN / EXECUTION
+
+Coordinator/sole release writer: Codex /root, codex-direct. User authorizes current source commit/push to krasterisk/pbx main and deployment to 185.177.216.132. Preserve authored next version 4.7.0 (baseline release 4.6.9).
+Baseline main7263d499, production35c29abd healthy, no active calls. Recorded navigation/table/dashboard/standalone writers finished/idle; no other initiatives executed.
+Scope: source/document audit, root/workspace lock version metadata (dependency graph unchanged), scoped release blockers, exact published CI lint/backend/frontend/build/database contracts, Linux image build, fresh private backup, PG0033/0034/0035 additive upgrade, switch with application rollback, authenticated smoke including dashboard API and brand asset. No seeding, Asterisk restart or other production host/PM2 changes.
+Local release gates: lint PASS (existing warnings); schema9/9 and DBunit53/53 PASS after reviewing new Tenant fields and SupportPlan ownership. Immutable SQL001..0032 unchanged. Updated reviewed pin to ee3171f0c85896d56bf803e49a774a35e58dad5be86a55520b2b37a50b82f512, model-column delta74. Tests now isolate full-PBX support migration and relative0033→0034 order; no test assertions removed.
+Excluded: generated tsbuildinfo/dist/standalone bundles, npm caches, remote attachments, real live captures. Application source and reproducible docs retained. Exclusion manifest in Documents/Codex/release-4.7.0-excluded.json. No agents.
+Status: in_progress. Next: publish reviewed snapshot, CI/build/backup, validate and apply new PG migrations, switch/smoke. Other initiatives' human/audio/load/device pending gates remain separate.

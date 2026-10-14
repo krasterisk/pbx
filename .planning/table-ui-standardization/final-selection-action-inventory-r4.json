@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-12",
+  "productionModules": 510,
+  "rowCardCrudCandidates": [],
+  "sharedApi": {
+    "copy": "onCopySelected + selectedCount === 1 + stable entity identity",
+    "delete": "onDeleteSelected + feature confirmation",
+    "mobile": "TableCard.selection",
+    "semantic": "TableSelectionCell"
+  },
+  "exceptions": [
+    "Feature-specific SIP/recording/run/registration operations remain",
+    "Draft form schema/field editors remain local",
+    "Secrets and token URLs are clipboard operations, not entity cloning",
+    "Softphone contact book retains its existing single-contact confirmation, with one selected manageable contact"
+  ],
+  "migratedOwnedModules": 68,
+  "verification": "AST scan of TableRow/TableCard initially identified one contact-book row delete; it was moved to TableToolbar and rechecked."
+}

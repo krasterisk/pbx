@@ -8,13 +8,11 @@
 }
 
 .toolbarIcon {
-  color: var(--color-primary);
-  flex-shrink: 0;
+ composes: summaryIcon from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .count {
-  font-size: 1.125rem;
-  font-weight: 600;
+ composes: summaryCount from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .createIcon {
@@ -22,7 +20,7 @@
 }
 
 .name {
-  font-weight: 600;
+ composes: entityName from "../../../../shared/ui/Table/Table.module.scss";
 }
 
 .muted {

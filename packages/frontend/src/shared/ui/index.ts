@@ -23,8 +23,6 @@ export type {
 } from './DataTable';
 export { TableRowActions, TableRowAction, tableRowActionsStyles } from './TableRowActions';
 export type { TableRowActionsProps, TableRowActionProps } from './TableRowActions';
-export { TableSelectionBanner } from './TableSelectionBanner';
-export type { TableSelectionBannerProps } from './TableSelectionBanner';
 export { BulkDeleteDialog } from './BulkDeleteDialog';
 export type { BulkDeleteDialogProps } from './BulkDeleteDialog';
 export * from './Tooltip/Tooltip';

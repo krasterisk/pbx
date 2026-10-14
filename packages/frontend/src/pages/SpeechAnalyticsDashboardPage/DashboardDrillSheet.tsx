@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton, Text } from '@/shared/ui';
-import { useTenantTablePageSize } from '@/shared/ui/DataTable/TablePageSizeContext';
+import { useTenantTablePageSize } from '@/shared/ui/Table/TablePageSizeContext';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import {

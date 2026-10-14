@@ -18,8 +18,8 @@ export class CreateIntegrationBody {
   @ApiProperty({ maxLength: 120 })
   @IsString() @MinLength(1) @MaxLength(120) label!: string;
 
-  @ApiProperty({ enum: ['speech_analytics', 'ai_voice_robots'] })
-  @IsIn(['speech_analytics', 'ai_voice_robots']) product!: 'speech_analytics' | 'ai_voice_robots';
+  @ApiProperty({ enum: ['speech_analytics', 'ai_voice_robots', 'pbx_support'] })
+  @IsIn(['speech_analytics', 'ai_voice_robots', 'pbx_support']) product!: 'speech_analytics' | 'ai_voice_robots' | 'pbx_support';
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID() operationId!: string;
@@ -29,8 +29,8 @@ export class CreateIntegrationBody {
 }
 
 export class IntegrationGrantBody {
-  @ApiProperty({ enum: ['project', 'deployment'] })
-  @IsIn(['project', 'deployment']) resourceKind!: 'project' | 'deployment';
+  @ApiProperty({ enum: ['project', 'deployment', 'pbx'] })
+  @IsIn(['project', 'deployment', 'pbx']) resourceKind!: 'project' | 'deployment' | 'pbx';
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID() resourceId!: string;

@@ -2,3 +2,5 @@
 .sheetContent { width: min(320px, calc(100vw - 2rem)); padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
 .header { padding-right: 28px; }
 .menuTitle { font-size: 12px; color: var(--color-muted-foreground); margin-top: 8px; }
+
+.menuTitle:focus { outline: none; }

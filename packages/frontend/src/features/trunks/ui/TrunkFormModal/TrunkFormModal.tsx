@@ -1,10 +1,9 @@
-import { PasswordInput } from '@/shared/ui';
 import { toast } from 'react-toastify';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Key, Globe } from 'lucide-react';
-import { Button, Input, InfoTooltip, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, ModalBody, ModalSection, ModalTabs, Label, Text, Select } from '@/shared/ui';
+import { Button, Input, PasswordInput, InfoTooltip, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogFooter, ModalBody, ModalSection, ModalTabs, Label, Text, Select } from '@/shared/ui';
 import { VStack, HStack, Flex } from '@/shared/ui/Stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useAppStore';
 import {
@@ -30,7 +29,7 @@ const CODEC_OPTIONS = [
 ];
 
 const TRANSPORT_OPTIONS = [
-  { value: '', label: 'Default' },
+  { value: '', label: '' },
   { value: 'transport-udp', label: 'UDP' },
   { value: 'transport-tcp', label: 'TCP' },
   { value: 'transport-tls', label: 'TLS' },
@@ -211,7 +210,7 @@ export const TrunkFormModal = () => {
       // Schedule delayed refetch to pick up registration status change
       scheduleDelayedRefetch();
       handleClose();
-    } catch (e: any) {
+    } catch {
       toast.error(t("modal.errors.save"));
     }
   };
@@ -234,7 +233,7 @@ export const TrunkFormModal = () => {
               {mode === 'edit'
                 ? t('trunks.editTrunk')
                 : mode === 'copy'
-                  ? t('trunks.copyTrunk', 'Копировать транк')
+                  ? t('trunks.copyTrunk')
                   : t('trunks.addTrunk')}
             </DialogTitle>
 
@@ -242,11 +241,11 @@ export const TrunkFormModal = () => {
 
           {/* Tabs */}
           <ModalTabs items={[
-                { id: 'basic', label: t('trunks.tabBasic', 'Основные') },
-                { id: 'auth', label: t('trunks.tabAuth', 'Подключение') },
-                { id: 'network', label: t('trunks.tabNetwork', 'Сеть') },
-                { id: 'advanced', label: t('trunks.tabAdvanced', 'Расширенные') },
-              ]} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={t("trunks.tabGeneral", t("common.settings"))} />
+                { id: 'basic', label: t('trunks.tabBasic') },
+                { id: 'auth', label: t('trunks.tabAuth') },
+                { id: 'network', label: t('trunks.tabNetwork') },
+                { id: 'advanced', label: t('trunks.tabAdvanced') },
+              ]} value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)} label={t('modal.sections.settings')} />
 
           <ModalBody>
             {activeTab === 'basic' && (
@@ -261,7 +260,7 @@ export const TrunkFormModal = () => {
                     id="trunk-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder={t('trunks.namePlaceholder', 'my-provider')}
+                    placeholder={t('trunks.namePlaceholder')}
                     disabled={mode === 'edit'}
                     className={cls.mono}
                   />
@@ -270,16 +269,20 @@ export const TrunkFormModal = () => {
                 {/* Trunk Type */}
                 <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
-                    <Label className={cls.fieldLabel}>
+                    <Text as="span" id="trunk-type-label" className={cls.fieldLabel}>
                       {t('trunks.type')}
-                    </Label>
-                    <InfoTooltip text={t('trunks.typeDesc', 'По логину: Asterisk будет отправлять запросы на сервер провайдера. По IP: Asterisk будет ждать звонков от провайдера, авторизуя их по источнику.')} />
+                    </Text>
+                    <InfoTooltip text={[
+                      t('trunks.typeDesc'),
+                      trunkType === 'auth' ? t('trunks.typeAuthHint') : t('trunks.typeIpHint'),
+                    ].join('\n')} />
                   </HStack>
-                  <HStack gap="8">
+                  <HStack gap="8" wrap="wrap" role="group" aria-labelledby="trunk-type-label">
                     <Button
                       type="button"
                       disabled={!isCreateMode}
                       onClick={() => setTrunkType('auth')}
+                      aria-pressed={trunkType === 'auth'}
                       className={[cls.typeChoice, trunkType === 'auth' && cls.selected].filter(Boolean).join(" ")}
                     >
                       <Key className={cls.icon} />
@@ -289,17 +292,13 @@ export const TrunkFormModal = () => {
                       type="button"
                       disabled={!isCreateMode}
                       onClick={() => setTrunkType('ip')}
+                      aria-pressed={trunkType === 'ip'}
                       className={[cls.typeChoice, trunkType === 'ip' && cls.selected].filter(Boolean).join(" ")}
                     >
                       <Globe className={cls.icon} />
                       {t('trunks.typeIp')}
                     </Button>
                   </HStack>
-                  <Text className={cls.hintText}>
-                    {trunkType === 'auth'
-                      ? t('trunks.typeAuthHint')
-                      : t('trunks.typeIpHint')}
-                  </Text>
                 </VStack>
 
                 {/* Host */}
@@ -308,21 +307,22 @@ export const TrunkFormModal = () => {
                     <Label htmlFor="trunk-host" className={cls.fieldLabel}>
                       {t('trunks.host')}
                     </Label>
-                    <InfoTooltip text={t('trunks.hostDesc', 'Адрес (IP или домен) сервера провайдера, на который будут отправляться ваши звонки и SIP REGISTER запросы.')} />
+                    <InfoTooltip text={t('trunks.hostDesc')} />
                   </HStack>
                   <HStack gap="8">
                     <Input
                       id="trunk-host"
                       value={host}
                       onChange={(e) => setHost(e.target.value)}
-                      placeholder={t('trunks.hostPlaceholder', 'sip.provider.com')}
+                      placeholder={t('trunks.hostPlaceholder')}
                       className={cls.mono}
                     />
                     <Input
                       id="trunk-port"
+                      aria-label={t('trunks.port')}
                       value={port}
                       onChange={(e) => setPort(e.target.value.replace(/\D/g, ''))}
-                      placeholder={t('trunks.portPlaceholder', '5060')}
+                      placeholder={t('trunks.portPlaceholder')}
                       className={cls.portControl}
                     />
                   </HStack>
@@ -331,7 +331,7 @@ export const TrunkFormModal = () => {
                 {/* Context */}
                 <VStack align="stretch" gap="4">
                   <Label htmlFor="trunk-context" className={cls.fieldLabel}>
-                    {t('trunks.context', 'Контекст')} *
+                    {t('trunks.context')} *
                   </Label>
                   <Select
                     id="trunk-context"
@@ -339,27 +339,22 @@ export const TrunkFormModal = () => {
                     onChange={(e) => chooseContext(e.target.value)}
                     required
                     className={cls.control}
-                  >
-                    <option value="" disabled>{t('trunks.selectContext')}</option>
-                    {contexts.map((c) => (
-                      <option key={c.uid} value={c.name}>
-                        {c.name} {c.comment ? `(${c.comment})` : ''}
-                      </option>
-                    ))}
-                  </Select>
+                    options={[
+                      { value: '', label: t('trunks.selectContext'), disabled: true },
+                      ...contexts.map((c) => ({
+                        value: c.name,
+                        label: c.comment ? `${c.name} (${c.comment})` : c.name,
+                      })),
+                    ]}
+                  />
                 </VStack>
 
                 <VStack align="stretch" gap="4">
                   <HStack gap="4" align="center">
                     <Label htmlFor="trunk-max-channels" className={cls.fieldLabel}>
-                      {t('trunks.maxChannels', 'Лимит каналов')}
+                      {t('trunks.maxChannels')}
                     </Label>
-                    <InfoTooltip
-                      text={t(
-                        'trunks.maxChannelsDesc',
-                        'Сколько одновременных вызовов Asterisk и автообзвон держат на этом транке. Пусто или 0 — без ограничения.',
-                      )}
-                    />
+                    <InfoTooltip text={t('trunks.maxChannelsDesc')} />
                   </HStack>
                   <Input
                     id="trunk-max-channels"
@@ -367,7 +362,7 @@ export const TrunkFormModal = () => {
                     min={0}
                     value={maxChannels}
                     onChange={(e) => setMaxChannels(e.target.value.replace(/\D/g, ''))}
-                    placeholder={t('trunks.maxChannelsPlaceholder', 'без ограничения')}
+                    placeholder={t('trunks.maxChannelsPlaceholder')}
                     className={cls.narrowControl}
                   />
                 </VStack>
@@ -376,20 +371,14 @@ export const TrunkFormModal = () => {
             )}
 
             {activeTab === 'auth' && (
-              <ModalSection title={t("modal.sections.connection")}>
+              <ModalSection
+                title={trunkType === 'auth' ? t('trunks.authTitle') : t('trunks.ipTitle')}
+                tooltip={trunkType === 'auth' ? t('trunks.authDesc') : t('trunks.ipDesc')}
+              >
 
                 {trunkType === 'auth' ? (
                   <>
                     {/* Auth trunk fields */}
-                    <VStack align="stretch" max className={cls.hintCard}>
-                      <h4 className={cls.hintTitle}>
-                        {t('trunks.authTitle', 'Outbound Registration')}
-                      </h4>
-                      <Text className={cls.hintText}>
-                        {t('trunks.authDesc')}
-                      </Text>
-                    </VStack>
-
                     <VStack align="stretch" gap="4">
                       <Label htmlFor="trunk-username" className={cls.fieldLabel}>
                         {t('trunks.username')}
@@ -398,14 +387,14 @@ export const TrunkFormModal = () => {
                         id="trunk-username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder={t('trunks.usernamePlaceholder', 'sip_login')}
+                        placeholder={t('trunks.usernamePlaceholder')}
                         className={cls.mono}
                       />
                     </VStack>
 
                     <VStack align="stretch" gap="4">
                       <Label htmlFor="trunk-password" className={cls.fieldLabel}>
-                        {t('trunks.password', 'Пароль')}
+                        {t('trunks.password')}
                       </Label>
                       <PasswordInput
                         id="trunk-password"
@@ -417,34 +406,34 @@ export const TrunkFormModal = () => {
                     </VStack>
 
                     <VStack align="stretch" gap="4">
-                      <Label htmlFor="trunk-contact-user" className={cls.fieldLabel}>
-                        {t('trunks.contactUser', 'Contact User')} <Text className={cls.muted}>{t('trunks.contactUserLabelExtra', '(DID / B-номер)')}</Text>
-                      </Label>
+                      <HStack gap="4" align="center">
+                        <Label htmlFor="trunk-contact-user" className={cls.fieldLabel}>
+                          {t('trunks.contactUser')} <Text as="span" className={cls.muted}>{t('trunks.contactUserLabelExtra')}</Text>
+                        </Label>
+                        <InfoTooltip text={t('trunks.contactUserHintLong')} />
+                      </HStack>
                       <Input
                         id="trunk-contact-user"
                         value={contactUser}
                         onChange={(e) => setContactUser(e.target.value)}
-                        placeholder={t('trunks.contactUserPlaceholder', 'Например: 5551234')}
+                        placeholder={t('trunks.contactUserPlaceholder')}
                         className={cls.mono}
                       />
-                      <Text className={cls.hintText}>
-                        {t('trunks.contactUserHintLong', 'Номер, на который будут приходить звонки от провайдера. Вам потребуется создать правило во входящей маршрутизации для обработки этого номера.')}
-                      </Text>
                     </VStack>
 
-                    <HStack gap="16" align="start">
+                    <Flex gap="16" align="stretch" className={cls.gridTwo}>
                       <VStack align="stretch" gap="4" className={cls.control}>
                         <HStack gap="4" align="center">
                           <Label htmlFor="trunk-from-user" className={cls.fieldLabel}>
-                            {t('trunks.fromUser', 'From User')}
+                            {t('trunks.fromUser')}
                           </Label>
-                          <InfoTooltip text={t('trunks.fromUserDesc', 'Устанавливает имя пользователя (CallerID) в заголовке From. Если не заполнено, будет использован Логин.')} />
+                          <InfoTooltip text={t('trunks.fromUserDesc')} />
                         </HStack>
                         <Input
                           id="trunk-from-user"
                           value={fromUser}
                           onChange={(e) => setFromUser(e.target.value)}
-                          placeholder={t('trunks.fromUserHint', 'Обычно совпадает с логином')}
+                          placeholder={t('trunks.fromUserHint')}
                           className={cls.mono}
                         />
                       </VStack>
@@ -452,32 +441,32 @@ export const TrunkFormModal = () => {
                       <VStack align="stretch" gap="4" className={cls.control}>
                         <HStack gap="4" align="center">
                           <Label htmlFor="trunk-from-domain" className={cls.fieldLabel}>
-                            {t('trunks.fromDomain', 'From Domain')}
+                            {t('trunks.fromDomain')}
                           </Label>
-                          <InfoTooltip text={t('trunks.fromDomainDesc', 'Устанавливает домен в заголовках SIP. Заполняйте только если провайдер требует регистрации в определённом домене, который отличается от Host (как у Beeline/Rostelecom).')} />
+                          <InfoTooltip text={t('trunks.fromDomainDesc')} />
                         </HStack>
                         <Input
                           id="trunk-from-domain"
                           value={fromDomain}
                           onChange={(e) => setFromDomain(e.target.value)}
-                          placeholder={t('trunks.fromDomainPlaceholder', 'sip.provider.com')}
+                          placeholder={t('trunks.fromDomainPlaceholder')}
                           className={cls.mono}
                         />
                       </VStack>
-                    </HStack>
+                    </Flex>
 
                     <VStack align="stretch" gap="4">
                       <HStack gap="4" align="center">
                         <Label htmlFor="trunk-match-ip-auth" className={cls.fieldLabel}>
-                          {t('trunks.matchIp', 'IP / Подсеть провайдера')}
+                          {t('trunks.matchIp')}
                         </Label>
-                        <InfoTooltip text={t('trunks.matchIpAuthDesc', '**Пусто** - берётся Хост\n**IP или подсети** - входящие с этих адресов идут на этот транк\nБез совпадения вызов не попадёт на транк')} />
+                        <InfoTooltip text={t('trunks.matchIpAuthDesc')} />
                       </HStack>
                       <Input
                         id="trunk-match-ip-auth"
                         value={matchIp}
                         onChange={(e) => setMatchIp(e.target.value)}
-                        placeholder={host || t('trunks.matchIpPlaceholder', '203.0.113.0/24')}
+                        placeholder={host || t('trunks.matchIpPlaceholder')}
                         className={cls.mono}
                       />
                     </VStack>
@@ -485,29 +474,20 @@ export const TrunkFormModal = () => {
                 ) : (
                   <>
                     {/* IP trunk fields */}
-                    <VStack align="stretch" max className={cls.warningCard}>
-                      <h4 className={cls.hintTitle}>
-                        {t('trunks.ipTitle', 'Identify by IP')}
-                      </h4>
-                      <Text className={cls.hintText}>
-                        {t('trunks.ipDesc')}
-                      </Text>
-                    </VStack>
-
                     <VStack align="stretch" gap="4">
-                      <Label htmlFor="trunk-match-ip" className={cls.fieldLabel}>
-                        {t('trunks.matchIp', 'IP / Подсеть провайдера')}
-                      </Label>
+                      <HStack gap="4" align="center">
+                        <Label htmlFor="trunk-match-ip" className={cls.fieldLabel}>
+                          {t('trunks.matchIp')}
+                        </Label>
+                        <InfoTooltip text={t('trunks.matchIpHint')} />
+                      </HStack>
                       <Input
                         id="trunk-match-ip"
                         value={matchIp}
                         onChange={(e) => setMatchIp(e.target.value)}
-                        placeholder={t('trunks.matchIpPlaceholder', '203.0.113.0/24')}
+                        placeholder={t('trunks.matchIpPlaceholder')}
                         className={cls.mono}
                       />
-                      <Text className={cls.hintText}>
-                        {t('trunks.matchIpHint')}
-                      </Text>
                     </VStack>
                   </>
                 )}
@@ -521,33 +501,32 @@ export const TrunkFormModal = () => {
                 {/* Transport */}
                 <VStack align="stretch" gap="4">
                   <Label htmlFor="trunk-transport" className={cls.fieldLabel}>
-                    {t('trunks.transport', 'Транспорт')}
+                    {t('trunks.transport')}
                   </Label>
                   <Select
                     id="trunk-transport"
                     value={transport}
                     onChange={(e) => setTransport(e.target.value)}
                     className={cls.control}
-                  >
-                    {TRANSPORT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.value ? opt.label : t("modal.defaultOption")}
-                      </option>
-                    ))}
-                  </Select>
+                    options={TRANSPORT_OPTIONS.map((opt) => ({
+                      ...opt,
+                      label: opt.value ? opt.label : t('modal.defaultOption'),
+                    }))}
+                  />
                 </VStack>
 
                 {/* Codecs */}
                 <VStack align="stretch" gap="4">
-                  <Label className={cls.fieldLabel}>
-                    {t('trunks.codecs', 'Кодеки')}
-                  </Label>
-                  <Flex wrap="wrap" gap="8">
+                  <Text as="span" id="trunk-codecs-label" className={cls.fieldLabel}>
+                    {t('trunks.codecs')}
+                  </Text>
+                  <Flex wrap="wrap" gap="8" role="group" aria-labelledby="trunk-codecs-label">
                     {CODEC_OPTIONS.map((codec) => (
                       <Button
                         key={codec}
                         type="button"
                         onClick={() => toggleCodec(codec)}
+                        aria-pressed={codecs.includes(codec)}
                         className={[cls.codec, codecs.includes(codec) && cls.selected].filter(Boolean).join(" ")}
                       >
                         {codec}
@@ -556,7 +535,7 @@ export const TrunkFormModal = () => {
                   </Flex>
                 </VStack>
 
-                <HStack gap="16" align="start">
+                <Flex gap="16" align="stretch" className={cls.gridTwo}>
                   <VStack align="stretch" gap="4" className={cls.control}>
                     <HStack gap="4" align="center">
                       <Label htmlFor="trunk-qualify" className={cls.fieldLabel}>
@@ -596,13 +575,14 @@ export const TrunkFormModal = () => {
                       />
                     </VStack>
                   )}
-                </HStack>
+                </Flex>
 
 </ModalSection>
             )}
 
             {activeTab === 'advanced' && (
               <AdvancedSettingsBuilder
+                title={t('trunks.advancedBuilderTitle')}
                 value={advancedState}
                 onChange={setAdvancedState}
                 excludeFields={['from_user', 'from_domain', 'contact_user']}

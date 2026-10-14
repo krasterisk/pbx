@@ -1,13 +1,12 @@
+import type { IMohClass } from '@/entities/moh';
+import { useDeleteMohClassMutation } from '@/shared/api/endpoints/mohApi';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { Text } from '@/shared/ui';
+import { HStack } from '@/shared/ui/Stack';
+import { createColumnHelper } from '@tanstack/react-table';
+import { Music } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createColumnHelper } from '@tanstack/react-table';
-import { Music, Pencil, Trash2 } from 'lucide-react';
-import { HStack } from '@/shared/ui/Stack';
-import { TableRowActions, TableRowAction, Text } from '@/shared/ui';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { useDeleteMohClassMutation } from '@/shared/api/endpoints/mohApi';
-import { mohActions } from '../../model/slice/mohSlice';
-import type { IMohClass } from '@/entities/moh';
 import cls from './MohTable.module.scss';
 
 const columnHelper = createColumnHelper<IMohClass>();
@@ -64,39 +63,7 @@ export const useMohTableColumns = () => {
         },
       }),
 
-      columnHelper.display({
-        id: 'actions',
-        header: () => t('common.actions'),
-        cell: (info) => {
-          const moh = info.row.original;
-          return (
-            <TableRowActions>
-              <TableRowAction
-                title={t('common.edit')}
-                aria-label={t('common.edit')}
-                onClick={() => dispatch(mohActions.openEditModal(moh))}
-              >
-                <Pencil />
-              </TableRowAction>
-              <TableRowAction
-                danger
-                title={t('common.delete')}
-                aria-label={t('common.delete')}
-                onClick={() => {
-                  const confirmed = window.confirm(
-                    t('moh.confirmDelete').replace('{{name}}', moh.displayName),
-                  );
-                  if (confirmed) {
-                    deleteMoh(moh.name);
-                  }
-                }}
-              >
-                <Trash2 />
-              </TableRowAction>
-            </TableRowActions>
-          );
-        },
-      }),
+
     ],
     [t, dispatch, deleteMoh],
   );

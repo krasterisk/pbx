@@ -1,29 +1,25 @@
-import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { memo, useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { type Table } from '@tanstack/react-table';
-import { ListOrdered, Search, Loader2, Trash2, Pencil, Copy } from 'lucide-react';
+import { TableCard } from "@/shared/ui";
+
 import {
-  Card,
-  CardHeader,
-  CardContent,
-  Input,
-  Button,
-  DataTable,
-  Text,
-  TableRowActions,
-  TableRowAction,
-  TableSelectionBanner,
-  BulkDeleteDialog,
-} from '@/shared/ui';
-import { Flex, HStack, VStack } from '@/shared/ui/Stack';
-import { useGetQueuesQuery, useDeleteQueueMutation } from '@/shared/api/endpoints/queueApi';
-import { useAppDispatch } from '@/shared/hooks/useAppStore';
-import { useIsMobile } from '@/shared/hooks/useIsMobile';
-import { useCrossPageRowSelection } from '@/shared/hooks/useCrossPageRowSelection';
-import { queuesPageActions } from '../../model/slice/queuesPageSlice';
-import { formatQueueStrategy, useQueuesTableColumns } from './useQueuesTableColumns';
-import cls from './QueuesTable.module.scss';
+  useDeleteQueueMutation,
+  useGetQueuesQuery,
+} from "@/shared/api/endpoints/queueApi";
+import { useAppDispatch } from "@/shared/hooks/useAppStore";
+import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { BulkDeleteDialog, Card, CardContent, CardHeader, Table, TableToolbar, Text, tableStyles } from "@/shared/ui";
+import { QueryErrorState } from "@/shared/ui/QueryErrorState";
+import { Flex, HStack, VStack } from "@/shared/ui/Stack";
+
+import { ListOrdered, Loader2 } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { queuesPageActions } from "../../model/slice/queuesPageSlice";
+import cls from "./QueuesTable.module.scss";
+import {
+  formatQueueStrategy,
+  useQueuesTableColumns,
+} from "./useQueuesTableColumns";
 
 const PAGE_SIZE = 50;
 
@@ -31,10 +27,15 @@ export const QueuesTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const isMobile = useIsMobile(768);
-  const { data: queues = [], isLoading, isError: isListLoadError, refetch: retryListLoad } = useGetQueuesQuery();
+  const {
+    data: queues = [],
+    isLoading,
+    isError: isListLoadError,
+    refetch: retryListLoad,
+  } = useGetQueuesQuery();
   const [deleteQueue] = useDeleteQueueMutation();
 
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [globalFilter, setGlobalFilter] = useState("");
   const selection = useCrossPageRowSelection({ globalFilter });
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -44,9 +45,9 @@ export const QueuesTable = memo(() => {
     const q = globalFilter.trim().toLowerCase();
     if (!q) return queues;
     return queues.filter((row) => {
-      const exten = (row.exten || row.name || '').toLowerCase();
-      const display = (row.display_name || '').toLowerCase();
-      const strategy = (row.strategy || '').toLowerCase();
+      const exten = (row.exten || row.name || "").toLowerCase();
+      const display = (row.display_name || "").toLowerCase();
+      const strategy = (row.strategy || "").toLowerCase();
       return exten.includes(q) || display.includes(q) || strategy.includes(q);
     });
   }, [queues, globalFilter]);
@@ -72,20 +73,7 @@ export const QueuesTable = memo(() => {
     }
   }, [selection, deleteQueue]);
 
-  const renderSelectionBanner = useCallback(
-    (table: Table<(typeof queues)[number]>) => (
-      <TableSelectionBanner
-        table={table}
-        pageSize={PAGE_SIZE}
-        allMatchingSelected={selection.allMatchingSelected}
-        selectedIds={selection.selectedIds}
-        selectedCount={selection.selectedCount}
-        onSelectAllMatching={selection.selectAllMatching}
-        onClear={selection.clearSelection}
-      />
-    ),
-    [selection],
-  );
+
 
   const bulkDeleteDialog = (
     <BulkDeleteDialog
@@ -104,41 +92,51 @@ export const QueuesTable = memo(() => {
     <Flex justify="between" align="center" className={cls.toolbar} max>
       <HStack gap="8" align="center">
         <ListOrdered size={20} className={cls.toolbarIcon} />
-        <Text className={cls.count}>{t('queues.count', { count: queues.length })}</Text>
+        <Text className={cls.count}>
+          {t("queues.count", { count: queues.length })}
+        </Text>
       </HStack>
       <HStack gap="8" align="center" className={cls.toolbarActions}>
-        {!isMobile && (
-          <Button
-            variant="destructive"
-            className={selection.selectedCount === 0 ? cls.bulkBtnHidden : undefined}
-            disabled={isDeleting || selection.selectedCount === 0}
-            aria-hidden={selection.selectedCount === 0}
-            tabIndex={selection.selectedCount === 0 ? -1 : undefined}
-            onClick={selection.openBulkDelete}
-          >
-            {isDeleting ? <Loader2 size={16} className={cls.spinner} /> : <Trash2 size={16} />}
-            {t('queues.deleteSelected', { count: selection.selectedCount })}
-          </Button>
-        )}
-        <Flex align="center" className={cls.searchWrap}>
-          <Search size={16} className={cls.searchIcon} />
-          <Input
-            id="queues-search"
-            placeholder={t('common.search')}
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className={cls.searchInput}
-          />
-        </Flex>
+        <TableToolbar
+          tableRef={selection.tableRef}
+          searchId="queues-search"
+          searchPlaceholder={t("common.search")}
+          searchValue={globalFilter}
+          onSearchChange={(value) => setGlobalFilter(value)}
+          exportTable={{
+            data: queues,
+            columns: columns,
+            getRowId: (row) => row.name,
+            globalFilter: globalFilter,
+            rowSelection: selection.rowSelection,
+            filename: "queues_export",
+          }}
+          selection={selection}
+          onCopySelected={(item) =>
+            dispatch(queuesPageActions.openCopyModal(item.name))
+          }
+
+          onDeleteSelected={selection.openBulkDelete}
+          deleteDisabled={isDeleting}
+          deleteLabel={t("queues.deleteSelected", {
+            count: selection.selectedCount,
+          })}
+        />
       </HStack>
     </Flex>
   );
 
-  if (isListLoadError) return <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void retryListLoad()} />;
+  if (isListLoadError)
+    return (
+      <QueryErrorState
+        message={t("common.queryLoadError")}
+        onRetry={() => void retryListLoad()}
+      />
+    );
   if (isLoading) {
     return (
-      <Card className={cls.card}>
-        <CardHeader>{toolbar}</CardHeader>
+      <Card className={[tableStyles.surface, cls.card].join(" ")}>
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <Flex align="center" justify="center" className={cls.loading}>
             <Loader2 size={24} className={cls.spinner} />
@@ -150,62 +148,49 @@ export const QueuesTable = memo(() => {
 
   if (isMobile) {
     return (
-      <Card className={cls.card} data-testid="hybrid-table" data-hybrid="mobile-card">
-        <CardHeader>{toolbar}</CardHeader>
+      <Card
+        className={[tableStyles.surface, cls.card].join(" ")}
+        data-testid="hybrid-table"
+        data-hybrid="mobile-card"
+      >
+        <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
         <CardContent>
           <VStack gap="8" max className={cls.mobileList}>
             {filtered.length === 0 ? (
               <Text variant="muted" className={cls.mobileEmpty}>
-                {t('queues.noQueues')}
+                {t("queues.noQueues")}
               </Text>
             ) : (
               filtered.map((row) => (
-                <Flex
+                <TableCard
+                  onActivate={() =>
+                    dispatch(queuesPageActions.openEditModal(row.name))
+                  }
                   key={row.name}
                   direction="column"
-                  className={cls.mobileCard}
+                  className={[tableStyles.card, cls.mobileCard].join(" ")}
                   data-testid="queues-mobile-card"
+                  selection={selection.cardSelection(
+                    String(row.name),
+                    t("common.selectRowAria", { index: String(row.name) }),
+                  )}
                 >
                   <HStack justify="between" align="start" max>
                     <VStack gap="4">
-                      <Text as="span" className={cls.exten}>{row.exten || row.name}</Text>
-                      <Text as="span" className={cls.name}>{row.display_name || '-'}</Text>
+                      <Text as="span" className={cls.exten}>
+                        {row.exten || row.name}
+                      </Text>
+                      <Text as="span" className={cls.name}>
+                        {row.display_name || "-"}
+                      </Text>
                       <Text as="span" className={cls.muted}>
                         {formatQueueStrategy(row.strategy, t)}
-                        {' · '}
-                        {row.memberCount || 0} {t('queues.members')}
+                        {" · "}
+                        {row.memberCount || 0} {t("queues.members")}
                       </Text>
                     </VStack>
-                    <TableRowActions>
-                      <TableRowAction
-                        title={t('common.edit')}
-                        aria-label={t('common.edit')}
-                        onClick={() => dispatch(queuesPageActions.openEditModal(row.name))}
-                      >
-                        <Pencil />
-                      </TableRowAction>
-                      <TableRowAction
-                        title={t('common.copy')}
-                        aria-label={t('common.copy')}
-                        onClick={() => dispatch(queuesPageActions.openCopyModal(row.name))}
-                      >
-                        <Copy />
-                      </TableRowAction>
-                      <TableRowAction
-                        danger
-                        title={t('common.delete')}
-                        aria-label={t('common.delete')}
-                        onClick={() => {
-                          if (window.confirm(t('queues.confirmDelete', { name: row.name }))) {
-                            deleteQueue(row.name);
-                          }
-                        }}
-                      >
-                        <Trash2 />
-                      </TableRowAction>
-                    </TableRowActions>
                   </HStack>
-                </Flex>
+                </TableCard>
               ))
             )}
           </VStack>
@@ -216,8 +201,12 @@ export const QueuesTable = memo(() => {
   }
 
   return (
-    <Card className={cls.card} data-testid="hybrid-table" data-hybrid="overflow-x-auto">
-      <CardHeader>{toolbar}</CardHeader>
+    <Card
+      className={[tableStyles.surface, cls.card].join(" ")}
+      data-testid="hybrid-table"
+      data-hybrid="overflow-x-auto"
+    >
+      <CardHeader className={tableStyles.toolbarPanel}>{toolbar}</CardHeader>
       <CardContent className={cls.cardContent}>
         <Flex
           direction="column"
@@ -225,7 +214,13 @@ export const QueuesTable = memo(() => {
           className={cls.tableScroll}
           data-testid="queues-table-scroll"
         >
-          <DataTable
+          <Table
+            onRowClick={(row) =>
+              dispatch(queuesPageActions.openEditModal(row.name))
+            }
+            surface={false}
+            showSearch={false}
+            showExport={false}
             ref={selection.tableRef}
             className={cls.table}
             data={queues}
@@ -236,10 +231,10 @@ export const QueuesTable = memo(() => {
             onRowSelectionChange={selection.onRowSelectionChange}
             globalFilter={globalFilter}
             pageSize={PAGE_SIZE}
-            emptyText={t('queues.noQueues')}
+            emptyText={t("queues.noQueues")}
             exportFilename="queues_export"
-            selectAllAriaLabel={t('common.selectPageAria')}
-            renderBanner={renderSelectionBanner}
+            selectAllAriaLabel={t("common.selectPageAria")}
+
           />
         </Flex>
       </CardContent>
@@ -248,4 +243,4 @@ export const QueuesTable = memo(() => {
   );
 });
 
-QueuesTable.displayName = 'QueuesTable';
+QueuesTable.displayName = "QueuesTable";

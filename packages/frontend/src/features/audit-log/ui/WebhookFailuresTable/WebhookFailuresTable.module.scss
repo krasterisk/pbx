@@ -4,7 +4,9 @@
    ───────────────────────────────────────────────────── */
 
 .wrap {
-  overflow-x: auto;
+ composes: section from '../../../../shared/ui/Table/Table.module.scss';
+
+
 }
 
 .toolbar {

@@ -16,7 +16,10 @@ import cls from './TenantFormModal.module.scss';
 type Tab = 'general' | 'limits';
 
 export const TenantFormModal = memo(() => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const dashboardLabel = (key: string, ru: string, en: string) => t(key, {
+    defaultValue: (i18n?.resolvedLanguage ?? i18n?.language ?? 'ru').startsWith('en') ? en : ru,
+  });
   const dispatch = useAppDispatch();
   const { isModalOpen, modalMode, selectedTenant } = useAppSelector((s) => s.tenantsPage);
   const { data: sellers = [] } = useGetSellersQuery(undefined, { skip: !isModalOpen });
@@ -36,6 +39,11 @@ export const TenantFormModal = memo(() => {
   const [maxQueues, setMaxQueues] = useState('3');
   const [sellerId, setSellerId] = useState<number | ''>('');
   const [ownModels, setOwnModels] = useState(false);
+  const [planName, setPlanName] = useState('');
+  const [planExpiry, setPlanExpiry] = useState('');
+  const [maxConcurrent, setMaxConcurrent] = useState('');
+  const [timezone, setTimezone] = useState('UTC');
+  const [saveError, setSaveError] = useState('');
 
   const [createTenant, { isLoading: isCreating }] = useCreateTenantMutation();
   const [updateTenant, { isLoading: isUpdating }] = useUpdateTenantMutation();
@@ -54,6 +62,10 @@ export const TenantFormModal = memo(() => {
       setMaxQueues(String(selectedTenant.max_queues));
       setSellerId(selectedTenant.seller_id || '');
       setOwnModels(selectedTenant.sa_own_models === true);
+      setPlanName(selectedTenant.plan_name ?? '');
+      setPlanExpiry(selectedTenant.plan_expires_at?.slice(0, 16) ?? '');
+      setMaxConcurrent(selectedTenant.max_concurrent_calls == null ? '' : String(selectedTenant.max_concurrent_calls));
+      setTimezone(selectedTenant.timezone ?? 'UTC');
       setPassword('');
     } else {
       setName('');
@@ -69,7 +81,12 @@ export const TenantFormModal = memo(() => {
       setMaxQueues('3');
       setSellerId('');
       setOwnModels(false);
+      setPlanName('');
+      setPlanExpiry('');
+      setMaxConcurrent('');
+      setTimezone('UTC');
     }
+    setSaveError('');
     setActiveTab('general');
   }, [modalMode, selectedTenant, isModalOpen]);
 
@@ -85,13 +102,29 @@ export const TenantFormModal = memo(() => {
     || sellers.find((seller) => seller.isDefault)?.id
     || sellers[0]?.id
     || '';
-  const isValid = modalMode === 'edit'
+  let timezoneValid = false;
+  try { new Intl.DateTimeFormat('en', { timeZone: timezone.trim() }).format(); timezoneValid = Boolean(timezone.trim()); }
+  catch { /* Invalid organization zone prevents a misleading dashboard period. */ }
+  const concurrencyValid = maxConcurrent === '' || /^\d+$/.test(maxConcurrent) && Number(maxConcurrent) <= 1_000_000;
+  const dashboardValid = timezoneValid && concurrencyValid && planName.trim().length <= 128;
+  const isValid = dashboardValid && (modalMode === 'edit'
     ? Boolean(name.trim())
-    : Boolean(name.trim() && email.trim() && resolvedSellerId && password.trim());
+    : Boolean(name.trim() && email.trim() && resolvedSellerId && password.trim()));
 
   const handleSubmit = async () => {
     if (!isValid) return;
     const seller = resolvedSellerId || selectedTenant?.seller_id || undefined;
+    setSaveError('');
+    const dashboardSettings = {
+      plan_name: planName.trim() || null,
+      plan_expires_at: planExpiry
+        ? planExpiry === selectedTenant?.plan_expires_at?.slice(0, 16)
+          ? selectedTenant.plan_expires_at
+          : new Date(`${planExpiry}Z`).toISOString()
+        : null,
+      max_concurrent_calls: maxConcurrent === '' ? null : Number(maxConcurrent),
+      timezone: timezone.trim(),
+    };
     try {
       if (modalMode === 'create') {
         await createTenant({
@@ -107,6 +140,7 @@ export const TenantFormModal = memo(() => {
           max_trunks: parseInt(maxTrunks, 10) || 2,
           max_queues: parseInt(maxQueues, 10) || 3,
           seller_id: seller,
+          ...dashboardSettings,
         }).unwrap();
       } else if (selectedTenant) {
         await updateTenant({
@@ -122,12 +156,14 @@ export const TenantFormModal = memo(() => {
             max_queues: parseInt(maxQueues, 10) || 3,
             seller_id: seller,
             sa_own_models: ownModels,
+            ...dashboardSettings,
           },
         }).unwrap();
       }
       handleClose();
     } catch (err) {
       console.error('Tenant form error:', err);
+      setSaveError(dashboardLabel('cloudAdmin.tenants.dashboard.saveError', 'Не удалось сохранить кабинет. Проверьте поля и повторите попытку.', 'Could not save the cabinet. Check the fields and try again.'));
     }
   };
 
@@ -150,7 +186,7 @@ export const TenantFormModal = memo(() => {
         <Flex direction="column" className={cls.tabsWrap} max>
           <Flex className={cls.tabsRow} role="tablist" max>
             {TABS.map((tab) => (
-              <button
+              <Button
                 key={tab.key}
                 type="button"
                 role="tab"
@@ -159,7 +195,7 @@ export const TenantFormModal = memo(() => {
                 onClick={() => setActiveTab(tab.key)}
               >
                 <Text as="span">{tab.label}</Text>
-              </button>
+              </Button>
             ))}
           </Flex>
         </Flex>
@@ -318,6 +354,26 @@ export const TenantFormModal = memo(() => {
 
           {activeTab === 'limits' && (
             <VStack align="stretch" gap="16" max>
+              <Text>{dashboardLabel('cloudAdmin.tenants.dashboard.title', 'Тариф АТС и время организации', 'PBX plan and organization time')}</Text>
+              <Flex className={cls.formGrid} max>
+                <VStack align="stretch" gap="8" max className={cls.field}>
+                  <Label htmlFor="tenant-plan-name">{dashboardLabel('cloudAdmin.tenants.dashboard.planName', 'Название тарифа АТС', 'PBX plan name')}</Label>
+                  <Input id="tenant-plan-name" value={planName} maxLength={128} onChange={(event) => setPlanName(event.target.value)} />
+                </VStack>
+                <VStack align="stretch" gap="8" max className={cls.field}>
+                  <Label htmlFor="tenant-plan-expiry">{dashboardLabel('cloudAdmin.tenants.dashboard.expiry', 'Тариф действует до (UTC)', 'Plan expires at (UTC)')}</Label>
+                  <Input id="tenant-plan-expiry" type="datetime-local" value={planExpiry} onChange={(event) => setPlanExpiry(event.target.value)} />
+                </VStack>
+                <VStack align="stretch" gap="8" max className={cls.field}>
+                  <Label htmlFor="tenant-max-concurrent">{dashboardLabel('cloudAdmin.tenants.dashboard.concurrent', 'Макс. одновременных звонков', 'Maximum concurrent calls')}</Label>
+                  <Input id="tenant-max-concurrent" type="number" min="0" max="1000000" step="1" value={maxConcurrent} aria-invalid={!concurrencyValid} onChange={(event) => setMaxConcurrent(event.target.value)} />
+                  <Text className={cls.hint}>{dashboardLabel('cloudAdmin.tenants.dashboard.unknownLimit', 'Пустое поле — лимит не задан', 'Leave empty when the limit is unknown')}</Text>
+                </VStack>
+                <VStack align="stretch" gap="8" max className={cls.field}>
+                  <Label htmlFor="tenant-timezone">{dashboardLabel('cloudAdmin.tenants.dashboard.timezone', 'Часовой пояс организации (IANA)', 'Organization timezone (IANA)')}</Label>
+                  <Input id="tenant-timezone" value={timezone} placeholder="Asia/Krasnoyarsk" aria-invalid={!timezoneValid} onChange={(event) => setTimezone(event.target.value)} />
+                </VStack>
+              </Flex>
               <Flex className={cls.formGrid} max>
                 <VStack align="stretch" gap="8" max className={cls.field}>
                   <Label htmlFor="tenant-max-ext">
@@ -361,6 +417,7 @@ export const TenantFormModal = memo(() => {
         </ModalBody>
 
         <DialogFooter className={cls.footer}>
+          {saveError && <Text role="alert">{saveError}</Text>}
           <HStack gap="8" justify="end" max wrap="wrap">
             <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
               {t('common.cancel', 'Отмена')}

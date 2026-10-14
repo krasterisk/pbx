@@ -92,6 +92,11 @@ export class McpToolsService implements OnApplicationBootstrap {
         }));
     }
 
+    /** Tool-budget priority only; authorization and execution still use the hardened dispatcher. */
+    getToolNamesForDomains(domains: string[]): string[] {
+        return [...new Set(domains.flatMap(domain => this.aiAdapterRegistry.getAdapter(domain)?.getTools().map(tool => tool.name) ?? []))];
+    }
+
     isMutationTool(name: string): boolean {
         return !!this.toolRegistry.get(name)?.mutation;
     }

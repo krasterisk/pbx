@@ -494,6 +494,10 @@ describe('global sidebar on service pages and resize preferences', () => {
   expect(screen.queryByRole('separator')).toBeNull();
   fireEvent.click(screen.getByTestId('sidebar-module-apps'));
   expect(screen.getByTestId('sidebar-module-apps')).toHaveAttribute('aria-expanded','true');
+  expect(screen.getByTestId('module-shell-sidebar')).toHaveAttribute('data-collapsed','true');
+  expect(screen.getByTestId('sidebar-module-flyout-apps')).toBeInTheDocument();
+  expect(screen.queryByRole('separator')).toBeNull();
+  fireEvent.click(screen.getByTestId('sidebar-collapse'));
   expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow',String(initial+16));
  });
  it('limits keyboard resizing and rejects invalid stored widths', () => {

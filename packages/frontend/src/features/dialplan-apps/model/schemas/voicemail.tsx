@@ -1,3 +1,4 @@
+import { summaryRefLabel } from '../summaryLabels';
 import { Input, Select, Switch } from '@/shared/ui';
 import { useGetNotificationsQuery } from '@/shared/api/endpoints/notificationApi';
 import type { FieldSchema, SchemaFieldRenderCtx } from '../schema.types';
@@ -7,13 +8,13 @@ type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 const RECORD_FLAGS = ['q', 'o', 'x', 'y', 'n', 's', 'u'] as const;
 
 const FLAG_FALLBACK: Record<(typeof RECORD_FLAGS)[number], string> = {
-  q: 'q — без гудка перед записью',
-  o: 'o — остановить запись по 0',
-  x: 'x — игнорировать завершающий #',
-  y: 'y — разрешить запись после таймаута',
-  n: 'n — не отвечать на канал',
-  s: 's — пропустить, если канал не отвечен',
-  u: 'u — уникальное имя файла',
+  q: 'q - без гудка перед записью',
+  o: 'o - остановить запись по 0',
+  x: 'x - игнорировать завершающий #',
+  y: 'y - разрешить запись после таймаута',
+  n: 'n - не отвечать на канал',
+  s: 's - пропустить, если канал не отвечен',
+  u: 'u - уникальное имя файла',
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -92,13 +93,13 @@ function RecordFlagToggle({ flag, ctx }: { flag: (typeof RECORD_FLAGS)[number]; 
   );
 }
 
-export function summarizeVoicemail(params: Record<string, unknown>, t: TFn): string {
+export function summarizeVoicemail(params: Record<string, unknown>, t: TFn, refs?: Record<string, unknown>): string {
   const duration = Number(params.max_duration ?? 120) || 120;
   const greeting = String(params.greeting ?? '').trim();
   if (greeting) {
     return t('routes.apps.voicemail.summary', 'Голосовая почта {{duration}} с, {{greeting}}')
       .replace('{{duration}}', String(duration))
-      .replace('{{greeting}}', greeting);
+      .replace('{{greeting}}', summaryRefLabel(refs, 'prompts', greeting, t, greeting));
   }
   return t('routes.apps.voicemail.summaryDefault', 'Голосовая почта {{duration}} с')
     .replace('{{duration}}', String(duration));

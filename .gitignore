@@ -42,3 +42,10 @@ speech-analytics-samples/
 **/speech-analytics-samples/**/*.ogg
 **/speech-analytics-samples/**/*.m4a
 
+
+# Local release captures and generated standalone builds
+artifacts/
+.codex-remote-attachments/
+dist-voice-robots/
+dist-mpbx-standalone/
+*.tsbuildinfo

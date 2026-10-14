@@ -47,10 +47,10 @@ export function buildHangupSchema(t: TFn): FieldSchema[] {
       visibleWhen: { key: 'signal', equals: 'hangup' },
       options: [
         { value: '', labelKey: 'routes.apps.hangup.causeDefault', label: t('routes.apps.hangup.causeDefault', 'Без кода') },
-        { value: '16', labelKey: 'routes.apps.hangup.cause16', label: t('routes.apps.hangup.cause16', '16 — нормальное завершение') },
-        { value: '17', labelKey: 'routes.apps.hangup.cause17', label: t('routes.apps.hangup.cause17', '17 — абонент занят') },
-        { value: '19', labelKey: 'routes.apps.hangup.cause19', label: t('routes.apps.hangup.cause19', '19 — нет ответа') },
-        { value: '21', labelKey: 'routes.apps.hangup.cause21', label: t('routes.apps.hangup.cause21', '21 — вызов отклонён') },
+        { value: '16', labelKey: 'routes.apps.hangup.cause16', label: t('routes.apps.hangup.cause16', '16 - нормальное завершение') },
+        { value: '17', labelKey: 'routes.apps.hangup.cause17', label: t('routes.apps.hangup.cause17', '17 - абонент занят') },
+        { value: '19', labelKey: 'routes.apps.hangup.cause19', label: t('routes.apps.hangup.cause19', '19 - нет ответа') },
+        { value: '21', labelKey: 'routes.apps.hangup.cause21', label: t('routes.apps.hangup.cause21', '21 - вызов отклонён') },
       ],
     },
   ];
@@ -67,7 +67,8 @@ export function summarizeHangup(params: Record<string, unknown>, t: TFn): string
     return t('routes.chain.hangup.summaryCongestion', 'Сигнал «Перегрузка», {{timeout}} сек').replace('{{timeout}}', timeout);
   }
   const cause = String(params.causecode ?? '').trim();
+  const causeLabel = cause ? t(`routes.apps.hangup.cause${cause}`, `${cause} - ${t('routes.apps.hangup.unknownCause', 'Описание недоступно')}`) : '';
   return cause
-    ? t('routes.chain.hangup.summaryCause', 'Завершить вызов (код {{cause}})').replace('{{cause}}', cause)
+    ? t('routes.chain.hangup.summaryCause', 'Завершить вызов (код {{cause}})').replace('{{cause}}', causeLabel)
     : t('routes.chain.hangup.summary', 'Завершить вызов');
 }

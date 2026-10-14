@@ -1,0 +1,38 @@
+{
+  "format": "krasterisk.voice-robot.scenario",
+  "version": 1,
+  "exportedAt": "2026-10-13T00:00:00.000Z",
+  "scenario": {
+    "greetingTtsText": "Здравствуйте! Это тест голосового робота. Скажите помощь, чтобы услышать инструкцию, или пока, чтобы закончить.",
+    "initialGroupKey": "group:1",
+    "fallbackBotAction": { "response": { "type": "tts", "value": "Не удалось понять ответ. Скажите помощь или пока." }, "nextState": { "type": "switch_group", "target": "group:1" } },
+    "maxRetriesBotAction": { "response": { "type": "tts", "value": "Не удалось продолжить диалог. Завершаю тест. До свидания!" }, "nextState": { "type": "hangup" } },
+    "dataLists": [],
+    "groups": [
+      {
+        "key": "group:1", "name": "Старт", "description": "Начало тестового диалога", "priority": 0, "active": true, "is_global": false,
+        "keywords": [
+          { "keywords": "помощь", "negative_keywords": [], "synonyms": ["инструкция", "подскажите"], "max_repeats": 0, "escalation_action": null, "priority": 0, "comment": "Перейти к проверке понимания", "tag": "help",
+            "bot_action": { "response": { "type": "tts", "value": "Сценарий работает через группы и ключевые фразы. Скажите понятно, чтобы закончить, или повторите, чтобы услышать ещё раз." }, "nextState": { "type": "switch_group", "target": "group:2" } } }
+        ]
+      },
+      {
+        "key": "group:2", "name": "Проверка понимания", "description": "Продолжение после помощи", "priority": 1, "active": true, "is_global": false,
+        "keywords": [
+          { "keywords": "понятно", "negative_keywords": [], "synonyms": ["разобрался", "ясно"], "max_repeats": 0, "escalation_action": null, "priority": 0, "comment": null, "tag": "understood",
+            "bot_action": { "response": { "type": "tts", "value": "Отлично, тест завершён. До свидания!" }, "nextState": { "type": "hangup" } } },
+          { "keywords": "повторите", "negative_keywords": [], "synonyms": ["ещё раз", "повтор"], "max_repeats": 2, "priority": 1, "comment": "Третий повтор завершает тест", "tag": "repeat",
+            "bot_action": { "response": { "type": "tts", "value": "Ключевые фразы выбирают действие в текущей группе. Скажите понятно или повторите." }, "nextState": { "type": "listen" } },
+            "escalation_action": { "response": { "type": "tts", "value": "Лимит повторов достигнут. Тест завершён." }, "nextState": { "type": "hangup" } } }
+        ]
+      },
+      {
+        "key": "group:3", "name": "Завершение", "description": "Глобальная команда завершения", "priority": 2, "active": true, "is_global": true,
+        "keywords": [
+          { "keywords": "пока", "negative_keywords": [], "synonyms": ["до свидания", "закончить"], "max_repeats": 0, "escalation_action": null, "priority": 0, "comment": null, "tag": "goodbye",
+            "bot_action": { "response": { "type": "tts", "value": "До свидания!" }, "nextState": { "type": "hangup" } } }
+        ]
+      }
+    ]
+  }
+}
