@@ -39,4 +39,4 @@
 | pbx-dashboard | [EXECUTION](pbx-dashboard/EXECUTION.md) | [PLAN](pbx-dashboard/PLAN.md), [SUMMARY](pbx-dashboard/SUMMARY.md); /root codex-direct D7-UI r4 implemented, scoped43/types/frontend-lint/backend PASS, global lint/frontend foreign failures; visual pending, writers FIN; r3 AI/autodial/load/release gates unchanged |
 | mpbx-voice-robots | [EXECUTION/PLAN](mpbx-voice-robots/EXECUTION.md) | /root codex-direct r5 module HTML MCP restyle/footer guide, full-viewport dialogs and shadow gutters released/live-verified; desktop/mobile scoped checks PASS;109 protected files/index and all PM2/Asterisk unchanged/no restarts; r4 backend4011/frontend1946 regression baseline PASS; real audio/capacity pending |
 
-| release-4.7.0 | [EXECUTION/PLAN](RELEASE-4.7.0-20261014.md) | Publish current 4.7.0 snapshot and production upgrade |
+| release-4.7.0 | [EXECUTION/PLAN](RELEASE-4.7.0-20261014.md) | Released4.7.0 / e6fce25e; CI/schema35/authenticated smoke PASS, customer dashboard disabled as configured |
