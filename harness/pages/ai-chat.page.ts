@@ -20,7 +20,7 @@ export class AiChatPage {
 
   async startNewConversation(): Promise<void> {
     await this.page.getByRole('button', { name: /Новый разговор|New conversation/i }).click();
-    await expect(this.page.getByRole('option', { selected: true })).toBeVisible({ timeout: 15_000 });
+    await expect(this.panel.getByRole('listbox').getByRole('option', { selected: true })).toBeVisible({ timeout: 15_000 });
   }
 
   async send(text: string, timeouts: { startMs?: number; idleMs?: number } = {}): Promise<void> {

@@ -85,7 +85,8 @@ async function loginViaApi(apiBase: string, login: string, password: string): Pr
   });
   if (res.ok) return (await res.json()) as AuthSession;
   const secret = readEnvValue('JWT_SECRET');
-  if (secret) return mintAdminSession(secret);
+  // CI must surface a failed real login; invented principals cannot pass DB-backed authorization.
+  if (secret && !process.env.CI) return mintAdminSession(secret);
   const body = await res.text().catch(() => '');
   throw new Error(`Login failed (${res.status}): ${body}`);
 }

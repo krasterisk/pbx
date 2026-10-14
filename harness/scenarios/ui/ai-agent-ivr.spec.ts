@@ -105,7 +105,7 @@ async function openAssistant(page: Page): Promise<void> {
 
 async function startNewConversation(page: Page): Promise<void> {
   await page.getByRole('button', { name: /Новый разговор|New conversation/i }).click();
-  await expect(page.getByRole('option', { selected: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('ai-agent-panel').getByRole('listbox').getByRole('option', { selected: true })).toBeVisible({ timeout: 15_000 });
 }
 
 async function waitForTurnIdle(page: Page): Promise<void> {
