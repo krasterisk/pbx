@@ -40,3 +40,21 @@
 | mpbx-voice-robots | [EXECUTION/PLAN](mpbx-voice-robots/EXECUTION.md) | /root codex-direct r5 module HTML MCP restyle/footer guide, full-viewport dialogs and shadow gutters released/live-verified; desktop/mobile scoped checks PASS;109 protected files/index and all PM2/Asterisk unchanged/no restarts; r4 backend4011/frontend1946 regression baseline PASS; real audio/capacity pending |
 
 | release-4.7.0 | [EXECUTION/PLAN](RELEASE-4.7.0-20261014.md) | Released4.7.0 / e6fce25e; CI/schema35/authenticated smoke PASS, customer dashboard disabled as configured |
+
+| mpbx-api9057-call-tts | [EXECUTION/PLAN](mpbx-api9057-call-tts/EXECUTION.md) | /root codex-direct API9057-only call_tts released; PHP/43mock/six negative HTTPS/protected110 and PM2/Asterisk final invariants PASS; no restart/reload/calls; real phone E2E pending; custom hooks forwarded, existing global context unchanged |
+
+| cc-analytics | [EXECUTION](cc-analytics/EXECUTION.md) | [PLAN](cc-analytics/PLAN.md), /root codex-direct, фаза A «Одна правда» реализована (словарь метрик, RNA, direct:*, rollup, tz, idle restore, golden parity; lint/backend зелёные); фаза B «Live cockpit»: срез B1/B2/B3 (лента внимания, плитки очередей, ждёт/говорит) и C1(очереди)+B4 (интервальные агрегаты 0037, внутридневной график) реализованы; фаза E срез 1 (E1–E4): отдельный дашборд КЦ `/callcenter/dashboard` (overview-API, миграция 0038, now/KPI/график/очереди) реализован; секции «Потери и перезвоны», «Паузы» и «Операторы, выделяющиеся среди остальных» добавлены; C2-lite (URL-состояние отчётов, провалы с дашборда) и B7 (тренд SLA в плитках) реализованы; миграции 0036–0038 применены на стенде и дашборд сверен с живыми данными (исправлен подсчёт пауз без события окончания); дальше E секции команд / результатов / стоимости лида (нужны решения владельца и миграции), C1 по операторам |
+
+| helpdesk-chat | [EXECUTION](helpdesk-chat/EXECUTION.md) | /root chat01a13e6e-f990-7d41-81eb-259a3c65a65b codex-direct R29, explicit user assignment; existing chat → remote helpdesk task tool; canonical PLAN in aiPBX-helpdesk/docs/PLAN.md |
+
+| cc-ux | [EXECUTION](cc-ux/EXECUTION.md) | [PLAN](cc-ux/PLAN.md), /root codex-direct (продолжение cc-analytics, тот же координатор), реализация U0–U6 по явному поручению пользователя |
+
+| autodial-ux-audit | [EXECUTION](autodial-ux-audit/EXECUTION.md) | [REPORT §6](autodial-ux-audit/REPORT.md), /root codex-direct; U0–U7/UA1–UA4 implementation/assigned acceptance complete; backend4403/frontend2332/lint, browser, real-model8 and model-plan→preflight→internal TTS call PASS; own cleanup PASS; not released; boundaries in VERIFICATION |
+
+| cc-operator-report | [EXECUTION](cc-operator-report/EXECUTION.md) | [PLAN](cc-operator-report/PLAN.md), codex-direct, plan v1.0 ready (research + code review F1–F21, stages 0–5, live tests L0–L9 / gates G0–G4); OD1–OD10 accepted (recommended variants); implementation not assigned |
+
+| ai-robots-studio | [EXECUTION](ai-robots-studio/EXECUTION.md) | [PLAN](ai-robots-studio/PLAN.md), [REPORT](ai-robots-studio/REPORT.md), codex-direct, plan v1.0 ready (аудит F1–F21, этапы S0–S9, живые тесты L1–L10, гейты G1–G5); OD1–OD10 ждут владельца (OD1 — отношение к ai-products AI-VOICE-PARITY); implementation not assigned |
+
+| module-marketplace | [EXECUTION](module-marketplace/EXECUTION.md) | [PLAN](module-marketplace/PLAN.md), codex-direct, plan v1.1 ready: навигация, маркетплейс и активация модулей (находки F1–F13, этапы S0–S4); OD1–OD8 приняты (OD2: в навигации только активные модули, заменяет mobile-navigation N9 решение 6); остальной контракт mobile-navigation N5–N21 сохранён; implementation not assigned |
+
+| cc-operator-report | [EXECUTION](cc-operator-report/EXECUTION.md) | [PLAN](cc-operator-report/PLAN.md), codex-direct; operator scorecard: person rows, journal time, queue filter, RNA and occupancy, supervisor scope; migration 0047; live stand check PASS |

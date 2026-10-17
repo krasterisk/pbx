@@ -37,6 +37,8 @@ export interface ReportColumn {
   weightKey?: string;
   /** Denominator is `weightKey - weightMinusKey`. */
   weightMinusKey?: string;
+  /** Shift time stays operator-wide when a queue filter is on. */
+  scope?: 'operator';
 }
 
 export interface ReportResult<T = Record<string, unknown>> {
@@ -51,6 +53,7 @@ export interface ReportResult<T = Record<string, unknown>> {
   page?: number;
   pageSize?: number;
   source?: 'raw' | 'rollup';
+  periodClamped?: boolean;
 }
 
 export interface QueueSummaryRow {
@@ -88,12 +91,25 @@ export interface CallDetailRow {
 export interface OperatorStatsRow {
   agentInterface: string;
   agentUserUid: number | null;
+  agentName?: string;
+  agentExtens?: string[];
   callsHandled: number;
   totalTalkSec: number;
   totalHoldSec: number;
   totalWrapupSec: number;
-  avgHandleSec: number;
+  avgHandleSec?: number;
   ahtSec: number;
+  occupancyPct?: number;
+  utilizationPct?: number;
+  pauseSharePct?: number;
+  rnaCount?: number;
+  answerRatePct?: number;
+  callsPerHour?: number | null;
+  loggedInSec?: number;
+  totalPauseSec?: number;
+  readySec?: number;
+  statDate?: string;
+  queueName?: string;
 }
 
 export interface PauseReportRow {
@@ -136,6 +152,9 @@ export interface ReportQueryParams {
   dateTo: string;
   queueName?: string;
   agentInterface?: string;
+  agentUserUid?: string;
+  groupBy?: 'operator' | 'day' | 'queue';
+  kind?: 'rna';
   page?: number;
   pageSize?: number;
 }

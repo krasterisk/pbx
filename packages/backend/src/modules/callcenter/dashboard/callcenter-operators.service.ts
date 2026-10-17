@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { CcDashboardOperatorFlag, CcDashboardOperatorOutlier, CcDashboardOperators } from '@krasterisk/shared';
 import { CallCenterReportsService } from '../reports/callcenter-reports.service';
-import type { OperatorStatsRow } from '../reports/callcenter-reports.types';
+import type { OperatorStatsRow, ReportAccess } from '../reports/callcenter-reports.types';
 
 /** An operator needs this many handled calls before their AHT says anything. */
 export const MIN_CALLS_FOR_AHT = 5;
@@ -97,10 +97,15 @@ export function findOperatorDeviations(rows: readonly OperatorStatsRow[]): CcDas
 export class CallCenterOperatorsService {
   constructor(private readonly reports: CallCenterReportsService) {}
 
-  async getDeviations(userUid: number, window: { from: Date; to: Date }): Promise<CcDashboardOperators> {
+  async getDeviations(
+    userUid: number,
+    window: { from: Date; to: Date },
+    access?: ReportAccess,
+  ): Promise<CcDashboardOperators> {
     const result = await this.reports.getOperatorStats(userUid, {
       dateFrom: window.from.toISOString(),
       dateTo: new Date(window.to.getTime() - 1).toISOString(),
+      ...(access ? { access } : {}),
     });
     return findOperatorDeviations(result.rows);
   }

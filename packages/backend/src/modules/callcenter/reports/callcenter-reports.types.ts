@@ -43,6 +43,8 @@ export interface ReportColumn {
   total?: ReportColumnTotal;
   weightKey?: string;
   weightMinusKey?: string;
+  /** `operator` = the value covers the whole person, not the queue filter. */
+  scope?: 'operator';
 }
 
 // Default `any` so runReport can return heterogeneous row shapes without variance fights.
@@ -58,6 +60,8 @@ export interface ReportResult<T = any> {
   page?: number;
   pageSize?: number;
   source?: 'raw' | 'rollup';
+  /** True when the requested window was cut to the maximum report length. */
+  periodClamped?: boolean;
 }
 
 export interface QueueSummaryRow {
@@ -97,18 +101,50 @@ export interface CallDetailRow {
 export interface OperatorStatsRow {
   agentInterface: string;
   agentUserUid: number | null;
+  /** Display name resolved on the server, so a finished shift still shows a person. */
+  agentName?: string;
+  agentExtens?: string[];
   callsHandled: number;
   totalTalkSec: number;
   totalHoldSec: number;
   totalWrapupSec: number;
-  avgHandleSec: number;
+  /** @deprecated Same number as `ahtSec`. Kept for older exports. */
+  avgHandleSec?: number;
   ahtSec: number;
-  /** Shift length from cc_agent_sessions (login→logout/now) overlapping the period. */
+  avgTalkSec?: number;
+  avgHoldSec?: number;
+  avgWrapupSec?: number;
+  /** Shift length overlapping the period, from the journal. */
   loggedInSec?: number;
-  /** Sum of session.total_pause_time (filled on pause exit). */
+  /** All pause seconds (paid + unpaid + unknown). */
   totalPauseSec?: number;
-  /** Sum of session.total_idle_time (READY time accumulated on logout / transitions). */
+  /** Ready time. Historical name of the column was "idle". */
   totalIdleSec?: number;
+  readySec?: number;
+  busySec?: number;
+  pausePaidSec?: number;
+  pauseUnpaidSec?: number;
+  pauseUnknownSec?: number;
+  occupancyPct?: number;
+  utilizationPct?: number;
+  pauseSharePct?: number;
+  rnaCount?: number;
+  offeredCount?: number;
+  answerRatePct?: number;
+  /** Null when a queue filter makes "per hour" mix two scopes. */
+  callsPerHour?: number | null;
+  transferredCalls?: number;
+  transferPct?: number;
+  shortCalls?: number;
+  shortCallPct?: number;
+  outboundCalls?: number;
+  outboundAnswered?: number;
+  outboundTalkSec?: number;
+  sessions?: number;
+  firstLoginAt?: string | null;
+  lastLogoutAt?: string | null;
+  statDate?: string;
+  queueName?: string;
 }
 
 export interface PauseReportRow {
@@ -158,11 +194,25 @@ export interface MissedCallbackRow {
   createdAt: string;
 }
 
+export interface ReportAccess {
+  /** null = every operator of the tenant. */
+  operatorUserIds: number[] | null;
+  /** Normalized queue tokens; null = every queue. */
+  queues: string[] | null;
+}
+
 export interface ReportQuery {
   dateFrom: string;
   dateTo: string;
   queueName?: string;
   agentInterface?: string;
+  /** One user id, or several separated by commas. */
+  agentUserUid?: string;
+  /** `day` = one row per person per day; `queue` = call metrics per queue. */
+  groupBy?: 'operator' | 'day' | 'queue';
+  /** `rna` = ring-no-answer offers instead of queue-call rows (call detail). */
+  kind?: string;
   page?: number;
   pageSize?: number;
+  access?: ReportAccess;
 }

@@ -6,7 +6,7 @@ const parse = (q: string) => parseReportsUrl(new URLSearchParams(q), defaults);
 
 describe('parseReportsUrl', () => {
   it('uses the page defaults for an empty URL', () => {
-    expect(parse('')).toEqual({ reportId: 'queue-summary', ...defaults, queueName: '', agentInterface: '', operatorUserId: '' });
+    expect(parse('')).toEqual({ reportId: 'queue-summary', ...defaults, queueName: '', agentInterface: '', operatorUserId: '', compare: '', groupBy: '' });
   });
 
   it('reads report, dates, queue and agent', () => {
@@ -17,13 +17,15 @@ describe('parseReportsUrl', () => {
       queueName: 'sales',
       agentInterface: 'PJSIP/e110_0',
       operatorUserId: '',
+      compare: '',
+      groupBy: '',
     });
   });
 
   it('keeps several queues, in order and without duplicates', () => {
     expect(parse('queue=sales&queue=support&queue=sales')).toMatchObject({ queueName: 'sales,support' });
     expect(buildReportsSearch({
-      reportId: 'queue-summary', ...defaults, queueName: 'sales,support', agentInterface: '', operatorUserId: '',
+      reportId: 'queue-summary', ...defaults, queueName: 'sales,support', agentInterface: '', operatorUserId: '', compare: '', groupBy: '',
     })).toBe('from=2026-07-08&to=2026-07-15&queue=sales&queue=support');
   });
 
@@ -47,11 +49,11 @@ describe('parseReportsUrl', () => {
 
 describe('buildReportsSearch / buildReportsLink', () => {
   it('leaves out the default report and empty filters', () => {
-    expect(buildReportsSearch({ reportId: 'queue-summary', dateFrom: '2026-07-01', dateTo: '2026-07-02', queueName: '', agentInterface: '', operatorUserId: '' })).toBe('from=2026-07-01&to=2026-07-02');
+    expect(buildReportsSearch({ reportId: 'queue-summary', dateFrom: '2026-07-01', dateTo: '2026-07-02', queueName: '', agentInterface: '', operatorUserId: '', compare: '', groupBy: '' })).toBe('from=2026-07-01&to=2026-07-02');
   });
 
   it('round-trips through the parser', () => {
-    const state = { reportId: 'missed-callback' as const, dateFrom: '2026-07-01', dateTo: '2026-07-02', queueName: 'sales support', agentInterface: 'PJSIP/e1', operatorUserId: '7' };
+    const state = { reportId: 'missed-callback' as const, dateFrom: '2026-07-01', dateTo: '2026-07-02', queueName: 'sales support', agentInterface: 'PJSIP/e1', operatorUserId: '7', compare: '' as const, groupBy: '' as const };
     expect(parseReportsUrl(new URLSearchParams(buildReportsSearch(state)), defaults)).toEqual(state);
   });
 

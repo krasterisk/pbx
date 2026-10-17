@@ -17,6 +17,20 @@ export class ReportQueryDto {
   @IsString()
   agentInterface?: string;
 
+  /** One operator user id, or several separated by commas. */
+  @IsOptional()
+  @IsString()
+  agentUserUid?: string;
+
+  @IsOptional()
+  @IsIn(['operator', 'day', 'queue'])
+  groupBy?: 'operator' | 'day' | 'queue';
+
+  /** call-detail: `rna` lists ring-no-answer offers. */
+  @IsOptional()
+  @IsIn(['rna'])
+  kind?: 'rna';
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

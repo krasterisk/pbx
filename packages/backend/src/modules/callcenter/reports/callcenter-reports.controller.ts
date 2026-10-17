@@ -22,15 +22,34 @@ import { isCcReportId } from './callcenter-reports.types';
 import { buildReportCsv } from './exporters/csv-exporter';
 import { buildReportXlsx } from './exporters/xlsx-exporter';
 import { assertSupervisor } from '../callcenter-rbac.util';
+import { CallCenterAccessListService } from '../callcenter-access-list.service';
+import { UserLevel } from '../../users/user.model';
+import type { ReportAccess, ReportQuery } from './callcenter-reports.types';
+
+type ReportUser = { level: number; sub: number; vpbx_user_uid: number };
 
 @UseGuards(JwtAuthGuard)
 @Controller('callcenter/reports')
 export class CallCenterReportsController {
-  constructor(private readonly reportsService: CallCenterReportsService) {}
+  constructor(
+    private readonly reportsService: CallCenterReportsService,
+    private readonly accessList: CallCenterAccessListService,
+  ) {}
+
+  /** ADMIN sees the tenant. A supervisor is limited to the access list (empty list = everyone). */
+  private async scopeQuery(user: ReportUser, query: ReportQuery): Promise<ReportQuery> {
+    if (user.level === UserLevel.SUPERADMIN || user.level === UserLevel.ADMIN) return query;
+    const scope = await this.accessList.resolveScope(user.vpbx_user_uid, user.sub);
+    const access: ReportAccess = {
+      operatorUserIds: scope.operators ? [...scope.operators] : null,
+      queues: scope.queues ? [...scope.queues] : null,
+    };
+    return { ...query, access };
+  }
 
   @Get(':reportId')
   async getReport(
-    @Req() req: Request & { user: { level: number; vpbx_user_uid: number } },
+    @Req() req: Request & { user: ReportUser },
     @Param('reportId') reportId: string,
     @Query() query: ReportQueryDto,
   ) {
@@ -38,12 +57,12 @@ export class CallCenterReportsController {
     if (!isCcReportId(reportId)) {
       throw new BadRequestException(`Unknown reportId "${reportId}"`);
     }
-    return this.reportsService.runReport(reportId, req.user.vpbx_user_uid, query);
+    return this.reportsService.runReport(reportId, req.user.vpbx_user_uid, await this.scopeQuery(req.user, query));
   }
 
   @Get(':reportId/export')
   async exportReport(
-    @Req() req: Request & { user: { level: number; vpbx_user_uid: number } },
+    @Req() req: Request & { user: ReportUser },
     @Param('reportId') reportId: string,
     @Query() query: ExportReportQueryDto,
     @Res() res: Response,
@@ -65,7 +84,7 @@ export class CallCenterReportsController {
     const result = await this.reportsService.runReport(
       reportId,
       req.user.vpbx_user_uid,
-      query,
+      await this.scopeQuery(req.user, query),
     );
     const dateStamp = new Date().toISOString().slice(0, 10);
     const baseName = `cc_${reportId}_${dateStamp}`;

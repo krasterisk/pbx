@@ -76,6 +76,7 @@ describe('CallCenterReportsService', () => {
     expect(service.parseAndClampPeriod('2026-09-17', '2026-09-18')).toEqual({
       from: new Date('2026-09-17T00:00:00.000Z'),
       to: new Date('2026-09-18T23:59:59.999Z'),
+      periodClamped: false,
     });
   });
 
@@ -243,8 +244,8 @@ describe('CallCenterReportsService', () => {
       ]);
       const result = await service.getOperatorStats(7, { dateFrom: '2026-07-15', dateTo: '2026-07-15' });
       const { where } = queueCallModel.findAll.mock.calls[0][0];
-      expect(where.disposition).toBeDefined();
-      expect(where.direction).toBeDefined();
+      expect(where.user_uid).toBe(7);
+      expect(where.created_at).toBeDefined();
       expect(result.rows[0]).toMatchObject({
         agentInterface: 'PJSIP/101',
         callsHandled: 2,
@@ -285,7 +286,7 @@ describe('CallCenterReportsService', () => {
       });
     });
 
-    it('uses stored session totals when the session is fully inside the period', async () => {
+    it('accounts a shift from the journal and ignores stored session totals', async () => {
       sessionModel.findAll.mockResolvedValue([
         {
           uid: 6,
@@ -293,16 +294,64 @@ describe('CallCenterReportsService', () => {
           user_id: 43,
           login_time: new Date('2026-07-15T08:00:00.000Z'),
           logout_time: new Date('2026-07-15T12:00:00.000Z'),
-          total_pause_time: 600,
-          total_idle_time: 3000,
+          total_pause_time: 9999,
+          total_idle_time: 9999,
         },
+      ]);
+      agentEventModel.findAll.mockResolvedValue([
+        { session_id: 6, user_id: 43, event_type: 'READY', created_at: new Date('2026-07-15T08:00:00.000Z'), reason: '', duration: 0 },
+        { session_id: 6, user_id: 43, event_type: 'PAUSE', created_at: new Date('2026-07-15T08:10:00.000Z'), reason: 'lunch', duration: 0 },
+        { session_id: 6, user_id: 43, event_type: 'READY', created_at: new Date('2026-07-15T08:20:00.000Z'), reason: '', duration: 0 },
       ]);
       const result = await service.getOperatorStats(7, {
         dateFrom: '2026-07-15T00:00:00.000Z',
         dateTo: '2026-07-15T23:59:59.000Z',
       });
-      expect(agentEventModel.findAll).not.toHaveBeenCalled();
-      expect(result.rows[0]).toMatchObject({ loggedInSec: 4 * 3600, totalPauseSec: 600, totalIdleSec: 3000 });
+      expect(result.rows[0]).toMatchObject({
+        loggedInSec: 4 * 3600,
+        totalPauseSec: 600,
+        totalIdleSec: 4 * 3600 - 600,
+      });
+      expect(result.rows[0].totalPauseSec).not.toBe(9999);
+    });
+
+    it('merges two extensions of one person and keeps two people who shared a number', async () => {
+      queueCallModel.findAll.mockResolvedValue([
+        { disposition: 'answered', direction: 'inbound', agent_interface: 'PJSIP/101', agent_user_uid: 42, talk_time: 60, hold_time: 0, wrapup_time: 0, queue_name: 'sales' },
+        { disposition: 'answered', direction: 'inbound', agent_interface: 'PJSIP/201', agent_user_uid: 42, talk_time: 30, hold_time: 0, wrapup_time: 0, queue_name: 'sales' },
+        { disposition: 'answered', direction: 'inbound', agent_interface: 'PJSIP/101', agent_user_uid: 43, talk_time: 10, hold_time: 0, wrapup_time: 0, queue_name: 'sales' },
+      ]);
+      const result = await service.getOperatorStats(7, { dateFrom: '2026-07-15', dateTo: '2026-07-15' });
+      const byUser = new Map(result.rows.map((row) => [row.agentUserUid, row.callsHandled]));
+      expect(byUser.get(42)).toBe(2);
+      expect(byUser.get(43)).toBe(1);
+      expect(result.rows).toHaveLength(2);
+    });
+
+    it('keeps an operator who was in the queue and took no calls there', async () => {
+      queueCallModel.findAll.mockResolvedValue([]);
+      sessionModel.findAll.mockResolvedValue([
+        {
+          uid: 8,
+          agent_interface: 'PJSIP/101',
+          user_id: 42,
+          login_time: new Date('2026-07-15T08:00:00.000Z'),
+          logout_time: new Date('2026-07-15T09:00:00.000Z'),
+          queues_snapshot: ['sales'],
+        },
+      ]);
+      agentEventModel.findAll.mockResolvedValue([
+        { session_id: 8, event_type: 'READY', created_at: new Date('2026-07-15T08:00:00.000Z'), reason: '' },
+      ]);
+      const result = await service.getOperatorStats(7, {
+        dateFrom: '2026-07-15T00:00:00.000Z',
+        dateTo: '2026-07-15T23:59:59.000Z',
+        queueName: 'sales',
+      });
+      expect(result.rows.map((row) => row.agentUserUid)).toEqual([42]);
+      expect(result.rows[0].callsHandled).toBe(0);
+      expect(result.columns.some((col) => col.key === 'callsPerHour')).toBe(false);
+      expect(result.columns.find((col) => col.key === 'loggedInSec')?.scope).toBe('operator');
     });
   });
 

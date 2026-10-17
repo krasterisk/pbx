@@ -6,7 +6,7 @@ import { Tooltip } from '@/shared/ui';
 const aliases: Record<string, CcMetricId> = {
   totalCalls: 'offered', answered: 'handled', handled: 'handled', slaPct: 'sla', sla: 'sla',
   abandonRatePct: 'abandon', shortAbandoned: 'shortAbandon', avgWait: 'asa', avgWaitSec: 'asa',
-  ahtSec: 'aht', avgHandleSec: 'aht', occupancyPct: 'occupancy',
+  ahtSec: 'aht', avgHandleSec: 'aht',   occupancyPct: 'occupancy',
 };
 const extra: Record<string, string> = {
   queueFree: 'Members of this queue who are available for a call, including people outside your watchlist. A person in several queues can appear in each queue count.',
@@ -21,12 +21,19 @@ const extra: Record<string, string> = {
   holdTime: 'Time the answered conversation spent on hold. Waiting before the first answer is excluded.',
   talkTime: 'Time after the operator answered and before the call ended.',
   avgTalkSec: 'Average duration of answered conversations in the selected period.',
-  answerRatePct: 'Answered calls divided by incoming calls in the selected period, as a percentage.',
+  answerRatePct: 'Handled calls ÷ (handled + ring-no-answer offers).',
   ready: 'Operators ready for incoming queue calls with a reachable phone.',
   longestWait: 'Longest current wait among callers still in the queue, in seconds. It increases until the call is answered or leaves.',
   paused: 'Operators on a break; they do not receive incoming queue calls.',
   wrapup: 'Operators completing work after a conversation; new queue calls wait until wrap-up ends.',
   offline: 'Operators who have not started a shift. A phone being unreachable is shown separately.',
+  utilizationPct: 'Busy time ÷ time on shift. Busy is talk, hold, wrap-up, dialing and consultation.',
+  pauseSharePct: 'Pause time ÷ time on shift.',
+  callsPerHour: 'Handled calls ÷ hours on shift. Hidden when a queue filter is on, because shift time is operator-wide.',
+  rnaCount: 'Queue offers this person did not answer.',
+  shortCallPct: 'Handled calls shorter than the short-call threshold ÷ handled calls.',
+  readySec: 'Time in the Ready state: waiting for a call, not idle as a violation.',
+  ahtSec: 'Average handle time = (talk including hold + wrap-up) ÷ handled calls.',
 };
 
 /** Shared metric dictionary plus scope-specific live-counter definitions. */

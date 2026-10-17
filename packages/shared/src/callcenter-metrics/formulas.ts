@@ -51,6 +51,41 @@ export function computeOccupancy(a: { talkSec: number; wrapupSec: number; idleSe
   return denom === 0 ? 0 : round1((busy / denom) * 100);
 }
 
+/** Utilization % = busy time / time logged in. Busy already includes talk, hold, wrap-up and dialing. */
+export function computeUtilization(busySec: number, loggedInSec: number): number {
+  const denom = Math.max(0, loggedInSec);
+  return denom === 0 ? 0 : round1((Math.max(0, busySec) / denom) * 100);
+}
+
+/** Pause share % = pause time / time logged in. */
+export function computePauseShare(pauseSec: number, loggedInSec: number): number {
+  const denom = Math.max(0, loggedInSec);
+  return denom === 0 ? 0 : round1((Math.max(0, pauseSec) / denom) * 100);
+}
+
+/** Answer rate of an operator % = handled calls / (handled + ring-no-answer offers). */
+export function computeAgentAnswerRate(handled: number, offered: number): number {
+  const denom = Math.max(0, offered);
+  return denom === 0 ? 0 : round1((Math.max(0, handled) / denom) * 100);
+}
+
+/** Handled calls per logged-in hour. */
+export function computeCallsPerHour(handled: number, loggedInSec: number): number {
+  if (loggedInSec <= 0) return 0;
+  return round1(Math.max(0, handled) / (loggedInSec / 3600));
+}
+
+/** Short conversations % = short handled calls / handled calls. */
+export function computeShortCallRate(shortCalls: number, handled: number): number {
+  const denom = Math.max(0, handled);
+  return denom === 0 ? 0 : round1((Math.max(0, shortCalls) / denom) * 100);
+}
+
+/** Mean seconds per handled call; 0 when nothing was handled. */
+export function meanSeconds(sumSec: number, handled: number): number {
+  return handled > 0 ? Math.round(Math.max(0, sumSec) / handled) : 0;
+}
+
 export interface QueueMetricsView {
   sla: number;
   asr: number;

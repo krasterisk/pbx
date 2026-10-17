@@ -7,7 +7,10 @@ import { DashboardOverviewQueryDto } from './dto/dashboard-overview-query.dto';
 
 describe('CallCenterDashboardController', () => {
   const getOverview = jest.fn().mockResolvedValue({ version: 1 });
-  const controller = new CallCenterDashboardController({ getOverview } as any);
+  const controller = new CallCenterDashboardController(
+    { getOverview } as any,
+    { resolveScope: jest.fn().mockResolvedValue({ operators: null, queues: null }) } as any,
+  );
 
   beforeEach(() => getOverview.mockClear());
 
@@ -21,10 +24,10 @@ describe('CallCenterDashboardController', () => {
     expect(getOverview.mock.calls[0][1]).toMatchObject({ period: '7d' });
   });
 
-  it('is forbidden for read-only users and never reaches the service', () => {
-    expect(() =>
+  it('is forbidden for read-only users and never reaches the service', async () => {
+    await expect(
       controller.getOverview({ user: { level: UserLevel.READONLY, vpbx_user_uid: 1 } } as any, {}),
-    ).toThrow(ForbiddenException);
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect(getOverview).not.toHaveBeenCalled();
   });
 

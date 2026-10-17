@@ -45,6 +45,16 @@ type Row = Record<string, unknown>;
 
 const PAGE_SIZE = 50;
 
+function previousWindow(from: string, to: string): { from: string; to: string } {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const end = Date.parse(`${to}T00:00:00Z`);
+  const days = Number.isFinite(start) && Number.isFinite(end) ? Math.max(1, Math.round((end - start) / 86_400_000) + 1) : 1;
+  const prevEnd = new Date(start - 86_400_000);
+  const prevStart = new Date(prevEnd.getTime() - (days - 1) * 86_400_000);
+  const fmt = (date: Date) => date.toISOString().slice(0, 10);
+  return { from: fmt(prevStart), to: fmt(prevEnd) };
+}
+
 function downloadBlob(blob: Blob, filename: string): { url: string; filename: string } {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -90,6 +100,9 @@ export function CallCenterReportsPage() {
   const [queueName, setQueueName] = useState(initial.queueName);
   const [agentInterface, setAgentInterface] = useState(initial.agentInterface);
   const [operatorUserId, setOperatorUserId] = useState(initial.operatorUserId);
+  const [compare, setCompare] = useState(initial.compare);
+  const [groupBy, setGroupBy] = useState(initial.groupBy);
+  const [kind, setKind] = useState<'' | 'rna'>('');
   const [pdfBusy, setPdfBusy] = useState(false);
   const [callRow, setCallRow] = useState<Row | null>(null);
   const [pageState, setPageState] = useState<{ key: string; page: number }>({ key: '', page: 0 });
@@ -102,9 +115,11 @@ export function CallCenterReportsPage() {
       queueName,
       agentInterface,
       operatorUserId,
+      compare,
+      groupBy,
     });
     if (next !== searchParams.toString()) setSearchParams(new URLSearchParams(next), { replace: true });
-  }, [reportId, range, queueName, agentInterface, operatorUserId, searchParams, setSearchParams]);
+  }, [reportId, range, queueName, agentInterface, operatorUserId, compare, groupBy, searchParams, setSearchParams]);
 
   const { data: queues = [] } = useGetQueuesQuery();
   const { data: accessScope } = useGetSupervisorAccessScopeQuery();
@@ -168,9 +183,12 @@ export function CallCenterReportsPage() {
     dateFrom: range.from,
     dateTo: range.to,
     ...(appliedQueueName ? { queueName: appliedQueueName } : {}),
-    ...(effectiveInterface ? { agentInterface: effectiveInterface } : {}),
+    ...(operatorUserId ? { agentUserUid: operatorUserId } : {}),
+    ...(!operatorUserId && effectiveInterface ? { agentInterface: effectiveInterface } : {}),
+    ...(reportId === 'operator-stats' && groupBy ? { groupBy } : {}),
+    ...(reportId === 'call-detail' && kind ? { kind } : {}),
     ...(serverPaged ? { page: page + 1, pageSize: PAGE_SIZE } : {}),
-  }), [reportId, range, appliedQueueName, effectiveInterface, serverPaged, page]);
+  }), [reportId, range, appliedQueueName, operatorUserId, effectiveInterface, groupBy, kind, serverPaged, page]);
 
   const timelineSkip = !isTimeline || !effectiveInterface;
 
@@ -181,6 +199,14 @@ export function CallCenterReportsPage() {
     isError: reportError,
     refetch: refetchReport,
   } = useGetReportQuery(queryParams, { skip: isTimeline });
+
+  const previousRange = previousWindow(range.from, range.to);
+  const { data: previousData } = useGetReportQuery(
+    compare === 'previous'
+      ? { ...queryParams, dateFrom: previousRange.from, dateTo: previousRange.to }
+      : queryParams,
+    { skip: isTimeline || compare !== 'previous' || reportId !== 'operator-stats' },
+  );
 
   const {
     data: timelineData,
@@ -291,18 +317,25 @@ export function CallCenterReportsPage() {
   }, [appliedQueueName, effectiveInterface, selectedOperator, operators.length, queues, queueLabel, operatorLabel, t]);
 
   // ─── Drill-down ───────────────────────────────────────────────
-  const drillToOperator = useCallback((row: Row, target: CcReportId) => {
+  const drillToOperator = useCallback((row: Row, target: CcReportId, nextKind: '' | 'rna' = '') => {
+    const userId = row.agentUserUid != null && Number(row.agentUserUid) > 0 ? String(row.agentUserUid) : '';
     const iface = String(row.agentInterface ?? '');
-    if (!iface) return;
-    const known = operators.find((o) => o.interface === iface);
-    if (known) {
-      setOperatorUserId(String(known.userId));
+    if (!userId && !iface) return;
+    if (userId) {
+      setOperatorUserId(userId);
       setAgentInterface('');
     } else {
-      setOperatorUserId('');
-      setAgentInterface(iface);
+      const known = operators.find((o) => o.interface === iface);
+      if (known) {
+        setOperatorUserId(String(known.userId));
+        setAgentInterface('');
+      } else {
+        setOperatorUserId('');
+        setAgentInterface(iface);
+      }
     }
     if (target === 'agent-timeline') setRange((r) => ({ from: r.to, to: r.to }));
+    setKind(nextKind);
     setReportId(target);
   }, [operators]);
 
@@ -342,15 +375,17 @@ export function CallCenterReportsPage() {
   }, [isCallList, queueLabel, agentLabel, t]);
 
   const renderRowActions = useCallback((row: Row) => (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      data-testid="cc-report-row-timeline"
-      onClick={() => drillToOperator(row, 'agent-timeline')}
-    >
-      {t('callcenter.reports.drill.timeline', 'Shift')}
-    </Button>
+    <HStack gap="4">
+      <Button type="button" variant="ghost" size="sm" data-testid="cc-report-row-timeline" onClick={() => drillToOperator(row, 'agent-timeline')}>
+        {t('callcenter.reports.drill.timeline', 'Shift')}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" data-testid="cc-report-row-pauses" onClick={() => drillToOperator(row, 'pause-report')}>
+        {t('callcenter.reports.drill.pauses', 'Pauses')}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" data-testid="cc-report-row-rna" onClick={() => drillToOperator(row, 'call-detail', 'rna')}>
+        {t('callcenter.reports.drill.missed', 'Missed')}
+      </Button>
+    </HStack>
   ), [drillToOperator, t]);
 
   // ─── Export ───────────────────────────────────────────────────
@@ -532,6 +567,7 @@ export function CallCenterReportsPage() {
         onRowActivate={openable ? handleRowActivate : undefined}
         getRowLabel={openable ? rowLabel : undefined}
         renderRowActions={reportId === 'operator-stats' ? renderRowActions : undefined}
+        previousRows={compare === 'previous' ? (previousData?.rows as Row[] | undefined) : undefined}
         server={serverPaged
           ? {
             total: reportData?.total ?? rows.length,
@@ -601,9 +637,19 @@ export function CallCenterReportsPage() {
         </div>
         {((!supportsAgent && (agentInterface || operatorUserId)) || (!supportsQueue && queueName)) && <Text variant="muted" role="status">{t('callcenter.reports.unsupportedFilters', 'This report uses only the filters shown above. Other selected filters are not applied.')}</Text>}
         <ReportFilterChips chips={chips} onResetAll={resetAll} />
-        {(reportId === 'operator-stats' || reportId === 'queue-summary') && <Text variant="muted">
-          {t('callcenter.reports.metricDefinitions', 'SLA excludes short abandons. AHT = (talk including hold + after-call work) / handled calls. Queue filters select calls; shift and pause time remain operator-wide.')}
-        </Text>}
+        {reportId === 'operator-stats' && (
+          <HStack gap="8" wrap="wrap">
+            <Button type="button" variant={compare === 'previous' ? 'default' : 'outline'} size="sm" onClick={() => setCompare((value) => value === 'previous' ? '' : 'previous')} data-testid="cc-report-compare">
+              {t('callcenter.reports.compare.previous', 'Compare with the previous period')}
+            </Button>
+            {(['' , 'day', 'queue'] as const).map((value) => (
+              <Button key={value || 'person'} type="button" variant={groupBy === value ? 'default' : 'outline'} size="sm" onClick={() => setGroupBy(value)} data-testid={`cc-report-group-${value || 'person'}`}>
+                {t(`callcenter.reports.group.${value || 'person'}`, value || 'person')}
+              </Button>
+            ))}
+          </HStack>
+        )}
+        {activeData?.periodClamped ? <Text role="status">{t('callcenter.reports.periodClamped', 'The period was shortened to the maximum of 366 days.')}</Text> : null}
       </VStack>
 
       <div className={styles.layout}>

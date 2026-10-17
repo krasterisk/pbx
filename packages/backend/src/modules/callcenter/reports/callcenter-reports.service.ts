@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Call Center reports engine (D-33 backend).
  *
  * Tenant isolation: every query filters `user_uid = vpbxUserUid` from the method
@@ -6,11 +6,13 @@
  */
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 
 /** One queue, or several comma-separated names (reports multi-select). */
 export function queueNameWhere(queueName?: string): string | { [key: symbol]: string[] } | undefined {
@@ -37,9 +39,15 @@ import { CcAgentEvent } from '../models/agent-event.model';
 import { CcAgentSession } from '../models/agent-session.model';
 import { CcMissedCall } from '../models/missed-call.model';
 import { CcPauseReason } from '../models/pause-reason.model';
+import { CcAgentOffer } from '../models/agent-offer.model';
+import { CcSettings } from '../models/cc-settings.model';
+import { User } from '../../users/user.model';
+import { normalizeAccessToken } from '../callcenter-access-list.util';
 import { CallCenterRollupService } from '../callcenter-rollup.service';
 import { CallCenterMetricsConfigService } from '../callcenter-metrics-config.service';
 import { eventTypeToTimelineState } from '../callcenter-agent-timeline.util';
+import { accountSessionTime } from './agent-time-accounting';
+import { buildOperatorStats, factsFromCalls, operatorStatsColumns, DEFAULT_SHORT_CALL_SEC, type OperatorCallFact, type OperatorOfferFact, type OperatorSessionFact } from './operator-stats.build';
 import { typeReportColumns } from './callcenter-report-columns';
 import {
   AgentTimelineRow,
@@ -74,6 +82,9 @@ export class CallCenterReportsService {
     @InjectModel(CcPauseReason) private readonly pauseReasonModel: typeof CcPauseReason,
     private readonly rollupService: CallCenterRollupService,
     private readonly config: CallCenterMetricsConfigService,
+    @Optional() @InjectModel(CcAgentOffer) private readonly offerModel?: typeof CcAgentOffer,
+    @Optional() @InjectModel(User) private readonly userModel?: typeof User,
+    @Optional() @InjectModel(CcSettings) private readonly settingsModel?: typeof CcSettings,
   ) {}
 
   /**
@@ -83,10 +94,11 @@ export class CallCenterReportsService {
    */
   private async resolvePeriod(vpbxUserUid: number, query: ReportQuery) {
     const { timezone } = await this.config.getTenantConfig(vpbxUserUid);
-    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo, timezone);
+    const { from, to, periodClamped } = this.parseAndClampPeriod(query.dateFrom, query.dateTo, timezone);
     return {
       from,
       to,
+      periodClamped,
       timezone,
       fromKey: zonedDateKey(from, timezone),
       toKey: zonedDateKey(to, timezone),
@@ -109,13 +121,15 @@ export class CallCenterReportsService {
     if (query.queueName && ['pause-report', 'agent-timeline'].includes(reportId)) {
       throw new BadRequestException('This report does not support a queue filter');
     }
+    this.assertAccess(query);
     const result = await this.buildReport(reportId as CcReportId, vpbxUserUid, query);
     // cc-ux U3.3: every column carries its type / i18n key / totals rule.
-    const { timezone, from, to } = await this.resolvePeriod(vpbxUserUid, query);
+    const { timezone, from, to, periodClamped } = await this.resolvePeriod(vpbxUserUid, query);
     return {
       ...result, columns: typeReportColumns(result.reportId, result.columns),
       timezone, generatedAt: new Date().toISOString(),
       periodStart: from.toISOString(), periodEnd: to.toISOString(),
+      ...(periodClamped ? { periodClamped: true } : {}),
     };
   }
 
@@ -243,7 +257,10 @@ export class CallCenterReportsService {
         maxWaitSec: view.maxWait,
       });
     }
-    return { reportId: 'queue-summary', columns, rows: result, source };
+    const visible = query.access?.queues
+      ? result.filter((row) => query.access!.queues!.includes(normalizeAccessToken(row.queueName)))
+      : result;
+    return { reportId: 'queue-summary', columns, rows: visible, source };
   }
 
   async getCallDetail(
@@ -259,7 +276,55 @@ export class CallCenterReportsService {
     };
     const queueWhere = queueNameWhere(query.queueName);
     if (queueWhere !== undefined) where.queue_name = queueWhere;
-    if (query.agentInterface) where.agent_interface = query.agentInterface;
+    const userIds = (query.agentUserUid ?? '').split(',').map((part) => Number(part.trim())).filter((id) => id > 0);
+    if (userIds.length === 1) where.agent_user_uid = userIds[0];
+    else if (userIds.length > 1) where.agent_user_uid = { [Op.in]: userIds };
+    else if (query.agentInterface) where.agent_interface = query.agentInterface;
+    if (query.access?.operatorUserIds && where.agent_user_uid == null) {
+      where.agent_user_uid = { [Op.in]: query.access.operatorUserIds };
+    }
+
+    if (query.kind === 'rna' && this.offerModel) {
+      const offerWhere: Record<string, unknown> = {
+        user_uid: vpbxUserUid,
+        offered_at: { [Op.gte]: from, [Op.lte]: to },
+        outcome: 'rna',
+      };
+      if (queueWhere !== undefined) offerWhere.queue_name = queueWhere;
+      if (where.agent_user_uid) offerWhere.agent_user_uid = where.agent_user_uid;
+      else if (query.agentInterface) offerWhere.agent_interface = query.agentInterface;
+      const offers = await this.offerModel.findAll({ where: offerWhere, order: [['offered_at', 'DESC']] });
+      const visible = offers.filter((offer) => this.visibleOperator(query, offer.agent_user_uid ?? null));
+      return {
+        reportId: 'call-detail',
+        columns: [
+          { key: 'callUniqueid', header: 'Unique ID' },
+          { key: 'queueName', header: 'Queue' },
+          { key: 'agentInterface', header: 'Agent' },
+          { key: 'callerIdNum', header: 'Caller' },
+          { key: 'enterTime', header: 'Enter' },
+          { key: 'waitTime', header: 'Wait (sec)' },
+          { key: 'disposition', header: 'Disposition' },
+        ],
+        rows: visible.map((offer) => ({
+          callUniqueid: offer.call_uniqueid,
+          queueName: offer.queue_name,
+          agentInterface: offer.agent_interface || '',
+          callerIdNum: offer.caller_id_num || '',
+          callerIdName: '',
+          enterTime: offer.offered_at ? new Date(offer.offered_at).toISOString() : null,
+          answerTime: null,
+          endTime: null,
+          waitTime: offer.ring_time ?? 0,
+          talkTime: 0,
+          holdTime: 0,
+          wrapupTime: 0,
+          disposition: 'rna',
+        })),
+        total: visible.length,
+        source: 'raw' as const,
+      };
+    }
 
     const { rows: calls, count } = await this.queueCallModel.findAndCountAll({
       where,
@@ -284,7 +349,7 @@ export class CallCenterReportsService {
       { key: 'disposition', header: 'Disposition' },
     ];
 
-    const rows: CallDetailRow[] = calls.map((c) => ({
+    const rows: CallDetailRow[] = calls.filter((c) => this.visibleOperator(query, c.agent_user_uid ?? null)).map((c) => ({
       callUniqueid: c.call_uniqueid,
       queueName: c.queue_name,
       agentInterface: c.agent_interface || '',
@@ -316,230 +381,214 @@ export class CallCenterReportsService {
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<OperatorStatsRow>> {
-    const { from, to, fromKey, toKey, timezone } = await this.resolvePeriod(vpbxUserUid, query);
-    const source = this.rollupService.resolveAggregationSource(from, to);
-    const columns: ReportColumn[] = [
-      { key: 'agentInterface', header: 'Agent' },
-      { key: 'agentUserUid', header: 'User ID' },
-      { key: 'callsHandled', header: 'Calls' },
-      { key: 'totalTalkSec', header: 'Talk (sec)' },
-      { key: 'totalHoldSec', header: 'Hold (sec)' },
-      { key: 'totalWrapupSec', header: 'Wrap-up (sec)' },
-      { key: 'ahtSec', header: 'AHT (sec)' },
-      { key: 'loggedInSec', header: 'Logged in (sec)' },
-      { key: 'totalPauseSec', header: 'Pause (sec)' },
-      { key: 'totalIdleSec', header: 'Idle/Ready (sec)' },
-    ];
+    const { from, to, timezone } = await this.resolvePeriod(vpbxUserUid, query);
+    // Operator rows stay on the call table (grouped in SQL). The daily agent rollup has no queue
+    // split and no journal time, so it cannot answer this report. Queue summary still uses it.
+    const shortCallSec = await this.shortCallSec(vpbxUserUid);
+    const groupBy = query.groupBy ?? 'operator';
+    const queueNames = (query.queueName ?? '').split(',').map((part) => part.trim()).filter(Boolean);
+    const userIds = (query.agentUserUid ?? '').split(',').map((part) => Number(part.trim())).filter((id) => id > 0);
 
-    const sessionTimeByAgent = await this.aggregateSessionTime(vpbxUserUid, from, to, query.agentInterface);
-
-    if (source === 'rollup') {
-      const where: Record<string, unknown> = {
-        user_uid: vpbxUserUid,
-        stat_date: { [Op.gte]: fromKey, [Op.lte]: toKey },
-      };
-      if (query.agentInterface) where.agent_interface = query.agentInterface;
-      const rows = await this.dailyAgentModel.findAll({ where });
-      const byAgent = new Map<string, {
-        agentUserUid: number | null;
-        calls: number;
-        talk: number;
-        hold: number;
-        wrapup: number;
-      }>();
-      for (const r of rows) {
-        let agg = byAgent.get(r.agent_interface);
-        if (!agg) {
-          agg = { agentUserUid: r.agent_user_uid ?? null, calls: 0, talk: 0, hold: 0, wrapup: 0 };
-          byAgent.set(r.agent_interface, agg);
-        }
-        agg.calls += r.calls_handled;
-        agg.talk += r.total_talk_sec;
-        agg.hold += r.total_hold_sec;
-        agg.wrapup += r.total_wrapup_sec;
-        if (r.agent_user_uid != null) agg.agentUserUid = r.agent_user_uid;
-      }
-      const result: OperatorStatsRow[] = [];
-      for (const [agentInterface, a] of byAgent) {
-        const handle = a.talk + a.wrapup; // talk already includes hold
-        const sess = sessionTimeByAgent.get(agentInterface);
-        result.push({
-          agentInterface,
-          agentUserUid: a.agentUserUid,
-          callsHandled: a.calls,
-          totalTalkSec: a.talk,
-          totalHoldSec: a.hold,
-          totalWrapupSec: a.wrapup,
-          avgHandleSec: a.calls ? Math.round(handle / a.calls) : 0,
-          ahtSec: a.calls ? Math.round((a.talk + a.wrapup) / a.calls) : 0,
-          loggedInSec: sess?.loggedInSec ?? 0,
-          totalPauseSec: sess?.totalPauseSec ?? 0,
-          totalIdleSec: sess?.totalIdleSec ?? 0,
-        });
-      }
-      return { reportId: 'operator-stats', columns, rows: result, source };
-    }
-
-    const where: Record<string, unknown> = {
+    const callWhere: Record<string, unknown> = {
       user_uid: vpbxUserUid,
       created_at: { [Op.gte]: from, [Op.lte]: to },
-      // Handled inbound/personal calls; outbound/internal are "made", not handled.
-      disposition: { [Op.in]: ['answered', 'transferred'] },
-      direction: { [Op.notIn]: ['outbound', 'internal'] },
     };
     const queueWhere = queueNameWhere(query.queueName);
-    if (queueWhere !== undefined) where.queue_name = queueWhere;
-    if (query.agentInterface) where.agent_interface = query.agentInterface;
-    const calls = await this.queueCallModel.findAll({ where });
-    const byAgent = new Map<string, {
-      agentUserUid: number | null;
-      calls: number;
-      talk: number;
-      hold: number;
-      wrapup: number;
-    }>();
-    for (const c of calls) {
-      const iface = (c.agent_interface || '').trim();
-      if (!iface) continue;
-      let agg = byAgent.get(iface);
-      if (!agg) {
-        agg = { agentUserUid: c.agent_user_uid ?? null, calls: 0, talk: 0, hold: 0, wrapup: 0 };
-        byAgent.set(iface, agg);
-      }
-      agg.calls += 1;
-      agg.talk += c.talk_time ?? 0;
-      agg.hold += c.hold_time ?? 0;
-      agg.wrapup += c.wrapup_time ?? 0;
-      if (c.agent_user_uid != null) agg.agentUserUid = c.agent_user_uid;
+    if (queueWhere !== undefined && groupBy !== 'operator') callWhere.queue_name = queueWhere;
+    // A queue filter is applied in the builder so shift-only members of the queue still appear.
+    if (queueWhere !== undefined && groupBy === 'operator') callWhere.queue_name = queueWhere;
+    if (userIds.length === 1) callWhere.agent_user_uid = userIds[0];
+    else if (userIds.length > 1) callWhere.agent_user_uid = { [Op.in]: userIds };
+    else if (query.agentInterface) callWhere.agent_interface = query.agentInterface;
+
+    const facts = await this.loadCallFacts(callWhere, shortCallSec, groupBy === 'day');
+    const offers = await this.loadOfferFacts(vpbxUserUid, from, to, queueWhere, userIds, query.agentInterface);
+    const sessions = await this.loadSessionFacts(vpbxUserUid, from, to, userIds, query.agentInterface);
+    const directory = await this.loadDirectory(vpbxUserUid, [
+      ...facts.map((fact) => fact.agentUserUid),
+      ...sessions.map((session) => session.userId),
+    ]);
+    const paid = await this.paidPauseLookup(vpbxUserUid);
+
+    let rows = buildOperatorStats({
+      calls: facts,
+      offers,
+      sessions,
+      directory,
+      from,
+      to,
+      queueNames: groupBy === 'operator' ? queueNames : queueNames,
+      shortCallSec,
+      isPaid: paid,
+      groupBy,
+      dateKey: (instant) => zonedDateKey(instant, timezone),
+    });
+    if (query.access?.operatorUserIds) {
+      rows = rows.filter((row) => this.visibleOperator(query, row.agentUserUid));
     }
-    for (const [iface, sess] of sessionTimeByAgent) {
-      if (!byAgent.has(iface)) {
-        byAgent.set(iface, { agentUserUid: sess.userId, calls: 0, talk: 0, hold: 0, wrapup: 0 });
-      }
-    }
-    const result: OperatorStatsRow[] = [];
-    for (const [agentInterface, a] of byAgent) {
-      const handle = a.talk + a.wrapup; // talk already includes hold
-      const sess = sessionTimeByAgent.get(agentInterface);
-      result.push({
-        agentInterface,
-        agentUserUid: a.agentUserUid,
-        callsHandled: a.calls,
-        totalTalkSec: a.talk,
-        totalHoldSec: a.hold,
-        totalWrapupSec: a.wrapup,
-        avgHandleSec: a.calls ? Math.round(handle / a.calls) : 0,
-        ahtSec: a.calls ? Math.round((a.talk + a.wrapup) / a.calls) : 0,
-        loggedInSec: sess?.loggedInSec ?? 0,
-        totalPauseSec: sess?.totalPauseSec ?? 0,
-        totalIdleSec: sess?.totalIdleSec ?? 0,
-      });
-    }
-    return { reportId: 'operator-stats', columns, rows: result, source };
+    const columns = operatorStatsColumns(queueNames.length > 0 && groupBy !== 'queue', groupBy);
+    return { reportId: 'operator-stats', columns, rows, source: 'raw' };
   }
 
-  /**
-   * Aggregate shift / pause / idle seconds from cc_agent_sessions overlapping [from, to].
-   * Sessions fully inside the period use their stored totals (cheap, exact). Boundary sessions
-   * are clipped from their event stream so a night shift is not counted twice across days.
-   */
-  private async aggregateSessionTime(
+  private async shortCallSec(vpbxUserUid: number): Promise<number> {
+    if (!this.settingsModel) return DEFAULT_SHORT_CALL_SEC;
+    const row = await this.settingsModel.findOne({
+      where: { user_uid: vpbxUserUid },
+      attributes: ['alert_thresholds'],
+    });
+    const raw = row?.getDataValue?.('alert_thresholds') ?? row?.alert_thresholds;
+    const value = Number(raw?.short_call_sec);
+    return Number.isFinite(value) && value >= 0 ? value : DEFAULT_SHORT_CALL_SEC;
+  }
+
+  /** SQL groups when a real connection exists; the unit-test doubles take the row path. */
+  private async loadCallFacts(
+    where: Record<string, unknown>,
+    shortCallSec: number,
+    needInstants: boolean,
+  ): Promise<OperatorCallFact[]> {
+    const sequelize = this.queueCallModel.sequelize;
+    if (!needInstants && sequelize?.query && where.user_uid != null && where.created_at) {
+      const range = where.created_at as { [key: symbol]: Date };
+      const from = range[Op.gte];
+      const to = range[Op.lte];
+      if (from instanceof Date && to instanceof Date) {
+        const replacements: Record<string, unknown> = { uid: where.user_uid, from, to, short: shortCallSec };
+        const extra: string[] = [];
+        if (typeof where.queue_name === 'string') {
+          extra.push('AND queue_name = :queue');
+          replacements.queue = where.queue_name;
+        } else if (where.queue_name && typeof where.queue_name === 'object' && Op.in in (where.queue_name as object)) {
+          extra.push('AND queue_name IN (:queues)');
+          replacements.queues = (where.queue_name as { [key: symbol]: string[] })[Op.in];
+        }
+        if (typeof where.agent_interface === 'string') {
+          extra.push('AND agent_interface = :iface');
+          replacements.iface = where.agent_interface;
+        }
+        if (typeof where.agent_user_uid === 'number') {
+          extra.push('AND agent_user_uid = :agent');
+          replacements.agent = where.agent_user_uid;
+        }
+        const sql = `SELECT agent_user_uid AS "agentUserUid", agent_interface AS "agentInterface", queue_name AS "queueName",
+            direction, disposition, COUNT(*) AS calls,
+            COALESCE(SUM(talk_time), 0) AS "talkSec", COALESCE(SUM(hold_time), 0) AS "holdSec",
+            COALESCE(SUM(wrapup_time), 0) AS "wrapupSec",
+            COALESCE(SUM(CASE WHEN disposition IN ('answered', 'transferred') AND direction NOT IN ('outbound', 'internal') AND talk_time < :short THEN 1 ELSE 0 END), 0) AS "shortCalls"
+          FROM cc_queue_calls
+          WHERE vpbx_user_uid = :uid AND created_at >= :from AND created_at <= :to ${extra.join(' ')}
+          GROUP BY agent_user_uid, agent_interface, queue_name, direction, disposition`;
+        const grouped = await sequelize.query(sql, { replacements, type: QueryTypes.SELECT });
+        return factsFromCalls(grouped as OperatorCallFact[], shortCallSec);
+      }
+    }
+    const calls = await this.queueCallModel.findAll({ where });
+    return factsFromCalls(calls, shortCallSec);
+  }
+
+  private async loadOfferFacts(
     vpbxUserUid: number,
     from: Date,
     to: Date,
+    queueWhere: ReturnType<typeof queueNameWhere>,
+    userIds: number[],
     agentInterface?: string,
-  ): Promise<Map<string, {
-    userId: number | null;
-    loggedInSec: number;
-    totalPauseSec: number;
-    totalIdleSec: number;
-  }>> {
+  ): Promise<OperatorOfferFact[]> {
+    if (!this.offerModel) return [];
+    const where: Record<string, unknown> = {
+      user_uid: vpbxUserUid,
+      offered_at: { [Op.gte]: from, [Op.lte]: to },
+      outcome: 'rna',
+    };
+    if (queueWhere !== undefined) where.queue_name = queueWhere;
+    if (userIds.length === 1) where.agent_user_uid = userIds[0];
+    else if (userIds.length > 1) where.agent_user_uid = { [Op.in]: userIds };
+    else if (agentInterface) where.agent_interface = agentInterface;
+    const offers = await this.offerModel.findAll({ where });
+    const grouped = new Map<string, OperatorOfferFact>();
+    for (const offer of offers) {
+      const key = `${offer.agent_user_uid ?? ''}|${offer.agent_interface}|${offer.queue_name}`;
+      const fact = grouped.get(key) ?? {
+        agentUserUid: offer.agent_user_uid ?? null,
+        agentInterface: offer.agent_interface,
+        queueName: offer.queue_name,
+        count: 0,
+      };
+      fact.count += 1;
+      grouped.set(key, fact);
+    }
+    return [...grouped.values()];
+  }
+
+  private async loadSessionFacts(
+    vpbxUserUid: number,
+    from: Date,
+    to: Date,
+    userIds: number[],
+    agentInterface?: string,
+  ): Promise<OperatorSessionFact[]> {
     const where: Record<string, unknown> = {
       user_uid: vpbxUserUid,
       login_time: { [Op.lte]: to },
-      [Op.or]: [
-        { logout_time: null },
-        { logout_time: { [Op.gte]: from } },
-      ],
+      [Op.or]: [{ logout_time: null }, { logout_time: { [Op.gte]: from } }],
     };
-    if (agentInterface) where.agent_interface = agentInterface;
+    if (userIds.length === 1) where.user_id = userIds[0];
+    else if (userIds.length > 1) where.user_id = { [Op.in]: userIds };
+    else if (agentInterface) where.agent_interface = agentInterface;
     const sessions = await this.sessionModel.findAll({ where });
-    const map = new Map<string, {
-      userId: number | null;
-      loggedInSec: number;
-      totalPauseSec: number;
-      totalIdleSec: number;
-    }>();
-    const now = Date.now();
-
-    const boundary = sessions.filter((s) => {
-      const login = new Date(s.login_time).getTime();
-      const logout = s.logout_time ? new Date(s.logout_time).getTime() : now;
-      return login < from.getTime() || logout > to.getTime();
-    });
-    const clipped = await this.clipBoundarySessions(vpbxUserUid, boundary, from, to, now);
-
-    for (const s of sessions) {
-      const iface = s.agent_interface;
-      let agg = map.get(iface);
-      if (!agg) {
-        agg = { userId: s.user_id ?? null, loggedInSec: 0, totalPauseSec: 0, totalIdleSec: 0 };
-        map.set(iface, agg);
-      }
-      const login = new Date(s.login_time).getTime();
-      const logout = s.logout_time ? new Date(s.logout_time).getTime() : now;
-      const overlapStart = Math.max(login, from.getTime());
-      const overlapEnd = Math.min(logout, to.getTime());
-      if (overlapEnd > overlapStart) {
-        agg.loggedInSec += Math.round((overlapEnd - overlapStart) / 1000);
-      }
-      const partial = clipped.get(s.uid);
-      agg.totalPauseSec += partial ? partial.pauseSec : (s.total_pause_time ?? 0);
-      agg.totalIdleSec += partial ? partial.idleSec : (s.total_idle_time ?? 0);
-      if (s.user_id != null) agg.userId = s.user_id;
+    const ids = sessions.map((session) => session.uid).filter((id) => id != null);
+    const events: CcAgentEvent[] = [];
+    for (let i = 0; i < ids.length; i += 500) {
+      const chunk = ids.slice(i, i + 500);
+      events.push(...await this.agentEventModel.findAll({
+        where: { user_uid: vpbxUserUid, session_id: { [Op.in]: chunk } },
+        order: [['created_at', 'ASC']],
+      }));
     }
-    return map;
+    const bySession = new Map<number, CcAgentEvent[]>();
+    for (const event of events) {
+      const list = bySession.get(event.session_id) ?? [];
+      list.push(event);
+      bySession.set(event.session_id, list);
+    }
+    return sessions.map((session) => {
+      const rawQueues = session.queues_snapshot;
+      const queues = Array.isArray(rawQueues)
+        ? rawQueues.map(String)
+        : [];
+      const login = session.login_time ? new Date(session.login_time) : from;
+      return {
+        userId: session.user_id ?? null,
+        agentInterface: session.agent_interface,
+        login,
+        logout: session.logout_time ? new Date(session.logout_time) : null,
+        queues,
+        events: bySession.get(session.uid) ?? [],
+      };
+    });
   }
 
-  /** Pause / ready seconds of sessions that cross the period edge, from clipped timeline segments. */
-  private async clipBoundarySessions(
-    vpbxUserUid: number,
-    sessions: CcAgentSession[],
-    from: Date,
-    to: Date,
-    now: number,
-  ): Promise<Map<number, { pauseSec: number; idleSec: number }>> {
-    const result = new Map<number, { pauseSec: number; idleSec: number }>();
-    if (sessions.length === 0) return result;
-
-    const ids = sessions.map((s) => s.uid);
-    const events = await this.agentEventModel.findAll({
-      where: { user_uid: vpbxUserUid, session_id: { [Op.in]: ids } },
-      order: [['created_at', 'ASC']],
+  private async loadDirectory(vpbxUserUid: number, ids: Array<number | null | undefined>): Promise<{ userId: number; name: string }[]> {
+    if (!this.userModel) return [];
+    const unique = [...new Set(ids.filter((id): id is number => id != null && id > 0))];
+    if (unique.length === 0) return [];
+    const users = await this.userModel.findAll({
+      where: { uniqueid: { [Op.in]: unique }, vpbx_user_uid: vpbxUserUid },
+      attributes: ['uniqueid', 'name', 'login'],
     });
-    const bySession = new Map<number, CcAgentEvent[]>();
-    for (const ev of events) {
-      const list = bySession.get(ev.session_id) ?? [];
-      list.push(ev);
-      bySession.set(ev.session_id, list);
-    }
+    return users.map((user) => ({
+      userId: Number(user.getDataValue('uniqueid')),
+      name: String(user.getDataValue('name') || user.getDataValue('login') || ''),
+    }));
+  }
 
-    for (const s of sessions) {
-      const sessionEnd = new Date(s.logout_time ? new Date(s.logout_time).getTime() : now);
-      const segments = this.buildAgentTimelineSegments(bySession.get(s.uid) ?? [], sessionEnd);
-      let pauseSec = 0;
-      let idleSec = 0;
-      for (const seg of segments) {
-        const start = Math.max(new Date(seg.startTs).getTime(), from.getTime());
-        const end = Math.min(new Date(seg.endTs).getTime(), to.getTime());
-        if (end <= start) continue;
-        const sec = Math.round((end - start) / 1000);
-        if (seg.state === 'PAUSED') pauseSec += sec;
-        else if (seg.state === 'READY') idleSec += sec;
-      }
-      result.set(s.uid, { pauseSec, idleSec });
-    }
-    return result;
+  private async paidPauseLookup(vpbxUserUid: number): Promise<(reason: string) => boolean | null> {
+    const reasons = await this.pauseReasonModel.findAll({
+      where: { user_uid: vpbxUserUid },
+      attributes: ['name', 'is_paid'],
+    });
+    const paid = new Map(reasons.map((reason) => [reason.name, reason.is_paid !== false] as const));
+    return (reason: string) => (reason ? (paid.has(reason) ? paid.get(reason)! : null) : null);
   }
 
   async getPauseReport(
@@ -548,13 +597,18 @@ export class CallCenterReportsService {
   ): Promise<ReportResult<PauseReportRow>> {
     const { from, to } = await this.resolvePeriod(vpbxUserUid, query);
 
-    const sessionWhere: Record<string, unknown> = { user_uid: vpbxUserUid };
+    const sessionWhere: Record<string, unknown> = {
+      user_uid: vpbxUserUid,
+      login_time: { [Op.lte]: to },
+      [Op.or]: [{ logout_time: null }, { logout_time: { [Op.gte]: from } }],
+    };
     if (query.agentInterface) sessionWhere.agent_interface = query.agentInterface;
-    const sessions = await this.sessionModel.findAll({
-      where: sessionWhere,
-      attributes: ['uid', 'agent_interface', 'user_id', 'logout_time'],
-    });
-    const sessionMap = new Map(sessions.map((s) => [s.uid, s]));
+    if (query.agentUserUid) {
+      const ids = query.agentUserUid.split(',').map((part) => Number(part.trim())).filter((id) => id > 0);
+      if (ids.length === 1) sessionWhere.user_id = ids[0];
+      else if (ids.length > 1) sessionWhere.user_id = { [Op.in]: ids };
+    }
+    const sessions = await this.sessionModel.findAll({ where: sessionWhere });
     const sessionIds = sessions.map((s) => s.uid);
 
     const pauseColumns: ReportColumn[] = [
@@ -575,7 +629,6 @@ export class CallCenterReportsService {
       where: {
         user_uid: vpbxUserUid,
         session_id: { [Op.in]: sessionIds },
-        created_at: { [Op.gte]: from, [Op.lte]: to },
       },
       order: [['session_id', 'ASC'], ['created_at', 'ASC']],
     });
@@ -597,45 +650,41 @@ export class CallCenterReportsService {
       isPaid: boolean | null;
     }>();
 
-    const now = Date.now();
-    for (let i = 0; i < events.length; i++) {
-      const ev = events[i];
-      if (ev.event_type !== 'PAUSE') continue;
-      const sess = sessionMap.get(ev.session_id);
-      const agentInterface = sess?.agent_interface || '';
+    const now = new Date();
+    for (const sess of sessions) {
+      const agentInterface = sess.agent_interface || '';
       if (query.agentInterface && agentInterface !== query.agentInterface) continue;
-
-      let durationSec = ev.duration ?? 0;
-      if (durationSec <= 0) {
-        const next = events.slice(i + 1).find((e) => e.session_id === ev.session_id);
-        const start = ev.created_at ? new Date(ev.created_at).getTime() : now;
-        // A pause that never got its own end event (the agent was logged out, or the panel just
-        // died) ends with the shift. Without this a forgotten pause runs to the end of the report.
-        const shiftEnd = sess?.logout_time ? new Date(sess.logout_time).getTime() : null;
-        let end = next?.created_at
-          ? new Date(next.created_at).getTime()
-          : (shiftEnd ?? Math.min(now, to.getTime()));
-        if (shiftEnd !== null && end > shiftEnd) end = shiftEnd;
-        durationSec = Math.max(0, Math.round((end - start) / 1000));
+      if (!this.visibleOperator(query, sess.user_id ?? null)) continue;
+      const sessionEvents = events.filter((event) => event.session_id === sess.uid);
+      const login = sess.login_time
+        ? new Date(sess.login_time)
+        : new Date(sessionEvents[0]?.created_at ?? from);
+      const accounted = accountSessionTime({
+        events: sessionEvents,
+        login,
+        logout: sess.logout_time ? new Date(sess.logout_time) : null,
+        from,
+        to,
+        now,
+        isPaid: (reason) => (paidByName.has(reason) ? paidByName.get(reason)! : null),
+      });
+      for (const pause of accounted.pauses) {
+        const key = `${agentInterface}|${sess.user_id}|${pause.reason}`;
+        let agg = byKey.get(key);
+        if (!agg) {
+          agg = {
+            agentInterface,
+            userId: sess.user_id,
+            pauseReason: pause.reason,
+            count: 0,
+            totalSec: 0,
+            isPaid: pause.isPaid,
+          };
+          byKey.set(key, agg);
+        }
+        agg.count += 1;
+        agg.totalSec += pause.sec;
       }
-
-      const reason = ev.reason || '(none)';
-      const key = `${agentInterface}|${ev.user_id}|${reason}`;
-      let agg = byKey.get(key);
-      if (!agg) {
-        const isPaid = reason === '(none)' ? null : (paidByName.get(reason) ?? null);
-        agg = {
-          agentInterface,
-          userId: ev.user_id,
-          pauseReason: reason,
-          count: 0,
-          totalSec: 0,
-          isPaid,
-        };
-        byKey.set(key, agg);
-      }
-      agg.count += 1;
-      agg.totalSec += durationSec;
     }
 
     const rows: PauseReportRow[] = [...byKey.values()].map((a) => ({
@@ -655,7 +704,7 @@ export class CallCenterReportsService {
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<HourlyHeatmapRow>> {
-    const { from, to, fromKey, toKey, timezone } = await this.resolvePeriod(vpbxUserUid, query);
+    const { from, to, timezone } = await this.resolvePeriod(vpbxUserUid, query);
     const where: Record<string, unknown> = {
       user_uid: vpbxUserUid,
       created_at: { [Op.gte]: from, [Op.lte]: to },
@@ -826,7 +875,7 @@ export class CallCenterReportsService {
     dateFrom: string,
     dateTo: string,
     timezone?: string,
-  ): { from: Date; to: Date } {
+  ): { from: Date; to: Date; periodClamped: boolean } {
     // A date-only bound is a whole calendar day. With a tenant timezone it is the local day;
     // without one the legacy UTC contract applies.
     const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
@@ -844,11 +893,39 @@ export class CallCenterReportsService {
       throw new BadRequestException('dateTo must be >= dateFrom');
     }
     const maxMs = MAX_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+    let periodClamped = false;
     if (to.getTime() - from.getTime() > maxMs) {
       to = new Date(from.getTime() + maxMs);
+      periodClamped = true;
       this.logger.warn(`Report period clamped to ${MAX_PERIOD_DAYS} days`);
     }
-    return { from, to };
+    return { from, to, periodClamped };
+  }
+
+  /** A restricted supervisor cannot ask for an operator or a queue outside the access list. */
+  private assertAccess(query: ReportQuery): void {
+    const access = query.access;
+    if (!access) return;
+    if (access.queues && query.queueName) {
+      const allowed = new Set(access.queues);
+      for (const name of query.queueName.split(',').map((part) => part.trim()).filter(Boolean)) {
+        if (!allowed.has(normalizeAccessToken(name))) {
+          throw new ForbiddenException('Queue is outside supervisor access list');
+        }
+      }
+    }
+    if (access.operatorUserIds && query.agentUserUid) {
+      const allowed = new Set(access.operatorUserIds.map(Number));
+      for (const id of query.agentUserUid.split(',').map((part) => Number(part.trim())).filter((id) => id > 0)) {
+        if (!allowed.has(id)) throw new ForbiddenException('Operator is outside supervisor access list');
+      }
+    }
+  }
+
+  private visibleOperator(query: ReportQuery, userId: number | null): boolean {
+    const ids = query.access?.operatorUserIds;
+    if (!ids) return true;
+    return userId != null && ids.includes(Number(userId));
   }
 
   /** Shared with the live occupancy restore so READY means the same thing everywhere. */

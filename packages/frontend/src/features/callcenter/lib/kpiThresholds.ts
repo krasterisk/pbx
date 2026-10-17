@@ -10,6 +10,13 @@ export interface KpiThresholds {
   maxWaitSec: number;
   abandonRatePct: number;
   agentsAvailableMin: number;
+  /** 0 = no target. */
+  ahtTargetSec: number;
+  occupancyMinPct: number;
+  occupancyMaxPct: number;
+  pauseShareMaxPct: number;
+  rnaRateMaxPct: number;
+  shortCallSec: number;
 }
 
 export const DEFAULT_KPI_THRESHOLDS: Readonly<KpiThresholds> = {
@@ -17,6 +24,12 @@ export const DEFAULT_KPI_THRESHOLDS: Readonly<KpiThresholds> = {
   maxWaitSec: 60,
   abandonRatePct: 10,
   agentsAvailableMin: 1,
+  ahtTargetSec: 0,
+  occupancyMinPct: 0,
+  occupancyMaxPct: 0,
+  pauseShareMaxPct: 0,
+  rnaRateMaxPct: 0,
+  shortCallSec: 10,
 };
 
 function pick(raw: Record<string, unknown> | null | undefined, key: string, fallback: number): number {
@@ -33,6 +46,12 @@ export function resolveKpiThresholds(
     maxWaitSec: pick(alertThresholds, 'max_wait_sec', DEFAULT_KPI_THRESHOLDS.maxWaitSec),
     abandonRatePct: pick(alertThresholds, 'abandon_rate_pct', DEFAULT_KPI_THRESHOLDS.abandonRatePct),
     agentsAvailableMin: pick(alertThresholds, 'agents_available_min', DEFAULT_KPI_THRESHOLDS.agentsAvailableMin),
+    ahtTargetSec: pick(alertThresholds, 'aht_target_sec', DEFAULT_KPI_THRESHOLDS.ahtTargetSec),
+    occupancyMinPct: pick(alertThresholds, 'occupancy_min_pct', DEFAULT_KPI_THRESHOLDS.occupancyMinPct),
+    occupancyMaxPct: pick(alertThresholds, 'occupancy_max_pct', DEFAULT_KPI_THRESHOLDS.occupancyMaxPct),
+    pauseShareMaxPct: pick(alertThresholds, 'pause_share_max_pct', DEFAULT_KPI_THRESHOLDS.pauseShareMaxPct),
+    rnaRateMaxPct: pick(alertThresholds, 'rna_rate_max_pct', DEFAULT_KPI_THRESHOLDS.rnaRateMaxPct),
+    shortCallSec: pick(alertThresholds, 'short_call_sec', DEFAULT_KPI_THRESHOLDS.shortCallSec),
   };
 }
 

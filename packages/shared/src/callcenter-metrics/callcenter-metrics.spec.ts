@@ -5,7 +5,13 @@ import {
   computeAbandonRate,
   computeAht,
   computeAsa,
+  computeAgentAnswerRate,
+  computeCallsPerHour,
   computeOccupancy,
+  computePauseShare,
+  computeShortCallRate,
+  computeUtilization,
+  meanSeconds,
   computeSla,
   effectiveOffered,
   emptyQueueTotals,
@@ -129,6 +135,26 @@ describe('golden day: live = rollup = report totals', () => {
 describe('occupancy', () => {
   it('uses talk + wrapup over talk + wrapup + ready', () => {
     expect(computeOccupancy({ talkSec: 600, wrapupSec: 100, idleSec: 300 })).toBe(70);
+  });
+});
+
+describe('operator rates', () => {
+  it('returns 0 when the denominator is empty', () => {
+    expect(computeUtilization(10, 0)).toBe(0);
+    expect(computePauseShare(10, 0)).toBe(0);
+    expect(computeAgentAnswerRate(1, 0)).toBe(0);
+    expect(computeCallsPerHour(3, 0)).toBe(0);
+    expect(computeShortCallRate(1, 0)).toBe(0);
+    expect(meanSeconds(30, 0)).toBe(0);
+  });
+
+  it('weights by the operator, not by an average of averages', () => {
+    expect(computeUtilization(2700, 3600)).toBe(75);
+    expect(computePauseShare(720, 3600)).toBe(20);
+    expect(computeAgentAnswerRate(8, 10)).toBe(80);
+    expect(computeCallsPerHour(4, 3600)).toBe(4);
+    expect(computeShortCallRate(1, 4)).toBe(25);
+    expect(meanSeconds(130, 2)).toBe(65);
   });
 });
 

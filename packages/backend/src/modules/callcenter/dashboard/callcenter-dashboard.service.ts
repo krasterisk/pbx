@@ -98,7 +98,11 @@ export class CallCenterDashboardService {
     private readonly operatorsService: CallCenterOperatorsService,
   ) {}
 
-  async getOverview(userUid: number, query: DashboardOverviewQueryDto): Promise<CcDashboardOverview> {
+  async getOverview(
+    userUid: number,
+    query: DashboardOverviewQueryDto,
+    access?: import('../reports/callcenter-reports.types').ReportAccess,
+  ): Promise<CcDashboardOverview> {
     const { timezone } = await this.config.getTenantConfig(userUid);
     const now = new Date();
     const queues = parseQueueFilter(query.queues);
@@ -121,7 +125,7 @@ export class CallCenterDashboardService {
     const live = this.liveContext(userUid, queues);
     const lossesPromise = this.buildLosses(userUid, period, queues, now);
     const pausesPromise = this.buildPauses(userUid, period, now);
-    const operatorsPromise = this.buildOperators(userUid, period, now);
+    const operatorsPromise = this.buildOperators(userUid, period, now, access);
     const generatedAt = now.toISOString();
 
     let current: IntervalBucket[] | null = null;
@@ -240,12 +244,13 @@ export class CallCenterDashboardService {
     userUid: number,
     period: CcDashboardPeriod,
     now: Date,
+    access?: import('../reports/callcenter-reports.types').ReportAccess,
   ): Promise<CcDashboardSection<CcDashboardOperators>> {
     try {
       const data = await this.operatorsService.getDeviations(userUid, {
         from: new Date(period.from),
         to: new Date(period.to),
-      });
+      }, access);
       return { source: { state: 'ok', updatedAt: now.toISOString() }, data };
     } catch (err) {
       this.logger.error(`[dashboard] operators failed tenant=${userUid}: ${(err as Error).message}`);

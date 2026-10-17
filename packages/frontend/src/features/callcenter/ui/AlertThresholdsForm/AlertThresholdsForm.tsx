@@ -21,6 +21,12 @@ interface ThresholdForm {
   abandon_rate_pct: number;
   sla_critical_pct: number;
   agents_available_min: number;
+  aht_target_sec: number;
+  occupancy_min_pct: number;
+  occupancy_max_pct: number;
+  pause_share_max_pct: number;
+  rna_rate_max_pct: number;
+  short_call_sec: number;
 }
 
 type NumericKey = Exclude<keyof ThresholdForm, 'alert_sound_enabled'>;
@@ -33,6 +39,12 @@ const DEFAULTS: ThresholdForm = {
   abandon_rate_pct: 10,
   sla_critical_pct: 70,
   agents_available_min: 1,
+  aht_target_sec: 0,
+  occupancy_min_pct: 0,
+  occupancy_max_pct: 0,
+  pause_share_max_pct: 0,
+  rna_rate_max_pct: 0,
+  short_call_sec: 10,
 };
 
 interface NumericField {
@@ -87,6 +99,15 @@ export const ALERT_FIELDS: NumericField[] = [
   },
 ];
 
+export const OPERATOR_TARGET_FIELDS: NumericField[] = [
+  { key: 'aht_target_sec', id: 'cc-aht-target', labelKey: 'callcenter.settings.alerts.ahtTarget', hintKey: 'callcenter.settings.alerts.ahtTargetHint' },
+  { key: 'occupancy_min_pct', id: 'cc-occupancy-min', labelKey: 'callcenter.settings.alerts.occupancyMin', hintKey: 'callcenter.settings.alerts.occupancyHint', max: 100 },
+  { key: 'occupancy_max_pct', id: 'cc-occupancy-max', labelKey: 'callcenter.settings.alerts.occupancyMax', hintKey: 'callcenter.settings.alerts.occupancyHint', max: 100 },
+  { key: 'pause_share_max_pct', id: 'cc-pause-share', labelKey: 'callcenter.settings.alerts.pauseShareMax', hintKey: 'callcenter.settings.alerts.pauseShareMaxHint', max: 100 },
+  { key: 'rna_rate_max_pct', id: 'cc-rna-rate', labelKey: 'callcenter.settings.alerts.rnaRateMax', hintKey: 'callcenter.settings.alerts.rnaRateMaxHint', max: 100 },
+  { key: 'short_call_sec', id: 'cc-short-call', labelKey: 'callcenter.settings.alerts.shortCall', hintKey: 'callcenter.settings.alerts.shortCallHint', max: 120 },
+];
+
 /**
  * Tenant default SLA + alert thresholds (D-07 / D-27). Editable by supervisor/admin only.
  */
@@ -109,6 +130,12 @@ export function AlertThresholdsForm() {
       abandon_rate_pct: th.abandon_rate_pct ?? DEFAULTS.abandon_rate_pct,
       sla_critical_pct: th.sla_critical_pct ?? DEFAULTS.sla_critical_pct,
       agents_available_min: th.agents_available_min ?? DEFAULTS.agents_available_min,
+      aht_target_sec: Number(th.aht_target_sec ?? DEFAULTS.aht_target_sec),
+      occupancy_min_pct: Number(th.occupancy_min_pct ?? DEFAULTS.occupancy_min_pct),
+      occupancy_max_pct: Number(th.occupancy_max_pct ?? DEFAULTS.occupancy_max_pct),
+      pause_share_max_pct: Number(th.pause_share_max_pct ?? DEFAULTS.pause_share_max_pct),
+      rna_rate_max_pct: Number(th.rna_rate_max_pct ?? DEFAULTS.rna_rate_max_pct),
+      short_call_sec: Number(th.short_call_sec ?? DEFAULTS.short_call_sec),
     });
   }, [data, syncFromServer]);
 
@@ -130,6 +157,12 @@ export function AlertThresholdsForm() {
           abandon_rate_pct: form.abandon_rate_pct,
           sla_critical_pct: form.sla_critical_pct,
           agents_available_min: form.agents_available_min,
+          aht_target_sec: form.aht_target_sec,
+          occupancy_min_pct: form.occupancy_min_pct,
+          occupancy_max_pct: form.occupancy_max_pct,
+          pause_share_max_pct: form.pause_share_max_pct,
+          rna_rate_max_pct: form.rna_rate_max_pct,
+          short_call_sec: form.short_call_sec,
         },
       }).unwrap();
       markSaved();
@@ -188,6 +221,11 @@ export function AlertThresholdsForm() {
       <div className={styles.section}>
         <Text className={styles.sectionTitle}>{t('callcenter.settings.alerts.sla')}</Text>
         {SLA_FIELDS.map(renderField)}
+      </div>
+
+      <div className={styles.section}>
+        <Text className={styles.sectionTitle}>{t('callcenter.settings.alerts.operatorTargets', 'Operator targets')}</Text>
+        {OPERATOR_TARGET_FIELDS.map(renderField)}
       </div>
 
       <div className={styles.section}>

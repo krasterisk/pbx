@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { shiftDateKey, zonedDateKey } from '@krasterisk/shared';
 import { CallCenterReportsService } from './callcenter-reports.service';
-import type { CcReportId } from './callcenter-reports.types';
+import { CallCenterMetricsConfigService } from '../callcenter-metrics-config.service';
 import { buildReportCsv } from './exporters/csv-exporter';
 import { buildReportXlsx } from './exporters/xlsx-exporter';
 import { NotificationsService } from '../../notifications/notifications.service';
@@ -33,55 +34,44 @@ export class CallCenterReportDeliveryService {
     private readonly notificationsService: NotificationsService,
     private readonly dispatcherService: NotificationDispatcherService,
     private readonly mailerService: MailerService,
+    @Optional() private readonly config?: CallCenterMetricsConfigService,
   ) {}
 
   /**
    * Resolve a sliding period window relative to now (bounded presets, T-07-15-03).
    * Public for unit tests.
    */
-  resolvePeriod(preset: PeriodPreset, now = new Date()): { dateFrom: string; dateTo: string } {
-    const startOfDay = (d: Date) => {
-      const x = new Date(d);
-      x.setHours(0, 0, 0, 0);
-      return x;
+  /**
+   * Tenant-local calendar dates (`YYYY-MM-DD`). The report engine treats a date-only bound
+   * as the whole local day, so a schedule is not shifted by the server timezone.
+   */
+  resolvePeriod(preset: PeriodPreset, now = new Date(), timezone = 'UTC'): { dateFrom: string; dateTo: string } {
+    const today = zonedDateKey(now, timezone);
+    const monthOf = (key: string, deltaMonths: number): { from: string; to: string } => {
+      const [year, month] = key.split('-').map(Number);
+      const start = new Date(Date.UTC(year, month - 1 + deltaMonths, 1));
+      const end = new Date(Date.UTC(year, month + deltaMonths, 0));
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      return { from: fmt(start), to: fmt(end) };
     };
-    const endOfDay = (d: Date) => {
-      const x = new Date(d);
-      x.setHours(23, 59, 59, 999);
-      return x;
-    };
-    const toIso = (d: Date) => d.toISOString();
-
     switch (preset) {
-      case 'today': {
-        return { dateFrom: toIso(startOfDay(now)), dateTo: toIso(endOfDay(now)) };
-      }
+      case 'today':
+        return { dateFrom: today, dateTo: today };
       case 'yesterday': {
-        const y = new Date(now);
-        y.setDate(y.getDate() - 1);
-        return { dateFrom: toIso(startOfDay(y)), dateTo: toIso(endOfDay(y)) };
+        const day = shiftDateKey(today, -1);
+        return { dateFrom: day, dateTo: day };
       }
-      case 'last-7-days': {
-        const from = startOfDay(now);
-        from.setDate(from.getDate() - 6);
-        return { dateFrom: toIso(from), dateTo: toIso(endOfDay(now)) };
-      }
-      case 'last-30-days': {
-        const from = startOfDay(now);
-        from.setDate(from.getDate() - 29);
-        return { dateFrom: toIso(from), dateTo: toIso(endOfDay(now)) };
-      }
+      case 'last-7-days':
+        return { dateFrom: shiftDateKey(today, -6), dateTo: today };
+      case 'last-30-days':
+        return { dateFrom: shiftDateKey(today, -29), dateTo: today };
       case 'previous-month': {
-        const firstThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastPrev = new Date(firstThisMonth);
-        lastPrev.setDate(0);
-        const firstPrev = new Date(lastPrev.getFullYear(), lastPrev.getMonth(), 1);
-        return { dateFrom: toIso(startOfDay(firstPrev)), dateTo: toIso(endOfDay(lastPrev)) };
+        const prev = monthOf(today, -1);
+        return { dateFrom: prev.from, dateTo: prev.to };
       }
       default: {
-        const y = new Date(now);
-        y.setDate(y.getDate() - 1);
-        return { dateFrom: toIso(startOfDay(y)), dateTo: toIso(endOfDay(y)) };
+        const day = shiftDateKey(today, -1);
+        return { dateFrom: day, dateTo: day };
       }
     }
   }
@@ -101,14 +91,25 @@ export class CallCenterReportDeliveryService {
         return { success: false, error: 'integration_tenant_mismatch' };
       }
 
+      let timezone = 'UTC';
+      if (this.config) {
+        timezone = (await this.config.getTenantConfig(schedule.user_uid)).timezone || 'UTC';
+      }
       const resolvedPeriod = this.resolvePeriod(
         schedule.period_preset as PeriodPreset,
+        new Date(),
+        timezone,
       );
-      const filters = schedule.filters ?? {};
+      const filters = (schedule.filters ?? {}) as {
+        queueName?: string;
+        agentInterface?: string;
+        agentUserUid?: string;
+      };
       const dto = {
         ...resolvedPeriod,
         queueName: filters.queueName,
         agentInterface: filters.agentInterface,
+        agentUserUid: filters.agentUserUid,
       };
 
       // runReport(reportId, vpbxUserUid, query) — tenant-scoped via schedule.user_uid

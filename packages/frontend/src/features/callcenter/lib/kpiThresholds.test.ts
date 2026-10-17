@@ -10,12 +10,7 @@ import {
 describe('resolveKpiThresholds', () => {
   it('uses the backend defaults when nothing is configured', () => {
     expect(resolveKpiThresholds(null)).toEqual(DEFAULT_KPI_THRESHOLDS);
-    expect(resolveKpiThresholds(undefined)).toEqual({
-      slaCriticalPct: 70,
-      maxWaitSec: 60,
-      abandonRatePct: 10,
-      agentsAvailableMin: 1,
-    });
+    expect(resolveKpiThresholds(undefined)).toEqual(DEFAULT_KPI_THRESHOLDS);
   });
 
   it('maps stored snake_case thresholds', () => {
@@ -26,7 +21,13 @@ describe('resolveKpiThresholds', () => {
         abandon_rate_pct: 8,
         agents_available_min: 3,
       }),
-    ).toEqual({ slaCriticalPct: 85, maxWaitSec: 45, abandonRatePct: 8, agentsAvailableMin: 3 });
+    ).toEqual({
+      ...DEFAULT_KPI_THRESHOLDS,
+      slaCriticalPct: 85,
+      maxWaitSec: 45,
+      abandonRatePct: 8,
+      agentsAvailableMin: 3,
+    });
   });
 
   it('keeps 0 as a real setting instead of falling back to the default', () => {

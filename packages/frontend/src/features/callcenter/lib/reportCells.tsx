@@ -14,8 +14,10 @@ export interface ReportCellContext {
   agentLabel: (agentInterface: string) => string;
   /** Queue display name. */
   queueLabel: (queueName: string) => string;
-  /** Tenant thresholds - when set, SLA / abandon / wait cells are highlighted. */
+  /** Tenant thresholds - when set, SLA / abandon / wait / operator cells are highlighted. */
   thresholds?: KpiThresholds;
+  /** Median of the visible rows, used when a metric has no absolute target. */
+  medians?: Record<string, number>;
 }
 
 export type CellTone = 'success' | 'warning' | 'destructive';
@@ -67,22 +69,58 @@ export function formatReportValue(col: ReportColumn, value: unknown, ctx: Report
   }
 }
 
-/** Highlight of an SLA / abandon / wait value against the tenant thresholds. */
-export function reportCellTone(col: ReportColumn, value: unknown, thresholds?: KpiThresholds): CellTone | undefined {
-  if (!thresholds || isEmpty(value)) return undefined;
+const HIGHER_IS_WORSE = new Set(['ahtSec', 'avgTalkSec', 'avgHoldSec', 'avgWrapupSec', 'pauseSharePct', 'rnaCount', 'shortCallPct', 'totalPauseSec']);
+const HIGHER_IS_BETTER = new Set(['answerRatePct', 'utilizationPct', 'callsPerHour', 'callsHandled']);
+
+/** Highlight of a value against tenant targets, then against the median of the report. */
+export function reportCellTone(
+  col: ReportColumn,
+  value: unknown,
+  thresholds?: KpiThresholds,
+  medians?: Record<string, number>,
+): CellTone | undefined {
+  if (isEmpty(value)) return undefined;
   const n = toNumber(value);
   if (n === null) return undefined;
-  if (col.key === 'slaPct') return slaTone(n, thresholds);
-  if (col.key === 'abandonPct') {
-    if (n >= thresholds.abandonRatePct) return 'destructive';
-    if (n >= thresholds.abandonRatePct * 0.7) return 'warning';
-    return 'success';
+  if (thresholds) {
+    if (col.key === 'slaPct') return slaTone(n, thresholds);
+    if (col.key === 'abandonPct') {
+      if (n >= thresholds.abandonRatePct) return 'destructive';
+      if (n >= thresholds.abandonRatePct * 0.7) return 'warning';
+      return 'success';
+    }
+    if (col.key === 'maxWaitSec') {
+      if (n >= thresholds.maxWaitSec) return 'destructive';
+      if (n >= thresholds.maxWaitSec * 0.7) return 'warning';
+      return 'success';
+    }
+    if (col.key === 'ahtSec' && thresholds.ahtTargetSec > 0) {
+      if (n > thresholds.ahtTargetSec) return 'destructive';
+      if (n > thresholds.ahtTargetSec * 0.9) return 'warning';
+      return 'success';
+    }
+    if (col.key === 'occupancyPct' && (thresholds.occupancyMinPct > 0 || thresholds.occupancyMaxPct > 0)) {
+      const min = thresholds.occupancyMinPct > 0 ? thresholds.occupancyMinPct : 0;
+      const max = thresholds.occupancyMaxPct > 0 ? thresholds.occupancyMaxPct : 100;
+      if (n < min || n > max) return 'destructive';
+      return 'success';
+    }
+    if (col.key === 'pauseSharePct' && thresholds.pauseShareMaxPct > 0) {
+      if (n > thresholds.pauseShareMaxPct) return 'destructive';
+      if (n > thresholds.pauseShareMaxPct * 0.8) return 'warning';
+      return 'success';
+    }
+    if ((col.key === 'rnaCount' || col.key === 'answerRatePct') && thresholds.rnaRateMaxPct > 0 && col.key === 'answerRatePct') {
+      const missed = 100 - n;
+      if (missed > thresholds.rnaRateMaxPct) return 'destructive';
+      return 'success';
+    }
+    if (col.key === 'shortCallPct' && thresholds.shortCallSec >= 0 && n >= 15) return 'warning';
   }
-  if (col.key === 'maxWaitSec') {
-    if (n >= thresholds.maxWaitSec) return 'destructive';
-    if (n >= thresholds.maxWaitSec * 0.7) return 'warning';
-    return 'success';
-  }
+  const median = medians?.[col.key];
+  if (median === undefined || median <= 0) return undefined;
+  if (HIGHER_IS_WORSE.has(col.key) && n >= median * 1.5) return 'warning';
+  if (HIGHER_IS_BETTER.has(col.key) && n <= median / 1.5) return 'warning';
   return undefined;
 }
 
@@ -142,6 +180,26 @@ export function hasReportTotals(columns: readonly ReportColumn[]): boolean {
   return columns.some((col) => Boolean(col.total));
 }
 
+/** Median of a column. Fewer than three values is not a median. */
+export function medianOf(values: readonly number[]): number | undefined {
+  if (values.length < 3) return undefined;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+const WORSE_WHEN_HIGHER = new Set(['ahtSec', 'avgTalkSec', 'avgHoldSec', 'avgWrapupSec', 'pauseSharePct', 'rnaCount', 'shortCallPct', 'totalPauseSec', 'abandonPct', 'maxWaitSec']);
+const BETTER_WHEN_HIGHER = new Set(['answerRatePct', 'utilizationPct', 'callsPerHour', 'callsHandled', 'slaPct']);
+
+/** Arrow for a comparison: whether the change is an improvement. Neutral metrics return null. */
+export function compareDirection(key: string, current: number, previous: number): 'better' | 'worse' | null {
+  if (current === previous) return null;
+  const up = current > previous;
+  if (WORSE_WHEN_HIGHER.has(key)) return up ? 'worse' : 'better';
+  if (BETTER_WHEN_HIGHER.has(key)) return up ? 'better' : 'worse';
+  return null;
+}
+
 export interface ReportCellProps {
   col: ReportColumn;
   value: unknown;
@@ -158,7 +216,7 @@ const TONE_CLASS: Record<CellTone, string> = {
 /** A formatted cell; SLA / abandon / wait are coloured by the tenant thresholds. */
 export function ReportCell({ col, value, ctx }: ReportCellProps): ReactNode {
   const text = formatReportValue(col, value, ctx);
-  const tone = reportCellTone(col, value, ctx.thresholds);
+  const tone = reportCellTone(col, value, ctx.thresholds, ctx.medians);
   if (!tone) return text;
   return <span className={TONE_CLASS[tone]} data-tone={tone}>{text}</span>;
 }

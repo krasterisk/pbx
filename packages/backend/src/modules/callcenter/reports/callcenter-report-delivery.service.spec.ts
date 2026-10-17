@@ -88,10 +88,23 @@ describe('CallCenterReportDeliveryService', () => {
       'queue-summary',
       42,
       expect.objectContaining({
-        dateFrom: expect.any(String),
-        dateTo: expect.any(String),
+        dateFrom: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        dateTo: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       }),
     );
+  });
+
+  it('yesterday in UTC+7 is the tenant calendar day, not the server day', () => {
+    // 20:00 UTC is still 15 July in UTC and already 16 July in Bangkok.
+    const eveningUtc = new Date('2026-07-15T20:00:00.000Z');
+    expect(service.resolvePeriod('yesterday', eveningUtc, 'Asia/Bangkok')).toEqual({
+      dateFrom: '2026-07-15',
+      dateTo: '2026-07-15',
+    });
+    expect(service.resolvePeriod('yesterday', eveningUtc, 'UTC')).toEqual({
+      dateFrom: '2026-07-14',
+      dateTo: '2026-07-14',
+    });
   });
 
   it('email + xlsx calls buildReportXlsx and sendReportMail with attachment', async () => {
@@ -153,19 +166,11 @@ describe('CallCenterReportDeliveryService', () => {
     );
   });
 
-  it('resolvePeriod(yesterday) returns a one-day window with dateFrom <= dateTo', () => {
+  it('resolvePeriod(yesterday) is the previous tenant calendar day', () => {
     const fixed = new Date('2026-07-16T12:00:00.000Z');
-    const { dateFrom, dateTo } = service.resolvePeriod('yesterday', fixed);
-    expect(dateFrom <= dateTo).toBe(true);
-    const from = new Date(dateFrom);
-    const to = new Date(dateTo);
-    const durationMs = to.getTime() - from.getTime();
-    // Local calendar day → ISO; allow ~24h (± timezone/DST edge)
-    expect(durationMs).toBeLessThanOrEqual(24 * 60 * 60 * 1000 + 1000);
-    expect(durationMs).toBeGreaterThan(0);
-    // Yesterday is strictly before the fixed "today" calendar day (local)
-    const todayStart = new Date(fixed);
-    todayStart.setHours(0, 0, 0, 0);
-    expect(to.getTime()).toBeLessThanOrEqual(todayStart.getTime());
+    expect(service.resolvePeriod('yesterday', fixed, 'UTC')).toEqual({
+      dateFrom: '2026-07-15',
+      dateTo: '2026-07-15',
+    });
   });
 });

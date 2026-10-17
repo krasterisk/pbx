@@ -141,9 +141,9 @@ describe('CallCenterReportsPage (cc-ux U3)', () => {
     expect(screen.getByTestId('cc-report-chip-queue')).toBeInTheDocument();
   });
 
-  it('sends the interface of an operator picked by user id', () => {
+  it('sends the user id of an operator, including one who is not on shift', () => {
     renderPage('/callcenter/reports?report=call-detail&operator=12');
-    expect(lastCall().agentInterface).toBe('PJSIP/202');
+    expect(lastCall().agentUserUid).toBe('12');
     expect(screen.getByTestId('cc-report-chip-operator')).toHaveTextContent('Boris (202)');
   });
 

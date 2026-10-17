@@ -14,6 +14,9 @@ export interface ReportsUrlState {
   agentInterface: string;
   /** Stable user id of the picked operator; the interface is resolved from it on request (U3.1). */
   operatorUserId: string;
+  /** `previous` repeats the report for the window just before this one. */
+  compare: '' | 'previous';
+  groupBy: '' | 'day' | 'queue';
 }
 
 export interface ReportsUrlDefaults {
@@ -45,6 +48,8 @@ export function parseReportsUrl(search: URLSearchParams, defaults: ReportsUrlDef
     queueName: search.getAll('queue').flatMap(splitQueueNames).filter((name, index, all) => all.indexOf(name) === index).join(','),
     agentInterface: (search.get('agent') ?? '').trim(),
     operatorUserId: /^\d+$/.test((search.get('operator') ?? '').trim()) ? (search.get('operator') ?? '').trim() : '',
+    compare: search.get('compare') === 'previous' ? 'previous' : '',
+    groupBy: search.get('group') === 'day' || search.get('group') === 'queue' ? search.get('group') as 'day' | 'queue' : '',
   };
 }
 
@@ -57,6 +62,8 @@ export function buildReportsSearch(state: ReportsUrlState): string {
   for (const name of splitQueueNames(state.queueName)) params.append('queue', name);
   if (state.agentInterface) params.set('agent', state.agentInterface);
   if (state.operatorUserId) params.set('operator', state.operatorUserId);
+  if (state.compare) params.set('compare', state.compare);
+  if (state.groupBy) params.set('group', state.groupBy);
   return params.toString();
 }
 
@@ -78,5 +85,7 @@ export function buildReportsLink(input: ReportsLinkInput): string {
     queueName: input.queueName ?? '',
     agentInterface: input.agentInterface ?? '',
     operatorUserId: input.operatorUserId ? String(input.operatorUserId) : '',
+    compare: '',
+    groupBy: '',
   })}`;
 }
