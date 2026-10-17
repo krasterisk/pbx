@@ -52,13 +52,18 @@ async function main(input = process.env) {
         replacements: { time: sqlDate(new Date(stamp.getTime() + offset * 1000)), callid: `${fixturePrefix}${id}`, queue, agent, event, p1, p2, p3: p3 || null },
       });
     }
-    const rollup = new CallCenterRollupService(CcQueueCall, CcDailyQueueStats, CcDailyAgentStats);
-    const reconciler = new CallCenterQueueLogReconcilerService(reader, CcQueueCall, rollup);
+    const metrics = {
+      getTenantConfig: async () => ({ timezone: 'UTC', shortAbandonSec: 5, defaultSlaSec: 20 }),
+      getSlaThreshold: async (_userUid, _queueName, fallback) => fallback ?? 20,
+    };
+    const intervals = { recomputeRange: async () => undefined };
+    const rollup = new CallCenterRollupService(CcQueueCall, CcDailyQueueStats, CcDailyAgentStats, metrics, intervals);
+    const reconciler = new CallCenterQueueLogReconcilerService(reader, CcQueueCall, rollup, metrics);
     const from = new Date(stamp.getTime() - 1000);
     const until = new Date(stamp.getTime() + 10_000);
     assert.equal(await reconciler.reconcileRange(from, until), 3);
     assert.equal(await reconciler.reconcileRange(from, until), 0, 'replay must not insert calls');
-    const report = new CallCenterReportsService(CcQueueCall, CcDailyQueueStats, CcDailyAgentStats, null, null, null, null, { findOne: async () => null }, rollup);
+    const report = new CallCenterReportsService(CcQueueCall, CcDailyQueueStats, CcDailyAgentStats, null, null, null, null, rollup, metrics);
     const raw = await report.getQueueSummary(2, { dateFrom: day, dateTo: day });
     const rawOther = await report.getQueueSummary(3, { dateFrom: day, dateTo: day });
     assert.equal(raw.source, 'raw');
