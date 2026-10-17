@@ -5,6 +5,7 @@ import { AiVoiceModule } from '../modules/ai-voice/ai-voice.module';
 import { AiToolConnectivityModule } from '../modules/ai-tool-connectivity/ai-tool-connectivity.module';
 import { KnowledgeModule } from '../modules/knowledge/knowledge.module';
 import { healthProductRuntime } from '../modules/product-access/product-runtime';
+import { withAppIdentity } from '../modules/health/app-identity';
 
 /** Robot API skeleton; telephony edge and agent runtime arrive in AI-07. */
 export const ROBOT_API_COMPONENTS = Object.freeze([
@@ -16,7 +17,7 @@ export const ROBOT_API_COMPONENTS = Object.freeze([
 class RobotHealthController {
   @Get()
   health() {
-    return healthProductRuntime('robot-api');
+    return withAppIdentity(healthProductRuntime('robot-api'));
   }
 }
 

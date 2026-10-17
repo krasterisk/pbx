@@ -10,6 +10,8 @@ import { AcBase } from './ac-base.model';
   freezeTableName: true,
 })
 export class AcBaseField extends Model {
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare format: import('@krasterisk/shared').IAutodialBaseField['format'];
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)

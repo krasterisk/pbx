@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PhoneOutgoing, X } from 'lucide-react';
-import { SegmentedControl, Text } from '@/shared/ui';
+import { Button, SegmentedControl, Text } from '@/shared/ui';
 import { useGetCallbackRequestsQuery } from '@/shared/api/endpoints/callbackRequestsApi';
 import {
   CallbackRequestsList,
@@ -27,8 +27,10 @@ export function CallbackRequestsIndicator() {
 
   return (
     <div className={styles.wrap} data-testid="callback-requests-indicator">
-      <button
+      <Button
         type="button"
+        variant="unstyled"
+        size="none"
         className={`${styles.badge}${urgent ? ` ${styles.badgeWarning}` : ''}`}
         onClick={() => setOpen((o) => !o)}
         title={t('callcenter.callback.title', 'Callbacks')}
@@ -39,7 +41,7 @@ export function CallbackRequestsIndicator() {
       >
         <PhoneOutgoing className="w-4 h-4" />
         <span className={styles.count}>{count}</span>
-      </button>
+      </Button>
 
       {open && (
         <div className={styles.dropdown}>
@@ -48,14 +50,16 @@ export function CallbackRequestsIndicator() {
               <PhoneOutgoing className="w-4 h-4 inline mr-1.5" />
               {t('callcenter.callback.title', 'Callbacks')}
             </Text>
-            <button
+            <Button
               type="button"
+              variant="unstyled"
+              size="none"
               className={styles.close}
               onClick={() => setOpen(false)}
               aria-label={t('callcenter.callback.close', 'Close')}
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
           <SegmentedControl<ViewMode>
             className={styles.viewToggle}

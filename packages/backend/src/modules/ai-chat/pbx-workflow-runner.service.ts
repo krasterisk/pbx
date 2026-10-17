@@ -211,6 +211,7 @@ export class PbxWorkflowRunnerService {
           }
           const args = parseMutationArgs(tool.mutation, stripTenantAliasesDeep(resolvedArgs));
           const mutationCtx = {
+            threadUid: row.thread_uid,
             secureInput: parseSecureConfirmationInputs(secureInputs)[step.step_key],
             vpbxUserUid: ctx.vpbxUserUid,
             userUid: ctx.userUid,

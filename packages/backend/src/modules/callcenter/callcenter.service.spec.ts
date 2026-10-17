@@ -41,6 +41,8 @@ describe('CallCenterService', () => {
     cancelWrapupTimer: jest.fn(),
     extendWrapupTimer: jest.fn(),
     clearNonQueueDialAttempt: jest.fn(),
+    handlePickupOriginateResponse: jest.fn(),
+    handleAgentHangup: jest.fn(),
     resyncMembershipFromAsterisk: jest.fn().mockResolvedValue(undefined),
   };
   const metricsService: any = {
@@ -55,6 +57,7 @@ describe('CallCenterService', () => {
     }),
     getAgentOccupancy: jest.fn().mockReturnValue(0),
     getAgentQueuesKpi: jest.fn().mockReturnValue({}),
+    listAgentOfferJournalRows: jest.fn().mockResolvedValue([]),
   };
   const settingsService: any = {
     getOperatorSettings: jest.fn().mockResolvedValue({
@@ -178,6 +181,7 @@ describe('CallCenterService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    ami.isPjsipEndpointReachable.mockResolvedValue(null);
     sessionModel.findAll.mockResolvedValue([]);
     sessionModel.findOne.mockResolvedValue(null);
     sessionModel.findByPk.mockResolvedValue(null);
@@ -281,6 +285,7 @@ describe('CallCenterService', () => {
     });
 
     it('seeds live queue rows into the snapshot so QueuesTab has data before AMI QueueParams', async () => {
+      ami.isPjsipEndpointReachable.mockResolvedValueOnce(true);
       queueModel.findOne.mockResolvedValueOnce({
         getDataValue: (k: string) =>
           ({ display_name: 'Продажи', name: 'q700_0' } as any)[k],
@@ -293,6 +298,13 @@ describe('CallCenterService', () => {
       expect(q?.displayName).toBe('Продажи');
       expect(q?.agents.total).toBe(1);
       expect(q?.agents.available).toBe(1);
+    });
+
+    it('preserves an open shift but does not advertise an unconfirmed phone as free', async () => {
+      ami.isPjsipEndpointReachable.mockResolvedValueOnce(false);
+      await service.agentLogin('PJSIP/e112_0', ['q700_0'], 0, 58);
+      expect(state.getAgent(0, 'PJSIP/e112_0')).toMatchObject({ status: 'READY', phoneOnline: false });
+      expect(state.getQueue(0, 'q700_0')?.agents.available).toBe(0);
     });
 
     it('rejects login when another operator already uses the same extension', async () => {
@@ -557,6 +569,15 @@ describe('CallCenterService', () => {
   // ─── Pick Call ──────────────────────────────────────────
 
   describe('agentPickCall', () => {
+    beforeEach(() => ami.isPjsipEndpointReachable.mockResolvedValue(true));
+
+    it('rejects pickup when the shift is READY but the handset is unreachable', async () => {
+      ami.isPjsipEndpointReachable.mockResolvedValueOnce(false);
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, queue: 'sales', status: 'WAITING', callerChannel: 'PJSIP/trunk-1' });
+      await expect(service.agentPickCall('U1', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+      expect(ami.action).not.toHaveBeenCalled();
+    });
     it('rejects when agent is not READY', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       // simulate IN_CALL
@@ -580,23 +601,20 @@ describe('CallCenterService', () => {
       await expect(service.agentPickCall('U1', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('issues an AMI Redirect with the agent extension and returns success', async () => {
+    it('rings the actual shift endpoint without using its outbound dialplan', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       state.setCall('U1', { userUid: 7, queue: 'sales', status: 'WAITING', callerChannel: 'PJSIP/trunk-1' });
 
       const res = await service.agentPickCall('U1', 7, 42);
-      expect(res).toEqual({ success: true, uniqueid: 'U1', target: '101', context: 'from-internal7' });
+      expect(res).toEqual({ success: true, uniqueid: 'U1', target: '101' });
       expect(ami.action).toHaveBeenCalledWith(
         expect.objectContaining({
-          action: 'Redirect',
-          channel: 'PJSIP/trunk-1',
-          context: 'from-internal7',
-          exten: '101',
+          action: 'Originate', channel: 'PJSIP/101', application: 'Bridge', data: 'PJSIP/trunk-1,x',
         }),
       );
     });
 
-    it('maps WebRTC sip id to numeric exten and endpoint dialplan context', async () => {
+    it('rings the WebRTC companion itself even when its normal route points elsewhere', async () => {
       endpointModel.findByPk.mockResolvedValue({
         getDataValue: (k: string) => (k === 'context' ? 'sip-out0' : undefined),
         context: 'sip-out0',
@@ -610,13 +628,10 @@ describe('CallCenterService', () => {
       });
 
       const res = await service.agentPickCall('U-w', 0, 58);
-      expect(res).toEqual({ success: true, uniqueid: 'U-w', target: '112', context: 'sip-out0' });
+      expect(res).toEqual({ success: true, uniqueid: 'U-w', target: '112' });
       expect(ami.action).toHaveBeenCalledWith(
         expect.objectContaining({
-          action: 'Redirect',
-          channel: 'PJSIP/e201_0-00000073',
-          context: 'sip-out0',
-          exten: '112',
+          action: 'Originate', channel: 'PJSIP/ew112_0', application: 'Bridge', data: 'PJSIP/e201_0-00000073,x',
         }),
       );
     });
@@ -642,6 +657,37 @@ describe('CallCenterService', () => {
       });
     });
 
+    it('rejects pickup from a queue the operator has not joined', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('outside', { userUid: 7, queue: 'support', status: 'WAITING', callerChannel: 'PJSIP/trunk-1' });
+      await expect(service.agentPickCall('outside', 7, 42)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(ami.action).not.toHaveBeenCalled();
+    });
+
+    it('creates only one leg for simultaneous pickup requests', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('race', { userUid: 7, queue: 'sales', status: 'WAITING', callerChannel: 'PJSIP/trunk-1' });
+      const results = await Promise.allSettled([service.agentPickCall('race', 7, 42), service.agentPickCall('race', 7, 42)]);
+      expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+      expect(ami.action).toHaveBeenCalledTimes(1);
+      expect(state.getCall('race')?.answerTime).toBeUndefined();
+      expect(state.getAgent(7, 'PJSIP/101')).toMatchObject({ status: 'RINGING', currentCall: 'race' });
+    });
+
+    it('allows only one of two different operators to claim the same caller', async () => {
+      state.setAgent(7, 'PJSIP/101', { userId: 42, queues: ['sales'], status: 'READY', phoneOnline: true });
+      state.setAgent(7, 'PJSIP/102', { userId: 43, queues: ['sales'], status: 'READY', phoneOnline: true });
+      state.setCall('race-two', { userUid: 7, queue: 'sales', status: 'WAITING', callerChannel: 'PJSIP/trunk-1' });
+      const resolve = jest.spyOn(service as any, 'resolveAgentInterface')
+        .mockImplementation(async (...args: unknown[]) => args[1] === 42 ? 'PJSIP/101' : 'PJSIP/102');
+      try {
+        const result = await Promise.allSettled([service.agentPickCall('race-two', 7, 42), service.agentPickCall('race-two', 7, 43)]);
+        expect(result.filter(item => item.status === 'fulfilled')).toHaveLength(1);
+        expect(ami.action).toHaveBeenCalledTimes(1);
+        expect(state.getAllAgents(7).filter(agent => agent.currentCall === 'race-two')).toHaveLength(1);
+      } finally { resolve.mockRestore(); }
+    });
+
     it('allows pickup when pickup_enabled is true', async () => {
       settingsService.getOperatorSettings.mockResolvedValueOnce({
         pickup_enabled: true,
@@ -660,6 +706,12 @@ describe('CallCenterService', () => {
   // ─── Blind transfer uses callerChannel (not CallerID) ───
 
   describe('agentTransfer', () => {
+    it('rejects unsupported AMI consultation without marking the call as transferred', async () => {
+      state.setCall('consult-unsupported', { status: 'TALKING', userUid: 7 });
+      await expect(service.agentTransfer({ type: 'attended', uniqueid: 'consult-unsupported', target: '201' } as any, 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+      expect(state.getCall('consult-unsupported')?.status).toBe('TALKING');
+      expect(ami.action).not.toHaveBeenCalled();
+    });
     it('Redirect uses Asterisk channel name, not CallerID number', async () => {
       await service.agentLogin('PJSIP/201', ['sales'], 7, 42);
       state.setCall('U-xfer-1', {
@@ -1025,17 +1077,69 @@ describe('CallCenterService', () => {
   // ─── Supervisor RBAC indirectly via spy formatting ──────
 
   describe('supervisorSpy', () => {
-    it('formats an Originate with the correct ChanSpy option per mode', async () => {
+    beforeEach(() => {
+      userModel.findOne.mockResolvedValue({ getDataValue: (key: string) => key === 'exten' ? '100' : undefined });
+      endpointModel.findAll.mockResolvedValue([{ id: 'e100_7' }]);
+    });
+    it('formats an Originate with the correct ChanSpy option per mode and CC_SPY_SESSION (U1.5)', async () => {
       state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL' });
 
-      await service.supervisorSpy('PJSIP/101', 'whisper', 7, 1);
+      const res = await service.supervisorSpy('PJSIP/101', 'whisper', 7, 1);
 
-      expect(ami.originate).toHaveBeenCalledWith(
-        expect.stringMatching(/^PJSIP\//),
-        expect.stringContaining('Spy on'),
-        'from-internal7',
-        'ChanSpy(PJSIP/101,w)',
-      );
+      expect(res).toMatchObject({
+        success: true,
+        mode: 'whisper',
+        agentInterface: 'PJSIP/101',
+        agentName: 'Alice',
+      });
+      expect(ami.action).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'Originate', channel: 'PJSIP/e100_7', application: 'ChanSpy', data: 'PJSIP/101,wd',
+        variable: expect.stringMatching(/^CC_SPY_SESSION=spy_7_1_/),
+      }));
+      expect(state.getMonitorSession(7, 1)).toMatchObject({
+        agentInterface: 'PJSIP/101',
+        mode: 'whisper',
+      });
+    });
+
+    it('prefers the active WebRTC interface and installs session tracking before AMI can emit Newchannel', async () => {
+      state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL' });
+      state.setAgent(7, 'PJSIP/ew100_7', { userId: 1, status: 'PAUSED' });
+      ami.action.mockImplementationOnce(async (request: any) => {
+        expect(request.channel).toBe('PJSIP/ew100_7');
+        expect(state.getMonitorSession(7, 1)).toBeDefined();
+        state.bindMonitorSessionChannel('PJSIP/ew100_7-123');
+        return { response: 'Success' };
+      });
+      await service.supervisorSpy('PJSIP/101', 'spy', 7, 1);
+      expect(state.getMonitorSession(7, 1)?.channel).toBe('PJSIP/ew100_7-123');
+    });
+
+    it('clears a pending session when AMI rejects originate', async () => {
+      state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL' });
+      ami.action.mockRejectedValueOnce(new Error('Originate failed'));
+      await expect(service.supervisorSpy('PJSIP/101', 'spy', 7, 1)).rejects.toBeInstanceOf(BadRequestException);
+      expect(state.getMonitorSession(7, 1)).toBeUndefined();
+    });
+
+    it('switches mode via PlayDTMF 4/5/6 and stops the session via Hangup (U1.5)', async () => {
+      state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL' });
+      const started = await service.supervisorSpy('PJSIP/101', 'spy', 7, 1);
+      state.bindMonitorSessionChannel('PJSIP/100-00000009', started.sessionId);
+      state.connectMonitorSession('PJSIP/100-00000009');
+
+      const modeRes = await service.supervisorSpyMode('whisper', 7, 1);
+      expect(modeRes).toMatchObject({ success: true, mode: 'whisper', digit: '5' });
+      expect(ami.playDtmf).toHaveBeenCalledWith('PJSIP/100-00000009', '5', true);
+
+      // Foreign supervisor or foreign tenant gets 404
+      await expect(service.supervisorSpyMode('barge', 7, 999)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.supervisorSpyStop(8, 1)).rejects.toBeInstanceOf(NotFoundException);
+
+      const stopRes = await service.supervisorSpyStop(7, 1);
+      expect(stopRes).toMatchObject({ success: true, sessionId: started.sessionId });
+      expect(ami.hangup).toHaveBeenCalledWith('PJSIP/100-00000009');
+      expect(state.getMonitorSession(7, 1)).toBeUndefined();
     });
 
     it('throws if the agent is not in a call', async () => {
@@ -1100,15 +1204,11 @@ describe('CallCenterService', () => {
         7,
         expect.stringContaining('listen'),
       );
-      expect(ami.originate).toHaveBeenCalledWith(
-        'PJSIP/req',
-        expect.stringContaining('Peer spy on'),
-        'from-internal7',
-        'ChanSpy(PJSIP/target,q)',
-      );
-
+      expect(ami.action).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'Originate', channel: 'PJSIP/req', application: 'ChanSpy', data: 'PJSIP/target,q',
+      }));
       const logOrder = loggerService.logAction.mock.invocationCallOrder[0];
-      const originateOrder = ami.originate.mock.invocationCallOrder[0];
+      const originateOrder = ami.action.mock.invocationCallOrder[0];
       expect(logOrder).toBeLessThan(originateOrder);
     });
 
@@ -1282,6 +1382,8 @@ describe('CallCenterService', () => {
 
     it('originates the agent interface into the parking lot context', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('P1', { userUid: 7, callerChannel: 'PJSIP/trunk-park', queue: 'sales', status: 'HOLD' });
+      ami.parkedCalls.mockResolvedValue({ events: [{ parkingspace: '71', parkeechannel: 'PJSIP/trunk-park' }] });
 
       const res = await service.retrieveParkedCall('71', 7, 42);
 
@@ -1296,6 +1398,8 @@ describe('CallCenterService', () => {
 
     it('emits a parkedCallsUpdate SSE delta for other operators (D-45, 09-10)', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('P1', { userUid: 7, callerChannel: 'PJSIP/trunk-park', queue: 'sales', status: 'HOLD' });
+      ami.parkedCalls.mockResolvedValue({ events: [{ parkingspace: '71', parkeechannel: 'PJSIP/trunk-park' }] });
       const events: any[] = [];
       state.getEventStream(7).subscribe(e => events.push(e));
 
@@ -1312,6 +1416,7 @@ describe('CallCenterService', () => {
 
     it('maps ParkedCall AMI events into the ParkedCallsIndicator shape', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('P1', { userUid: 7, callerChannel: 'PJSIP/trunk-1', queue: 'sales', status: 'HOLD' });
       ami.parkedCalls.mockResolvedValueOnce({
         events: [
           { event: 'ParkedCall', exten: '71', calleridnum: '79990001122', calleridname: 'Ivan', channel: 'PJSIP/trunk-1', timeout: '45' },
@@ -1325,6 +1430,19 @@ describe('CallCenterService', () => {
       ]);
     });
 
+    it('reads modern Asterisk Parkee/ParkingSpace fields and refuses a foreign or expired slot', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('P1', { userUid: 7, callerChannel: 'PJSIP/own-1', queue: 'sales', status: 'HOLD' });
+      ami.parkedCalls.mockResolvedValue({ events: [
+        { parkeechannel: 'PJSIP/own-1', parkingspace: '701', parkinglot: 'default', parkeecalleridnum: '202', parkeecalleridname: 'Test', parkingtimeout: '39' },
+        { parkeechannel: 'PJSIP/foreign-1', parkingspace: '702', parkinglot: 'default', parkeecalleridnum: 'private' },
+      ] });
+      expect(await service.getParkedCalls(7, 42)).toEqual([{ parkingSpace: '701', callerIdNum: '202', callerIdName: 'Test', channel: 'PJSIP/own-1', timeoutSec: 39 }]);
+      await expect(service.retrieveParkedCall('702', 7, 42)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.retrieveParkedCall('default', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+      expect(ami.originate).not.toHaveBeenCalled();
+    });
+
     it('returns an empty list when the AMI query fails rather than throwing', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       ami.parkedCalls.mockRejectedValueOnce(new Error('AMI not connected'));
@@ -1336,6 +1454,10 @@ describe('CallCenterService', () => {
   });
 
   describe('addToConference', () => {
+    beforeEach(() => {
+      endpointModel.findAll.mockResolvedValue([{ id: 'e201_7' }]);
+      ami.getActiveChannels.mockResolvedValue({ complete: true, events: [{ channel: 'PJSIP/trunk-1' }, { channel: 'PJSIP/101-1' }] });
+    });
     it('rejects cross-tenant call', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       state.setCall('U1', {
@@ -1374,7 +1496,7 @@ describe('CallCenterService', () => {
 
       expect(conferenceEphemeral.ensureRoomForCall).toHaveBeenCalledWith('U1', 7, 42);
       expect(conferenceEphemeral.ensureRoomForCall.mock.calls[0][2]).toBe(42);
-      expect(res).toEqual({ success: true, room: 'krsk-conf-88', target: '201' });
+      expect(res).toEqual({ success: true, room: 'krsk-conf-88', target: 'e201_7' });
       expect(ami.action).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'Redirect',
@@ -1389,12 +1511,28 @@ describe('CallCenterService', () => {
         }),
       );
       expect(ami.originate).toHaveBeenCalledWith(
-        'PJSIP/201',
+        'PJSIP/e201_7',
         expect.stringContaining('Conference'),
         'krsk-conf-88',
         's',
       );
       expect(state.getCall('U1')?.status).toBe('TALKING');
+    });
+
+    it('does not move the client when a stored call channel has already ended', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, status: 'TALKING', callerChannel: 'PJSIP/gone', agentChannel: 'PJSIP/101-1', agent: 'PJSIP/101' });
+      await expect(service.addToConference('U1', '201', 7, 42)).rejects.toBeInstanceOf(BadRequestException);
+      expect(conferenceEphemeral.ensureRoomForCall).not.toHaveBeenCalled();
+      expect(ami.originate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a destination absent from the current tenant before moving either call leg', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('U1', { userUid: 7, status: 'TALKING', callerChannel: 'PJSIP/trunk-1', agentChannel: 'PJSIP/101-1', agent: 'PJSIP/101' });
+      endpointModel.findAll.mockResolvedValue([]);
+      await expect(service.addToConference('U1', '201', 7, 42)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(conferenceEphemeral.ensureRoomForCall).not.toHaveBeenCalled();
     });
   });
 
@@ -1909,6 +2047,7 @@ describe('CallCenterService', () => {
       endpointModel.findAll.mockResolvedValue([
         { id: 'e101_7', department: 'Sales' },
         { id: 'ew101_7', department: 'Sales' }, // webrtc companion — excluded
+        { id: 't_test_trunk_7', department: 'Trunk' }, // not a colleague
       ]);
       queueModel.findAll.mockResolvedValue([
         { getDataValue: (k: string) => ({ name: 'sales_7', display_name: 'Sales' } as any)[k] },
@@ -2116,6 +2255,47 @@ describe('CallCenterService', () => {
   });
 
   describe('agentHangup (SIP outbound / post-restart)', () => {
+    it('closes only own live legs when the caller channel in a retained queue call is gone', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setCall('old', { userUid: 7, agent: 'PJSIP/101', callerChannel: 'PJSIP/gone-1', queue: 'sales', status: 'HOLD' });
+      state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL', currentCall: 'old' });
+      ami.hangup.mockRejectedValueOnce(new Error('No such channel'));
+      ami.getActiveChannels.mockResolvedValueOnce({ events: [{ channel: 'PJSIP/101-2' }, { channel: 'PJSIP/other-3' }] });
+      await expect(service.agentHangup(7, 42)).resolves.toEqual({ success: true });
+      expect(ami.hangup.mock.calls.map(call => call[0])).toEqual(['PJSIP/gone-1', 'PJSIP/101-2']);
+    });
+    it('finalizes outbound history before clearing pending call state and preserves the resumed outbound mode', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL', dialTarget: '203' });
+      ami.getActiveChannels.mockResolvedValueOnce({ events: [{ channel: 'PJSIP/101-00000001' }] });
+      ccAmi.handleAgentHangup.mockImplementationOnce(() => state.setAgent(7, 'PJSIP/101', { status: 'OUTBOUND_WORK', dialTarget: undefined }));
+      await service.agentHangup(7, 42);
+      expect(ccAmi.handleAgentHangup).toHaveBeenCalledWith({ channel: 'PJSIP/101' });
+      expect(ccAmi.clearNonQueueDialAttempt).not.toHaveBeenCalled();
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('OUTBOUND_WORK');
+    });
+    it('hangs only own live channels when currentCall points at an already removed queue call', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL', currentCall: 'gone-call' });
+      ami.getActiveChannels.mockResolvedValueOnce({ events: [
+        { channel: 'PJSIP/101-00000001' },
+        { channel: 'PJSIP/1019-00000002' },
+        { channel: 'PJSIP/201-00000003' },
+      ] });
+      await expect(service.agentHangup(7, 42)).resolves.toEqual({ success: true });
+      expect(ami.hangup).toHaveBeenCalledTimes(1);
+      expect(ami.hangup).toHaveBeenCalledWith('PJSIP/101-00000001');
+      expect(state.getAgent(7, 'PJSIP/101')?.currentCall).toBeUndefined();
+    });
+
+    it('does not report success or clear active state when no own channel can be hung up', async () => {
+      await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
+      state.setAgent(7, 'PJSIP/101', { status: 'IN_CALL', currentCall: 'gone-call' });
+      ami.getActiveChannels.mockResolvedValueOnce({ events: [{ channel: 'PJSIP/201-00000002' }] });
+      await expect(service.agentHangup(7, 42)).rejects.toBeInstanceOf(BadRequestException);
+      expect(ami.hangup).not.toHaveBeenCalled();
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('IN_CALL');
+    });
     it('hangs live channels when agent is IN_CALL without queue currentCall', async () => {
       await service.agentLogin('PJSIP/101', ['sales'], 7, 42);
       state.setAgent(7, 'PJSIP/101', {

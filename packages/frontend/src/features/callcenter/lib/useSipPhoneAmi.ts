@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import {
   useAgentHangupMutation,
   useAgentTransferMutation,
@@ -8,6 +8,7 @@ import {
 } from '@/shared/api/endpoints/callCenterApi';
 import type { AgentStatus, ICall } from '@/features/callcenter/model/types/callCenterSchema';
 import type { SoftphoneWidgetPhone } from '@/features/callcenter/ui/SoftphoneWidget/SoftphoneWidget';
+import { callerDisplayName } from './displayLabels';
 
 export type SipPhoneAmi = SoftphoneWidgetPhone & {
   /** AMI transfer for the shared page handler layer (D-24). */
@@ -60,20 +61,23 @@ export function useSipPhoneAmi(
   agentStatus: AgentStatus | null = null,
   dialTarget: string | null | undefined = null,
   peerNumber: string | null | undefined = null,
+  options?: { registration?: boolean },
 ): SipPhoneAmi {
   const [agentHangup] = useAgentHangupMutation();
   const [agentTransfer] = useAgentTransferMutation();
   const [clickToCall] = useClickToCallMutation();
   const [sendDtmfMutation] = useSendDtmfMutation();
+  const watchRegistration = options?.registration !== false;
   const { data: regState, refetch: refetchRegistration } = useGetMyRegistrationStateQuery(undefined, {
-    pollingInterval: 5000,
+    skip: !watchRegistration,
+    pollingInterval: watchRegistration ? 15_000 : 0,
   });
 
-  // Local mute only - AMI MuteAudio is follow-up DEF-07-MUTE-AMI.
-  const [isMuted, setIsMuted] = useState(false);
+  // SIP microphone state belongs to the physical device. Never claim a local UI toggle mutes audio.
+  const isMuted = false;
 
-  const hangup = useCallback(() => {
-    void agentHangup({});
+  const hangup = useCallback(async () => {
+    await agentHangup({}).unwrap();
   }, [agentHangup]);
 
   const hold = useCallback(() => {
@@ -85,11 +89,11 @@ export function useSipPhoneAmi(
   }, []);
 
   const mute = useCallback(() => {
-    setIsMuted(true);
+    // Use the SIP device's Mute control.
   }, []);
 
   const unmute = useCallback(() => {
-    setIsMuted(false);
+    // Use the SIP device's Mute control.
   }, []);
 
   const sendDtmf = useCallback(
@@ -130,7 +134,7 @@ export function useSipPhoneAmi(
   const outboundNum = (dialTarget || '').trim() || undefined;
   const inboundNum = (peerNumber || '').trim()
     || activeCall?.callerIdNum
-    || activeCall?.callerIdName
+    || callerDisplayName(activeCall?.callerIdName)
     || undefined;
   const isOutbound =
     agentStatus === 'DIALING'

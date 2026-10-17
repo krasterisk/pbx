@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { IAutodialMonitorHealth } from '@krasterisk/shared';
 import {
   emptyAutodialLiveState,
   reduceAutodialEvent,
@@ -15,12 +16,16 @@ const EVENT_TYPES: AutodialSseEvent['type'][] = [
   'channel_ended',
   'campaign_stats',
   'pacer',
+  'channel_step',
 ];
 
 export type AutodialSseStatus = 'connecting' | 'open' | 'disconnected';
 
 export interface UseAutodialSseResult extends AutodialLiveState {
   status: AutodialSseStatus;
+  health?: IAutodialMonitorHealth;
+  healthError?: boolean;
+  recent?: Array<{ at: string; type: string; campaignUid: number; disposition?: string }>;
 }
 
 /**
@@ -31,6 +36,9 @@ export interface UseAutodialSseResult extends AutodialLiveState {
 export function useAutodialSse(enabled = true): UseAutodialSseResult {
   const [live, setLive] = useState<AutodialLiveState>(emptyAutodialLiveState);
   const [status, setStatus] = useState<AutodialSseStatus>('connecting');
+  const [health, setHealth] = useState<IAutodialMonitorHealth>();
+  const [healthError, setHealthError] = useState(false);
+  const [recent, setRecent] = useState<NonNullable<UseAutodialSseResult['recent']>>([]);
 
   useEffect(() => {
     if (!enabled) {
@@ -63,7 +71,15 @@ export function useAutodialSse(enabled = true): UseAutodialSseResult {
       }
       setStatus('open');
       setLive((prev) => reduceAutodialEvent(prev, event));
+      if (['channel_started', 'channel_answered', 'channel_ended'].includes(event.type)) {
+        const campaignUid = 'campaignUid' in event ? event.campaignUid : 'channel' in event ? event.channel.campaignUid : 0;
+        setRecent((rows) => [{ at: new Date().toISOString(), type: event.type, campaignUid,
+          ...('disposition' in event ? { disposition: event.disposition } : {}) }, ...rows].slice(0, 50));
+      }
     };
+    const handleHealth = (event: MessageEvent) => { try { setHealth(JSON.parse(event.data).health); setHealthError(false); } catch { setHealthError(true); } };
+    const handleHealthError = () => setHealthError(true);
+    es.addEventListener('health', handleHealth as EventListener); es.addEventListener('health_error', handleHealthError);
 
     EVENT_TYPES.forEach((type) => es.addEventListener(type, handle as EventListener));
 
@@ -73,5 +89,5 @@ export function useAutodialSse(enabled = true): UseAutodialSseResult {
     };
   }, [enabled]);
 
-  return { ...live, status };
+  return { ...live, status, health, healthError, recent };
 }

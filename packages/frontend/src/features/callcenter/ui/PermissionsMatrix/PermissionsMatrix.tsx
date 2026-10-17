@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TranslateFn } from '@/shared/lib/translateFn';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
-  Switch, Tooltip, Skeleton, Text,
+  Button, Label, Switch, Tooltip, Skeleton, Text,
 } from '@/shared/ui';
 import type {
   IEffectivePermissions,
@@ -104,13 +104,15 @@ export function PermissionsMatrix({
                 <TableRow key={row.operator_user_id}>
                   <TableCell>
                     <div className={styles.nameCell}>
-                      <button
+                      <Button
                         type="button"
+                        variant="unstyled"
+                        size="none"
                         className={styles.nameBtn}
                         onClick={() => onOpenOperator(row)}
                       >
                         {row.name || `#${row.operator_user_id}`}
-                      </button>
+                      </Button>
                       <span className={styles.level}>{levelLabel(row.level, t)}</span>
                     </div>
                   </TableCell>
@@ -143,7 +145,7 @@ export function PermissionsMatrix({
                         const locked = !!locks.spy_modes;
                         const checked = row.permissions.spy_modes.includes(mode);
                         const chip = (
-                          <label className={styles.spyChip}>
+                          <Label className={styles.spyChip}>
                             <Switch
                               checked={checked}
                               disabled={disabled || locked || !row.permissions.can_spy}
@@ -153,7 +155,7 @@ export function PermissionsMatrix({
                               aria-label={`${row.name}, ${mode}`}
                             />
                             {t(`callcenter.settings.permissions.spyModes.${mode}`, mode)}
-                          </label>
+                          </Label>
                         );
                         return locked ? (
                           <Tooltip

@@ -29,7 +29,7 @@ export class AutodialDialplanService {
   ) {}
 
   /** Check PBX capability and voicemail media before a campaign can start using AMD. */
-  async assertAmdReady(campaign: AcCampaign): Promise<void> {
+  async assertAmdReady(campaign: Pick<AcCampaign, 'amd' | 'user_uid'>): Promise<void> {
     if (!campaign.amd?.enabled) return;
     if (campaign.amd.on_machine === 'voicemail') {
       const filename = String(campaign.amd.message_prompt ?? '').trim();

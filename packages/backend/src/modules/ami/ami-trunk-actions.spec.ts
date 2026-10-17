@@ -44,6 +44,15 @@ function realManagerWithFakeTcp(loginDelay: number, failRegistrationWrite = fals
 }
 
 describe('trunk AMI action safety and snapshot completeness', () => {
+  it('injects monitor mode digits into ChanSpy without changing ordinary phone DTMF', async () => {
+    const { service, manager } = setup();
+    await service.playDtmf('PJSIP/monitor-1', '5', true);
+    await service.playDtmf('PJSIP/agent-2', '1');
+    const actions = manager.actionMock.mock.calls.map(call => call[0]).filter(action => action.action === 'PlayDTMF');
+    expect(actions).toHaveLength(2);
+    expect(actions[0]).toMatchObject({ channel: 'PJSIP/monitor-1', digit: '5', receive: 'true' });
+    expect(actions[1]).not.toHaveProperty('receive');
+  });
   afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
   it('sends exactly one named registration, accepting only AMI Success', async () => {
     const { service, manager } = setup();

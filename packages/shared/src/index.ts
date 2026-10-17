@@ -26,6 +26,7 @@ export * from './types/route.types';
 export * from './types/timeGroup.types';
 export * from './types/directory.types';
 export * from './types/autodial.types';
+export * from './autodial.contract';
 export * from './types/route-template.types';
 export * from './types/call-group.types';
 export * from './types/notification.types';
@@ -110,3 +111,8 @@ export * from './notifyParams';
 
 export * from './directoryStep';
 export * from './types/dashboard.types';
+export * from './callcenter-metrics';
+export * from './callcenter-dashboard';
+export * from './callcenter-hotkeys';
+export * from './callcenter-cards';
+export { APP_VERSION } from './app-version';

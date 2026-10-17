@@ -11,6 +11,9 @@ import { AcCampaign } from './ac-campaign.model';
   freezeTableName: true,
 })
 export class AcAttempt extends Model {
+  @Default(1)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare tour_no: number;
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)

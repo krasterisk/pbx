@@ -1,0 +1,27 @@
+.banner {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-index-sticky, 20);
+  width: 100%;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 50%, var(--color-border));
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-warning) 18%, transparent),
+      color-mix(in srgb, var(--color-card) 92%, transparent)
+    ),
+    var(--color-card);
+  color: var(--color-foreground);
+}
+
+.icon {
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+
+.text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}

@@ -30,6 +30,7 @@ export interface PbxStateDto {
     confirmDestructive: boolean;
     /** Compact per-domain summaries from Domain AI Adapters (D-16), e.g. directories */
     adapterSummaries: string[];
+    adapterSnapshots?: Record<string, DomainSnapshot>;
 }
 
 export interface DomainSnapshot {
@@ -45,9 +46,10 @@ export type CompactPbxSnapshot = Partial<{
     queues: DomainSnapshot;
     contexts: DomainSnapshot;
     adapters: DomainSnapshot;
+    autodial: DomainSnapshot;
 }>;
 
-const SNAPSHOT_DOMAINS = ['endpoints', 'trunks', 'ivrs', 'queues', 'contexts', 'adapters'] as const;
+const SNAPSHOT_DOMAINS = ['endpoints', 'trunks', 'ivrs', 'queues', 'contexts', 'adapters', 'autodial'] as const;
 
 @Injectable()
 export class PbxContextBuilderService {
@@ -75,9 +77,16 @@ export class PbxContextBuilderService {
             this.buildAdapterSummaries(userUid),
         ]);
 
+        const adapterSnapshots: Record<string, DomainSnapshot> = {};
+        for (const provider of this.aiAdapterRegistry.getStateProviders()) {
+            if (!provider.buildSnapshot) continue;
+            try { adapterSnapshots[provider.domain] = await provider.buildSnapshot(userUid); }
+            catch { this.logger.warn(`State snapshot unavailable for ${provider.domain}`); }
+        }
         return {
             confirmDestructive: settings.confirmDestructive,
             adapterSummaries,
+            ...(Object.keys(adapterSnapshots).length ? { adapterSnapshots } : {}),
             endpointsCount: endpoints.length,
             extensionRanges: this.buildExtensionRanges(endpoints),
             endpoints: endpoints.slice(0, 30).map((e: any) => ({
@@ -113,7 +122,7 @@ export class PbxContextBuilderService {
      * One compact snapshot for both the system prompt and get_pbx_state (D-15, D-27).
      */
     toCompactSnapshot(state: PbxStateDto, domain?: string): CompactPbxSnapshot {
-        const all: Required<CompactPbxSnapshot> = {
+        const all: CompactPbxSnapshot = {
             endpoints: {
                 count: state.endpointsCount,
                 ranges: state.extensionRanges || undefined,
@@ -141,6 +150,7 @@ export class PbxContextBuilderService {
                 count: state.adapterSummaries.length,
                 sample: state.adapterSummaries.slice(0, STATE_SNAPSHOT_SAMPLE),
             },
+            ...(state.adapterSnapshots?.autodial ? { autodial: state.adapterSnapshots.autodial } : {}),
         };
 
         const filter = domain?.trim().toLowerCase();

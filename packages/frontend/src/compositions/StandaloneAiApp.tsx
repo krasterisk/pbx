@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { Text } from '@/shared/ui/Text';
+import { AppVersionLabel } from '@/shared/ui/AppVersion/AppVersion';
 import cls from './StandaloneAiApp.module.scss';
 
 type Product = 'analytics-api' | 'robot-api';
@@ -182,6 +183,9 @@ export function StandaloneAiApp({ product }: { product: Product }) {
           </VStack>
           <VStack className={cls.panel} align="stretch" gap="20">
             <HStack gap="4"><Activity size={20} /><Text variant="h2">Состояние установки</Text></HStack>
+            <HStack className={cls.statusRow} justify="between" gap="8">
+              <Text>Версия</Text><AppVersionLabel />
+            </HStack>
             <HStack className={cls.statusRow} justify="between" gap="8">
               <Text>API</Text><Text role="status" className={connection === 'online' ? cls.good : cls.needsAttention}>{statusText}</Text>
             </HStack>

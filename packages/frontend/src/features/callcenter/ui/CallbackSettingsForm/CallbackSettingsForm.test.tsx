@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import { DEFAULT_CALLBACK_POLICY, type ICallbackPolicy } from '@krasterisk/shared';
 
@@ -39,6 +40,9 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
 
 import { CallbackSettingsForm, normalizeCallbackPolicy } from './CallbackSettingsForm';
 
+const render = (ui: React.ReactElement) =>
+  rtlRender(<RouterProvider router={createMemoryRouter([{ path: '/', element: ui }])} />);
+
 describe('normalizeCallbackPolicy', () => {
   it('applies defaults for empty input', () => {
     expect(normalizeCallbackPolicy(null)).toEqual(DEFAULT_CALLBACK_POLICY);
@@ -76,7 +80,7 @@ describe('CallbackSettingsForm (D-49 Surface L)', () => {
     fireEvent.click(screen.getByRole('tab', { name: "At the caller's choice" }));
     expect(updateTenantSettings).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save callback settings' }));
+    fireEvent.click(screen.getByTestId('callback-save-bar-save'));
     await waitFor(() => {
       expect(updateTenantSettings).toHaveBeenCalledTimes(1);
     });

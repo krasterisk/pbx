@@ -44,14 +44,19 @@ export interface AgentTimelineProposalItem {
   card: 'single' | 'workflow';
   createdAt: string;
 }
+export interface AgentTimelineActionItem {
+  kind: 'action'; id: string; createdAt: string;
+  action: import('../autodial.contract').AutodialUiAction;
+}
 
 export type AgentTimelineItem =
   | AgentTimelineUserItem
   | AgentTimelineAssistantItem
   | AgentTimelineStepItem
-  | AgentTimelineProposalItem;
+  | AgentTimelineProposalItem
+  | AgentTimelineActionItem;
 
-export const AGENT_TIMELINE_KINDS = ['user', 'assistant', 'step', 'proposal'] as const;
+export const AGENT_TIMELINE_KINDS = ['user', 'assistant', 'step', 'proposal', 'action'] as const;
 
 /** Snake_case tool ids (`create_endpoints_bulk`) must never reach the chat. */
 export function scrubToolIdsFromPublicText(text: string): string {

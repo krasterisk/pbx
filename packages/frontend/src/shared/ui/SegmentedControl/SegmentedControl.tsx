@@ -27,7 +27,7 @@ const segmentBtn = cva(
   {
     variants: {
       active: {
-        true: 'bg-primary text-primary-foreground shadow-sm',
+        true: 'bg-foreground text-background shadow-sm',
         false: 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
       },
     },
@@ -67,7 +67,6 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="tab"
             aria-selected={isActive}
-            aria-pressed={isActive}
             aria-disabled={opt.disabled || undefined}
             disabled={opt.disabled}
             className={cn(segmentBtn({ active: isActive }), opt.disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground')}

@@ -184,14 +184,14 @@ export function RolePermissionsDefaultsForm({
                 <div className={styles.lockRow}>
                   <div className={styles.spyModes}>
                     {ALL_SPY_MODES.map((mode) => (
-                      <label key={mode} className={styles.spyChip}>
+                      <Label key={mode} className={styles.spyChip}>
                         <Switch
                           checked={(entry.spy_modes ?? []).includes(mode)}
                           disabled={saving}
                           onCheckedChange={(next) => toggleSpyDefault(level, mode, next)}
                         />
                         {t(`callcenter.settings.permissions.spyModes.${mode}`, mode)}
-                      </label>
+                      </Label>
                     ))}
                   </div>
                   <Label className={styles.hint}>

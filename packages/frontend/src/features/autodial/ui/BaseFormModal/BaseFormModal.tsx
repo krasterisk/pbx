@@ -1,7 +1,7 @@
-import { Switch } from '@/shared/ui';
+import { Switch, TagInput } from '@/shared/ui';
 import { ModalBody } from '@/shared/ui';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from 'lucide-react';
 import {
@@ -15,7 +15,11 @@ import {
   useCreateAutodialBaseMutation,
   useGetAutodialBaseQuery,
   useUpdateAutodialBaseMutation,
+  useGetAutodialFieldUsageQuery,
+  usePreviewAutodialSchemaMutation,
 } from '@/shared/api/endpoints/autodialApi';
+import type { AutodialSchemaMigrationRequest, IAutodialSchemaPreview } from '@krasterisk/shared';
+import { SchemaMigrationDialog } from './SchemaMigrationDialog';
 import {
   autodialPageActions,
   selectAutodialSelectedBaseUid,
@@ -25,6 +29,8 @@ import {
 import {
   AUTODIAL_FIELD_TYPE_ORDER,
   baseDraftToPayload,
+  baseTemplateFields,
+  type AutodialBaseTemplate,
   baseToDraft,
   blankFieldDraft,
   emptyBaseDraft,
@@ -50,6 +56,12 @@ export const BaseFormModal = memo(() => {
   });
   const [createBase, { isLoading: isCreating }] = useCreateAutodialBaseMutation();
   const [updateBase, { isLoading: isUpdating }] = useUpdateAutodialBaseMutation();
+  const { currentData: usage } = useGetAutodialFieldUsageQuery(editUid ?? 0, { skip: !isOpen || editUid === null });
+  const [previewSchema, { isLoading: isPreviewing }] = usePreviewAutodialSchemaMutation();
+  const [migration, setMigration] = useState<{ request: AutodialSchemaMigrationRequest; preview: IAutodialSchemaPreview } | null>(null);
+  const [defaults, setDefaults] = useState<Record<string, string>>({});
+  const [omitOptional, setOmitOptional] = useState(false);
+  const baseline = useRef('');
 
   const [draft, setDraft] = useState<AutodialBaseDraft>(emptyBaseDraft);
   const [showErrors, setShowErrors] = useState(false);
@@ -62,16 +74,20 @@ export const BaseFormModal = memo(() => {
     if (hydratedKey === sessionKey || (editUid !== null && !base)) return;
     setShowErrors(false);
     setApiError(null);
-    setDraft(editUid !== null && base ? baseToDraft(base) : emptyBaseDraft());
+    const initial = editUid !== null && base ? baseToDraft(base) : emptyBaseDraft();
+    setDraft(initial); baseline.current = JSON.stringify(initial); setDefaults({}); setOmitOptional(false); setMigration(null);
     setHydratedKey(sessionKey);
   }, [isOpen, editUid, base, sessionKey, hydratedKey]);
 
   const errors = useMemo(() => validateBaseDraft(draft), [draft]);
   const visibleErrors = showErrors ? errors : {};
-  const isSaving = isCreating || isUpdating;
+  const isSaving = isCreating || isUpdating || isPreviewing;
   const isReady = hydratedKey === sessionKey && !isError;
 
-  const close = () => dispatch(autodialPageActions.closeBaseModal());
+  const close = () => {
+    if ((JSON.stringify(draft) !== baseline.current || omitOptional || Object.values(defaults).some(Boolean)) && !window.confirm(t('autodial.workspace.discard'))) return;
+    dispatch(autodialPageActions.closeBaseModal());
+  };
 
   const setFields = (fields: AutodialFieldDraft[]) => setDraft({ ...draft, fields });
   const updateField = (index: number, next: AutodialFieldDraft) =>
@@ -100,7 +116,7 @@ export const BaseFormModal = memo(() => {
         const created = await createBase(payload).unwrap();
         dispatch(autodialPageActions.selectBase(created.uid));
       }
-      close();
+      dispatch(autodialPageActions.closeBaseModal());
     } catch (error) {
       setApiError(t(autodialErrorKey(error, 'autodial.bases.saveFailed')));
     }
@@ -130,6 +146,16 @@ export const BaseFormModal = memo(() => {
             data-viewport="360,768,1440"
             data-overflow="y"
           >
+            {editUid === null && <VStack gap="4" align="stretch">
+              <Label htmlFor="autodial-base-template">{t('autodial.workspace.baseTemplate')}</Label>
+              <Select id="autodial-base-template" value="" onChange={(event) => {
+                const template = event.target.value as AutodialBaseTemplate;
+                if (template && (JSON.stringify(draft.fields) === JSON.stringify(emptyBaseDraft().fields) || window.confirm(t('autodial.workspace.replaceTemplateFields'))))
+                  setDraft({ ...draft, fields: baseTemplateFields(template) });
+              }}><option value="">{t('autodial.workspace.chooseTemplate')}</option>
+                {(['collection', 'appointment', 'survey'] as const).map((key) => <option key={key} value={key}>{t(`autodial.workspace.templates.${key}`)}</option>)}
+              </Select>
+            </VStack>}
             <div className={cls.grid}>
               <VStack align="stretch" gap="4">
                 <Label htmlFor="autodial-base-name">{t('autodial.bases.name')}</Label>
@@ -247,6 +273,7 @@ export const BaseFormModal = memo(() => {
                       <Select
                         id={`autodial-field-type-${index}`}
                         value={field.type}
+                        disabled={Boolean(field.uid && base?.fields.find((old) => old.uid === field.uid)?.is_phone)}
                         onChange={(e) => {
                           const type = e.target.value as AutodialFieldDraft['type'];
                           updateField(index, {
@@ -322,6 +349,7 @@ export const BaseFormModal = memo(() => {
                         danger
                         title={t('common.delete')}
                         aria-label={t('common.delete')}
+                        disabled={Boolean(field.uid && base?.fields.find((old) => old.uid === field.uid)?.is_phone)}
                         onClick={() => setFields(draft.fields.filter((_, i) => i !== index))}
                       >
                         <Trash2 />
@@ -329,21 +357,30 @@ export const BaseFormModal = memo(() => {
                     </TableRowActions>
                   </div>
 
+                  {field.uid && <Text variant="muted">{t('autodial.workspace.fieldUsage')}: {usage?.fields.find((item) => item.uid === field.uid)?.used_by.map((item) => item.name).join(', ') || t('autodial.workspace.notUsed')}</Text>}
+                  {field.type === 'money' && <VStack gap="4"><Label htmlFor={`field-currency-${index}`}>{t('autodial.workspace.currency')}</Label>
+                    <Select id={`field-currency-${index}`} value={field.format?.currency ?? 'RUB'} options={['RUB', 'USD', 'EUR'].map((value) => ({ value, label: value }))}
+                      onChange={(event) => updateField(index, { ...field, format: { ...field.format, currency: event.target.value as 'RUB' | 'USD' | 'EUR' } })} /></VStack>}
+                  {field.type === 'date' && <VStack gap="4"><Label htmlFor={`field-date-format-${index}`}>{t('autodial.workspace.dateInput')}</Label>
+                    <Select id={`field-date-format-${index}`} value={field.format?.date_input ?? 'auto'} options={['auto', 'ru', 'iso'].map((value) => ({ value, label: t(`autodial.workspace.dateFormats.${value}`) }))}
+                      onChange={(event) => updateField(index, { ...field, format: { ...field.format, date_input: event.target.value as 'auto' | 'ru' | 'iso' } })} /></VStack>}
+                  {editUid !== null && !field.is_phone && field.type !== 'phone' && <VStack gap="4">
+                    <Label htmlFor={`field-default-${index}`}>{t('autodial.workspace.migrationDefault')}</Label>
+                    <Input id={`field-default-${index}`} value={defaults[field.key] ?? ''} onChange={(event) => setDefaults({ ...defaults, [field.key]: event.target.value })} />
+                  </VStack>}
+
                   {field.type === 'enum' && (
                     <VStack align="stretch" gap="4" className={cls.enumRow}>
                       <Label htmlFor={`autodial-field-enum-${index}`}>
                         {t('autodial.bases.enumValues')}
                       </Label>
-                      <Input
-                        id={`autodial-field-enum-${index}`}
-                        value={(field.enum_values ?? []).join(', ')}
-                        onChange={(e) =>
+                      <TagInput
+                        aria-label={t('autodial.bases.enumValues')}
+                        value={field.enum_values ?? []}
+                        onChange={(enum_values) =>
                           updateField(index, {
                             ...field,
-                            enum_values: e.target.value
-                              .split(',')
-                              .map((v) => v.trim())
-                              .filter(Boolean),
+                            enum_values,
                           })
                         }
                       />
@@ -374,10 +411,22 @@ export const BaseFormModal = memo(() => {
         <DialogFooter className={cls.footer} data-testid="autodial-base-form-footer">
           <VStack gap="8" max align="end">
             {apiError && <Text className={cls.error}>{apiError}</Text>}
+            {editUid !== null && <HStack gap="8" align="center"><Switch id="schema-archive-optional" checked={omitOptional} onCheckedChange={setOmitOptional} />
+              <Label htmlFor="schema-archive-optional">{t('autodial.workspace.archiveInvalidOptional')}</Label></HStack>}
             <HStack gap="8" justify="end" max wrap="wrap" className={cls.footerActions}>
               <Button variant="outline" disabled={isSaving} onClick={close}>
                 {t('common.cancel')}
               </Button>
+              {editUid !== null && <Button variant="outline" disabled={isSaving || !isReady} onClick={async () => {
+                if (hasBaseErrors(errors)) { setShowErrors(true); return; }
+                setApiError(null);
+                const request: AutodialSchemaMigrationRequest = { expected_revision: draft.revision ?? 0,
+                  fields: baseDraftToPayload(draft).fields, invalid_optional_policy: omitOptional ? 'archive_omit' : 'reject',
+                  defaults: Object.fromEntries(Object.entries(defaults).filter(([key, value]) => value !== '' && draft.fields.some((field) => field.key === key))),
+                };
+                try { const preview = await previewSchema({ uid: editUid, data: request }).unwrap(); setMigration({ request, preview }); }
+                catch (cause) { setApiError(t(autodialErrorKey(cause, 'autodial.bases.saveFailed'))); }
+              }}>{t('autodial.workspace.schemaPreview')}</Button>}
               <Button disabled={isSaving || !isReady} onClick={() => void onSave()}>
                 {isSaving ? <Loader2 size={16} className={cls.spinner} /> : null}
                 {t('common.save')}
@@ -385,6 +434,8 @@ export const BaseFormModal = memo(() => {
             </HStack>
           </VStack>
         </DialogFooter>
+        {editUid !== null && migration && <SchemaMigrationDialog uid={editUid} request={migration.request} preview={migration.preview}
+          onClose={() => setMigration(null)} onApplied={() => { setMigration(null); dispatch(autodialPageActions.closeBaseModal()); }} />}
       </FormDialogContent>
     </Dialog>
   );

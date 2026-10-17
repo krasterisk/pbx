@@ -55,7 +55,7 @@ export const Avatar = memo(function Avatar({ name, src, size = 36, className }: 
         width: size,
         height: size,
         fontSize: Math.max(10, Math.round(size * 0.36)),
-        background: showImage ? 'transparent' : bg,
+        background: showImage ? 'transparent' : `color-mix(in srgb, ${bg} 50%, #000)`,
       }}
       aria-hidden
     >

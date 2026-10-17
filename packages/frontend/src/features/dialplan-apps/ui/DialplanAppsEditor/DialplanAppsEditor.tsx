@@ -251,12 +251,12 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
         id,
         type: '' as ActionType,
         params: {},
-        condition: { dialstatus: '' },
+        condition: host === 'autodial' ? {} : { dialstatus: '' },
         enabled: true,
       },
     });
     setSelectedStepId(id);
-  }, [actions.length, apply, atLimit, makeId, readOnly]);
+  }, [actions.length, apply, atLimit, host, makeId, readOnly]);
 
   const handleTypeChange = useCallback(
     (id: string, type: ActionType) => {
@@ -576,6 +576,8 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
           </Sheet>
         ) : (
           <StepSheet
+            host={host}
+            allowedTypes={resolvedAllowed}
             open={!!selectedStepId && !!selectedAction && !isEmptyType(selectedAction)}
             stepId={selectedStepId}
             initialSection={selectedSection}

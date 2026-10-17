@@ -17,7 +17,7 @@ import {
 import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CallCenterReportsService } from './callcenter-reports.service';
-import { ReportQueryDto } from './dto/report-query.dto';
+import { ExportReportQueryDto, ReportQueryDto } from './dto/report-query.dto';
 import { isCcReportId } from './callcenter-reports.types';
 import { buildReportCsv } from './exporters/csv-exporter';
 import { buildReportXlsx } from './exporters/xlsx-exporter';
@@ -45,15 +45,14 @@ export class CallCenterReportsController {
   async exportReport(
     @Req() req: Request & { user: { level: number; vpbx_user_uid: number } },
     @Param('reportId') reportId: string,
-    @Query() query: ReportQueryDto,
-    @Query('format') format: string,
+    @Query() query: ExportReportQueryDto,
     @Res() res: Response,
   ) {
     assertSupervisor(req.user);
     if (!isCcReportId(reportId)) {
       throw new BadRequestException(`Unknown reportId "${reportId}"`);
     }
-    const fmt = (format || '').toLowerCase();
+    const fmt = query.format;
     if (fmt === 'pdf') {
       throw new BadRequestException(
         'PDF генерируется на клиенте (07-18). Используйте format=csv или format=xlsx.',
@@ -89,7 +88,7 @@ export class CallCenterReportsController {
     });
 
     if (fmt === 'csv') {
-      const body = buildReportCsv(result.columns, exportRows);
+      const body = buildReportCsv(result.columns, exportRows, result.timezone);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader(
         'Content-Disposition',
@@ -98,7 +97,7 @@ export class CallCenterReportsController {
       return res.send(body);
     }
 
-    const buffer = await buildReportXlsx(reportId, result.columns, exportRows);
+    const buffer = await buildReportXlsx(reportId, result.columns, exportRows, result.timezone);
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { loadDatabaseCjs } from '../database/load-database-cjs';
+import { rememberSchemaVersion } from '../database/schema-stamp';
 
 const { resolveDatabaseConfig } = loadDatabaseCjs<typeof import('../database/database-config.cjs')>(
   'database-config.cjs',
@@ -85,7 +86,8 @@ export class StandaloneAiCoreModule {
             if (process.env.DB_SCHEMA_PROFILE !== profile) {
               throw new Error(`${profile} API requires matching DB_SCHEMA_PROFILE`);
             }
-            await checkSchemaReadiness(process.env);
+            const ready = await checkSchemaReadiness(process.env);
+            rememberSchemaVersion(ready.schemaVersion);
             return {
               ...resolveDatabaseConfig(process.env),
               models: [

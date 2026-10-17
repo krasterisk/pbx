@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import {
   useGetCardTemplatesQuery,
   useLazyClientLookupQuery,
+  useLazyGetCardByCallQuery,
 } from '@/shared/api/endpoints/callCenterApi';
 import {
   selectMyAgent,
@@ -10,6 +11,8 @@ import {
 } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import type { ICardTemplate } from '@/features/callcenter/model/types/callCard';
 import type { ICall } from '@/features/callcenter/model/types/callCenterSchema';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 
 export interface CallCardContext {
   uniqueid: string;
@@ -17,10 +20,10 @@ export interface CallCardContext {
   queue: string;
 }
 
-function resolveTemplate(templates: ICardTemplate[], queue: string): ICardTemplate | null {
+export function resolveTemplate(templates: ICardTemplate[], queue: string): ICardTemplate | null {
   return templates.find(
     (tpl) => tpl.is_active && (tpl.queue_names ?? []).includes(queue),
-  ) ?? null;
+  ) ?? templates.find((tpl) => tpl.is_active && !(tpl.queue_names ?? []).length) ?? null;
 }
 
 function shouldAutoOpen(
@@ -68,10 +71,13 @@ function buildAutoPopulateValues(
 }
 
 export function useCallCardPopup() {
+  const { t } = useTranslation();
   const myAgent = useSelector(selectMyAgent);
   const calls = useSelector(selectCcCalls);
   const { data: templates = [] } = useGetCardTemplatesQuery();
   const [triggerLookup] = useLazyClientLookupQuery();
+  const [loadSavedCard] = useLazyGetCardByCallQuery();
+  const requestRef = useRef(0);
 
   const [open, setOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
@@ -87,6 +93,14 @@ export function useCallCardPopup() {
       const bound = calls.find((c) => c.uniqueid === myAgent.currentCall);
       if (bound) return bound;
     }
+    if (myAgent.directCallUniqueid && ['IN_CALL', 'RINGING', 'DIALING', 'CONSULT'].includes(myAgent.status)) {
+      return {
+        uniqueid: myAgent.directCallUniqueid, queue: '', agent: myAgent.interface,
+        callerIdNum: myAgent.dialTarget || myAgent.peerNumber || '', callerIdName: '',
+        status: myAgent.status === 'IN_CALL' || myAgent.status === 'CONSULT' ? 'TALKING' : 'RINGING',
+        enterTime: myAgent.statusSince || new Date().toISOString(), holdTime: 0, talkTime: 0, userUid: myAgent.userUid,
+      };
+    }
     return (
       calls.find(
         (c) => c.status === 'RINGING' && c.agent === myAgent.interface,
@@ -95,6 +109,20 @@ export function useCallCardPopup() {
   }, [myAgent, calls]);
 
   const populateAndOpen = useCallback(async (tpl: ICardTemplate, call: CallCardContext) => {
+    const request = ++requestRef.current;
+    setOpen(false);
+    setTemplate(tpl);
+    setCallContext(call);
+    let savedValues: Record<string, unknown> = {};
+    try {
+      const saved = await loadSavedCard(call.uniqueid).unwrap();
+      if (saved.template_id === tpl.uid) savedValues = saved.field_values ?? {};
+    } catch (error) {
+      if ((error as { status?: number })?.status !== 404) {
+        if (request === requestRef.current) toast.error(t('callcenter.reports.cardUnavailable', 'Unable to load call card. Check access and try again.'));
+        return;
+      }
+    }
     let phonebookName = '';
     let vip = false;
 
@@ -114,15 +142,15 @@ export function useCallCardPopup() {
       // Lookup failure must not block card open
     }
 
-    setTemplate(tpl);
-    setCallContext(call);
-    setInitialValues(buildAutoPopulateValues(tpl, call, phonebookName));
+    if (request !== requestRef.current) return;
+    setInitialValues({ ...buildAutoPopulateValues(tpl, call, phonebookName), ...savedValues });
     setIsVip(vip);
     setOpen(true);
-  }, [triggerLookup]);
+  }, [triggerLookup, loadSavedCard, t]);
 
   useEffect(() => {
     if (!myAgent) {
+      requestRef.current += 1;
       setOpen(false);
       setTemplate(null);
       setCallContext(null);
@@ -131,8 +159,11 @@ export function useCallCardPopup() {
     }
 
     if (!activeCall) {
-      if (myAgent.status !== 'WRAPUP') {
+      // callEnd precedes agentUpdate(WRAPUP). Keep the current form through
+      // that event gap so answers remain editable during after-call work.
+      if (!['WRAPUP', 'IN_CALL', 'CONSULT', 'RINGING', 'DIALING'].includes(myAgent.status)) {
         if (!manualOpen) {
+          requestRef.current += 1;
           setOpen(false);
           setTemplate(null);
           setCallContext(null);
@@ -178,9 +209,9 @@ export function useCallCardPopup() {
   }, [activeCall, templates, populateAndOpen]);
 
   const close = useCallback(() => {
+    requestRef.current += 1;
     setOpen(false);
     setManualOpen(false);
-    openedForRef.current = null;
   }, []);
 
   return {

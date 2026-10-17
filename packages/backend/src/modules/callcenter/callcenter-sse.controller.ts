@@ -63,7 +63,14 @@ export class CallCenterSseController {
             `SSE connection opened: user ${userId}, jwtTenant=${jwtUserUid}, effectiveTenant=${userUid}`,
           );
 
-          const snapshotWithKpi = this.enrichSnapshotKpiDay(userUid, snapshot);
+          const monitor = this.stateService.getMonitorSession(userUid, userId);
+          const snapshotWithKpi = {
+            ...this.enrichSnapshotKpiDay(userUid, snapshot),
+            monitorSession: monitor ? {
+              sessionId: monitor.id, agentInterface: monitor.agentInterface, agentName: monitor.agentName,
+              mode: monitor.mode, startedAt: monitor.startedAt.toISOString(), connected: monitor.connected ?? false,
+            } : null,
+          };
 
           const ccEvents$ = this.stateService.getEventStreamForUser(jwtUserUid, userId).pipe(
             startWith({
@@ -72,7 +79,7 @@ export class CallCenterSseController {
               data: snapshotWithKpi,
             }),
             filter((event) => {
-              if (event.type !== 'ccChatMessage') return true;
+              if (event.type !== 'ccChatMessage' && event.type !== 'monitorSession') return true;
               const recipients = event.data?.recipientUserIds;
               if (recipients === undefined) return true;
               if (!Array.isArray(recipients)) return true;
@@ -80,7 +87,7 @@ export class CallCenterSseController {
             }),
             map((event) => {
               let data = event.data;
-              if (event.type === 'ccChatMessage' && data && typeof data === 'object') {
+              if ((event.type === 'ccChatMessage' || event.type === 'monitorSession') && data && typeof data === 'object') {
                 const { recipientUserIds: _omit, ...rest } = data;
                 data = rest;
               }
@@ -94,7 +101,9 @@ export class CallCenterSseController {
 
           const heartbeat$ = interval(SSE_HEARTBEAT_MS).pipe(
             map(() => ({
-              data: '',
+              // An empty `data` field is discarded by the browser and never reaches
+              // the page, so an idle operator looked disconnected after 15s.
+              data: '1',
               type: 'heartbeat',
               id: undefined as any,
             })),

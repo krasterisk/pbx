@@ -1,6 +1,6 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { InfoTooltip, Input, Label, Text } from "@/shared/ui";
+import { Button, InfoTooltip, Input, Label, Select, Text } from "@/shared/ui";
 import { HStack, VStack } from "@/shared/ui/Stack";
 import {
   RETRY_INTERVAL_DISPOSITIONS,
@@ -16,12 +16,20 @@ interface Props {
 
 export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
   const { t } = useTranslation();
+  const [unit, setUnit] = useState(3600);
 
   const patchRetry = (part: Partial<AutodialCampaignDraft["retry"]>) =>
     onChange({ ...draft, retry: { ...draft.retry, ...part } });
 
   return (
     <VStack gap="16" max>
+      <HStack gap="8" wrap="wrap"><Button variant="outline" onClick={() => patchRetry({ max_attempts: 3, default_interval_sec: 7200,
+        intervals_sec: { no_answer: 14400, busy: 7200, congestion: 7200, failed: 14400, answered_short: 86400, amd_machine: 86400, voicemail: 86400 } })}>{t('autodial.workspace.retryGentle')}</Button>
+        <Button variant="outline" onClick={() => patchRetry({ max_attempts: 3, default_interval_sec: 3600,
+          intervals_sec: { no_answer: 7200, busy: 1800, congestion: 3600, failed: 7200, answered_short: 14400, amd_machine: 86400, voicemail: 86400 } })}>{t('autodial.workspace.retryStandard')}</Button>
+        <Select aria-label={t('autodial.workspace.retryUnits')} value={unit} onChange={(event) => setUnit(Number(event.target.value))}
+          options={[{ value: '60', label: t('autodial.workspace.minutes') }, { value: '3600', label: t('autodial.workspace.hours') }]} />
+      </HStack>
       <div className={cls.grid}>
         <VStack gap="8" max className={cls.field}>
           <HStack gap="4" align="center">
@@ -45,7 +53,7 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
         <VStack gap="8" max className={cls.field}>
           <HStack gap="4" align="center">
             <Label htmlFor="autodial-retry-default" className={cls.fieldLabel}>
-              {t("autodial.retry.defaultInterval")}
+              {t('autodial.workspace.retryInterval')}
             </Label>
             <InfoTooltip text={t("autodial.retry.defaultIntervalHint")} />
           </HStack>
@@ -54,9 +62,10 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
             type="number"
             min={0}
             className={cls.narrowInput}
-            value={draft.retry.default_interval_sec}
+            step="any"
+            value={draft.retry.default_interval_sec / unit}
             onChange={(e) =>
-              patchRetry({ default_interval_sec: Number(e.target.value) || 0 })
+              patchRetry({ default_interval_sec: Math.round(Number(e.target.value) * unit) || 0 })
             }
           />
         </VStack>
@@ -80,8 +89,9 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
                 type="number"
                 min={0}
                 className={cls.narrowInput}
-                placeholder={String(draft.retry.default_interval_sec)}
-                value={draft.retry.intervals_sec[disposition] ?? ""}
+                step="any"
+                placeholder={String(draft.retry.default_interval_sec / unit)}
+                value={draft.retry.intervals_sec[disposition] !== undefined ? draft.retry.intervals_sec[disposition]! / unit : ""}
                 onChange={(e) =>
                   patchRetry({
                     intervals_sec: {
@@ -89,7 +99,7 @@ export const CampaignRetryTab = memo(({ draft, onChange }: Props) => {
                       [disposition]:
                         e.target.value === ""
                           ? undefined
-                          : Number(e.target.value),
+                          : Math.round(Number(e.target.value) * unit),
                     },
                   })
                 }

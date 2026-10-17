@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { z } from 'zod';
+import { computeAnswerRate, effectiveOffered } from '@krasterisk/shared';
+import { ccConfigMutation } from './callcenter-ai-config.util';
+import { CallCenterSettingsAiTools } from './callcenter-settings-ai.tools';
+import { CallCenterCardsAiTools } from './callcenter-cards-ai.tools';
 import { CallCenterService } from './callcenter.service';
 import { CallCenterStateService } from './callcenter-state.service';
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
@@ -26,6 +31,8 @@ export class CallCenterAiAdapter implements DomainAiAdapter, OnModuleInit {
     private readonly ccService: CallCenterService,
     private readonly stateService: CallCenterStateService,
     private readonly registry: AiAdapterRegistryService,
+    @Optional() private readonly settingsTools?: CallCenterSettingsAiTools,
+    @Optional() private readonly cardsTools?: CallCenterCardsAiTools,
   ) {}
 
   onModuleInit(): void {
@@ -40,6 +47,8 @@ export class CallCenterAiAdapter implements DomainAiAdapter, OnModuleInit {
       this.toolGetTodayKpi(),
       this.toolForcePauseAgent(),
       this.toolForceUnpauseAgent(),
+      ...(this.settingsTools?.getTools() ?? []),
+      ...(this.cardsTools?.getTools() ?? []),
     ];
   }
 
@@ -55,7 +64,7 @@ export class CallCenterAiAdapter implements DomainAiAdapter, OnModuleInit {
 - Супервизор может force-pause / force-unpause агента (деструктивные tools требуют confirm)
 - Паузы имеют reason; per-operator settings (pickup, wrap-up) — отдельные сущности
 - AI-агент как оператор очереди НЕ поддерживается (D-44) — только human-агенты
-- Платный AI-voice (транскрипция) — отдельный модуль cc_ai_voice, не часть ядра КЦ`;
+- Платный AI-voice (транскрипция) — отдельный модуль cc_ai_voice, не часть ядра КЦ` + '\n\n' + (this.settingsTools?.getKnowledgeBlock() ?? '') + '\n\n' + (this.cardsTools?.getKnowledgeBlock() ?? '');
   }
 
   private async buildSummary(vpbxUserUid: number): Promise<string> {
@@ -151,13 +160,17 @@ export class CallCenterAiAdapter implements DomainAiAdapter, OnModuleInit {
             const answered = q.calls?.answered ?? 0;
             const abandoned = q.calls?.abandoned ?? 0;
             const total = q.calls?.total ?? answered + abandoned;
-            const asr = total > 0 ? Math.round((answered / total) * 1000) / 10 : 100;
+            const shortAbandoned = q.calls?.shortAbandoned ?? 0;
+            const base = { offered: total, shortAbandoned, handled: answered };
+            const asr = effectiveOffered(base) > 0 ? computeAnswerRate(base) : null;
             return {
               queue: q.name,
               sla: q.sla,
               answered,
               abandoned,
               total,
+              shortAbandoned,
+              effectiveOffered: effectiveOffered(base),
               asr,
               avgWait: q.avgWait,
               avgTalk: q.avgTalk,
@@ -169,38 +182,22 @@ export class CallCenterAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   private toolForcePauseAgent(): AiToolDefinition {
-    return {
-      name: 'cc_force_pause_agent',
-      description:
-        'Принудительно поставить агента на паузу (supervisor force-pause). Деструктивная операция — требует confirm.',
-      inputSchema: {
-        agent_interface: { type: 'string', description: 'Интерфейс агента, напр. PJSIP/e101_42' },
-        reason: { type: 'string', description: 'Причина паузы' },
-      },
-      entityType: 'callcenter_agent',
-      destructive: true,
-      handler: async (args, vpbxUserUid) => {
-        const iface = String(args.agent_interface || '');
-        const reason = args.reason != null ? String(args.reason) : undefined;
-        return this.ccService.supervisorForcePause(iface, reason, vpbxUserUid);
-      },
-    };
+    const tool = ccConfigMutation({
+      name: 'cc_force_pause_agent', description: 'Поставить оператора на паузу после подтверждения', destructive: true,
+      schema: z.strictObject({ agent_interface: z.string().min(1).max(64), reason: z.string().max(128).optional() }),
+      read: async (a, c) => this.stateService.getAllAgents(c.vpbxUserUid).find(agent => agent.interface === a.agent_interface) ?? null,
+      write: (a, c) => this.ccService.supervisorForcePause(a.agent_interface, a.reason, c.vpbxUserUid),
+    });
+    return { ...tool, entityType: 'callcenter_agent' };
   }
 
   private toolForceUnpauseAgent(): AiToolDefinition {
-    return {
-      name: 'cc_force_unpause_agent',
-      description:
-        'Снять агента с паузы (supervisor force-unpause). Деструктивная операция — требует confirm.',
-      inputSchema: {
-        agent_interface: { type: 'string', description: 'Интерфейс агента, напр. PJSIP/e101_42' },
-      },
-      entityType: 'callcenter_agent',
-      destructive: true,
-      handler: async (args, vpbxUserUid) => {
-        const iface = String(args.agent_interface || '');
-        return this.ccService.supervisorForceUnpause(iface, vpbxUserUid);
-      },
-    };
+    const tool = ccConfigMutation({
+      name: 'cc_force_unpause_agent', description: 'Снять оператора с паузы после подтверждения', destructive: true,
+      schema: z.strictObject({ agent_interface: z.string().min(1).max(64) }),
+      read: async (a, c) => this.stateService.getAllAgents(c.vpbxUserUid).find(agent => agent.interface === a.agent_interface) ?? null,
+      write: (a, c) => this.ccService.supervisorForceUnpause(a.agent_interface, c.vpbxUserUid),
+    });
+    return { ...tool, entityType: 'callcenter_agent' };
   }
 }

@@ -17,6 +17,7 @@ export interface IncomingCallToastProps {
   open: boolean;
   call: IncomingCallContext | null;
   onAnswer: () => void;
+  answering?: boolean;
   onReject: () => void;
 }
 
@@ -26,7 +27,7 @@ export interface IncomingCallToastProps {
  * the page, forbidden by UI-SPEC Surface 3). No auto-dismiss timer: it closes
  * only via onAnswer/onReject (or the parent unmounting it when the call ends).
  */
-export function IncomingCallToast({ open, call, onAnswer, onReject }: IncomingCallToastProps) {
+export function IncomingCallToast({ open, call, onAnswer, onReject, answering }: IncomingCallToastProps) {
   const { t } = useTranslation();
 
   if (!open || !call) return null;
@@ -62,9 +63,9 @@ export function IncomingCallToast({ open, call, onAnswer, onReject }: IncomingCa
 
         <div className={styles.actions}>
           <Tooltip content={t('callcenter.incoming.answerHint', 'Answer the incoming call')}>
-            <Button size="lg" className={styles.actionBtn} onClick={onAnswer}>
+            <Button size="lg" className={styles.actionBtn} onClick={onAnswer} disabled={answering} aria-busy={answering}>
               <Phone className="w-4 h-4 mr-1 shrink-0" />
-              <span className={styles.actionLabel}>{t('callcenter.incoming.answer')}</span>
+              <span className={styles.actionLabel}>{answering ? t('callcenter.softphone.connecting', 'Connecting…') : t('callcenter.incoming.answer')}</span>
             </Button>
           </Tooltip>
           <Tooltip content={t('callcenter.incoming.rejectHint', 'Reject and hang up')}>

@@ -5,7 +5,8 @@ import type { AutodialDncScope } from '@krasterisk/shared';
 
 @Table({
   tableName: 'ac_dnc',
-  timestamps: false,
+  timestamps: true,
+  updatedAt: false,
   freezeTableName: true,
 })
 export class AcDnc extends Model {

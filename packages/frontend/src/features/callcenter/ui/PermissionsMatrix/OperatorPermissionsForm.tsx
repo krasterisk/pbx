@@ -90,6 +90,7 @@ export function OperatorPermissionsForm({
                 </div>
                 <Switch
                   id={`cc-permission-${key}`}
+                  aria-label={t(`callcenter.settings.permissions.rights.${key}`)}
                   checked={form[key]}
                   disabled={locked || saving}
                   onCheckedChange={setBool(key)}
@@ -103,14 +104,15 @@ export function OperatorPermissionsForm({
             </Text>
             <div className={styles.spyModes}>
               {ALL_SPY_MODES.map((mode) => (
-                <label key={mode} className={styles.spyChip}>
+                <Label key={mode} className={styles.spyChip}>
                   <Switch
+                    aria-label={t(`callcenter.settings.permissions.spyModes.${mode}`, mode)}
                     checked={form.spy_modes.includes(mode)}
                     disabled={!!locks.spy_modes || !form.can_spy || saving}
                     onCheckedChange={(next) => toggleSpy(mode, next)}
                   />
                   {t(`callcenter.settings.permissions.spyModes.${mode}`, mode)}
-                </label>
+                </Label>
               ))}
             </div>
           </div></ModalSection></ModalBody>

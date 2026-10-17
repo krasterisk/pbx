@@ -1,0 +1,78 @@
+.tableScroll {
+  composes: section from '../../../../shared/ui/Table/Table.module.scss';
+
+  min-width: 0;
+  width: 100%;
+
+  // The first column (queue / operator / caller) stays in view while the numbers scroll.
+  table th:first-child,
+  table td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--color-card);
+  }
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+.totalsLabel {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+.totalsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+}
+
+.totalItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  dt {
+    font-size: 12px;
+    color: var(--color-muted-foreground);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-foreground);
+  }
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  overflow-wrap: anywhere;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pageInfo {
+  font-size: 13px;
+  color: var(--color-muted-foreground);
+}

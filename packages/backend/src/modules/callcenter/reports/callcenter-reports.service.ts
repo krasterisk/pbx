@@ -11,6 +11,25 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
+
+/** One queue, or several comma-separated names (reports multi-select). */
+export function queueNameWhere(queueName?: string): string | { [key: symbol]: string[] } | undefined {
+  const names = [...new Set((queueName ?? '').split(',').map((part) => part.trim()).filter(Boolean))];
+  if (names.length === 0) return undefined;
+  if (names.length === 1) return names[0];
+  return { [Op.in]: names };
+}
+import {
+  addQueueCall,
+  buildQueueMetricsView,
+  emptyQueueTotals,
+  isQueueCallRow,
+  mergeQueueTotals,
+  zonedDateKey,
+  zonedDayWindow,
+  zonedParts,
+  type QueueTotals,
+} from '@krasterisk/shared';
 import { CcQueueCall } from '../models/queue-call.model';
 import { CcDailyQueueStats } from '../models/daily-queue-stats.model';
 import { CcDailyAgentStats } from '../models/daily-agent-stats.model';
@@ -18,9 +37,10 @@ import { CcAgentEvent } from '../models/agent-event.model';
 import { CcAgentSession } from '../models/agent-session.model';
 import { CcMissedCall } from '../models/missed-call.model';
 import { CcPauseReason } from '../models/pause-reason.model';
-import { Queue } from '../../queues/queue.model';
 import { CallCenterRollupService } from '../callcenter-rollup.service';
-import { DEFAULT_SLA_THRESHOLD_SEC } from '../callcenter-metrics.service';
+import { CallCenterMetricsConfigService } from '../callcenter-metrics-config.service';
+import { eventTypeToTimelineState } from '../callcenter-agent-timeline.util';
+import { typeReportColumns } from './callcenter-report-columns';
 import {
   AgentTimelineRow,
   AgentTimelineSegment,
@@ -43,7 +63,6 @@ const DEFAULT_PAGE_SIZE = 50;
 @Injectable()
 export class CallCenterReportsService {
   private readonly logger = new Logger(CallCenterReportsService.name);
-  private readonly slaCache = new Map<string, number>();
 
   constructor(
     @InjectModel(CcQueueCall) private readonly queueCallModel: typeof CcQueueCall,
@@ -53,9 +72,26 @@ export class CallCenterReportsService {
     @InjectModel(CcAgentSession) private readonly sessionModel: typeof CcAgentSession,
     @InjectModel(CcMissedCall) private readonly missedCallModel: typeof CcMissedCall,
     @InjectModel(CcPauseReason) private readonly pauseReasonModel: typeof CcPauseReason,
-    @InjectModel(Queue) private readonly queueModel: typeof Queue,
     private readonly rollupService: CallCenterRollupService,
+    private readonly config: CallCenterMetricsConfigService,
   ) {}
+
+  /**
+   * Resolve the report period in the TENANT timezone. A date-only bound means the whole local
+   * calendar day; full ISO timestamps are taken as given. `fromKey`/`toKey` are the tenant-local
+   * date keys used to read daily rollups.
+   */
+  private async resolvePeriod(vpbxUserUid: number, query: ReportQuery) {
+    const { timezone } = await this.config.getTenantConfig(vpbxUserUid);
+    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo, timezone);
+    return {
+      from,
+      to,
+      timezone,
+      fromKey: zonedDateKey(from, timezone),
+      toKey: zonedDateKey(to, timezone),
+    };
+  }
 
   async runReport(
     reportId: string,
@@ -67,7 +103,28 @@ export class CallCenterReportsService {
         `Unknown reportId "${reportId}". Allowed: queue-summary, call-detail, operator-stats, pause-report, hourly-heatmap, agent-timeline, missed-callback`,
       );
     }
-    switch (reportId as CcReportId) {
+    if (query.agentInterface && ['queue-summary', 'missed-callback'].includes(reportId)) {
+      throw new BadRequestException('This report does not support an operator filter');
+    }
+    if (query.queueName && ['pause-report', 'agent-timeline'].includes(reportId)) {
+      throw new BadRequestException('This report does not support a queue filter');
+    }
+    const result = await this.buildReport(reportId as CcReportId, vpbxUserUid, query);
+    // cc-ux U3.3: every column carries its type / i18n key / totals rule.
+    const { timezone, from, to } = await this.resolvePeriod(vpbxUserUid, query);
+    return {
+      ...result, columns: typeReportColumns(result.reportId, result.columns),
+      timezone, generatedAt: new Date().toISOString(),
+      periodStart: from.toISOString(), periodEnd: to.toISOString(),
+    };
+  }
+
+  private buildReport(
+    reportId: CcReportId,
+    vpbxUserUid: number,
+    query: ReportQuery,
+  ): Promise<ReportResult> {
+    switch (reportId) {
       case 'queue-summary':
         return this.getQueueSummary(vpbxUserUid, query);
       case 'call-detail':
@@ -83,7 +140,7 @@ export class CallCenterReportsService {
       case 'missed-callback':
         return this.getMissedCallback(vpbxUserUid, query);
       default: {
-        const _exhaustive: never = reportId as never;
+        const _exhaustive: never = reportId;
         throw new BadRequestException(`Unhandled reportId: ${_exhaustive}`);
       }
     }
@@ -93,13 +150,15 @@ export class CallCenterReportsService {
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<QueueSummaryRow>> {
-    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo);
+    const { from, to, fromKey, toKey } = await this.resolvePeriod(vpbxUserUid, query);
     const source = this.rollupService.resolveAggregationSource(from, to);
     const columns: ReportColumn[] = [
       { key: 'queueName', header: 'Queue' },
       { key: 'totalCalls', header: 'Total' },
       { key: 'answeredCalls', header: 'Answered' },
       { key: 'abandonedCalls', header: 'Abandoned' },
+      { key: 'shortAbandonedCalls', header: 'Short abandoned' },
+      { key: 'transferredCalls', header: 'Transferred' },
       { key: 'slaPct', header: 'SLA %' },
       { key: 'asrPct', header: 'ASR %' },
       { key: 'asaSec', header: 'ASA (sec)' },
@@ -108,107 +167,80 @@ export class CallCenterReportsService {
       { key: 'maxWaitSec', header: 'Max wait (sec)' },
     ];
 
+    const byQueue = new Map<string, QueueTotals>();
+    const totalsFor = (queueName: string): QueueTotals => {
+      let totals = byQueue.get(queueName);
+      if (!totals) {
+        totals = emptyQueueTotals();
+        byQueue.set(queueName, totals);
+      }
+      return totals;
+    };
+
     if (source === 'rollup') {
       const where: Record<string, unknown> = {
         user_uid: vpbxUserUid,
-        stat_date: { [Op.gte]: toDateOnly(from), [Op.lte]: toDateOnly(to) },
+        stat_date: { [Op.gte]: fromKey, [Op.lte]: toKey },
       };
-      if (query.queueName) where.queue_name = query.queueName;
+      const queueWhere = queueNameWhere(query.queueName);
+      if (queueWhere !== undefined) where.queue_name = queueWhere;
       const rows = await this.dailyQueueModel.findAll({ where });
-      const byQueue = new Map<string, {
-        total: number;
-        answered: number;
-        abandoned: number;
-        slaMet: number;
-        sumWait: number;
-        sumTalk: number;
-        maxWait: number;
-      }>();
       for (const r of rows) {
-        let agg = byQueue.get(r.queue_name);
-        if (!agg) {
-          agg = { total: 0, answered: 0, abandoned: 0, slaMet: 0, sumWait: 0, sumTalk: 0, maxWait: 0 };
-          byQueue.set(r.queue_name, agg);
-        }
-        agg.total += r.total_calls;
-        agg.answered += r.answered_calls;
-        agg.abandoned += r.abandoned_calls;
-        agg.slaMet += r.sla_met_calls;
-        agg.sumWait += r.avg_wait_sec * r.answered_calls;
-        agg.sumTalk += r.total_talk_sec;
-        agg.maxWait = Math.max(agg.maxWait, r.max_wait_sec);
-      }
-      const result: QueueSummaryRow[] = [];
-      for (const [queueName, a] of byQueue) {
-        result.push({
-          queueName,
-          totalCalls: a.total,
-          answeredCalls: a.answered,
-          abandonedCalls: a.abandoned,
-          slaPct: a.total ? round1((a.slaMet / a.total) * 100) : 0,
-          asrPct: a.total ? round1((a.answered / a.total) * 100) : 0,
-          asaSec: a.answered ? Math.round(a.sumWait / a.answered) : 0,
-          ahtSec: a.answered ? Math.round(a.sumTalk / a.answered) : 0,
-          abandonPct: a.total ? round1((a.abandoned / a.total) * 100) : 0,
-          maxWaitSec: a.maxWait,
+        // Rollup v2 stores additive sums; v1 rows only had averages (rebuilt best-effort).
+        const sumWait = r.rollup_version >= 2 ? r.total_wait_sec : r.avg_wait_sec * r.answered_calls;
+        mergeQueueTotals(totalsFor(r.queue_name), {
+          offered: r.total_calls,
+          handled: r.answered_calls,
+          handledInSl: r.sla_met_calls,
+          abandoned: r.abandoned_calls,
+          shortAbandoned: r.short_abandoned_calls ?? 0,
+          transferred: r.transferred_calls ?? 0,
+          sumWaitHandled: sumWait ?? 0,
+          sumTalkHandled: r.total_talk_sec,
+          sumWrapupHandled: r.total_wrapup_sec ?? 0,
+          sumHoldHandled: r.total_hold_sec ?? 0,
+          sumWaitAbandoned: 0,
+          maxWait: r.max_wait_sec,
         });
       }
-      return { reportId: 'queue-summary', columns, rows: result, source };
-    }
-
-    const where: Record<string, unknown> = {
-      user_uid: vpbxUserUid,
-      created_at: { [Op.gte]: from, [Op.lte]: to },
-    };
-    if (query.queueName) where.queue_name = query.queueName;
-    const calls = await this.queueCallModel.findAll({ where });
-    const byQueue = new Map<string, {
-      total: number;
-      answered: number;
-      abandoned: number;
-      slaMet: number;
-      sumWait: number;
-      sumTalk: number;
-      sumWrapup: number;
-      maxWait: number;
-    }>();
-
-    for (const c of calls) {
-      let agg = byQueue.get(c.queue_name);
-      if (!agg) {
-        agg = {
-          total: 0, answered: 0, abandoned: 0, slaMet: 0,
-          sumWait: 0, sumTalk: 0, sumWrapup: 0, maxWait: 0,
-        };
-        byQueue.set(c.queue_name, agg);
-      }
-      agg.total += 1;
-      agg.maxWait = Math.max(agg.maxWait, c.wait_time ?? 0);
-      if (c.disposition === 'answered') {
-        agg.answered += 1;
-        agg.sumWait += c.wait_time ?? 0;
-        agg.sumTalk += c.talk_time ?? 0;
-        agg.sumWrapup += c.wrapup_time ?? 0;
-        const threshold = await this.resolveSlaThreshold(vpbxUserUid, c.queue_name);
-        if ((c.wait_time ?? 0) <= threshold) agg.slaMet += 1;
-      } else if (c.disposition === 'abandoned') {
-        agg.abandoned += 1;
+    } else {
+      const tenant = await this.config.getTenantConfig(vpbxUserUid);
+      const where: Record<string, unknown> = {
+        user_uid: vpbxUserUid,
+        created_at: { [Op.gte]: from, [Op.lte]: to },
+        // Queue aggregates: inbound rows of real queues only (direct:* / outbound are separate streams).
+        direction: 'inbound',
+        queue_name: { [Op.notLike]: 'direct:%' },
+      };
+      const queueWhere = queueNameWhere(query.queueName);
+      if (queueWhere !== undefined) where.queue_name = queueWhere;
+      const calls = await this.queueCallModel.findAll({ where });
+      for (const c of calls) {
+        if (!isQueueCallRow(c)) continue;
+        const slaThresholdSec = await this.config.getSlaThreshold(vpbxUserUid, c.queue_name, tenant.defaultSlaSec);
+        addQueueCall(totalsFor(c.queue_name), c, {
+          slaThresholdSec,
+          shortAbandonSec: tenant.shortAbandonSec,
+        });
       }
     }
 
     const result: QueueSummaryRow[] = [];
-    for (const [queueName, a] of byQueue) {
+    for (const [queueName, totals] of byQueue) {
+      const view = buildQueueMetricsView(totals);
       result.push({
         queueName,
-        totalCalls: a.total,
-        answeredCalls: a.answered,
-        abandonedCalls: a.abandoned,
-        slaPct: a.total ? round1((a.slaMet / a.total) * 100) : 0,
-        asrPct: a.total ? round1((a.answered / a.total) * 100) : 0,
-        asaSec: a.answered ? Math.round(a.sumWait / a.answered) : 0,
-        ahtSec: a.answered ? Math.round((a.sumTalk + a.sumWrapup) / a.answered) : 0,
-        abandonPct: a.total ? round1((a.abandoned / a.total) * 100) : 0,
-        maxWaitSec: a.maxWait,
+        totalCalls: view.offered,
+        answeredCalls: view.answered,
+        abandonedCalls: view.abandoned,
+        shortAbandonedCalls: view.shortAbandoned,
+        transferredCalls: view.transferred,
+        slaPct: view.sla,
+        asrPct: view.asr,
+        asaSec: Math.round(view.asa),
+        ahtSec: Math.round(view.aht),
+        abandonPct: view.abandonRate,
+        maxWaitSec: view.maxWait,
       });
     }
     return { reportId: 'queue-summary', columns, rows: result, source };
@@ -218,14 +250,15 @@ export class CallCenterReportsService {
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<CallDetailRow>> {
-    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo);
+    const { from, to } = await this.resolvePeriod(vpbxUserUid, query);
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(500, Math.max(1, query.pageSize ?? DEFAULT_PAGE_SIZE));
     const where: Record<string, unknown> = {
       user_uid: vpbxUserUid,
       created_at: { [Op.gte]: from, [Op.lte]: to },
     };
-    if (query.queueName) where.queue_name = query.queueName;
+    const queueWhere = queueNameWhere(query.queueName);
+    if (queueWhere !== undefined) where.queue_name = queueWhere;
     if (query.agentInterface) where.agent_interface = query.agentInterface;
 
     const { rows: calls, count } = await this.queueCallModel.findAndCountAll({
@@ -262,7 +295,8 @@ export class CallCenterReportsService {
       endTime: c.end_time ? c.end_time.toISOString() : null,
       waitTime: c.wait_time ?? 0,
       talkTime: c.talk_time ?? 0,
-      holdTime: c.hold_time ?? 0,
+      // Legacy abandoned rows copied queue wait into hold_time. No conversation took place.
+      holdTime: c.disposition === 'abandoned' ? 0 : (c.hold_time ?? 0),
       wrapupTime: c.wrapup_time ?? 0,
       disposition: c.disposition,
     }));
@@ -282,7 +316,7 @@ export class CallCenterReportsService {
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<OperatorStatsRow>> {
-    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo);
+    const { from, to, fromKey, toKey, timezone } = await this.resolvePeriod(vpbxUserUid, query);
     const source = this.rollupService.resolveAggregationSource(from, to);
     const columns: ReportColumn[] = [
       { key: 'agentInterface', header: 'Agent' },
@@ -291,7 +325,6 @@ export class CallCenterReportsService {
       { key: 'totalTalkSec', header: 'Talk (sec)' },
       { key: 'totalHoldSec', header: 'Hold (sec)' },
       { key: 'totalWrapupSec', header: 'Wrap-up (sec)' },
-      { key: 'avgHandleSec', header: 'Avg handle (sec)' },
       { key: 'ahtSec', header: 'AHT (sec)' },
       { key: 'loggedInSec', header: 'Logged in (sec)' },
       { key: 'totalPauseSec', header: 'Pause (sec)' },
@@ -303,7 +336,7 @@ export class CallCenterReportsService {
     if (source === 'rollup') {
       const where: Record<string, unknown> = {
         user_uid: vpbxUserUid,
-        stat_date: { [Op.gte]: toDateOnly(from), [Op.lte]: toDateOnly(to) },
+        stat_date: { [Op.gte]: fromKey, [Op.lte]: toKey },
       };
       if (query.agentInterface) where.agent_interface = query.agentInterface;
       const rows = await this.dailyAgentModel.findAll({ where });
@@ -328,7 +361,7 @@ export class CallCenterReportsService {
       }
       const result: OperatorStatsRow[] = [];
       for (const [agentInterface, a] of byAgent) {
-        const handle = a.talk + a.hold + a.wrapup;
+        const handle = a.talk + a.wrapup; // talk already includes hold
         const sess = sessionTimeByAgent.get(agentInterface);
         result.push({
           agentInterface,
@@ -350,9 +383,12 @@ export class CallCenterReportsService {
     const where: Record<string, unknown> = {
       user_uid: vpbxUserUid,
       created_at: { [Op.gte]: from, [Op.lte]: to },
-      disposition: 'answered',
+      // Handled inbound/personal calls; outbound/internal are "made", not handled.
+      disposition: { [Op.in]: ['answered', 'transferred'] },
+      direction: { [Op.notIn]: ['outbound', 'internal'] },
     };
-    if (query.queueName) where.queue_name = query.queueName;
+    const queueWhere = queueNameWhere(query.queueName);
+    if (queueWhere !== undefined) where.queue_name = queueWhere;
     if (query.agentInterface) where.agent_interface = query.agentInterface;
     const calls = await this.queueCallModel.findAll({ where });
     const byAgent = new Map<string, {
@@ -383,7 +419,7 @@ export class CallCenterReportsService {
     }
     const result: OperatorStatsRow[] = [];
     for (const [agentInterface, a] of byAgent) {
-      const handle = a.talk + a.hold + a.wrapup;
+      const handle = a.talk + a.wrapup; // talk already includes hold
       const sess = sessionTimeByAgent.get(agentInterface);
       result.push({
         agentInterface,
@@ -402,7 +438,11 @@ export class CallCenterReportsService {
     return { reportId: 'operator-stats', columns, rows: result, source };
   }
 
-  /** Aggregate shift / pause / idle seconds from cc_agent_sessions overlapping [from, to]. */
+  /**
+   * Aggregate shift / pause / idle seconds from cc_agent_sessions overlapping [from, to].
+   * Sessions fully inside the period use their stored totals (cheap, exact). Boundary sessions
+   * are clipped from their event stream so a night shift is not counted twice across days.
+   */
   private async aggregateSessionTime(
     vpbxUserUid: number,
     from: Date,
@@ -431,6 +471,14 @@ export class CallCenterReportsService {
       totalIdleSec: number;
     }>();
     const now = Date.now();
+
+    const boundary = sessions.filter((s) => {
+      const login = new Date(s.login_time).getTime();
+      const logout = s.logout_time ? new Date(s.logout_time).getTime() : now;
+      return login < from.getTime() || logout > to.getTime();
+    });
+    const clipped = await this.clipBoundarySessions(vpbxUserUid, boundary, from, to, now);
+
     for (const s of sessions) {
       const iface = s.agent_interface;
       let agg = map.get(iface);
@@ -445,24 +493,66 @@ export class CallCenterReportsService {
       if (overlapEnd > overlapStart) {
         agg.loggedInSec += Math.round((overlapEnd - overlapStart) / 1000);
       }
-      agg.totalPauseSec += s.total_pause_time ?? 0;
-      agg.totalIdleSec += s.total_idle_time ?? 0;
+      const partial = clipped.get(s.uid);
+      agg.totalPauseSec += partial ? partial.pauseSec : (s.total_pause_time ?? 0);
+      agg.totalIdleSec += partial ? partial.idleSec : (s.total_idle_time ?? 0);
       if (s.user_id != null) agg.userId = s.user_id;
     }
     return map;
+  }
+
+  /** Pause / ready seconds of sessions that cross the period edge, from clipped timeline segments. */
+  private async clipBoundarySessions(
+    vpbxUserUid: number,
+    sessions: CcAgentSession[],
+    from: Date,
+    to: Date,
+    now: number,
+  ): Promise<Map<number, { pauseSec: number; idleSec: number }>> {
+    const result = new Map<number, { pauseSec: number; idleSec: number }>();
+    if (sessions.length === 0) return result;
+
+    const ids = sessions.map((s) => s.uid);
+    const events = await this.agentEventModel.findAll({
+      where: { user_uid: vpbxUserUid, session_id: { [Op.in]: ids } },
+      order: [['created_at', 'ASC']],
+    });
+    const bySession = new Map<number, CcAgentEvent[]>();
+    for (const ev of events) {
+      const list = bySession.get(ev.session_id) ?? [];
+      list.push(ev);
+      bySession.set(ev.session_id, list);
+    }
+
+    for (const s of sessions) {
+      const sessionEnd = new Date(s.logout_time ? new Date(s.logout_time).getTime() : now);
+      const segments = this.buildAgentTimelineSegments(bySession.get(s.uid) ?? [], sessionEnd);
+      let pauseSec = 0;
+      let idleSec = 0;
+      for (const seg of segments) {
+        const start = Math.max(new Date(seg.startTs).getTime(), from.getTime());
+        const end = Math.min(new Date(seg.endTs).getTime(), to.getTime());
+        if (end <= start) continue;
+        const sec = Math.round((end - start) / 1000);
+        if (seg.state === 'PAUSED') pauseSec += sec;
+        else if (seg.state === 'READY') idleSec += sec;
+      }
+      result.set(s.uid, { pauseSec, idleSec });
+    }
+    return result;
   }
 
   async getPauseReport(
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<PauseReportRow>> {
-    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo);
+    const { from, to } = await this.resolvePeriod(vpbxUserUid, query);
 
     const sessionWhere: Record<string, unknown> = { user_uid: vpbxUserUid };
     if (query.agentInterface) sessionWhere.agent_interface = query.agentInterface;
     const sessions = await this.sessionModel.findAll({
       where: sessionWhere,
-      attributes: ['uid', 'agent_interface', 'user_id'],
+      attributes: ['uid', 'agent_interface', 'user_id', 'logout_time'],
     });
     const sessionMap = new Map(sessions.map((s) => [s.uid, s]));
     const sessionIds = sessions.map((s) => s.uid);
@@ -519,9 +609,13 @@ export class CallCenterReportsService {
       if (durationSec <= 0) {
         const next = events.slice(i + 1).find((e) => e.session_id === ev.session_id);
         const start = ev.created_at ? new Date(ev.created_at).getTime() : now;
-        const end = next?.created_at
+        // A pause that never got its own end event (the agent was logged out, or the panel just
+        // died) ends with the shift. Without this a forgotten pause runs to the end of the report.
+        const shiftEnd = sess?.logout_time ? new Date(sess.logout_time).getTime() : null;
+        let end = next?.created_at
           ? new Date(next.created_at).getTime()
-          : Math.min(now, to.getTime());
+          : (shiftEnd ?? Math.min(now, to.getTime()));
+        if (shiftEnd !== null && end > shiftEnd) end = shiftEnd;
         durationSec = Math.max(0, Math.round((end - start) / 1000));
       }
 
@@ -561,12 +655,14 @@ export class CallCenterReportsService {
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<HourlyHeatmapRow>> {
-    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo);
+    const { from, to, fromKey, toKey, timezone } = await this.resolvePeriod(vpbxUserUid, query);
     const where: Record<string, unknown> = {
       user_uid: vpbxUserUid,
       created_at: { [Op.gte]: from, [Op.lte]: to },
     };
-    if (query.queueName) where.queue_name = query.queueName;
+    const queueWhere = queueNameWhere(query.queueName);
+    if (queueWhere !== undefined) where.queue_name = queueWhere;
+    if (query.agentInterface) where.agent_interface = query.agentInterface;
     const calls = await this.queueCallModel.findAll({
       where,
       attributes: ['created_at'],
@@ -576,8 +672,8 @@ export class CallCenterReportsService {
     for (const c of calls) {
       const d = c.created_at ? new Date(c.created_at) : null;
       if (!d) continue;
-      const dayOfWeek = d.getDay();
-      const hour = d.getHours();
+      const [ly, lm, ld, hour] = zonedParts(d, timezone);
+      const dayOfWeek = new Date(Date.UTC(ly, lm - 1, ld)).getUTCDay();
       const key = `${dayOfWeek}|${hour}`;
       buckets.set(key, (buckets.get(key) ?? 0) + 1);
     }
@@ -602,7 +698,7 @@ export class CallCenterReportsService {
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<AgentTimelineRow>> {
-    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo);
+    const { from, to } = await this.resolvePeriod(vpbxUserUid, query);
     if (!query.agentInterface) {
       throw new BadRequestException('agentInterface is required for agent-timeline');
     }
@@ -633,7 +729,7 @@ export class CallCenterReportsService {
       });
     }
 
-    const segments = this.buildAgentTimelineSegments(events, to);
+    const segments = this.buildAgentTimelineSegments(events, new Date(Math.min(to.getTime(), Date.now())));
     const columns: ReportColumn[] = [
       { key: 'agentInterface', header: 'Agent' },
       { key: 'segments', header: 'Segments' },
@@ -649,12 +745,13 @@ export class CallCenterReportsService {
     vpbxUserUid: number,
     query: ReportQuery,
   ): Promise<ReportResult<MissedCallbackRow>> {
-    const { from, to } = this.parseAndClampPeriod(query.dateFrom, query.dateTo);
+    const { from, to } = await this.resolvePeriod(vpbxUserUid, query);
     const where: Record<string, unknown> = {
       user_uid: vpbxUserUid,
       created_at: { [Op.gte]: from, [Op.lte]: to },
     };
-    if (query.queueName) where.queue_name = query.queueName;
+    const queueWhere = queueNameWhere(query.queueName);
+    if (queueWhere !== undefined) where.queue_name = queueWhere;
 
     const missed = await this.missedCallModel.findAll({
       where,
@@ -720,27 +817,26 @@ export class CallCenterReportsService {
     return segments;
   }
 
-  async resolveSlaThreshold(userUid: number, queueName: string): Promise<number> {
-    const key = `${userUid}:${queueName}`;
-    const cached = this.slaCache.get(key);
-    if (cached !== undefined) return cached;
-
-    const row = await this.queueModel.findOne({
-      where: { name: queueName, user_uid: userUid },
-      attributes: ['servicelevel'],
-    });
-    const raw = row?.servicelevel;
-    const threshold =
-      typeof raw === 'number' && raw > 0 ? raw : DEFAULT_SLA_THRESHOLD_SEC;
-    this.slaCache.set(key, threshold);
-    return threshold;
+  /** Queue servicelevel, else the tenant default SLA threshold (shared with live metrics and rollup). */
+  resolveSlaThreshold(userUid: number, queueName: string): Promise<number> {
+    return this.config.getSlaThreshold(userUid, queueName);
   }
 
-  parseAndClampPeriod(dateFrom: string, dateTo: string): { from: Date; to: Date } {
-    // A date-only report interval includes its entire last calendar day.
-    // The stored timestamps and Sequelize connection use the DB UTC contract.
-    const from = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) ? `${dateFrom}T00:00:00.000Z` : dateFrom);
-    let to = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateTo) ? `${dateTo}T23:59:59.999Z` : dateTo);
+  parseAndClampPeriod(
+    dateFrom: string,
+    dateTo: string,
+    timezone?: string,
+  ): { from: Date; to: Date } {
+    // A date-only bound is a whole calendar day. With a tenant timezone it is the local day;
+    // without one the legacy UTC contract applies.
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
+    const dayWindow = (key: string) => (timezone ? zonedDayWindow(key, timezone) : null);
+    const from = dateOnly.test(dateFrom)
+      ? (dayWindow(dateFrom)?.from ?? new Date(`${dateFrom}T00:00:00.000Z`))
+      : new Date(dateFrom);
+    let to = dateOnly.test(dateTo)
+      ? (dayWindow(dateTo) ? new Date(dayWindow(dateTo)!.to.getTime() - 1) : new Date(`${dateTo}T23:59:59.999Z`))
+      : new Date(dateTo);
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       throw new BadRequestException('dateFrom and dateTo must be valid ISO dates');
     }
@@ -755,44 +851,8 @@ export class CallCenterReportsService {
     return { from, to };
   }
 
+  /** Shared with the live occupancy restore so READY means the same thing everywhere. */
   private eventTypeToTimelineState(eventType: string): string {
-    switch (eventType) {
-      case 'LOGIN':
-      case 'READY':
-      case 'CALL_END':
-      case 'WRAPUP_END':
-        return 'READY';
-      case 'PAUSE':
-        return 'PAUSED';
-      case 'CALL_START':
-      case 'UNHOLD':
-        return 'IN_CALL';
-      case 'HOLD':
-        return 'HOLD';
-      case 'WRAPUP_START':
-        return 'WRAPUP';
-      /** Phase 9 (D-09/D-13): dialing/consultation/after-call-work segments. */
-      case 'DIALING':
-        return 'DIALING';
-      case 'CONSULT':
-        return 'CONSULT';
-      case 'ACW':
-        return 'ACW';
-      case 'LOGOUT':
-        return 'OFFLINE';
-      default:
-        return 'OFFLINE';
-    }
+    return eventTypeToTimelineState(eventType);
   }
-}
-
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
-}
-
-function toDateOnly(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }

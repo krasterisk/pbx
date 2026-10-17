@@ -22,6 +22,9 @@ import { AcBase } from './ac-base.model';
   freezeTableName: true,
 })
 export class AcCampaign extends Model {
+  @Default(0)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  declare tour_no: number;
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)

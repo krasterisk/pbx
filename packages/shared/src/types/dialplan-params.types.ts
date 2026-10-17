@@ -320,6 +320,8 @@ export interface IHttpRequestParams {
 export type CollectInputMode = 'digits' | 'extension';
 
 export interface ICollectInputParams {
+  /** Autodial business outcomes keyed by exact DTMF input. */
+  outcomeMap?: Record<string, string>;
   variableName?: string;
   promptFile?: string;
   digitsCount?: number;

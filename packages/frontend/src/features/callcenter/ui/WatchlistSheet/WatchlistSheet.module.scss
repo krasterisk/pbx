@@ -1,0 +1,51 @@
+.hint {
+  font-size: 0.75rem;
+}
+
+.searchRow {
+  flex-shrink: 0;
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.groupHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-card);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.groupTitle {
+  font-weight: 600;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.online {
+  color: var(--color-success);
+  margin-left: auto;
+}
+
+.footer {
+  align-items: center;
+  gap: 8px;
+}
+
+.counter {
+  margin-right: auto;
+  font-size: 0.8rem;
+}

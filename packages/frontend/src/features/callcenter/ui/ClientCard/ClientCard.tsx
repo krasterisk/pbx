@@ -4,6 +4,7 @@ import { BookUser, Phone, MapPin, FileText, Clock, Tag } from 'lucide-react';
 import { Text } from '@/shared/ui';
 import { useLazyClientLookupQuery } from '@/shared/api/endpoints/callCenterApi';
 import styles from './ClientCard.module.scss';
+import { callerDisplayName } from '../../lib/displayLabels';
 
 interface Props {
   /** Caller's number (raw - backend normalizes by digits suffix). */
@@ -47,7 +48,8 @@ export function ClientCard({ callerIdNum, callerIdName }: Props) {
   }, [callerIdNum, trigger]);
 
   const primaryName = useMemo(() => {
-    if (callerIdName) return callerIdName;
+    const name = callerDisplayName(callerIdName);
+    if (name) return name;
     const req = data?.requests?.[0];
     if (req?.counterparty_name) return req.counterparty_name;
     const c = data?.contacts?.[0];

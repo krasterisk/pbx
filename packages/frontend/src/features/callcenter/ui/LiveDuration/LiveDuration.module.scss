@@ -1,0 +1,13 @@
+.value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.over {
+  color: var(--color-destructive);
+  font-weight: 700;
+}
+
+.empty {
+  color: var(--color-muted-foreground);
+}

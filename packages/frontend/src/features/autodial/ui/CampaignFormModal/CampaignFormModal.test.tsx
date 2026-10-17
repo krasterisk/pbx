@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('./CampaignCreationWizard', () => ({ CampaignCreationWizard: () => null }));
 vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppDispatch: () => mocks.dispatch,
   useAppSelector: (selector: (state: typeof mocks.state) => unknown) => selector(mocks.state),

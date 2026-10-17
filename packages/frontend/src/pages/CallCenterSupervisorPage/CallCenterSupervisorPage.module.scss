@@ -7,12 +7,15 @@
 .wrapper {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   flex: 1;
   min-height: 0;
   min-width: 0;
   max-width: 100%;
 }
+
+.wrapper.wrapper { gap: 6px; }
+.wrapper > * { flex-shrink: 0; }
 
 /* 2. KPI Strip */
 .kpiGroups {
@@ -20,12 +23,18 @@
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  width: 100%;
+
+  @media (min-width: 1024px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .kpiGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -36,37 +45,42 @@
   flex-wrap: wrap;
 }
 
-.kpiGroupTitle {
+.kpiGroups .kpiGroupTitle {
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-muted-foreground);
+  line-height: 16px;
 }
+
+.periodGroup > summary { cursor: pointer; list-style: none; }
+.periodGroup > summary::after { content: ''; width: 6px; height: 6px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); margin-left: 4px; }
+.periodGroup[open] > summary::after { transform: rotate(225deg); }
+.periodGroup[open] > summary { margin-bottom: 4px; }
+.periodGroup > summary::marker { color: var(--color-muted-foreground); }
 
 .kpiStrip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
   min-width: 0;
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr 1fr;
   }
 
-  @media (max-width: 360px) {
-    grid-template-columns: 1fr;
-  }
 }
 
 .kpiCard {
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  padding: 6px 8px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   transition: border-color 0.2s ease;
 }
@@ -77,10 +91,15 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-muted-foreground);
+  line-height: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpiValue {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
+  line-height: 24px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--color-foreground);
@@ -100,42 +119,6 @@
   .kpiValue { color: var(--color-success); }
 }
 
-/* 3. Tabs */
-.tabsRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  background: color-mix(in srgb, var(--color-muted) 30%, transparent);
-  border-radius: var(--radius-lg);
-  padding: 3px;
-  border: 1px solid var(--color-border);
-  min-width: 0;
-}
-
-.tab {
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--color-muted-foreground);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  background: transparent;
-  border: none;
-  flex-shrink: 0;
-  min-height: 44px;
-
-  &:hover {
-    color: var(--color-foreground);
-    background: color-mix(in srgb, var(--color-muted) 60%, transparent);
-  }
-}
-
-.tabActive {
-  background: var(--color-card);
-  color: var(--color-foreground);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
 
 /* 4. Agent Grid */
 .agentGrid {
@@ -203,6 +186,18 @@
   align-items: center;
   gap: 10px;
   padding-right: 22px;
+}
+
+.agentCompactList { display: flex; flex-direction: column; gap: 8px; }
+.agentCard.agentCardCompact {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(130px, 1fr) auto;
+  align-items: center;
+  padding: 8px;
+  gap: 8px;
+  @media (max-width: 639px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .agentStatusDot {
@@ -493,6 +488,24 @@
   min-width: 0;
 }
 
+.callsEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--color-muted-foreground);
+}
+
+.boardFilters { flex: 1 1 100%; min-width: 0; width: 100%; }
+.boardSearch { flex: 1 1 220px; width: auto; min-width: 0; max-width: 320px; }
+.boardSelect { flex: 1 1 160px; width: auto; min-width: 0; max-width: 220px; }
+
+@media (max-width: 639px) {
+  .boardSearch { flex-basis: 100%; max-width: none; }
+  .boardSelect { max-width: none; }
+}
+
 .callsPanelHeader {
   gap: 12px;
   min-width: 0;
@@ -544,31 +557,58 @@
   }
 }
 
-.watchlistList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 360px;
+/* 7. Cockpit layout (U1.1): attention rail + main column, no tabs on desktop */
+.stickyKpi {
+  min-width: 0;
+
+  @media (min-width: 1024px) {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-index-sticky, 5);
+    background: var(--color-background);
+    padding-bottom: 0;
+  }
+}
+
+.wrapper .cockpit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  }
+}
+
+.rail {
+  min-width: 0;
+
+  @media (min-width: 1024px) {
+    position: sticky;
+    top: 72px;
+    max-height: calc(100dvh - 96px);
+    overflow-y: auto;
+  }
+}
+
+.mainColumn {
+  min-width: 0;
+}
+
+.queueHistory { width: 100%; min-width: 0; }
+.queueHistory > summary { cursor: pointer; padding: 8px 0; font-size: 12px; color: var(--color-muted-foreground); }
+
+/* The board scrolls inside itself, so 300 cards stay virtualized instead of all mounting. */
+.virtualBoardScroll {
+  max-height: min(70vh, 720px);
   overflow-y: auto;
-  padding: 4px 0;
+  min-width: 0;
 }
 
-.watchlistItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
-  cursor: pointer;
-  font-size: 0.9rem;
-
-  &:hover {
-    background: color-mix(in srgb, var(--color-muted) 40%, transparent);
-  }
-
-  input {
-    accent-color: var(--color-primary);
-  }
+.journalBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
-

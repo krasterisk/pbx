@@ -3,6 +3,7 @@ import {
   useGetAutodialBasesQuery,
   useGetAutodialCampaignsQuery,
   useSetAutodialCampaignStateMutation,
+  useGetAutodialMonitorQuery,
   type AutodialCampaignWithSchedules,
 } from "@/shared/api/endpoints/autodialApi";
 import { useAppDispatch } from "@/shared/hooks/useAppStore";
@@ -30,6 +31,7 @@ import { Flex, HStack, VStack } from "@/shared/ui/Stack";
 import type { IAutodialBase } from "@krasterisk/shared";
 import { Loader2, Pause, PhoneOutgoing, Play, Square } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from "react-i18next";
 import {
   autodialDialModeLabel,
@@ -46,8 +48,10 @@ import cls from "./CampaignsTable.module.scss";
 export const CampaignsTable = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useGetAutodialCampaignsQuery();
   const { data: bases } = useGetAutodialBasesQuery();
+  const { data: stats } = useGetAutodialMonitorQuery(undefined, { pollingInterval: 15000 });
   const [deleteCampaign, { isLoading: isDeleting }] =
     useDeleteAutodialCampaignMutation();
   const [setState, { isLoading: isSwitching }] =
@@ -61,6 +65,7 @@ export const CampaignsTable = memo(() => {
   const [pendingStart, setPendingStart] =
     useState<AutodialCampaignWithSchedules | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const selection = useCrossPageRowSelection({ globalFilter: query });
 
   const campaigns = useMemo(() => data ?? [], [data]);
@@ -81,9 +86,11 @@ export const CampaignsTable = memo(() => {
 
   const onAction = useCallback(
     (uid: number, action: "pause" | "resume" | "stop") => {
+      if (action === 'stop' && !window.confirm(t('autodial.workspace.confirmStop'))) return;
       setActionError(null);
       void setState({ uid, action })
         .unwrap()
+        .then(() => setActionMessage(t('autodial.workspace.stateSaved')))
         .catch((error: unknown) => {
           setActionError(
             t(autodialErrorKey(error, "autodial.campaigns.stateFailed")),
@@ -171,6 +178,7 @@ export const CampaignsTable = memo(() => {
         <CardHeader>{toolbar}</CardHeader>
         <CardContent className={cls.cardContent}>
           {actionError && <Text role="alert">{actionError}</Text>}
+          {actionMessage && <Text role="status">{actionMessage}</Text>}
           {filtered.length === 0 ? (
             <VStack gap="12" align="center" className={cls.empty}>
               <Text>{t("autodial.campaigns.empty")}</Text>
@@ -187,8 +195,9 @@ export const CampaignsTable = memo(() => {
             <VStack gap="12" max className={cls.list}>
               {filtered.map((campaign) => {
                 const runtime = live.runtimes[campaign.uid];
+                const metrics = stats?.find((row) => row.campaign_uid === campaign.uid);
                 const total = campaign.tasks_total ?? 0;
-                const done = campaign.tasks_done ?? 0;
+                const done = campaign.tasks_processed ?? campaign.tasks_done ?? 0;
                 const pending =
                   campaign.tasks_pending ?? Math.max(0, total - done);
                 const progress =
@@ -198,11 +207,7 @@ export const CampaignsTable = memo(() => {
 
                 return (
                   <TableCard
-                    onActivate={() =>
-                      dispatch(
-                        autodialPageActions.openEditCampaign(campaign.uid),
-                      )
-                    }
+                    onActivate={() => navigate(`/autodial/campaigns/${campaign.uid}`)}
                     key={campaign.uid}
                     selection={selection.cardSelection(
                       String(campaign.uid),
@@ -245,15 +250,18 @@ export const CampaignsTable = memo(() => {
                       <TableRowActions>
                         {isRunning ? (
                           <TableRowAction
+                            className={cls.lifecycleAction}
                             title={t("autodial.campaigns.pause")}
                             aria-label={t("autodial.campaigns.pause")}
                             disabled={isSwitching}
                             onClick={() => onAction(campaign.uid, "pause")}
                           >
                             <Pause />
+                            <span>{t('autodial.campaigns.pause')}</span>
                           </TableRowAction>
                         ) : (
                           <TableRowAction
+                            className={cls.lifecycleAction}
                             title={
                               isPaused
                                 ? t("autodial.campaigns.resume")
@@ -272,17 +280,20 @@ export const CampaignsTable = memo(() => {
                             }
                           >
                             <Play />
+                            <span>{t(isPaused ? 'autodial.campaigns.resume' : 'autodial.campaigns.start')}</span>
                           </TableRowAction>
                         )}
                         <TableRowAction
+                          className={cls.lifecycleAction}
                           title={t("autodial.campaigns.stop")}
                           aria-label={t("autodial.campaigns.stop")}
                           disabled={
-                            isSwitching || campaign.status === "stopped"
+                            isSwitching || !['running', 'paused', 'scheduled'].includes(campaign.status)
                           }
                           onClick={() => onAction(campaign.uid, "stop")}
                         >
                           <Square />
+                          <span>{t('autodial.campaigns.stop')}</span>
                         </TableRowAction>
                       </TableRowActions>
                     </HStack>
@@ -304,6 +315,12 @@ export const CampaignsTable = memo(() => {
                         </Flex>
                       </Flex>
                       <HStack gap="16" wrap="wrap" className={cls.metrics}>
+                        {metrics && <>
+                          <Text as="span">{t('autodial.workspace.successRate')}: {metrics.dials_today ? (metrics.success_today * 100 / metrics.dials_today).toFixed(1) : '0'}%</Text>
+                          <Text as="span">Contact rate: {metrics.contact_rate.toFixed(1)}%</Text>
+                          <Text as="span" title={t('autodial.workspace.etaHint')}>ETA: {metrics.eta_seconds == null ? '—' : `${Math.ceil(metrics.eta_seconds / 60)} ${t('autodial.workspace.minuteShort')}`}</Text>
+                          <Text as="span">{t('autodial.campaigns.dialsToday')}: {metrics.dials_today}</Text>
+                        </>}
                         <Text as="span" className={cls.metric}>
                           {t("autodial.campaigns.processed")}:{" "}
                           <Text as="span" className={cls.metricValue}>
@@ -331,12 +348,6 @@ export const CampaignsTable = memo(() => {
                               </Text>{" "}
                               <Text as="span" className={cls.limitedBy}>
                                 ({autodialLimitedByLabel(runtime.limitedBy, t)})
-                              </Text>
-                            </Text>
-                            <Text as="span" className={cls.metric}>
-                              {t("autodial.campaigns.dialsToday")}:{" "}
-                              <Text as="span" className={cls.metricValue}>
-                                {runtime.dials}
                               </Text>
                             </Text>
                           </HStack>

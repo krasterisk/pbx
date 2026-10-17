@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { IAutodialBaseField } from '@krasterisk/shared';
 import { AgentDiffProposal, AiToolDefinition, TENANT_ARG_KEYS } from './ai-adapter.types';
 import { assertNoSecretArgs } from './ai-secret-redaction';
 
@@ -23,6 +24,7 @@ import { assertNoSecretArgs } from './ai-secret-redaction';
 
 /** Entities promised by earlier steps of the same workflow draft. */
 export interface PlannedWorkflowEntities {
+  autodialBases?: Array<{ uid: number; fields: IAutodialBaseField[] }>;
   contexts?: Array<{ uid?: number; name?: string; is_default_for_endpoints?: boolean; is_default_for_trunks?: boolean }>;
   extensions: string[];
   groups: Array<{ name?: string; exten?: string }>;
@@ -31,6 +33,7 @@ export interface PlannedWorkflowEntities {
 
 /** Tenant identity for a mutation. Always derived from JWT/dispatch, never from arguments. */
 export interface AiMutationContext {
+  threadUid?: number;
   /** Ephemeral human input from confirmation, never model arguments or a persisted plan. */
   secureInput?: { password: string };
   vpbxUserUid: number;

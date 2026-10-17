@@ -1,13 +1,14 @@
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { ColumnDef } from '@tanstack/react-table';
+import { toast } from 'react-toastify';
 import { BarChart3, Inbox } from 'lucide-react';
 import {
-  VStack, Flex, Text, Button, Input, Select, Table, Skeleton,
+  VStack, HStack, Text, Button, Input, Skeleton, Badge, Label, MultiSelect,
 } from '@/shared/ui';
+import { CcPageHeader } from '@/features/callcenter/ui/CcPageHeader';
 import {
-  CC_REPORT_IDS,
   useGetReportQuery,
   useGetAgentTimelineQuery,
   useLazyExportReportQuery,
@@ -16,47 +17,43 @@ import {
   type ReportColumn,
 } from '@/shared/api/endpoints/callCenterReportsApi';
 import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
+import {
+  useGetSupervisorAccessScopeQuery,
+  useGetTenantSettingsQuery,
+} from '@/shared/api/endpoints/callCenterApi';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { AgentTimeline } from '@/features/callcenter/ui/AgentTimeline/AgentTimeline';
+import { OperatorPicker, type OperatorOption } from '@/features/callcenter/ui/OperatorPicker';
+import { ReportPeriodBar } from '@/features/callcenter/ui/ReportPeriodBar';
+import { ReportCatalog } from '@/features/callcenter/ui/ReportCatalog';
+import { ReportFilterChips, type ReportFilterChip } from '@/features/callcenter/ui/ReportFilterChips';
+import { ReportExportMenu, type ReportExportFormat } from '@/features/callcenter/ui/ReportExportMenu';
+import { ReportTable } from '@/features/callcenter/ui/ReportTable';
+import { CallDetailSheet } from '@/features/callcenter/ui/CallDetailSheet';
 import { generateReportPdf } from '@/features/callcenter/lib/reportPdf';
+import { buildReportsSearch, parseReportsUrl, splitQueueNames } from '@/features/callcenter/lib/reportsUrlState';
+import { presetRange, type DateRange } from '@/features/callcenter/lib/reportPeriod';
+import { agentLabelWithExt } from '@/features/callcenter/lib/displayLabels';
+import { REPORT_CATALOG, reportQuestionKey, reportSupportsAgent, reportSupportsQueue } from '@/features/callcenter/lib/reportCatalog';
+import { formatReportValue, type ReportCellContext } from '@/features/callcenter/lib/reportCells';
+import { resolveKpiThresholds } from '@/features/callcenter/lib/kpiThresholds';
+import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
+import { buildCcSettingsPath } from '@/features/callcenter/lib/settingsUrlState';
 import styles from './CallCenterReportsPage.module.scss';
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+type Row = Record<string, unknown>;
 
-function daysAgoIso(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
+const PAGE_SIZE = 50;
 
-function downloadBlob(blob: Blob, filename: string): void {
+function downloadBlob(blob: Blob, filename: string): { url: string; filename: string } {
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function flattenRowsForPdf(
-  columns: ReportColumn[],
-  rows: Record<string, unknown>[],
-): Record<string, unknown>[] {
-  return rows.map((row) => {
-    const out: Record<string, unknown> = {};
-    for (const col of columns) {
-      const v = row[col.key];
-      if (col.key === 'segments' && Array.isArray(v)) {
-        out[col.key] = `${v.length} segments`;
-      } else if (v != null && typeof v === 'object') {
-        out[col.key] = JSON.stringify(v);
-      } else {
-        out[col.key] = v;
-      }
-    }
-    return out;
-  });
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  return { url, filename };
 }
 
 const HEATMAP_STEPS = [8, 25, 45, 70, 100] as const;
@@ -72,29 +69,110 @@ function heatmapIntensityPct(count: number, max: number): number {
 }
 
 export function CallCenterReportsPage() {
-  const { t } = useTranslation();
-  const [reportId, setReportId] = useState<CcReportId>('queue-summary');
-  const [dateFrom, setDateFrom] = useState(() => daysAgoIso(7));
-  const [dateTo, setDateTo] = useState(() => todayIso());
-  const [queueName, setQueueName] = useState('');
-  const [agentInterface, setAgentInterface] = useState('');
+  const { t, i18n } = useTranslation();
+  const [preparedDownload, setPreparedDownload] = useState<{ url: string; filename: string } | null>(null);
+  const [exportError, setExportError] = useState(false);
+  useEffect(() => () => {
+    if (preparedDownload) setTimeout(() => URL.revokeObjectURL(preparedDownload.url), 60_000);
+  }, [preparedDownload]);
+  const navigate = useNavigate();
+  const isMobile = useIsMobile(768);
+  const locale: 'ru' | 'en' = i18n.language?.startsWith('ru') ? 'ru' : 'en';
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Filters live in the URL: a dashboard drill-down or a shared link opens the same view.
+  const [defaultRange] = useState(() => presetRange('7d'));
+  const [initial] = useState(() =>
+    parseReportsUrl(searchParams, { dateFrom: defaultRange.from, dateTo: defaultRange.to }),
+  );
+  const [reportId, setReportId] = useState<CcReportId>(initial.reportId);
+  const [range, setRange] = useState<DateRange>({ from: initial.dateFrom, to: initial.dateTo });
+  const [queueName, setQueueName] = useState(initial.queueName);
+  const [agentInterface, setAgentInterface] = useState(initial.agentInterface);
+  const [operatorUserId, setOperatorUserId] = useState(initial.operatorUserId);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [callRow, setCallRow] = useState<Row | null>(null);
+  const [pageState, setPageState] = useState<{ key: string; page: number }>({ key: '', page: 0 });
+
+  useEffect(() => {
+    const next = buildReportsSearch({
+      reportId,
+      dateFrom: range.from,
+      dateTo: range.to,
+      queueName,
+      agentInterface,
+      operatorUserId,
+    });
+    if (next !== searchParams.toString()) setSearchParams(new URLSearchParams(next), { replace: true });
+  }, [reportId, range, queueName, agentInterface, operatorUserId, searchParams, setSearchParams]);
 
   const { data: queues = [] } = useGetQueuesQuery();
+  const { data: accessScope } = useGetSupervisorAccessScopeQuery();
+  const { data: tenantSettings } = useGetTenantSettingsQuery();
+
+  const operators = useMemo<OperatorOption[]>(
+    () => (accessScope?.candidates ?? []).map((c) => ({
+      userId: c.userId, name: c.name, exten: c.exten, interface: c.interface,
+    })),
+    [accessScope],
+  );
+
+  const selectedOperator = useMemo(
+    () => operators.find((o) => String(o.userId) === operatorUserId)
+      ?? (agentInterface ? operators.find((o) => o.interface === agentInterface) : undefined),
+    [operators, operatorUserId, agentInterface],
+  );
+  /** The interface sent to the server: the picked operator's, else a raw one from a legacy link. */
+  const supportsAgent = reportSupportsAgent(reportId);
+  const supportsQueue = reportSupportsQueue(reportId);
+  const effectiveInterface = supportsAgent ? (selectedOperator?.interface ?? agentInterface) : '';
+  const appliedQueueName = supportsQueue ? queueName : '';
+
+  const queueOptions = useMemo(
+    () => queues.map((q) => ({ name: q.name, displayName: q.display_name || q.name, exten: q.exten })),
+    [queues],
+  );
+  const queueLabel = useCallback(
+    (name: string) => queueDisplayName(name, queueOptions),
+    [queueOptions],
+  );
+  const operatorLabel = useCallback(
+    (o: OperatorOption) => (o.exten ? `${o.name} (${o.exten})` : o.name),
+    [],
+  );
+  const agentLabel = useCallback(
+    (iface: string) => {
+      const o = operators.find((x) => x.interface === iface);
+      return o ? operatorLabel(o) : agentLabelWithExt({ interface: iface, name: iface });
+    },
+    [operators, operatorLabel],
+  );
+
+  const thresholds = useMemo(
+    () => resolveKpiThresholds(tenantSettings?.alert_thresholds),
+    [tenantSettings],
+  );
+
 
   const isTimeline = reportId === 'agent-timeline';
   const isHeatmap = reportId === 'hourly-heatmap';
+  const isCallList = reportId === 'call-detail' || reportId === 'missed-callback';
+  const aggregate = REPORT_CATALOG.find((r) => r.id === reportId)?.aggregate ?? false;
+  const serverPaged = reportId === 'call-detail';
+
+  const filterKey = `${reportId}|${range.from}|${range.to}|${queueName}|${effectiveInterface}`;
+  const page = pageState.key === filterKey ? pageState.page : 0;
 
   const queryParams = useMemo(() => ({
     reportId,
-    dateFrom,
-    dateTo,
-    ...(queueName ? { queueName } : {}),
-    ...(agentInterface ? { agentInterface } : {}),
-  }), [reportId, dateFrom, dateTo, queueName, agentInterface]);
+    dateFrom: range.from,
+    dateTo: range.to,
+    ...(appliedQueueName ? { queueName: appliedQueueName } : {}),
+    ...(effectiveInterface ? { agentInterface: effectiveInterface } : {}),
+    ...(serverPaged ? { page: page + 1, pageSize: PAGE_SIZE } : {}),
+  }), [reportId, range, appliedQueueName, effectiveInterface, serverPaged, page]);
 
-  const timelineSkip = !isTimeline || !agentInterface;
-  const reportSkip = isTimeline;
+  const timelineSkip = !isTimeline || !effectiveInterface;
 
   const {
     data: reportData,
@@ -102,7 +180,7 @@ export function CallCenterReportsPage() {
     isFetching: reportFetching,
     isError: reportError,
     refetch: refetchReport,
-  } = useGetReportQuery(queryParams, { skip: reportSkip });
+  } = useGetReportQuery(queryParams, { skip: isTimeline });
 
   const {
     data: timelineData,
@@ -111,37 +189,27 @@ export function CallCenterReportsPage() {
     isError: timelineError,
     refetch: refetchTimeline,
   } = useGetAgentTimelineQuery(
-    { agentInterface, date: dateFrom },
+    { agentInterface: effectiveInterface, date: range.from },
     { skip: timelineSkip },
   );
 
   const [triggerExport, { isFetching: isExporting }] = useLazyExportReportQuery();
 
   const activeData = isTimeline ? timelineData : reportData;
+  const ctx = useMemo<ReportCellContext>(
+    () => ({ timezone: activeData?.timezone, locale, t: t as ReportCellContext['t'], agentLabel, queueLabel, thresholds }),
+    [activeData?.timezone, locale, t, agentLabel, queueLabel, thresholds],
+  );
   const isLoading = isTimeline ? timelineLoading : reportLoading;
   const isFetching = isTimeline ? timelineFetching : reportFetching;
   const isError = isTimeline ? timelineError : reportError;
   const refetch = isTimeline ? refetchTimeline : refetchReport;
 
-  const rows = (activeData?.rows ?? []) as Record<string, unknown>[];
-  const columns = activeData?.columns ?? [];
+  const rows = useMemo(() => (activeData?.rows ?? []) as Row[], [activeData]);
+  const columns = useMemo<ReportColumn[]>(() => activeData?.columns ?? [], [activeData]);
   const hasRows = rows.length > 0;
   const exportDisabled = isLoading || isFetching || !hasRows || isExporting || pdfBusy
-    || (isTimeline && !agentInterface);
-
-  const tableColumns = useMemo<ColumnDef<Record<string, unknown>>[]>(
-    () => columns.map((col) => ({
-      id: col.key,
-      accessorFn: (row) => {
-        const v = row[col.key];
-        if (v != null && typeof v === 'object') return JSON.stringify(v);
-        return v ?? '';
-      },
-      header: col.header,
-      cell: (info) => String(info.getValue() ?? ''),
-    })),
-    [columns],
-  );
+    || (isTimeline && !effectiveInterface);
 
   const heatmapRows = useMemo(
     () => (isHeatmap ? (rows as unknown as HourlyHeatmapRow[]) : []),
@@ -180,60 +248,178 @@ export function CallCenterReportsPage() {
     [t],
   );
 
-  const handleExport = useCallback(async (format: 'csv' | 'xlsx') => {
-    if (isLoading || isFetching || !hasRows || (isTimeline && !agentInterface)) return;
+  // ─── Filters ──────────────────────────────────────────────────
+  const pickOperator = useCallback((userId: string) => {
+    setOperatorUserId(userId);
+    setAgentInterface('');
+  }, []);
+
+  const resetAll = useCallback(() => {
+    setQueueName('');
+    setAgentInterface('');
+    setOperatorUserId('');
+    setRange(presetRange('7d'));
+  }, []);
+
+  const chips = useMemo<ReportFilterChip[]>(() => {
+    const out: ReportFilterChip[] = [];
+    const selectedQueues = splitQueueNames(appliedQueueName);
+    for (const name of selectedQueues) {
+      const known = queues.length === 0 || queues.some((q) => q.name === name);
+      out.push({
+        id: selectedQueues.length === 1 ? 'queue' : `queue-${name}`,
+        label: `${t('callcenter.reports.filters.queue')}: ${queueLabel(name)}`,
+        warning: known ? undefined : t('callcenter.reports.chips.unknownQueue', 'This queue is not in the list of queues.'),
+        onRemove: () => setQueueName(selectedQueues.filter((item) => item !== name).join(',')),
+      });
+    }
+    if (effectiveInterface) {
+      const unknown = !selectedOperator && operators.length > 0;
+      out.push({
+        id: 'operator',
+        label: `${t('callcenter.reports.filters.agent')}: ${selectedOperator ? operatorLabel(selectedOperator) : effectiveInterface}`,
+        warning: unknown
+          ? t('callcenter.reports.chips.unknownAgent', 'This operator is not among the operators you can see; the report is still filtered by it.')
+          : undefined,
+        onRemove: () => {
+          setAgentInterface('');
+          setOperatorUserId('');
+        },
+      });
+    }
+    return out;
+  }, [appliedQueueName, effectiveInterface, selectedOperator, operators.length, queues, queueLabel, operatorLabel, t]);
+
+  // ─── Drill-down ───────────────────────────────────────────────
+  const drillToOperator = useCallback((row: Row, target: CcReportId) => {
+    const iface = String(row.agentInterface ?? '');
+    if (!iface) return;
+    const known = operators.find((o) => o.interface === iface);
+    if (known) {
+      setOperatorUserId(String(known.userId));
+      setAgentInterface('');
+    } else {
+      setOperatorUserId('');
+      setAgentInterface(iface);
+    }
+    if (target === 'agent-timeline') setRange((r) => ({ from: r.to, to: r.to }));
+    setReportId(target);
+  }, [operators]);
+
+  const handleRowActivate = useCallback((row: Row) => {
+    switch (reportId) {
+      case 'queue-summary':
+        if (row.queueName) {
+          setQueueName(String(row.queueName));
+          setReportId('call-detail');
+        }
+        break;
+      case 'operator-stats':
+        drillToOperator(row, 'call-detail');
+        break;
+      case 'pause-report':
+        drillToOperator(row, 'agent-timeline');
+        break;
+      case 'call-detail':
+      case 'missed-callback':
+        setCallRow(row);
+        break;
+      default:
+        break;
+    }
+  }, [reportId, drillToOperator]);
+
+  const openable = reportId !== 'hourly-heatmap' && reportId !== 'agent-timeline';
+
+  const rowLabel = useCallback((row: Row) => {
+    const parts = isCallList
+      ? [row.callerIdName, row.callerIdNum, row.enterTime ?? row.createdAt]
+      : [row.queueName ? queueLabel(String(row.queueName)) : '', row.agentInterface ? agentLabel(String(row.agentInterface)) : ''];
+    return t('callcenter.reports.openRow', {
+      label: parts.filter(Boolean).join(' '),
+      defaultValue: 'Open {{label}}',
+    });
+  }, [isCallList, queueLabel, agentLabel, t]);
+
+  const renderRowActions = useCallback((row: Row) => (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      data-testid="cc-report-row-timeline"
+      onClick={() => drillToOperator(row, 'agent-timeline')}
+    >
+      {t('callcenter.reports.drill.timeline', 'Shift')}
+    </Button>
+  ), [drillToOperator, t]);
+
+  // ─── Export ───────────────────────────────────────────────────
+  const handleServerExport = useCallback(async (format: 'csv' | 'xlsx') => {
+    setExportError(false);
     try {
       const blob = await triggerExport({
         reportId,
         format,
-        dateFrom,
-        dateTo: isTimeline ? dateFrom : dateTo,
-        ...(queueName ? { queueName } : {}),
-        ...(agentInterface ? { agentInterface } : {}),
+        dateFrom: range.from,
+        dateTo: isTimeline ? range.from : range.to,
+        ...(appliedQueueName ? { queueName: appliedQueueName } : {}),
+        ...(effectiveInterface ? { agentInterface: effectiveInterface } : {}),
       }).unwrap();
-      const stamp = new Date().toISOString().slice(0, 10);
-      downloadBlob(blob, `cc_${reportId}_${stamp}.${format}`);
-    } catch (e) {
-      console.error('CC report export failed', e);
+      setPreparedDownload(downloadBlob(blob, `cc_${reportId}_${range.from}_${isTimeline ? range.from : range.to}.${format}`));
+    } catch {
+      setExportError(true);
+      toast.error(t('callcenter.reports.export.failed', 'Could not export the report. Try again.'));
     }
-  }, [
-    isLoading, isFetching, hasRows, triggerExport, reportId, dateFrom, dateTo,
-    queueName, agentInterface, isTimeline,
-  ]);
+  }, [triggerExport, reportId, range, isTimeline, appliedQueueName, effectiveInterface, t]);
 
-  const handleExportPdf = useCallback(async () => {
+  const handlePdf = useCallback(async () => {
     if (!activeData || !hasRows) return;
+    setExportError(false);
     setPdfBusy(true);
     try {
-      const title = t(`callcenter.reports.ids.${reportId}`);
+      const pdfRows = rows.map((row) => {
+        const out: Row = {};
+        for (const col of activeData.columns) {
+          const v = row[col.key];
+          if (col.key === 'segments' && Array.isArray(v)) out[col.key] = `${v.length} segments`;
+          else out[col.key] = formatReportValue(col, v, ctx);
+        }
+        return out;
+      });
       const blob = await generateReportPdf({
-        title,
-        columns: activeData.columns,
-        rows: flattenRowsForPdf(
-          activeData.columns,
-          rows,
-        ),
+        title: t(reportQuestionKey(reportId), t(`callcenter.reports.ids.${reportId}`)),
+        columns: activeData.columns.map((col) => ({ ...col, header: ctx.t(col.labelKey || '', col.header) })),
+        rows: pdfRows,
         meta: {
-          dateFrom,
-          dateTo: isTimeline ? dateFrom : dateTo,
-          queueName: queueName || undefined,
-          agentInterface: agentInterface || undefined,
+          dateFrom: range.from,
+          dateTo: isTimeline ? range.from : range.to,
+          queueName: appliedQueueName ? splitQueueNames(appliedQueueName).map(queueLabel).join(', ') : undefined,
+          timezone: activeData.timezone,
+          agentInterface: effectiveInterface ? agentLabel(effectiveInterface) : undefined,
         },
       });
-      const stamp = new Date().toISOString().slice(0, 10);
-      downloadBlob(blob, `cc_${reportId}_${stamp}.pdf`);
-    } catch (e) {
-      console.error('CC report PDF failed', e);
+      setPreparedDownload(downloadBlob(blob, `cc_${reportId}_${range.from}_${isTimeline ? range.from : range.to}.pdf`));
+    } catch {
+      setExportError(true);
+      toast.error(t('callcenter.reports.export.failed', 'Could not export the report. Try again.'));
     } finally {
       setPdfBusy(false);
     }
-  }, [
-    activeData, hasRows, t, reportId, rows, dateFrom, dateTo,
-    queueName, agentInterface, isTimeline,
-  ]);
+  }, [activeData, hasRows, rows, ctx, t, reportId, range, isTimeline, appliedQueueName, queueLabel, effectiveInterface, agentLabel]);
+
+  const handleExport = useCallback((format: ReportExportFormat) => {
+    if (exportDisabled) return;
+    if (format === 'pdf') void handlePdf();
+    else void handleServerExport(format);
+  }, [exportDisabled, handlePdf, handleServerExport]);
+
+  // ─── Content ──────────────────────────────────────────────────
+  const sourceLabel = activeData?.source
+    ? t(`callcenter.reports.sourceKind.${activeData.source}`, activeData.source)
+    : null;
 
   const renderContent = () => {
-    if (isTimeline && !agentInterface) {
+    if (isTimeline && !effectiveInterface) {
       return (
         <div className={styles.emptyState}>
           <Inbox size={32} className="text-muted-foreground" />
@@ -303,6 +489,8 @@ export function CallCenterReportsPage() {
                       style={{
                         background: `color-mix(in srgb, var(--color-primary) ${pct}%, transparent)`,
                       }}
+                      tabIndex={0}
+                      aria-label={`${dayLabels[dow]} ${hour}:00 - ${count}`}
                       title={`${dayLabels[dow]} ${hour}:00 - ${count}`}
                     />
                   );
@@ -310,6 +498,7 @@ export function CallCenterReportsPage() {
               </Fragment>
             ))}
           </div>
+          <ReportTable reportId={reportId} columns={columns} rows={rows} ctx={ctx} aggregate={false} mobile={isMobile} emptyText={t('callcenter.reports.emptyTitle')} />
         </div>
       );
     }
@@ -318,11 +507,14 @@ export function CallCenterReportsPage() {
       return (
         <div className={styles.timelineWrap}>
           <Text className={styles.metaLine}>
-            {agentInterface} · {dateFrom}
+            {agentLabel(effectiveInterface)} · {range.from}
           </Text>
           <AgentTimeline
             segments={timelineSegments}
-            date={dateFrom}
+            date={range.from}
+            periodStart={activeData?.periodStart}
+            periodEnd={activeData?.periodEnd}
+            timezone={activeData?.timezone}
             live={false}
           />
         </div>
@@ -330,155 +522,142 @@ export function CallCenterReportsPage() {
     }
 
     return (
-      <div
-        className={`${styles.tableScroll} overflow-x-auto`}
-        data-testid="hybrid-table"
-        data-hybrid="overflow-x-auto"
-      >
-        <Table<Record<string, unknown>> showExport={false}
-          data={rows}
-          columns={tableColumns}
-          getRowId={(row) => String(
-            row.uid
-            ?? row.callUniqueid
-            ?? row.agentInterface
-            ?? row.queueName
-            ?? JSON.stringify(row),
-          )}
-          emptyText={t('callcenter.reports.emptyTitle')}
-          pageSize={50}
-        />
-      </div>
+      <ReportTable
+        reportId={reportId}
+        columns={columns}
+        rows={rows}
+        ctx={ctx}
+        aggregate={aggregate}
+        mobile={isMobile}
+        onRowActivate={openable ? handleRowActivate : undefined}
+        getRowLabel={openable ? rowLabel : undefined}
+        renderRowActions={reportId === 'operator-stats' ? renderRowActions : undefined}
+        server={serverPaged
+          ? {
+            total: reportData?.total ?? rows.length,
+            page,
+            pageSize: PAGE_SIZE,
+            onPageChange: (next) => setPageState({ key: filterKey, page: next }),
+          }
+          : undefined}
+        emptyText={t('callcenter.reports.emptyTitle')}
+      />
     );
   };
 
   return (
     <VStack gap="16" max className={styles.wrapper} data-testid="cc-reports-responsive">
-      <VStack gap="4">
-        <Flex align="center" gap="12">
-          <Flex
-            align="center"
-            justify="center"
-            className="p-2.5 rounded-xl"
-            style={{
-              background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
-            }}
-          >
-            <BarChart3 size={24} style={{ color: 'var(--color-primary)' }} />
-          </Flex>
-          <VStack gap="4">
-            <Text
-              variant="h1"
-              className="text-lg sm:text-2xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent"
-            >
-              {t('callcenter.reports.title')}
-            </Text>
-            <Text className={styles.subtitle}>
-              {t('callcenter.reports.subtitle')}
-            </Text>
-          </VStack>
-        </Flex>
+      <CcPageHeader
+        title={t('callcenter.reports.title')}
+        description={t('callcenter.reports.subtitle')}
+        data="period"
+      />
+
+      <VStack gap="12" max className={styles.filterBar}>
+        <Text variant="muted">{t('callcenter.reports.timezone', 'Report time zone')}: {activeData?.timezone || '…'}</Text>
+        <ReportPeriodBar value={range} onChange={setRange} singleDay={isTimeline} locale={locale} />
+        <div className={styles.filterRow}>
+          {supportsQueue && (
+            <div className={styles.filterField}>
+              <Label>{t('callcenter.reports.filters.queue')}</Label>
+              <MultiSelect
+                ariaLabel={t('callcenter.reports.filters.queue')}
+                value={splitQueueNames(queueName)}
+                onChange={(names) => setQueueName(names.join(','))}
+                options={[
+                  ...splitQueueNames(queueName)
+                    .filter((name) => !queues.some((q) => q.name === name))
+                    .map((name) => ({ value: name, label: queueLabel(name) })),
+                  ...queues.map((q) => ({ value: q.name, label: queueLabel(q.name) })),
+                ]}
+                placeholder={t('callcenter.reports.filters.queueAll')}
+                searchable
+                searchPlaceholder={t('callcenter.reports.filters.queueSearch', 'Queue name')}
+              />
+            </div>
+          )}
+          {supportsAgent && <div className={styles.filterField}>
+            <Label htmlFor="cc-report-operator">{t('callcenter.reports.filters.agent')}</Label>
+            {operators.length > 0 ? (
+              <OperatorPicker
+                id="cc-report-operator"
+                operators={operators}
+                value={selectedOperator ? String(selectedOperator.userId) : ''}
+                onChange={pickOperator}
+                placeholder={t('callcenter.reports.filters.agentAll')}
+              />
+            ) : (
+              <Input
+                id="cc-report-operator"
+                value={agentInterface}
+                onChange={(e) => {
+                  setAgentInterface(e.target.value);
+                  setOperatorUserId('');
+                }}
+                placeholder={t('callcenter.reports.filters.agentPlaceholder')}
+              />
+            )}
+          </div>}
+        </div>
+        {((!supportsAgent && (agentInterface || operatorUserId)) || (!supportsQueue && queueName)) && <Text variant="muted" role="status">{t('callcenter.reports.unsupportedFilters', 'This report uses only the filters shown above. Other selected filters are not applied.')}</Text>}
+        <ReportFilterChips chips={chips} onResetAll={resetAll} />
+        {(reportId === 'operator-stats' || reportId === 'queue-summary') && <Text variant="muted">
+          {t('callcenter.reports.metricDefinitions', 'SLA excludes short abandons. AHT = (talk including hold + after-call work) / handled calls. Queue filters select calls; shift and pause time remain operator-wide.')}
+        </Text>}
       </VStack>
 
-      <div className={styles.filterBar}>
-        <div className={styles.filterField}>
-          <span className={styles.filterLabel}>
-            {t('callcenter.reports.filters.dateFrom')}
-          </span>
-          <Input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
-        </div>
-        {!isTimeline && (
-          <div className={styles.filterField}>
-            <span className={styles.filterLabel}>
-              {t('callcenter.reports.filters.dateTo')}
-            </span>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-            />
-          </div>
-        )}
-        <div className={styles.filterField}>
-          <span className={styles.filterLabel}>
-            {t('callcenter.reports.filters.queue')}
-          </span>
-          <Select
-            value={queueName}
-            onChange={(e) => setQueueName(e.target.value)}
-          >
-            <option value="">{t('callcenter.reports.filters.queueAll')}</option>
-            {queues.map((q) => (
-              <option key={q.name} value={q.name}>{q.name}</option>
-            ))}
-          </Select>
-        </div>
-        <div className={styles.filterField}>
-          <span className={styles.filterLabel}>
-            {t('callcenter.reports.filters.agent')}
-          </span>
-          <Input
-            value={agentInterface}
-            onChange={(e) => setAgentInterface(e.target.value)}
-            placeholder={t('callcenter.reports.filters.agentPlaceholder')}
-          />
-        </div>
-      </div>
-
       <div className={styles.layout}>
-        <nav className={styles.reportNav} aria-label={t('callcenter.reports.navLabel')}>
-          {CC_REPORT_IDS.map((id) => (
-            <button
-              key={id}
-              type="button"
-              className={`${styles.reportTab} ${reportId === id ? styles.reportTabActive : ''}`}
-              onClick={() => setReportId(id)}
-            >
-              {t(`callcenter.reports.ids.${id}`)}
-            </button>
-          ))}
-        </nav>
+        <ReportCatalog value={reportId} onChange={setReportId} compact={isMobile} />
 
         <div className={styles.contentCard}>
-          <div className={styles.exportBar}>
-            <Button
-              variant="outline"
-              size="sm"
+          <HStack justify="between" align="center" wrap="wrap" gap="8">
+            <HStack gap="8" align="center" wrap="wrap">
+              <BarChart3 size={18} className="text-muted-foreground" aria-hidden="true" />
+              <Text className={styles.contentTitle}>
+                {t(reportQuestionKey(reportId), t(`callcenter.reports.ids.${reportId}`))}
+              </Text>
+              {sourceLabel ? (
+                <Badge
+                  variant="outline"
+                  title={t(`callcenter.reports.sourceHint.${activeData?.source}`, '')}
+                  data-testid="cc-report-source"
+                >
+                  {sourceLabel}
+                </Badge>
+              ) : null}
+              {activeData?.total != null && !isTimeline ? (
+                <Text className={styles.metaLine}>
+                  {t('callcenter.reports.rowsTotal', { count: activeData.total, defaultValue: 'Rows: {{count}}' })}
+                </Text>
+              ) : null}
+            </HStack>
+            <ReportExportMenu
               disabled={exportDisabled}
-              onClick={() => handleExport('csv')}
-            >
-              {t('callcenter.reports.exportCsv')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={exportDisabled}
-              onClick={() => handleExport('xlsx')}
-            >
-              {t('callcenter.reports.exportXlsx')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={exportDisabled}
-              onClick={() => handleExportPdf()}
-            >
-              {t('callcenter.reports.exportPdf')}
-            </Button>
-          </div>
-          {activeData?.source && (
-            <Text className={styles.metaLine}>
-              {t('callcenter.reports.source')}: {activeData.source}
-              {activeData.total != null ? ` · ${activeData.total}` : ''}
-            </Text>
+              busy={isExporting || pdfBusy}
+              onExport={handleExport}
+              onSchedule={() => navigate(buildCcSettingsPath('reportSchedules'))}
+            />
+          </HStack>
+          {exportError && <Text role="alert" className="text-destructive">{t('callcenter.reports.export.failed', 'Could not export the report. Try again.')}</Text>}
+          {preparedDownload && (
+            <HStack gap="8" wrap="wrap" role="status" className="text-sm" data-testid="cc-report-download-ready">
+              <Text variant="muted">{t('callcenter.reports.export.ready', 'File ready. If the download did not start, use the link:')}</Text>
+              <a href={preparedDownload.url} download={preparedDownload.filename} className="underline break-all">
+                {preparedDownload.filename}
+              </a>
+            </HStack>
           )}
           {renderContent()}
         </div>
       </div>
+
+      <CallDetailSheet
+        open={callRow !== null}
+        onOpenChange={(open) => { if (!open) setCallRow(null); }}
+        row={callRow}
+        columns={columns}
+        ctx={ctx}
+      />
     </VStack>
   );
 }

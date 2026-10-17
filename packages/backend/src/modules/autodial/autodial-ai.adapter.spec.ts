@@ -56,7 +56,7 @@ describe('AutodialAiAdapter', () => {
     pause: jest.Mock;
   };
   let bases: { findAll: jest.Mock; findOne: jest.Mock };
-  let reports: { summary: jest.Mock };
+  let reports: { summary: jest.Mock; reportingTimezone: jest.Mock };
   let dnc: { create: jest.Mock };
   let registry: { register: jest.Mock };
   let adapter: AutodialAiAdapter;
@@ -86,7 +86,7 @@ describe('AutodialAiAdapter', () => {
         return BASE_A;
       }),
     };
-    reports = { summary: jest.fn(async () => []) };
+    reports = { summary: jest.fn(async () => []), reportingTimezone: jest.fn(async () => 'Asia/Krasnoyarsk') };
     dnc = { create: jest.fn() };
     registry = { register: jest.fn() };
     adapter = new AutodialAiAdapter(
@@ -95,7 +95,17 @@ describe('AutodialAiAdapter', () => {
       reports as any,
       dnc as any,
       registry as any,
+      { diagnose: jest.fn().mockResolvedValue({ next_attempt_at: '2026-10-17T02:14:00Z' }) } as any,
+      { validateDraft: jest.fn().mockResolvedValue(undefined), capabilities: jest.fn(), check: jest.fn() } as any,
+      { getTools: () => [] } as any,
     );
+  });
+
+  it('returns an explicit tenant timezone and local retry time for model diagnosis', async () => {
+    const result = await getTool('get_autodial_diagnosis').handler!({ uid: 11 }, TENANT_A);
+    expect(result).toMatchObject({ timezone: 'Asia/Krasnoyarsk', next_attempt_at: '2026-10-17T02:14:00Z' });
+    expect((result as { next_attempt_local: string }).next_attempt_local).toContain('09:14');
+    expect(reports.reportingTimezone).toHaveBeenCalledWith(TENANT_A);
   });
 
   describe('tool declarations', () => {
@@ -109,6 +119,12 @@ describe('AutodialAiAdapter', () => {
         'update_autodial_campaign',
         'pause_autodial_campaign',
         'add_autodial_dnc',
+        'describe_autodial_capabilities',
+        'get_autodial_base',
+        'get_autodial_diagnosis',
+        'get_autodial_preflight',
+        'get_autodial_monitor',
+        'list_autodial_dnc',
       ]);
     });
 
@@ -150,6 +166,8 @@ describe('AutodialAiAdapter', () => {
       expect(campaigns.create).toHaveBeenCalledWith(
         TENANT_A,
         expect.objectContaining({ name: 'Loop test', base_uid: 8, dial_mode: 'agentless' }),
+        1,
+        expect.objectContaining({ source: 'ai_assistant' }),
       );
     });
 
@@ -189,6 +207,8 @@ describe('AutodialAiAdapter', () => {
           dial_timeout_sec: 20,
           amd: { enabled: true, on_machine: 'voicemail', message_prompt: 'vm' },
         }),
+        1,
+        expect.objectContaining({ source: 'ai_assistant' }),
       );
     });
 
@@ -247,6 +267,9 @@ describe('AutodialAiAdapter', () => {
         reports as any,
         dnc as any,
         live,
+        { diagnose: jest.fn() } as any,
+        { validateDraft: jest.fn().mockResolvedValue(undefined), capabilities: jest.fn(), check: jest.fn() } as any,
+        { getTools: () => [] } as any,
       );
       wired.onModuleInit();
       const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();

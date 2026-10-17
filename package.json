@@ -1,7 +1,10 @@
 {
   "name": "krasterisk-v4",
-  "version": "4.7.0",
-  "description": "IP PBX Krasterisk — Modern Web Interface",
+  "version": "4.7.1",
+  "krasterisk": {
+    "version": "4.7.1.0"
+  },
+  "description": "AI PBX Krasterisk — Modern Web Interface",
   "private": true,
   "workspaces": [
     "packages/shared",
@@ -14,6 +17,8 @@
     "dev:frontend": "npm run dev -w @krasterisk/frontend",
     "build": "npm run build -w @krasterisk/shared && npm run build -w @krasterisk/backend && npm run build -w @krasterisk/frontend",
     "lint": "npm run lint -w @krasterisk/backend && npm run lint -w @krasterisk/frontend",
+    "version:check": "node packages/shared/check-app-version.cjs && node --test packages/shared/app-version.test.cjs",
+    "version:set": "node packages/shared/set-app-version.cjs",
     "test": "npm run test -w @krasterisk/backend && npm run test -w @krasterisk/frontend",
     "test:backend": "npm run test -w @krasterisk/backend",
     "test:frontend": "npm run test -w @krasterisk/frontend",
@@ -65,5 +70,8 @@
   "license": "MIT",
   "engines": {
     "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0"
   }
 }

@@ -6,6 +6,7 @@
  * boundary so "today" matches the operational day the janitor closes against.
  * Otherwise the window is a calendar day starting at local midnight.
  */
+import { shiftDateKey, zonedMidnight, zonedParts } from '@krasterisk/shared';
 import { DEFAULT_SHIFT_POLICY, type ShiftPolicy } from './models/shift-policy.types';
 
 export type KpiReportingMode = 'calendar_day' | 'business_day';
@@ -37,8 +38,16 @@ export function resolveKpiReportingMode(policy: Partial<ShiftPolicy> | null | un
   return 'calendar_day';
 }
 
-/** Local midnight of the calendar day containing `now`. */
-export function startOfCalendarDay(now: Date = new Date()): Date {
+/**
+ * Midnight of the calendar day containing `now`.
+ * With `timezone` (tenant zone, cc-analytics A5) the day is local to that zone;
+ * without it the legacy server-local day is used.
+ */
+export function startOfCalendarDay(now: Date = new Date(), timezone?: string): Date {
+  if (timezone) {
+    const [y, m, d] = zonedParts(now, timezone);
+    return zonedMidnight(y, m, d, timezone);
+  }
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -52,11 +61,22 @@ export function startOfCalendarDay(now: Date = new Date()): Date {
 export function startOfReportingDay(
   policy: Partial<ShiftPolicy> | null | undefined,
   now: Date = new Date(),
+  timezone?: string,
 ): Date {
   const mode = resolveKpiReportingMode(policy);
-  if (mode === 'calendar_day') return startOfCalendarDay(now);
+  if (mode === 'calendar_day') return startOfCalendarDay(now, timezone);
 
   const parsed = parseHhMm(policy?.eod_time) ?? parseHhMm(DEFAULT_SHIFT_POLICY.eod_time)!;
+  if (timezone) {
+    // Boundary = local midnight + HH:MM (off by at most the DST shift on a transition day).
+    const [y, m, d] = zonedParts(now, timezone);
+    const offsetMs = (parsed.h * 60 + parsed.m) * 60_000;
+    const today = zonedMidnight(y, m, d, timezone).getTime() + offsetMs;
+    if (now.getTime() >= today) return new Date(today);
+    const prevKey = shiftDateKey(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`, -1);
+    const [py, pm, pd] = prevKey.split('-').map(Number);
+    return new Date(zonedMidnight(py, pm, pd, timezone).getTime() + offsetMs);
+  }
   const boundary = new Date(now);
   boundary.setHours(parsed.h, parsed.m, 0, 0);
   if (now.getTime() < boundary.getTime()) {
@@ -68,9 +88,10 @@ export function startOfReportingDay(
 export function describeKpiReportingWindow(
   policy: Partial<ShiftPolicy> | null | undefined,
   now: Date = new Date(),
+  timezone?: string,
 ): KpiReportingWindow {
   const mode = resolveKpiReportingMode(policy);
-  const start = startOfReportingDay(policy, now);
+  const start = startOfReportingDay(policy, now, timezone);
   const boundaryTime = mode === 'business_day'
     ? (parseHhMm(policy?.eod_time) ? String(policy!.eod_time).trim() : DEFAULT_SHIFT_POLICY.eod_time)
     : '00:00';

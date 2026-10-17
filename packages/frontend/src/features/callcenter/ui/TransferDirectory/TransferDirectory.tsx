@@ -14,6 +14,8 @@ import type {
   IDirectoryGroup,
 } from '@/shared/api/endpoints/callCenterApi';
 import { requestOutboundDial } from '@/features/callcenter/model/slice/callCenterSlice';
+import { endpointPresenceLabel } from '../../lib/displayLabels';
+import { toast } from 'react-toastify';
 import styles from './TransferDirectory.module.scss';
 
 export type TransferDirectoryMode = 'transfer' | 'conference-add' | 'call';
@@ -88,6 +90,7 @@ export function TransferDirectory({
   const [addToConference, { isLoading: isAdding }] = useAddToConferenceMutation();
   const [clickToCall, { isLoading: isCalling }] = useClickToCallMutation();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState(false);
 
   const rows = useMemo<DirectoryRow[]>(() => {
     if (!data) return [];
@@ -122,10 +125,12 @@ export function TransferDirectory({
       return;
     }
     setPendingId(entry.id);
+    setActionError(false);
     try {
       if (mode === 'conference-add') {
         if (!activeCallUniqueid) return;
         await addToConference({ uniqueid: activeCallUniqueid, target: entry.extension }).unwrap();
+        toast.info(t('callcenter.directory.conferenceDialing'));
       } else {
         const res = await clickToCall({ target: entry.extension }).unwrap();
         if (res.mode === 'webrtc' && res.target) {
@@ -133,7 +138,7 @@ export function TransferDirectory({
         }
       }
       onDone?.();
-    } catch { /* server is source of truth - row stays interactive to retry */ }
+    } catch { setActionError(true); }
     finally { setPendingId(null); }
   };
 
@@ -184,6 +189,7 @@ export function TransferDirectory({
         />
       </div>
 
+      {actionError && <Text role="alert">{t('callcenter.directory.actionFailed')}</Text>}
       <div className={styles.list}>
         {rows.length === 0 && !isFetching ? (
           <div className={styles.empty}>
@@ -201,7 +207,7 @@ export function TransferDirectory({
                   <span
                     className={`${styles.dot} ${presenceDotClass(entry.presence)}`}
                     role="img"
-                    aria-label={entry.presence || t('callcenter.status.offline', 'Offline')}
+                    aria-label={endpointPresenceLabel(entry.presence || 'OFFLINE', t)}
                   />
                 </Tooltip>
                 <div className={styles.rowMain}>

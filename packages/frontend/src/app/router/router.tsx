@@ -33,6 +33,7 @@ import { MohPage } from '@/pages/MohPage';
 import { ConferencesPage } from '@/pages/ConferencesPage';
 import { ConferenceRoomPage } from '@/pages/ConferenceRoomPage';
 import { AutodialCampaignsPage } from '@/pages/AutodialCampaignsPage';
+import { AutodialCampaignWorkspacePage } from '@/pages/AutodialCampaignWorkspacePage/AutodialCampaignWorkspacePage';
 import { AutodialBasesPage } from '@/pages/AutodialBasesPage';
 import { AutodialMonitorPage } from '@/pages/AutodialMonitorPage';
 import { AutodialReportsPage } from '@/pages/AutodialReportsPage';
@@ -52,6 +53,7 @@ import { AuditLogPage } from '@/pages/AuditLogPage';
 import { ModulesHubPage } from '@/pages/ModulesHubPage';
 import { CallCenterAgentPage } from '@/pages/CallCenterAgentPage';
 import { CallCenterSupervisorPage } from '@/pages/CallCenterSupervisorPage';
+import { CallCenterDashboardPage } from '@/pages/CallCenterDashboardPage';
 import { CallCenterSettingsPage } from '@/pages/CallCenterSettingsPage';
 import { CallCenterWallboardPage } from '@/pages/CallCenterWallboardPage';
 import { ConferenceGuestPage } from '@/pages/ConferenceGuestPage';
@@ -151,6 +153,7 @@ export const router = createBrowserRouter([
       { path: 'conferences', element: <ConferencesPage /> },
       { path: 'conferences/:uid/room', element: <ConferenceRoomPage /> },
       { path: 'autodial', element: <AutodialCampaignsPage /> },
+      { path: 'autodial/campaigns/:uid', element: <AutodialCampaignWorkspacePage /> },
       { path: 'autodial/bases', element: <AutodialBasesPage /> },
       { path: 'autodial/monitor', element: <AutodialMonitorPage /> },
       { path: 'autodial/reports', element: <AutodialReportsPage /> },
@@ -166,6 +169,14 @@ export const router = createBrowserRouter([
       { path: 'system/modules', element: <SystemModulesPage /> },
       { path: 'superadmin', element: <Navigate to="/platform" replace /> },
       { path: 'callcenter/agent', element: <CallCenterAgentPage /> },
+      {
+        path: 'callcenter/dashboard',
+        element: (
+          <RequireRole allow={[UserLevel.SUPERVISOR, UserLevel.ADMIN]}>
+            <CallCenterDashboardPage />
+          </RequireRole>
+        ),
+      },
       {
         path: 'callcenter/supervisor',
         element: (
@@ -184,6 +195,14 @@ export const router = createBrowserRouter([
       },
       {
         path: 'callcenter/settings',
+        element: (
+          <RequireRole allow={[UserLevel.ADMIN]}>
+            <CallCenterSettingsPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'callcenter/settings/:section',
         element: (
           <RequireRole allow={[UserLevel.ADMIN]}>
             <CallCenterSettingsPage />

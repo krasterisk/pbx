@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/shared/ui';
 import styles from './DtmfKeypad.module.scss';
 
 export const DIALPAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'] as const;
@@ -29,15 +30,17 @@ export function DialpadGrid({ onDigit, disabled, className }: DialpadGridProps) 
       data-testid="dialpad-grid"
     >
       {DIALPAD_KEYS.map((key) => (
-        <button
+        <Button
           key={key}
           type="button"
+          variant="unstyled"
+          size="none"
           className={styles.key}
           disabled={disabled}
           onClick={() => handleKey(key)}
         >
           {key}
-        </button>
+        </Button>
       ))}
     </div>
   );

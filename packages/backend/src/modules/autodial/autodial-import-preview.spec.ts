@@ -4,6 +4,20 @@ import { AutodialImportService } from './autodial-import.service';
 // Parser methods do not need models or a database connection.
 const importer = Object.create(AutodialImportService.prototype) as AutodialImportService;
 describe('autodial import preview parser', () => {
+  it('splits multiple destinations before applying phone normalization', () => {
+    const mapped = importer['mapRow'](['phone'], ['000505, 000602'], [
+      { column: 'phone', field_key: '__phone', transform: 'phone_normalize' },
+    ], [], 'digits');
+    expect(mapped.phones.map((phone) => phone.normalized)).toEqual(['000505', '000602']);
+  });
+  it('omits invalid optional values only by explicit policy and returns the original value', () => {
+    const fields = [{ uid: 1, key: 'debt', type: 'money', required: false }] as never;
+    const map = [{ column: 'phone', field_key: '__phone' }, { column: 'debt', field_key: 'debt' }];
+    expect(() => importer['mapRow'](['phone', 'debt'], ['123', 'unknown'], map, fields, 'digits')).toThrow();
+    const mapped = importer['mapRow'](['phone', 'debt'], ['123', 'unknown'], map, fields, 'digits', 'omit');
+    expect(mapped.values).toEqual({});
+    expect(mapped.warnings).toEqual([{ field: 'debt', value: 'unknown', code: 'AC_INVALID_NUMBER' }]);
+  });
   it('rejects a nonempty invalid secondary phone instead of silently dropping it', () => {
     expect(() => importer['mapRow'](['phone', 'phone2'], ['79001234567', 'invalid'], [
       { column: 'phone', column_index: 0, field_key: '__phone' },
@@ -36,5 +50,14 @@ describe('autodial import preview parser', () => {
     sheet.addRows([['Alice', '123'], ['Bob', '456']]);
     const result = await importer.previewXlsx(Buffer.from(await workbook.xlsx.writeBuffer()), { has_header: false });
     expect(result).toMatchObject({ headers: ['0', '1'], total_rows: 2, sample_rows: [['Alice', '123'], ['Bob', '456']] });
+  });
+  it('uses the same civil dates, cached formulas and leading-zero identifiers in preview and import', async () => {
+    const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Contacts');
+    sheet.addRow(['date', 'phone', 'sum']);
+    sheet.addRow([new Date('2026-10-16T00:00:00Z'), 505, { formula: '2+2', result: 4 }]);
+    sheet.getCell('B2').numFmt = '000000';
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    expect((await importer.previewXlsx(buffer)).sample_rows).toEqual([['2026-10-16', '000505', '4']]);
+    expect((await importer['readAllXlsx'](buffer)).slice(1)).toEqual([['2026-10-16', '000505', '4']]);
   });
 });

@@ -1,6 +1,10 @@
 import { rtkApi } from "../rtkApi";
 import type {
   IAutodialContactsPage,
+  IAutodialCampaignContactsPage,
+  AutodialSchemaMigrationRequest,
+  IAutodialSchemaPreview,
+  IAutodialFieldUsage,
   CreateAutodialBaseInput,
   UpdateAutodialBaseInput,
   CreateAutodialContactInput,
@@ -20,10 +24,20 @@ import type {
   IAutodialImportProfile,
   IAutodialImportRun,
   IAutodialSchedule,
+  IAutodialDiagnosis,
+  IAutodialPreflight,
+  IAutodialMonitorHealth,
   UpdateAutodialCampaignInput,
 } from "@krasterisk/shared";
 
 export type AutodialContactsPage = IAutodialContactsPage;
+export interface AutodialIntegrationKey { uid: string; label: string; scopes: string[]; expires_at: string; revoked_at: string | null; created_at: string }
+export interface AutodialScenarioPreview {
+  campaign_uid: number; revision: number; base_uid: number; contact_uid: number | null;
+  variables: Array<{ name: string; label: string; type: string; value: string | null }>;
+  steps: Array<{ id: string; type: string; text?: string; missing?: string[]; engine_uid?: number | null }>;
+  dialplan: string;
+}
 
 export interface AutodialImportPreview {
   base_revision: number;
@@ -45,13 +59,22 @@ export interface AutodialUploadArgs {
   dedup_policy?: AutodialDedupPolicy;
   replace?: boolean;
   expected_revision?: number;
+  invalid_optional_policy?: 'reject' | 'omit';
 }
 
 export interface AutodialImportResult {
   imported: number;
   skipped: number;
-  errors: Array<{ row: number; code: string; message: string }>;
+  errors: Array<{ row: number; code: string; message: string; values?: string[] }>;
+  rejected_rows?: Array<{ row: number; code: string; message: string; values?: string[] }>;
+  headers?: string[];
+  warnings?: Array<{ row: number; field: string; value: string; code: string }>;
   run: IAutodialImportRun;
+}
+export interface AutodialImportValidation {
+  base_revision: number; total_rows: number; valid: number; skipped: number; ready: boolean;
+  headers: string[]; errors: AutodialImportResult['errors']; warnings: NonNullable<AutodialImportResult['warnings']>;
+  rejected_rows: NonNullable<AutodialImportResult['rejected_rows']>;
 }
 
 export type AutodialCampaignWithSchedules = IAutodialCampaign & {
@@ -91,6 +114,7 @@ export interface AutodialSummaryRow {
 }
 
 export interface AutodialDetailRow {
+  uniqueid?: string | null;
   attempt_uid: number;
   campaign_uid: number;
   task_uid: number;
@@ -107,7 +131,12 @@ export interface AutodialDetailRow {
   queue_name: string | null;
   agent_interface: string | null;
   amd_result: string | null;
+  scenario_result: { dtmf?: string | null; [key: string]: unknown } | null;
 }
+export type AutodialAnalyticsDimension = 'attempt' | 'hour' | 'heatmap' | 'segment' | 'hangup' | 'operator' | 'business_outcome' | 'disposition';
+export interface AutodialAnalyticsArgs { from: string; to: string; campaign_uids?: number[]; dimension: AutodialAnalyticsDimension; field_uid?: number; value?: string }
+export interface AutodialBreakdown { dimension: AutodialAnalyticsDimension; timezone: string; from: string; to: string; truncated: boolean;
+  rows: Array<{ value: string; dials: number; answered: number; success: number; talk_sec: number; contact_rate: number }> }
 
 function reportParams(query: AutodialReportQuery): string {
   const params = new URLSearchParams({ from: query.from, to: query.to });
@@ -252,6 +281,12 @@ const autodialApi = rtkApi.injectEndpoints({
     }),
 
     // ── import ────────────────────────────────────────────────────
+    validateAutodialImport: builder.mutation<AutodialImportValidation, AutodialUploadArgs>({
+      query: ({ baseUid, ...body }) => ({ url: `/autodial/bases/${baseUid}/import-validation`, method: 'POST', body }),
+    }),
+    downloadAutodialRejected: builder.mutation<Blob, AutodialUploadArgs>({
+      query: ({ baseUid, ...body }) => ({ url: `/autodial/bases/${baseUid}/import-rejected`, method: 'POST', body, responseHandler: (response) => response.blob() }),
+    }),
     getAutodialImportProfiles: builder.query<IAutodialImportProfile[], number>({
       query: (baseUid) => `/autodial/bases/${baseUid}/import-profiles`,
       providesTags: (_r, _e, baseUid) => [
@@ -411,6 +446,81 @@ const autodialApi = rtkApi.injectEndpoints({
     }),
 
     // ── monitor / reports ─────────────────────────────────────────
+
+    getAutodialFieldUsage: builder.query<IAutodialFieldUsage, number>({
+      query: (uid) => `/autodial/bases/${uid}/field-usage`, providesTags: ['AutodialBases', 'AutodialCampaigns', 'AutodialImportProfiles'],
+    }),
+    previewAutodialSchema: builder.mutation<IAutodialSchemaPreview, { uid: number; data: AutodialSchemaMigrationRequest }>({
+      query: ({ uid, data }) => ({ url: `/autodial/bases/${uid}/schema-preview`, method: 'POST', body: data }),
+    }),
+    applyAutodialSchema: builder.mutation<IAutodialBase, { uid: number; data: AutodialSchemaMigrationRequest }>({
+      query: ({ uid, data }) => ({ url: `/autodial/bases/${uid}/schema-apply`, method: 'POST', body: data }),
+      invalidatesTags: ['AutodialBases', 'AutodialContacts', 'AutodialCampaigns', 'AutodialImportProfiles'],
+    }),
+
+    getAutodialScenarioPreview: builder.query<AutodialScenarioPreview, { uid: number; contactUid?: number }>({
+      query: ({ uid, contactUid }) => `/autodial/campaigns/${uid}/scenario-preview${contactUid ? `?contact_uid=${contactUid}` : ''}`,
+      providesTags: ['AutodialCampaigns', 'AutodialBases', 'AutodialContacts'],
+    }),
+    previewAutodialAudio: builder.mutation<Blob, { uid: number; contactUid: number; stepId: string }>({
+      query: ({ uid, contactUid, stepId }) => ({ url: `/autodial/campaigns/${uid}/scenario-preview/${contactUid}/${encodeURIComponent(stepId)}/audio`, responseHandler: (response) => response.blob() }),
+    }),
+    requestAutodialTestCall: builder.mutation<{ uid: string; status: string; endpoint: string; skipped_steps: string[] }, { uid: number; contact_uid: number; expected_revision: number; idempotency_key: string }>({
+      query: ({ uid, ...body }) => ({ url: `/autodial/campaigns/${uid}/test-call`, method: 'POST', body }),
+    }),
+
+    checkAutodialDraft: builder.mutation<IAutodialPreflight, CreateAutodialCampaignInput>({
+      query: (body) => ({ url: '/autodial/preflight-draft', method: 'POST', body }),
+    }),
+
+    changeAutodialContactTask: builder.mutation<{ updated: number }, { uid: number; contactUid: number; action: 'exclude' | 'reschedule'; next_attempt_at?: string; phone_uid?: number }>({
+      query: ({ uid, contactUid, ...body }) => ({ url: `/autodial/campaigns/${uid}/contacts/${contactUid}/task-action`, method: 'POST', body }),
+      invalidatesTags: ['AutodialContacts', 'AutodialCampaigns'],
+    }),
+
+    getAutodialJournal: builder.query<Array<{ uid: number; event_type: string; tour_no: number; revision: number; payload: Record<string, unknown> | null; created_at: string }>, { uid: number; before?: number }>({
+      query: ({ uid, before }) => `/autodial/campaigns/${uid}/journal${before ? `?before=${before}` : ''}`,
+      providesTags: (_r, _e, { uid }) => [{ type: 'AutodialCampaigns', id: uid }],
+    }),
+    getAutodialAiPrivacy: builder.query<{ allow_personal_data: boolean }, void>({
+      query: () => '/autodial/ai-privacy', providesTags: [{ type: 'AutodialBases', id: 'AI_PRIVACY' }],
+    }),
+    getAutodialIntegrationKeys: builder.query<AutodialIntegrationKey[], void>({
+      query: () => '/autodial/integration-keys', providesTags: ['AutodialBases'],
+    }),
+    createAutodialIntegrationKey: builder.mutation<{ uid: string; token: string }, { label: string; scopes: string[]; expires_at: string }>({
+      query: (body) => ({ url: '/autodial/integration-keys', method: 'POST', body }), invalidatesTags: ['AutodialBases'],
+    }),
+    revokeAutodialIntegrationKey: builder.mutation<{ revoked: boolean }, string>({
+      query: (uid) => ({ url: `/autodial/integration-keys/${uid}`, method: 'DELETE' }), invalidatesTags: ['AutodialBases'],
+    }),
+    getAutodialCapabilities: builder.query<{ tts_engines: Array<{ uid: number; name: string; is_global: boolean }> }, void>({
+      query: () => '/autodial/capabilities', providesTags: ['TtsEngines'],
+    }),
+    getAutodialMonitorHealth: builder.query<IAutodialMonitorHealth, void>({
+      query: () => '/autodial/monitor-health', providesTags: ['AutodialCampaigns'],
+    }),
+    updateAutodialAiPrivacy: builder.mutation<{ allow_personal_data: boolean }, { allow_personal_data: boolean }>({
+      query: (body) => ({ url: '/autodial/ai-privacy', method: 'PUT', body }),
+      invalidatesTags: [{ type: 'AutodialBases', id: 'AI_PRIVACY' }],
+    }),
+
+    getAutodialCampaignContacts: builder.query<IAutodialCampaignContactsPage,
+      { uid: number; page?: number; pageSize?: number; q?: string; disposition?: string }>({
+      query: ({ uid, page = 1, pageSize = 25, q = '', disposition = '' }) =>
+        `/autodial/campaigns/${uid}/contacts?${new URLSearchParams({ page: String(page), page_size: String(pageSize), q, disposition })}`,
+      providesTags: (_r, _e, { uid }) => [ 'AutodialContacts', 'AutodialDnc', { type: 'AutodialCampaigns', id: uid } ],
+    }),
+
+    getAutodialDiagnosis: builder.query<IAutodialDiagnosis, number>({
+      query: (uid) => `/autodial/campaigns/${uid}/diagnosis`,
+      providesTags: (_result, _error, uid) => [{ type: 'AutodialCampaigns', id: uid }],
+    }),
+
+    getAutodialPreflight: builder.query<IAutodialPreflight, number>({
+      query: (uid) => `/autodial/campaigns/${uid}/preflight`,
+      providesTags: (_result, _error, uid) => [{ type: 'AutodialCampaigns', id: uid }, 'AutodialBases', 'AutodialDnc'],
+    }),
     getAutodialMonitor: builder.query<IAutodialCampaignLiveStats[], void>({
       query: () => "/autodial/monitor",
       providesTags: [{ type: "AutodialReports", id: "MONITOR" }],
@@ -435,6 +545,21 @@ const autodialApi = rtkApi.injectEndpoints({
       query: (query) => `/autodial/reports/detail?${reportParams(query)}`,
       providesTags: [{ type: "AutodialReports", id: "DETAIL" }],
     }),
+    getAutodialBreakdown: builder.query<AutodialBreakdown, AutodialAnalyticsArgs>({
+      query: (body) => ({ url: '/autodial/reports/breakdown', method: 'POST', body }), providesTags: ['AutodialReports'],
+    }),
+    previewAutodialSelectionBase: builder.mutation<{ contact_count: number; preview_hash: string }, AutodialAnalyticsArgs>({
+      query: (body) => ({ url: '/autodial/reports/selection/preview', method: 'POST', body }),
+    }),
+    createAutodialSelectionBase: builder.mutation<IAutodialBase, { filter: AutodialAnalyticsArgs; name: string; preview_hash: string }>({
+      query: (body) => ({ url: '/autodial/reports/selection/base', method: 'POST', body }), invalidatesTags: ['AutodialBases'],
+    }),
+    getAutodialSelection: builder.query<{ rows: AutodialDetailRow[]; timezone: string; truncated: boolean; limit: number }, AutodialAnalyticsArgs>({
+      query: (body) => ({ url: '/autodial/reports/selection', method: 'POST', body }), providesTags: ['AutodialReports'],
+    }),
+    getAutodialRecording: builder.mutation<Blob, string>({
+      query: (uniqueid) => ({ url: `/reports/cdr/recording/${encodeURIComponent(uniqueid)}/play`, responseHandler: (response) => response.blob() }),
+    }),
   }),
 });
 
@@ -450,6 +575,32 @@ export function autodialExportUrl(
 }
 
 export const {
+  useGetAutodialBreakdownQuery,
+  usePreviewAutodialSelectionBaseMutation,
+  useCreateAutodialSelectionBaseMutation,
+  useGetAutodialSelectionQuery,
+  useGetAutodialRecordingMutation,
+  useGetAutodialAiPrivacyQuery,
+  useGetAutodialIntegrationKeysQuery,
+  useCreateAutodialIntegrationKeyMutation,
+  useRevokeAutodialIntegrationKeyMutation,
+  useGetAutodialCapabilitiesQuery,
+  useGetAutodialMonitorHealthQuery,
+  useUpdateAutodialAiPrivacyMutation,
+  useValidateAutodialImportMutation,
+  useDownloadAutodialRejectedMutation,
+  useGetAutodialFieldUsageQuery,
+  usePreviewAutodialSchemaMutation,
+  useApplyAutodialSchemaMutation,
+  useGetAutodialScenarioPreviewQuery,
+  usePreviewAutodialAudioMutation,
+  useRequestAutodialTestCallMutation,
+  useCheckAutodialDraftMutation,
+  useChangeAutodialContactTaskMutation,
+  useGetAutodialJournalQuery,
+  useGetAutodialCampaignContactsQuery,
+  useGetAutodialDiagnosisQuery,
+  useGetAutodialPreflightQuery,
   useGetAutodialBasesQuery,
   useGetAutodialBaseQuery,
   useCreateAutodialBaseMutation,

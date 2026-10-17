@@ -57,7 +57,8 @@ export class PbxAgentLlmClient {
         }
 
         const nativeTools = this.supportsTools(provider);
-        const preparedMessages = this.toProviderMessages(messages);
+        const deepSeek = this.isDeepSeek(provider);
+        const preparedMessages = this.toProviderMessages(messages, deepSeek && tools.length > 0);
         const outgoingMessages = nativeTools || !tools.length
             ? preparedMessages
             : this.withToolCatalogInstruction(preparedMessages, tools);
@@ -74,7 +75,9 @@ export class PbxAgentLlmClient {
         }
         const model = this.resolveOptionalModel(provider);
         const resolvedChoice = this.resolveToolChoice(toolChoice, nativeTools, tools.length > 0, provider);
-            const configuredMax = Number(provider.defaults?.max_tokens ?? DEFAULT_MAX_TOKENS);
+            const deepSeekThinking = deepSeek && /^deepseek-(?:flash|v4|reasoner)/i.test(model ?? '');
+            const configuredMax = Number(provider.defaults?.max_tokens
+                ?? (deepSeekThinking ? DEFAULT_REASONING_MAX_TOKENS : DEFAULT_MAX_TOKENS));
             const maxTokens = usesMaxCompletionTokens(model)
                 ? Math.max(configuredMax, DEFAULT_REASONING_MAX_TOKENS)
                 : configuredMax;
@@ -271,13 +274,14 @@ export class PbxAgentLlmClient {
      * An assistant `tool_calls` row must be followed by a `tool` reply for every id.
      * @see https://platform.openai.com/docs/guides/function-calling
      */
-    private toProviderMessages(messages: AgentChatParams['messages']): AgentChatParams['messages'] {
+    private toProviderMessages(messages: AgentChatParams['messages'], includeReasoning = false): AgentChatParams['messages'] {
         const normalized = messages.map((message) => {
             if (message.role === 'assistant' && message.tool_calls != null) {
                 const toolCalls = normalizeOpenAiToolCalls(message.tool_calls);
                 return {
                     role: 'assistant' as const,
                     content: message.content ?? '',
+                    ...(includeReasoning && message.reasoning_content ? { reasoning_content: message.reasoning_content } : {}),
                     ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
                 };
             }
@@ -292,6 +296,8 @@ export class PbxAgentLlmClient {
             return {
                 role: message.role,
                 content: message.content ?? '',
+                ...(includeReasoning && message.role === 'assistant' && message.reasoning_content
+                    ? { reasoning_content: message.reasoning_content } : {}),
             };
         });
         return repairOpenAiChatMessages(normalized);
@@ -387,6 +393,12 @@ export class PbxAgentLlmClient {
             /* ignore bad endpoint */
         }
         return false;
+    }
+
+    private isDeepSeek(provider: AgentChatParams['provider']): boolean {
+        if (String(provider.vendor ?? '').toLowerCase() === 'deepseek') return true;
+        try { const host = new URL(provider.endpoint).hostname.toLowerCase(); return host === 'api.deepseek.com' || host.endsWith('.deepseek.com'); }
+        catch { return false; }
     }
 
     private resolveToolChoice(

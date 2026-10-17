@@ -16,6 +16,7 @@ function resolveAccessToken(getState: () => unknown): string | null {
 function createBaseQuery(baseUrl: string, accessTokenOverride?: string | null) {
   return fetchBaseQuery({
     baseUrl,
+    credentials: 'include',
     prepareHeaders: (headers, { getState }) => {
       if (isStandaloneApp()) return headers;
       const token =

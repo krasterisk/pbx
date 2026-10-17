@@ -65,6 +65,25 @@ describe('PbxAgentLlmClient', () => {
         jest.restoreAllMocks();
     });
 
+    it('continues DeepSeek tool reasoning internally and gives its default thinking mode enough output budget', async () => {
+        mockedAxios.post.mockResolvedValue({ status: 200, data: { choices: [{ message: { content: 'Done' }, finish_reason: 'stop' }] } });
+        await client.chat({ provider: provider({ vendor: 'deepseek', endpoint: 'https://api.deepseek.com', defaults: { model: 'deepseek-flash' } }),
+            stream: false, tools: [{ name: 'list_autodial_campaigns', description: 'List', inputSchema: {} }],
+            messages: [{ role: 'assistant', content: '', reasoning_content: 'internal continuation', tool_calls: [{ id: 'c1', name: 'list_autodial_campaigns', arguments: {} }] },
+                { role: 'tool', content: '[]', tool_call_id: 'c1' }] });
+        const body = mockedAxios.post.mock.calls[0][1] as any;
+        expect(body.max_tokens).toBe(16384); expect(body.messages[0].reasoning_content).toBe('internal continuation');
+    });
+
+    it('respects an explicit DeepSeek token limit and strips reasoning from other providers', async () => {
+        mockedAxios.post.mockResolvedValue({ status: 200, data: { choices: [{ message: { content: 'Done' }, finish_reason: 'stop' }] } });
+        await client.chat({ provider: provider({ vendor: 'deepseek', defaults: { model: 'deepseek-flash', max_tokens: 8192 } }), stream: false, messages: [{ role: 'user', content: 'Test' }] });
+        expect((mockedAxios.post.mock.calls[0][1] as any).max_tokens).toBe(8192);
+        await client.chat({ provider: provider(), stream: false, tools: [{ name: 'list_queues', description: 'List', inputSchema: {} }],
+            messages: [{ role: 'assistant', content: 'Previous', reasoning_content: 'internal continuation' }] });
+        expect((mockedAxios.post.mock.calls[1][1] as any).messages[0]).not.toHaveProperty('reasoning_content');
+    });
+
     it('preserves repeated braces and quotes in fragmented workflow arguments', async () => {
         const args = { title: 'Test route', steps: [{ id: 'route', tool: 'create_route',
             args: { context_uid: 7, pattern: '9876591', actions: [

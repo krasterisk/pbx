@@ -13,8 +13,17 @@ export const selectCcCalls = (state: RootState): ICall[] =>
 export const selectCcConnected = (state: RootState): boolean =>
   state.callCenter?.connected ?? false;
 
+export const selectCcLastEventAt = (state: RootState): number | null =>
+  state.callCenter?.lastEventAt ?? null;
+
+export const selectCcDisconnectedSince = (state: RootState): number | null =>
+  state.callCenter?.disconnectedSince ?? null;
+
 export const selectPendingOutboundDial = (state: RootState): string | null =>
   state.callCenter?.pendingOutboundDial ?? null;
+
+export const selectCcMonitorSession = (state: RootState) =>
+  state.callCenter?.monitorSession ?? null;
 
 export const selectMyAgentInterface = (state: RootState): string | null =>
   state.callCenter?.myAgentInterface ?? null;
@@ -50,4 +59,4 @@ export const selectTotalWaiting = (state: RootState): number =>
 
 /** Total available agents */
 export const selectAvailableAgents = (state: RootState): number =>
-  (state.callCenter?.agents ?? []).filter(a => a.status === 'READY').length;
+  (state.callCenter?.agents ?? []).filter(a => a.status === 'READY' && a.phoneOnline !== false).length;

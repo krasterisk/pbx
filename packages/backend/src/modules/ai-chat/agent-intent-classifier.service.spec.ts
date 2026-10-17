@@ -6,6 +6,14 @@ describe('AgentIntentClassifierService', () => {
   const registry = new AiAdapterRegistryService();
   const skills = new AgentSkillRegistryService(registry);
   const classifier = new AgentIntentClassifierService(skills);
+  it.each(['Почему кампания X не звонит?', 'Покажи стоп-лист', 'Добавь озвучку долга в сценарий обзвона'])(
+    'selects autodial for %s', (message) => {
+      expect(classifier.classify({ message }).domains).toContain('autodial');
+    },
+  );
+  it.each(['Измени описание шаблона карточки КЦ', 'Настрой редактор карточек звонка'])('selects call-center tools for %s', (message) => {
+    expect(classifier.classify({ message }).domains).toContain('callcenter');
+  });
   it('keeps route intent despite references to existing contexts, IVRs and subscribers', () => {
     const result = classifier.classify({ message: 'В контексте ctx-356 создай внутренний маршрут номера 700 в существующее IVR. Само меню и абонентов повторно не создавай.' });
     expect(result.skillNames[0]).toBe('routes');

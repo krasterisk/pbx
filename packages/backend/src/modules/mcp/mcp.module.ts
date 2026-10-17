@@ -32,6 +32,9 @@ import { ReportsCdrModule } from '../reports/cdr/reports-cdr.module';
 import { Context } from '../contexts/context.model';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
 import { LoggerModule } from '../logger/logger.module';
+import { AutodialIntegrationModule } from '../autodial-integration/autodial-integration.module';
+import { McpAutodialAuthGuard } from './mcp-autodial-auth.guard';
+import { McpAutodialCatalogService } from './mcp-autodial-catalog.service';
 
 /**
  * McpModule — MCP Server для KrAsterisk.
@@ -49,6 +52,7 @@ import { LoggerModule } from '../logger/logger.module';
  */
 @Module({
     imports: [
+        AutodialIntegrationModule,
         ConfigModule,
         IntegrationCredentialsModule,
         TimeGroupsModule,
@@ -70,6 +74,8 @@ import { LoggerModule } from '../logger/logger.module';
     ],
     controllers: [McpController, SupportController],
     providers: [
+        McpAutodialAuthGuard,
+        McpAutodialCatalogService,
         McpSessionService,
         SupportService,
         SupportAiAdapter,

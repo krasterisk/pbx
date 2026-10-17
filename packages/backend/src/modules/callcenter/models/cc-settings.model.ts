@@ -23,6 +23,13 @@ export class CcSettings extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 20 })
   declare default_sla_threshold: number;
 
+  /**
+   * R2: an abandon within this many seconds is a "short abandon" and is excluded from the
+   * offered denominator of SLA / answer / abandon rates. 0 disables the exclusion.
+   */
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 5 })
+  declare short_abandon_sec: number;
+
   /** D-04: softphone Journal tab depth (last N rows); admin-configurable, default 50. */
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 50 })
   declare journal_depth: number;
@@ -91,6 +98,10 @@ export class CcSettings extends Model {
   /** D-49: tenant callback order / DTMF / dial order. Window/attempts stay on the step. */
   @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
   declare callback_policy: ICallbackPolicy | null;
+
+  /** cc-ux U5.6: agent workspace hotkeys (action -> combo); NULL = built-in default set. */
+  @Column({ type: DataType.JSON, allowNull: true, defaultValue: null })
+  declare agent_hotkeys: Partial<Record<string, string>> | null;
 
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare updated_at: Date;

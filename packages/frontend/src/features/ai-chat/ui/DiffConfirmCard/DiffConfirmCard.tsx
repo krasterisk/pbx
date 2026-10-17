@@ -127,13 +127,9 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                 SETTLED_STATUSES.has(prev.status) &&
                 !SETTLED_STATUSES.has(proposal.status);
             const next = keepSettled ? prev : proposal;
-            setApplyError(
-                SETTLED_STATUSES.has(next.status)
-                    ? null
-                    : next.status === 'pending' || next.status === 'failed'
-                      ? next.error ?? null
-                      : null,
-            );
+            setApplyError((current) => SETTLED_STATUSES.has(next.status) ? null
+              : next.status === 'pending' || next.status === 'failed'
+                ? next.error ?? (prev.proposalId === next.proposalId ? current : null) : null);
             return next;
         });
     }, [proposal]);
@@ -161,6 +157,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
     const handleConfirm = async () => {
         if (busy || !showActions || confirmBlocked || inFlightRef.current) return;
         inFlightRef.current = true;
+        setApplyError(null);
         setLocalBusy(true);
         try {
             if (workflowId) {
@@ -198,6 +195,9 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                 return;
             }
             setApplyError(result.error ?? result.reason ?? result.proposal?.error ?? 'apply_failed');
+        } catch (error) {
+            const code = (error as { data?: { code?: string } })?.data?.code;
+            setApplyError(t(code === 'AC_INTERACTIVE_SESSION_REQUIRED' ? 'aiChat.card.interactiveRequired' : 'aiChat.card.requestFailed'));
         } finally {
             setSecureInputs({});
             inFlightRef.current = false;
@@ -229,6 +229,8 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                 setApplyError(null);
                 onSettled?.(result.proposal);
             }
+        } catch {
+            setApplyError(t('aiChat.card.requestFailed'));
         } finally {
             inFlightRef.current = false;
             setLocalBusy(false);
@@ -349,7 +351,7 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
                     <Button
                         type="button"
                         disabled={busy || confirmBlocked}
-                        title={t('aiChat.card.applyHint')}
+                        title={t(view.includesDialplanReload === false ? 'aiChat.card.applySettingsHint' : 'aiChat.card.applyHint')}
                         onClick={handleConfirm}
                     >
                         {applyError ? t('aiChat.card.retry') : t('aiChat.card.apply')}

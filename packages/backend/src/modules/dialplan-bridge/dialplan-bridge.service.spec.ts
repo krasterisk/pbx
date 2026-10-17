@@ -13,6 +13,7 @@ describe('DialplanBridgeService', () => {
   };
   const ivrTts = { synthesizeToBuffer: jest.fn() };
   const ttsCache = { writeWav: jest.fn() };
+  const prompts = { savePromptAudio: jest.fn().mockResolvedValue(undefined) };
   const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
   let service: DialplanBridgeService;
@@ -27,6 +28,8 @@ describe('DialplanBridgeService', () => {
       providers as any,
       ivrTts as any,
       ttsCache as any,
+      undefined as any,
+      prompts as any,
     );
     (service as any).logger = logger;
   });
@@ -85,6 +88,7 @@ describe('DialplanBridgeService', () => {
     await expect(
       service.tts({ text: 'hello', engine: '3', vpbx_user_uid: '42' }),
     ).resolves.toEqual({ status: 'ok', file: 'abc' });
+    expect(prompts.savePromptAudio).toHaveBeenCalledWith(42, 'abc', Buffer.from('RIFF'), '.wav');
 
     ivrTts.synthesizeToBuffer.mockRejectedValueOnce(new Error('engine down'));
     await expect(

@@ -20,6 +20,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run version:check
       - run: npm run lint
       - run: npm run test -w @krasterisk/shared -- --runInBand
       - run: npm run test -w @krasterisk/backend -- --runInBand

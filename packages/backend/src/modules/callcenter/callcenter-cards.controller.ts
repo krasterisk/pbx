@@ -19,6 +19,7 @@ import {
   UpdateCardTemplateDto,
   SaveCardDto,
   UpdateCardDto,
+  WrapupNoteDto,
 } from './dto/callcenter-cards.dto';
 import { assertSupervisor } from './callcenter-rbac.util';
 
@@ -38,6 +39,11 @@ export class CallCenterCardsController {
     @Req() req: Request & { user: any },
   ) {
     return this.cardsService.findTemplate(id, req.user.vpbx_user_uid);
+  }
+
+  @Get('card-templates/:id/fields/:key/choices')
+  fieldChoices(@Param('id', ParseIntPipe) id: number, @Param('key') key: string, @Req() req: Request & { user: any }) {
+    return this.cardsService.fieldChoices(id, key, req.user.vpbx_user_uid);
   }
 
   @Post('card-templates')
@@ -96,6 +102,14 @@ export class CallCenterCardsController {
     @Req() req: Request & { user: any },
   ) {
     return this.cardsService.findCard(id, req.user.vpbx_user_uid);
+  }
+
+  @Post('cards/wrapup-note')
+  attachWrapupNote(
+    @Body() dto: WrapupNoteDto,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.cardsService.attachWrapupNote(req.user.vpbx_user_uid, req.user.sub, dto);
   }
 
   @Post('cards')

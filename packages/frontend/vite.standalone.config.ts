@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { resolve } from 'path';
+import { appBuildDefines } from './app-build-defines';
 
 /**
  * Standalone build config for v3 integration.
@@ -22,6 +23,7 @@ export default defineConfig({
       '@krasterisk/shared': path.resolve(__dirname, '../shared/src'),
     },
   },
+  define: appBuildDefines(),
   build: {
     outDir: 'dist-standalone',
     emptyOutDir: true,

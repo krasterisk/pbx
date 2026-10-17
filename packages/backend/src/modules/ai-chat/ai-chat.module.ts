@@ -1,3 +1,5 @@
+import { HelpdeskChatController } from './helpdesk-chat.controller';
+import { HelpdeskChatService } from './helpdesk-chat.service';
 import { Module, forwardRef } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
@@ -75,8 +77,9 @@ import { NumberList } from '../numbers/number-list.model';
         AgentProposalsModule,
         forwardRef(() => McpModule),
     ],
-    controllers: [AiChatController, AgentUsageController, PlatformAiThreadsController],
+    controllers: [HelpdeskChatController, AiChatController, AgentUsageController, PlatformAiThreadsController],
     providers: [
+        HelpdeskChatService,
         AgentUsageService,
         PbxAgentLoopService,
         PbxContextBuilderService,

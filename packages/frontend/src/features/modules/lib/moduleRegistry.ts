@@ -183,6 +183,13 @@ export const BASELINE_MODULES: ModuleDef[] = [
     labelKey: 'nav.callcenter',
     pages: [
       {
+        id: 'cc-dashboard',
+        path: '/callcenter/dashboard',
+        labelKey: 'nav.ccDashboard',
+        icon: LayoutDashboard,
+        minLevels: CC_SUPERVISOR_LEVELS,
+      },
+      {
         id: 'cc-agent',
         path: '/callcenter/agent',
         labelKey: 'nav.operator',

@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS ac_ai_settings (
+  vpbx_user_uid INTEGER PRIMARY KEY,
+  allow_personal_data BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_by INTEGER NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

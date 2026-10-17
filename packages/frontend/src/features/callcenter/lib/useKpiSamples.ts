@@ -5,6 +5,7 @@ export interface KpiSnapshot {
   waiting: number;
   talking: number;
   freeAgents: number;
+  totalAgents?: number;
   sla: number;
   avgWait: number;
   abandoned: number;
@@ -19,6 +20,7 @@ export function sameKpiSnapshot(a: KpiSnapshot, b: KpiSnapshot): boolean {
   return a.waiting === b.waiting
     && a.talking === b.talking
     && a.freeAgents === b.freeAgents
+    && (a.totalAgents ?? 0) === (b.totalAgents ?? 0)
     && a.sla === b.sla
     && a.avgWait === b.avgWait
     && a.abandoned === b.abandoned

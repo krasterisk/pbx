@@ -1,5 +1,5 @@
 import type { AutodialSummaryRow } from '@/shared/api/endpoints/autodialApi';
-import { buildDispositionBreakdown, isoDate, isoDaysAgo, isoToday } from './reportRange';
+import { buildDispositionBreakdown, isoDate, isoDaysAgo, isoToday, previousReportPeriod } from './reportRange';
 
 function row(over: Partial<AutodialSummaryRow> = {}): AutodialSummaryRow {
   return {
@@ -37,6 +37,19 @@ describe('isoDate', () => {
 
   it('produces a range where the start is not after today', () => {
     expect(isoDaysAgo(6) <= isoToday()).toBe(true);
+  });
+});
+
+describe('previous report calendar period', () => {
+  it('uses the same inclusive number of days across month/year and daylight-saving boundaries', () => {
+    expect(previousReportPeriod('2026-10-11', '2026-10-17')).toEqual({ from: '2026-10-04', to: '2026-10-10' });
+    expect(previousReportPeriod('2026-01-01', '2026-01-01')).toEqual({ from: '2025-12-31', to: '2025-12-31' });
+    expect(previousReportPeriod('2026-03-29', '2026-03-30')).toEqual({ from: '2026-03-27', to: '2026-03-28' });
+  });
+  it('rejects rolled-over calendar dates, reversed and excessive periods', () => {
+    expect(previousReportPeriod('2026-02-30', '2026-03-03')).toBeUndefined();
+    expect(previousReportPeriod('2026-10-17', '2026-10-11')).toBeUndefined();
+    expect(previousReportPeriod('2025-01-01', '2026-10-17')).toBeUndefined();
   });
 });
 

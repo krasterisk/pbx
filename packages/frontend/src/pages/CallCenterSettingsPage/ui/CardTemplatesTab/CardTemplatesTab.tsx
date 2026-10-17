@@ -1,4 +1,6 @@
 import { TemplateBuilder } from "@/features/callcenter/ui/TemplateBuilder";
+import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
+import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import {
   useDeleteCardTemplateMutation,
   useGetCardTemplatesQuery,
@@ -27,9 +29,12 @@ type ViewMode = "list" | "create" | "edit";
 
 export function CardTemplatesTab() {
   const { t } = useTranslation();
+  const { data: queues = [] } = useGetQueuesQuery();
   const {
     data: templates = [],
     isLoading,
+    isError,
+    error,
     refetch,
   } = useGetCardTemplatesQuery();
   const [deleteTemplate] = useDeleteCardTemplateMutation();
@@ -74,6 +79,13 @@ export function CardTemplatesTab() {
   if (mode === "edit" && editId) {
     return <TemplateBuilder templateId={editId} onDone={handleDone} />;
   }
+
+  if (isError) return (
+    <VStack gap="16" className="w-full" role="alert" data-error-status={error && 'status' in error ? String(error.status) : undefined}>
+      <Text>{t('callcenter.cards.builder.loadError', 'Could not load card templates. Try again.')}</Text>
+      <Button onClick={() => void refetch()}>{t('common.retry', 'Retry')}</Button>
+    </VStack>
+  );
 
   return (
     <VStack gap="16" className="w-full">
@@ -146,7 +158,7 @@ export function CardTemplatesTab() {
                   </Badge>
                   {(tpl.queue_names ?? []).map((q) => (
                     <Badge key={q} variant="secondary">
-                      {q}
+                      {queueDisplayName(q, queues.map(queue => ({ name: queue.name, displayName: queue.display_name ?? "", exten: queue.exten })))}
                     </Badge>
                   ))}
                 </HStack>

@@ -12,6 +12,8 @@ import { AgentWorkflow, AgentWorkflowStep } from './models/agent-workflow.model'
 import { PbxAgentDiffService } from './pbx-agent-diff.service';
 import { PbxWorkflowCompilerService } from './pbx-workflow-compiler.service';
 import { PbxWorkflowRunnerService } from './pbx-workflow-runner.service';
+import { InteractiveSessionModule } from '../auth/interactive-session.module';
+import { AutodialInteractiveGuard } from './autodial-interactive.guard';
 
 /**
  * Confirming a card resolves its write through the adapter registry, so this
@@ -21,13 +23,14 @@ import { PbxWorkflowRunnerService } from './pbx-workflow-runner.service';
  */
 @Module({
   imports: [
+    InteractiveSessionModule,
     SequelizeModule.forFeature([AgentProposal, AgentThread, AgentWorkflow, AgentWorkflowStep, CcAiAuditLog]),
     RoutesModule,
     LoggerModule,
     AiPlatformModule,
   ],
   controllers: [AgentProposalsController, AgentWorkflowsController],
-  providers: [PbxAgentDiffService, PbxWorkflowCompilerService, PbxWorkflowRunnerService],
+  providers: [PbxAgentDiffService, PbxWorkflowCompilerService, PbxWorkflowRunnerService, AutodialInteractiveGuard],
   exports: [PbxAgentDiffService, PbxWorkflowCompilerService, PbxWorkflowRunnerService],
 })
 export class AgentProposalsModule {}

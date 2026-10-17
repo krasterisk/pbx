@@ -8,8 +8,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('@/shared/hooks/useAppStore', () => ({ useAppDispatch: () => mocks.dispatch }));
 vi.mock('@/shared/api/endpoints/autodialApi', () => ({
+  useGetAutodialMonitorQuery: () => ({ data: [] }),
   useGetAutodialCampaignsQuery: () => ({
     data: [{ uid: 11, name: 'Renewal', status: 'stopped', dial_mode: 'agentless', base_uid: 2, queue_names: [] }],
     isLoading: false, isError: false, refetch: vi.fn(),

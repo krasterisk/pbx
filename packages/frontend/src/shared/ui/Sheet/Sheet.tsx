@@ -29,20 +29,30 @@ type SheetSide = 'left' | 'right' | 'bottom';
 export type SheetContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   side?: SheetSide;
   hideClose?: boolean;
+  /** When false, omits the backdrop overlay so underlying workspace remains interactive (U1.3). */
+  overlay?: boolean;
 };
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
->(({ className, children, side = 'right', hideClose = false, style, ...props }, ref) => {
+>(({ className, children, side = 'right', hideClose = false, overlay = true, style, onInteractOutside, ...props }, ref) => {
   const { t } = useTranslation();
   return (
   <SheetPortal>
-    <SheetOverlay className={side === 'bottom' ? 'bg-black/40' : undefined} />
+    {overlay ? (
+      <SheetOverlay className={side === 'bottom' ? 'bg-black/40' : undefined} data-testid="sheet-overlay" />
+    ) : null}
     <DialogPrimitive.Content
       ref={ref}
       data-modal-shell
       data-side={side}
+      onInteractOutside={(e) => {
+        if (!overlay) {
+          e.preventDefault();
+        }
+        onInteractOutside?.(e);
+      }}
       className={cn(
         'layer-modal border-border bg-card p-6 shadow-md duration-200',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',

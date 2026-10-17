@@ -18,7 +18,9 @@ export function CallQualityIndicator({ quality }: CallQualityIndicatorProps) {
   const level = Math.max(0, Math.min(4, quality.level || 0));
 
   const label =
-    level >= 3
+    level === 0
+      ? t('callcenter.softphone.qualityPending')
+      : level >= 3
       ? t('callcenter.softphone.qualityGood')
       : level === 2
         ? t('callcenter.softphone.qualityDegraded')
@@ -27,17 +29,17 @@ export function CallQualityIndicator({ quality }: CallQualityIndicatorProps) {
   const tooltip = (
     <div className={styles.tooltip}>
       <div>{t('callcenter.softphone.quality')}: {label}</div>
-      <div>{t('callcenter.softphone.mos')}: {quality.mos.toFixed(1)}</div>
+      {level > 0 && <><div>{t('callcenter.softphone.mos')}: {quality.mos.toFixed(1)}</div>
       <div>{t('callcenter.softphone.jitter')}: {quality.jitterMs} ms</div>
       <div>{t('callcenter.softphone.rtt')}: {quality.rttMs} ms</div>
-      <div>{t('callcenter.softphone.loss')}: {quality.lossPct}%</div>
+      <div>{t('callcenter.softphone.loss')}: {quality.lossPct}%</div></>}
     </div>
   );
 
   return (
     <Tooltip content={tooltip} side="bottom">
       <div
-        className={`${styles.root} ${toneClass(level)}`}
+        className={`${styles.root} ${level === 0 ? '' : toneClass(level)}`}
         role="img"
         aria-label={`${t('callcenter.softphone.quality')}: ${label}`}
       >

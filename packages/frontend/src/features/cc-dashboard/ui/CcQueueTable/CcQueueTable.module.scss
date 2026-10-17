@@ -1,0 +1,30 @@
+.name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cell {
+  font-variant-numeric: tabular-nums;
+}
+
+.tone_success,
+.delta_success {
+  color: var(--color-success);
+}
+
+.tone_warning {
+  color: var(--color-warning);
+}
+
+.tone_destructive,
+.delta_destructive {
+  color: var(--color-destructive);
+}
+
+.tone_default {
+  color: var(--color-foreground);
+}
+
+.delta_default {
+  color: var(--color-muted-foreground);
+}

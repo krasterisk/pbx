@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, Transaction } from 'sequelize';
+import { Op, QueryTypes, Transaction } from 'sequelize';
 import type { AutodialDisposition, IAutodialRetryConfig } from '@krasterisk/shared';
 import { AcAttempt } from './models/ac-attempt.model';
 import { AcTask } from './models/ac-task.model';
@@ -8,6 +8,8 @@ import { AcCampaign } from './models/ac-campaign.model';
 import { decideRetry } from './autodial-disposition.util';
 import { isAbandonedOutcome } from './autodial-predictive.util';
 import { AutodialStateService } from './autodial-state.service';
+import { normalizeAutodialPhone } from './autodial-phone.util';
+import { AutodialWebhooksService } from './autodial-webhooks.service';
 
 export interface FinalizeAttemptInput {
   attemptUid: number;
@@ -38,6 +40,7 @@ export class AutodialAttemptService {
     @InjectModel(AcTask) private readonly taskModel: typeof AcTask,
     @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
     private readonly state: AutodialStateService,
+    @Optional() private readonly webhooks?: AutodialWebhooksService,
   ) {}
 
   /**
@@ -54,6 +57,7 @@ export class AutodialAttemptService {
    * event still leaves a row the reconciler can close.
    */
   async openAttempt(params: {
+    tourNo?: number;
     userUid: number;
     taskUid: number;
     campaignUid: number;
@@ -67,6 +71,7 @@ export class AutodialAttemptService {
       task_uid: params.taskUid,
       campaign_uid: params.campaignUid,
       attempt_no: params.attemptNo,
+      tour_no: params.tourNo ?? 1,
       started_at: new Date(),
       disposition: 'dialing',
       channel_id: params.channelId,
@@ -80,11 +85,25 @@ export class AutodialAttemptService {
    * for an already-closed attempt is ignored, because ARI ChannelDestroyed and
    * the dialplan hangup handler both report the same call.
    */
-  async finalize(input: FinalizeAttemptInput): Promise<void> {
-    const attempt = await this.attemptModel.findByPk(input.attemptUid);
+  async finalize(input: FinalizeAttemptInput): Promise<AutodialDisposition | null> {
+    return this.withTaskLock(input.attemptUid, (transaction) => this.finalizeLocked(input, transaction));
+  }
+
+  private async withTaskLock<T>(attemptUid: number, callback: (transaction?: Transaction) => Promise<T>): Promise<T> {
+    const db = this.attemptModel.sequelize;
+    if (!db) return callback(); // Model-only unit fixtures; runtime models always have a connection.
+    return db.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED }, async (transaction) => {
+      const attempt = await this.attemptModel.findByPk(attemptUid, { transaction });
+      if (attempt) await this.taskModel.findByPk(attempt.task_uid, { transaction, lock: transaction.LOCK.UPDATE });
+      return callback(transaction);
+    });
+  }
+
+  private async finalizeLocked(input: FinalizeAttemptInput, transaction?: Transaction): Promise<AutodialDisposition | null> {
+    const attempt = await this.attemptModel.findByPk(input.attemptUid, transaction ? { transaction, lock: transaction.LOCK.UPDATE } : undefined);
     if (!attempt) {
       this.logger.warn(`finalize: attempt ${input.attemptUid} not found`);
-      return;
+      return null;
     }
     const now = new Date();
     const disposition: AutodialDisposition =
@@ -100,7 +119,9 @@ export class AutodialAttemptService {
     };
     if (input.answeredAt !== undefined) patch.answered_at = input.answeredAt;
     if (input.hangupCause !== undefined) patch.hangup_cause = input.hangupCause;
-    if (input.billsec !== undefined) patch.billsec = input.billsec;
+    // Once the dialplan has reported CDR facts, ARI's rounded wall time is only
+    // a fallback. Callback-first and callback-last must produce the same value.
+    if (input.billsec !== undefined && attempt.scenario_result == null) patch.billsec = input.billsec;
     if (input.amdResult !== undefined) patch.amd_result = input.amdResult;
     if (input.queueName !== undefined) patch.queue_name = input.queueName;
     if (input.agentInterface !== undefined) patch.agent_interface = input.agentInterface;
@@ -113,11 +134,15 @@ export class AutodialAttemptService {
     // that atomically moves `dialing` to a terminal disposition advances task.
     const [updated] = await this.attemptModel.update(patch, {
       where: { uid: attempt.uid, disposition: 'dialing' },
+      ...(transaction ? { transaction } : {}),
     });
-    if (!updated) return;
+    if (!updated) return (await this.attemptModel.findByPk(attempt.uid))?.disposition ?? null;
 
     this.recordPredictiveOutcome(attempt, { ...input, disposition });
-    await this.advanceTask(attempt.task_uid, disposition, input.hangupCause ?? null);
+    if (transaction) await this.advanceTask(attempt.task_uid, disposition, input.hangupCause ?? null, transaction);
+    else await this.advanceTask(attempt.task_uid, disposition, input.hangupCause ?? null);
+    if (transaction) await this.webhooks?.enqueueAttempt(attempt.user_uid, attempt.uid, transaction);
+    return disposition;
   }
 
   /**
@@ -131,6 +156,22 @@ export class AutodialAttemptService {
     attemptUid: number,
     outcome: 'hangup' | 'voicemail' = 'hangup',
   ): Promise<void> {
+    if (this.attemptModel.sequelize) {
+      await this.withTaskLock(attemptUid, async (transaction) => {
+        const attempt = await this.attemptModel.findByPk(attemptUid, { transaction, lock: transaction!.LOCK.UPDATE });
+        if (!attempt) return;
+        const disposition = outcome === 'voicemail' ? 'voicemail' : 'amd_machine';
+        await attempt.update({ amd_result: outcome === 'voicemail' ? 'VOICEMAIL' : 'MACHINE',
+          ...(attempt.disposition === 'dialing' ? {} : { disposition }) }, { transaction });
+        if (attempt.disposition === 'dialing') return;
+        const latest = await this.attemptModel.max('uid', { where: { task_uid: attempt.task_uid }, transaction });
+        const task = await this.taskModel.findByPk(attempt.task_uid, { transaction });
+        if (Number(latest) === attempt.uid && task && task.status !== 'cancelled')
+          await this.advanceTask(attempt.task_uid, disposition, attempt.hangup_cause, transaction);
+        await this.webhooks?.enqueueAttempt(attempt.user_uid, attempt.uid, transaction!);
+      });
+      return;
+    }
     await this.attemptModel.update(
       { amd_result: outcome === 'voicemail' ? 'VOICEMAIL' : 'MACHINE' },
       { where: { uid: attemptUid, disposition: 'dialing' } },
@@ -158,6 +199,7 @@ export class AutodialAttemptService {
    * leave either a live attempt without a task transition or vice versa.
    */
   async claimAndOpenAttempt(params: {
+    tourNo?: number;
     userUid: number;
     taskUid: number;
     campaignUid: number;
@@ -167,6 +209,7 @@ export class AutodialAttemptService {
     trunkId: string;
     callerId: string | null;
     leaseId: string;
+    normalizedPhone?: string;
     gate?: () => Promise<'ok' | 'dnc'>;
   }): Promise<AcAttempt | null> {
     const sequelize = this.taskModel.sequelize;
@@ -175,6 +218,28 @@ export class AutodialAttemptService {
     return sequelize.transaction(
       { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
       async (transaction) => {
+      if (params.normalizedPhone) {
+        // Every campaign/worker for a tenant locks the same existing phone row.
+        // No process-local mutex and no policy that forbids legitimate duplicate contacts.
+        const replacements = { userUid: params.userUid, phone: normalizeAutodialPhone(params.normalizedPhone) };
+        const anchors = await sequelize.query<{ uid: number }>(`
+          SELECT p.uid FROM ac_contact_phones p JOIN ac_contacts c ON c.uid = p.contact_uid
+          WHERE c.vpbx_user_uid = :userUid AND p.canonical_phone = :phone ORDER BY p.uid LIMIT 1`,
+        { replacements, transaction, type: QueryTypes.SELECT });
+        if (!anchors.length) return null;
+        const locked = await sequelize.query<{ uid: number }>(
+          'SELECT uid FROM ac_contact_phones WHERE uid = :uid FOR UPDATE',
+          { replacements: { uid: anchors[0].uid }, transaction, type: QueryTypes.SELECT },
+        );
+        if (!locked.length) return null;
+        const active = await sequelize.query<{ uid: number }>(`
+          SELECT a.uid FROM ac_attempts a JOIN ac_tasks t ON t.uid = a.task_uid
+          JOIN ac_contact_phones p ON p.uid = t.phone_uid
+          WHERE a.vpbx_user_uid = :userUid AND p.canonical_phone = :phone
+            AND a.disposition = 'dialing' LIMIT 1`,
+        { replacements, transaction, type: QueryTypes.SELECT });
+        if (active.length) return null;
+      }
       const [claimed] = await this.taskModel.update(
         {
           status: 'dialing',
@@ -212,6 +277,7 @@ export class AutodialAttemptService {
         task_uid: params.taskUid,
         campaign_uid: params.campaignUid,
         attempt_no: params.attemptNo,
+        tour_no: params.tourNo ?? 1,
         started_at: new Date(),
         disposition: 'dialing',
         channel_id: params.channelId,
@@ -252,10 +318,11 @@ export class AutodialAttemptService {
       scenarioResult?: Record<string, unknown> | null;
     },
   ): Promise<void> {
-    const attempt = await this.attemptModel.findByPk(attemptUid);
+    await this.withTaskLock(attemptUid, async (transaction) => {
+    const attempt = await this.attemptModel.findByPk(attemptUid, transaction ? { transaction, lock: transaction.LOCK.UPDATE } : undefined);
     if (!attempt) return;
     await attempt.update({
-      amd_result: data.amdResult ?? attempt.amd_result,
+      amd_result: attempt.amd_result === 'VOICEMAIL' ? 'VOICEMAIL' : data.amdResult ?? attempt.amd_result,
       queue_name: data.queueName ?? attempt.queue_name,
       agent_interface: data.agentInterface ?? attempt.agent_interface,
       billsec: data.billsec ?? attempt.billsec,
@@ -263,6 +330,8 @@ export class AutodialAttemptService {
       uniqueid: data.uniqueid ?? attempt.uniqueid,
       linkedid: data.linkedid ?? attempt.linkedid,
       scenario_result: data.scenarioResult ?? attempt.scenario_result,
+    }, transaction ? { transaction } : undefined);
+    if (transaction && attempt.ended_at) await this.webhooks?.enqueueAttempt(attempt.user_uid, attempt.uid, transaction);
     });
   }
 
@@ -270,11 +339,12 @@ export class AutodialAttemptService {
     taskUid: number,
     disposition: AutodialDisposition,
     cause: string | null,
+    transaction?: Transaction,
   ): Promise<void> {
-    const task = await this.taskModel.findByPk(taskUid);
+    const task = await this.taskModel.findByPk(taskUid, transaction ? { transaction } : undefined);
     if (!task) return;
 
-    const retryConfig = await this.retryConfigFor(task.campaign_uid);
+    const retryConfig = await this.retryConfigFor(task.campaign_uid, transaction);
     const decision = decideRetry({
       disposition,
       attemptCount: task.attempt_count,
@@ -289,11 +359,11 @@ export class AutodialAttemptService {
       next_attempt_at: decision.nextAttemptAt ?? null,
       leased_by: null,
       leased_at: null,
-    });
+    }, transaction ? { transaction } : undefined);
   }
 
-  private async retryConfigFor(campaignUid: number): Promise<IAutodialRetryConfig> {
-    const campaign = await this.campaignModel.findByPk(campaignUid, { attributes: ['retry'] });
+  private async retryConfigFor(campaignUid: number, transaction?: Transaction): Promise<IAutodialRetryConfig> {
+    const campaign = await this.campaignModel.findByPk(campaignUid, { attributes: ['retry'], ...(transaction ? { transaction } : {}) });
     return (
       campaign?.retry ?? { max_attempts: 3, default_interval_sec: 3600, intervals_sec: {} }
     );

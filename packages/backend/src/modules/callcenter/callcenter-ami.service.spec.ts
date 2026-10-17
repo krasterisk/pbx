@@ -16,9 +16,10 @@ function flushMicrotasks(): Promise<void> {
 describe('CallCenterAmiService', () => {
   let state: CallCenterStateService;
   let service: CallCenterAmiService;
-  let historyWriter: { enqueue: jest.Mock };
+  let historyWriter: { enqueue: jest.Mock; enqueueOffer: jest.Mock };
   let metricsService: {
     recordAnswered: jest.Mock;
+    recordAnsweredDirect: jest.Mock;
     recordAbandoned: jest.Mock;
     recordAgentStatus: jest.Mock;
     recordMade: jest.Mock;
@@ -31,10 +32,12 @@ describe('CallCenterAmiService', () => {
 
   // The minimum AMI / model surface that handlers touch
   const fakeAmi: any = {
+    action: jest.fn().mockResolvedValue({ response: 'Success' }),
     isConnected: () => false,
     queueStatus: jest.fn(),
     collectQueueMembers: jest.fn().mockResolvedValue({ members: [], complete: true }),
     getActiveChannels: jest.fn().mockResolvedValue({ events: [] }),
+    hangup: jest.fn().mockResolvedValue(undefined),
   };
   const queueModel: any = {
     findAll: jest.fn().mockResolvedValue([]),
@@ -66,8 +69,9 @@ describe('CallCenterAmiService', () => {
   });
 
   beforeEach(() => {
+    fakeAmi.action.mockReset().mockResolvedValue({ response: 'Success' });
     state = new CallCenterStateService();
-    historyWriter = { enqueue: jest.fn() };
+    historyWriter = { enqueue: jest.fn(), enqueueOffer: jest.fn() };
     agentEventModel.create.mockClear();
     agentEventModel.update.mockClear();
     autoPauseService.evaluateRonaOnAbandon.mockClear();
@@ -79,6 +83,7 @@ describe('CallCenterAmiService', () => {
     agentSessionModel = { findOne: jest.fn().mockResolvedValue(null) };
     metricsService = {
       recordAnswered: jest.fn(),
+      recordAnsweredDirect: jest.fn(),
       recordAbandoned: jest.fn(),
       recordAgentStatus: jest.fn(),
       recordMade: jest.fn(),
@@ -108,6 +113,69 @@ describe('CallCenterAmiService', () => {
       agentSessionModel as any,
       moduleRef,
     );
+  });
+
+  describe('manual queue pickup', () => {
+    beforeEach(() => {
+      state.setAgent(7, 'PJSIP/203', { userId: 42, queues: ['sales_7'], status: 'RINGING', currentCall: 'pick', wrapupTimeout: 0 });
+      state.setCall('pick', { userUid: 7, queue: 'sales_7', callerIdNum: '204', callerChannel: 'Local/client;1',
+        status: 'RINGING', agent: 'PJSIP/203', enterTime: new Date(Date.now() - 5000),
+        pickup: { actionId: 'pickup-action', channelId: 'pickup-leg' } });
+    });
+    const bind = () => service.handleNewchannel({ uniqueid: 'pickup-leg', channel: 'PJSIP/203-01' });
+    const connect = () => {
+      bind();
+      service.handlePickupBridgeEnter({ channel: 'Local/client;1', bridgeuniqueid: 'bridge' });
+      service.handlePickupBridgeEnter({ channel: 'PJSIP/203-01', bridgeuniqueid: 'bridge' });
+    };
+    it('retains the queue identity during leave/abandon and does not invent a personal call', () => {
+      bind();
+      service.handleCallerLeave({ queue: 'sales_7', uniqueid: 'pick' });
+      service.handleCallerAbandon({ queue: 'sales_7', uniqueid: 'pick' });
+      expect(state.getCall('pick')).toMatchObject({ queue: 'sales_7', callerIdNum: '204', agentChannel: 'PJSIP/203-01' });
+      expect(historyWriter.enqueue).not.toHaveBeenCalled();
+      expect(metricsService.recordAbandoned).not.toHaveBeenCalled();
+    });
+    it('requires both real legs in one bridge before answering and tolerates duplicate events', () => {
+      bind();
+      service.handlePickupBridgeEnter({ channel: 'PJSIP/203-01', bridgeuniqueid: 'other' });
+      service.handlePickupBridgeEnter({ channel: 'Local/client;1', bridgeuniqueid: 'bridge' });
+      expect(state.getCall('pick')?.answerTime).toBeUndefined();
+      service.handlePickupBridgeEnter({ channel: 'PJSIP/203-01', bridgeuniqueid: 'bridge' });
+      const answerTime = state.getCall('pick')?.answerTime;
+      service.handlePickupBridgeEnter({ channel: 'PJSIP/203-01', bridgeuniqueid: 'bridge' });
+      expect(state.getCall('pick')).toMatchObject({ status: 'TALKING', callerIdNum: '204', queue: 'sales_7', answerTime });
+      expect(state.getAgent(7, 'PJSIP/203')).toMatchObject({ status: 'IN_CALL', currentCall: 'pick' });
+    });
+    it('writes exactly one answered inbound history row with real wait/talk and releases the agent', () => {
+      connect();
+      state.setCall('pick', { answerTime: new Date(Date.now() - 2000) });
+      service.handleAgentHangup({ channel: 'PJSIP/203-01' });
+      service.handleAgentHangup({ channel: 'Local/client;1' });
+      expect(historyWriter.enqueue).toHaveBeenCalledTimes(1);
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(expect.objectContaining({ call_uniqueid: 'pick', queue_name: 'sales_7',
+        caller_id_num: '204', direction: 'inbound', disposition: 'answered', talk_time: 2 }));
+      expect(metricsService.recordAnswered).toHaveBeenCalledTimes(1);
+      expect(metricsService.recordAbandoned).not.toHaveBeenCalled();
+      expect(state.getAgent(7, 'PJSIP/203')).toMatchObject({ status: 'READY', callsTaken: 1 });
+      expect(state.getCall('pick')).toBeUndefined();
+    });
+    it('returns a no-answer/busy attempt to the waiting queue without counting an answer', () => {
+      service.handlePickupOriginateResponse({ actionid: 'pickup-action', response: 'Failure' });
+      expect(state.getCall('pick')).toMatchObject({ status: 'WAITING', pickup: undefined, agent: undefined });
+      expect(state.getAgent(7, 'PJSIP/203')).toMatchObject({ status: 'READY', currentCall: undefined });
+      expect(historyWriter.enqueue).not.toHaveBeenCalled();
+    });
+    it('ignores unrelated originate failures', () => {
+      service.handlePickupOriginateResponse({ response: 'Failure' });
+      service.handlePickupOriginateResponse({ actionid: 'other', response: 'Failure' });
+      expect(state.getCall('pick')?.pickup?.actionId).toBe('pickup-action');
+    });
+    it('does not call a pending pickup answered on a device-status update', () => {
+      service.handleAgentStatusEvent({ queue: 'sales_7', interface: 'PJSIP/203', status: '2' });
+      expect(state.getAgent(7, 'PJSIP/203')?.status).toBe('RINGING');
+      expect(state.getCall('pick')?.answerTime).toBeUndefined();
+    });
   });
 
   // ─── Status mapping ─────────────────────────────────────
@@ -206,6 +274,13 @@ describe('CallCenterAmiService', () => {
   });
 
   describe('handleAgentConnect', () => {
+    it('maps modern app_queue caller Channel and member DestChannel without reversing call controls', () => {
+      service.handleCallerJoin({ queue: 'sales_7', uniqueid: 'CALLER-modern', calleridnum: '202', channel: 'PJSIP/e202_7-01' });
+      service.handleAgentConnect({ queue: 'sales_7', uniqueid: 'CALLER-modern', destuniqueid: 'AGENT-modern', interface: 'PJSIP/203', channel: 'PJSIP/e202_7-01', destchannel: 'PJSIP/203-02', holdtime: '2' });
+      expect(state.getCall('CALLER-modern')).toMatchObject({ callerChannel: 'PJSIP/e202_7-01', agentChannel: 'PJSIP/203-02', callerIdNum: '202', status: 'TALKING' });
+      expect(state.getCall('AGENT-modern')).toBeUndefined();
+      expect(state.getAgent(7, 'PJSIP/203')?.currentCall).toBe('CALLER-modern');
+    });
     it('moves the call to TALKING and the agent to IN_CALL', () => {
       // Seed a waiting call
       service.handleCallerJoin({
@@ -581,6 +656,17 @@ describe('CallCenterAmiService', () => {
       expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('OUTBOUND_WORK');
     });
 
+    it('does not replace an active outbound leg with queue pause status', () => {
+      state.setAgent(0, 'PJSIP/ew112_0', {
+        name: 'Op', status: 'DIALING', dialTarget: '203', userId: 58,
+      });
+      service.handleAgentStatusEvent({
+        queue: 'q700_0', interface: 'PJSIP/ew112_0', status: '2',
+        paused: '1', pausedreason: 'outbound_work',
+      });
+      expect(state.getAgent(0, 'PJSIP/ew112_0')?.status).toBe('DIALING');
+    });
+
     it('keeps panel READY when AMI reports pause — Asterisk is healed to match', async () => {
       fakeAmi.isConnected = () => true;
       fakeAmi.queuePause = jest.fn().mockResolvedValue(undefined);
@@ -767,11 +853,13 @@ describe('CallCenterAmiService', () => {
 
     it('transitions to WRAPUP when wrapupTimeout>0 and auto-expires after timeout', () => {
       jest.useFakeTimers();
-      state.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'IN_CALL', currentCall: 'U1', callsTaken: 1, wrapupTimeout: 30 });
+      state.setAgent(7, 'PJSIP/101', { name: 'Alice', userId: 42, status: 'IN_CALL', currentCall: 'U1', callsTaken: 1, wrapupTimeout: 30 });
       state.setCall('U1', { userUid: 7, queue: 'sales_7', status: 'TALKING', answerTime: new Date() });
 
       service.handleAgentComplete({ queue: 'sales_7', destuniqueid: 'U1', interface: 'PJSIP/101' });
 
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('WRAPUP');
+      service.handleAgentStatusEvent({ queue: 'sales_7', interface: 'PJSIP/101', status: '1', paused: '0' });
       expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('WRAPUP');
       jest.advanceTimersByTime(30_000);
       expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('READY');
@@ -924,6 +1012,17 @@ describe('CallCenterAmiService', () => {
 
       expect(metricsService.recordMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', 'sales_7');
       expect(state.getAgent(7, 'PJSIP/e101_42')?.callsMissed).toBe(1);
+      // RNA is an agent offer, never a queue-call row (it would corrupt queue aggregates).
+      expect(historyWriter.enqueue).not.toHaveBeenCalled();
+      expect(historyWriter.enqueueOffer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queue_name: 'sales_7',
+          agent_interface: 'PJSIP/e101_42',
+          agent_user_uid: 42,
+          outcome: 'rna',
+          user_uid: 7,
+        }),
+      );
       await flushMicrotasks();
       expect(autoPauseService.evaluateOnMissed).toHaveBeenCalledWith(7, 'PJSIP/e101_42', ['sales_7']);
       expect(autoPauseService.evaluateRonaForAgent).toHaveBeenCalledWith(7, 'PJSIP/e101_42', ['sales_7']);
@@ -931,6 +1030,40 @@ describe('CallCenterAmiService', () => {
   });
 
   describe('handleHold / handleUnhold', () => {
+    it('does not turn a parking list reply into another invalidation event', () => {
+      state.setCall('PARK1', { userUid: 7, queue: 'sales_7', callerChannel: 'PJSIP/caller-1', status: 'TALKING' });
+      const emit = jest.spyOn(state, 'emitEvent');
+      service.handleParkedCall({ actionid: 'list-request', parkeechannel: 'PJSIP/caller-1', parkingspace: '701' });
+      expect(state.getCall('PARK1')?.status).toBe('TALKING');
+      expect(emit).not.toHaveBeenCalled();
+    });
+    it('rebinds a retrieved parked caller, clears hold and completes its history once', () => {
+      state.setAgent(7, 'PJSIP/203', { name: 'Agent', userId: 42, status: 'READY' });
+      state.setCall('PARK1', { userUid: 7, queue: 'sales_7', status: 'TALKING',
+        agent: 'PJSIP/203', callerChannel: 'PJSIP/caller-1', agentChannel: 'PJSIP/203-old',
+        callerIdNum: '202', enterTime: new Date(Date.now() - 20000), answerTime: new Date(Date.now() - 15000) });
+      service.handleParkedCall({ parkeechannel: 'PJSIP/caller-1', parkingspace: '701' });
+      service.handleAgentHangup({ channel: 'PJSIP/203-old' });
+      expect(state.getCall('PARK1')?.status).toBe('HOLD');
+      service.handleUnParkedCall({ parkeechannel: 'PJSIP/caller-1', retrieverchannel: 'PJSIP/203-new', parkingspace: '701' });
+      expect(state.getCall('PARK1')).toMatchObject({ status: 'TALKING', agentChannel: 'PJSIP/203-new' });
+      expect(state.getAgent(7, 'PJSIP/203')).toMatchObject({ status: 'IN_CALL', currentCall: 'PARK1' });
+      service.handleAgentHangup({ channel: 'PJSIP/caller-1' });
+      service.handleAgentHangup({ channel: 'PJSIP/caller-1' });
+      expect(state.getCall('PARK1')).toBeUndefined();
+      expect(historyWriter.enqueue).toHaveBeenCalledTimes(1);
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(expect.objectContaining({ call_uniqueid: 'PARK1', disposition: 'answered' }));
+    });
+
+    it('does not bind a parked caller to a retriever from another tenant', () => {
+      state.setAgent(8, 'PJSIP/203', { name: 'Other', userId: 43, status: 'READY' });
+      state.setCall('PARK1', { userUid: 7, queue: 'sales_7', callerChannel: 'PJSIP/caller-1', status: 'TALKING' });
+      service.handleParkedCall({ parkeechannel: 'PJSIP/caller-1' });
+      service.handleUnParkedCall({ parkeechannel: 'PJSIP/caller-1', retrieverchannel: 'PJSIP/203-new' });
+      expect(state.getCall('PARK1')?.status).toBe('HOLD');
+      expect(state.getAgent(8, 'PJSIP/203')?.currentCall).toBeUndefined();
+    });
+
     it('toggles call status between HOLD and TALKING when channel matches', () => {
       state.setCall('U1', {
         userUid: 7,
@@ -1086,6 +1219,17 @@ describe('CallCenterAmiService', () => {
   });
 
   describe('handleNewchannel / handleAgentHangup — personal direct ring (D-08/D-10)', () => {
+    it.each([false, true])('preserves a manual pause across an answered=%s personal call', answered => {
+      state.setAgent(7, 'PJSIP/101', { userId: 42, status: 'PAUSED', statusOrigin: 'manual', pauseReason: 'Break', queues: ['sales_7'] });
+      service.handleAgentStatusEvent({ queue: 'sales_7', interface: 'PJSIP/101', status: '6', paused: '0' });
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('PAUSED');
+      service.handleNewchannel({ channel: 'PJSIP/101-abc', uniqueid: 'personal.paused', calleridnum: '202', channelstatedesc: 'Ringing' });
+      expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('RINGING');
+      service.handleDialBegin({ channel: 'PJSIP/external-abc', destchannel: 'PJSIP/101-abc', destuniqueid: 'personal.paused', calleridnum: '202' });
+      if (answered) service.handleAgentStatusEvent({ queue: 'sales_7', interface: 'PJSIP/101', status: '2', paused: '1' });
+      service.handleAgentHangup({ channel: 'PJSIP/101-abc' });
+      expect(state.getAgent(7, 'PJSIP/101')).toMatchObject({ status: 'PAUSED', pauseReason: 'Break', statusOrigin: 'manual' });
+    });
     it('marks a READY agent RINGING on a ringing Newchannel and records a personal missed on hangup', async () => {
       state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
 
@@ -1271,6 +1415,40 @@ describe('CallCenterAmiService', () => {
   // ─── Non-queue call history (D-34/D-35) ────────────────
 
   describe('non-queue call history rows (D-34/D-35)', () => {
+    it('keeps an unanswered outbound dial across QueueStatus polling and records NOANSWER', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005', destcalleridnum: '202', uniqueid: 'POLL-DIAL' });
+      (service as any).applyQueueMembers(
+        [{ queue: 'q700_7', interface: 'PJSIP/e101_42', status: '2', paused: '0' }],
+        new Map([['q700_7', { userUid: 7, displayName: 'Sales' }]]),
+      );
+      expect(state.getAgent(7, 'PJSIP/e101_42')?.status).toBe('DIALING');
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'NOANSWER' });
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000005' });
+      expect(historyWriter.enqueue).toHaveBeenCalledTimes(1);
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+        call_uniqueid: 'POLL-DIAL', disposition: 'timeout', talk_time: 0,
+      }));
+      expect(metricsService.recordMade).not.toHaveBeenCalled();
+    });
+
+    it('accepts DialEnd after an in-use race and never fabricates an answer on hangup', () => {
+      state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000005', destcalleridnum: '202', uniqueid: 'RACE-NOANSWER' });
+      state.setAgent(7, 'PJSIP/e101_42', { status: 'IN_CALL' });
+      service.handleDialEnd({ channel: 'PJSIP/e101_42-00000005', dialstatus: 'BUSY' });
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+        disposition: 'other', talk_time: 0, call_type: 'busy',
+      }));
+      historyWriter.enqueue.mockClear();
+      service.handleDialBegin({ channel: 'PJSIP/e101_42-00000006', destcalleridnum: '202', uniqueid: 'RACE-HANGUP' });
+      state.setAgent(7, 'PJSIP/e101_42', { status: 'IN_CALL' });
+      service.handleAgentHangup({ channel: 'PJSIP/e101_42-00000006' });
+      expect(historyWriter.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+        call_uniqueid: 'RACE-HANGUP', disposition: 'abandoned', talk_time: 0,
+      }));
+    });
+
     it('persists an "answered" outbound history row once the call ends (DialEnd ANSWER → Hangup)', () => {
       state.setAgent(7, 'PJSIP/e101_42', { name: 'Alice', status: 'READY', userId: 42 });
 
@@ -1438,13 +1616,92 @@ describe('CallCenterAmiService', () => {
     });
   });
 
+  describe('applyQueueMembers (private)', () => {
+    const tenants = new Map([['sales_7', { userUid: 7, displayName: 'Sales' }]]);
+    const apply = (members: any[]) => (service as any).applyQueueMembers(members, tenants);
+
+    it('keys a member by its device (location), not by a custom MemberName', () => {
+      apply([{ queue: 'sales_7', name: 'LiveAgent', location: 'Local/agent@cc-livetest', status: '1', paused: '0' }]);
+      expect(state.getAgent(7, 'Local/agent@cc-livetest')).toBeDefined();
+      expect(state.getAgent(7, 'LiveAgent')).toBeUndefined();
+    });
+
+    it('still works when the name equals the device (platform-managed members)', () => {
+      apply([{ queue: 'sales_7', name: 'PJSIP/101', location: 'PJSIP/101', status: '1', paused: '0' }]);
+      expect(state.getAgent(7, 'PJSIP/101')?.queues).toEqual(['sales_7']);
+    });
+
+    it('falls back to the name when the row has neither interface nor location', () => {
+      apply([{ queue: 'sales_7', name: 'PJSIP/102', status: '1', paused: '0' }]);
+      expect(state.getAgent(7, 'PJSIP/102')).toBeDefined();
+    });
+  });
+
   describe('reconcileActiveAgentCalls', () => {
+    it('recovers a pickup bridge after restart with its original queue, timestamps and one completion', async () => {
+      fakeAmi.isConnected = () => true;
+      const call = state.setCall('pickup-restart', { userUid: 7, queue: 'sales_7', callerChannel: 'PJSIP/client-01',
+        agent: 'PJSIP/101', enterTime: new Date(Date.now() - 10000), answerTime: new Date(Date.now() - 3000),
+        pickup: { actionId: 'pickup-recover', channelId: 'pickup-leg' } });
+      const encoded = CallCenterAmiService.pickupMetadata(call, 42);
+      state.removeCall('pickup-restart');
+      state.setAgent(7, 'PJSIP/101', { userId: 42, status: 'IN_CALL', queues: ['sales_7'], wrapupTimeout: 0 });
+      fakeAmi.action.mockResolvedValue({ value: encoded });
+      fakeAmi.getActiveChannels.mockResolvedValue({ events: [
+        { channel: 'PJSIP/101-aa', application: 'Bridge', uniqueid: 'pickup-leg', bridgeid: 'BR', calleridnum: '204' },
+        { channel: 'PJSIP/client-01', uniqueid: 'pickup-restart', bridgeid: 'BR', calleridnum: '204' },
+      ] });
+      try {
+        await service.reconcileActiveAgentCalls();
+        expect(state.getCall('pickup-restart')).toMatchObject({ queue: 'sales_7', enterTime: call.enterTime, answerTime: call.answerTime, status: 'TALKING' });
+        service.handleAgentHangup({ channel: 'PJSIP/101-aa' });
+        service.handleAgentHangup({ channel: 'PJSIP/client-01' });
+        expect(historyWriter.enqueue).toHaveBeenCalledTimes(1);
+        expect(historyWriter.enqueue).toHaveBeenCalledWith(expect.objectContaining({ call_uniqueid: 'pickup-restart', queue_name: 'sales_7', disposition: 'answered' }));
+      } finally { fakeAmi.isConnected = () => false; }
+    });
+    it('does not assign an unrelated Bridge call to an operator queue', async () => {
+      fakeAmi.isConnected = () => true;
+      state.setAgent(7, 'PJSIP/101', { userId: 42, status: 'IN_CALL', queues: ['sales_7'] });
+      fakeAmi.getActiveChannels.mockResolvedValue({ events: [
+        { channel: 'PJSIP/101-aa', application: 'Bridge', uniqueid: 'agent', bridgeid: 'BR' },
+        { channel: 'PJSIP/client-01', uniqueid: 'client', bridgeid: 'BR' },
+      ] });
+      try { await service.reconcileActiveAgentCalls(); expect(state.getAllCalls(7)).toHaveLength(0); }
+      finally { fakeAmi.isConnected = () => false; }
+    });
+    it.each([
+      { queue: 'sales_99' }, { userId: 43 }, { callerChannel: 'PJSIP/other-01' }, { channelId: 'other-leg' },
+    ])('rejects mismatched recovered pickup metadata %j', async (overrides) => {
+      fakeAmi.isConnected = () => true;
+      state.setAgent(7, 'PJSIP/101', { userId: 42, status: 'IN_CALL', queues: ['sales_7'] });
+      const meta = { uniqueid: 'client', queue: 'sales_7', userId: 42, agent: 'PJSIP/101',
+        callerChannel: 'PJSIP/client-01', channelId: 'leg', actionId: 'pickup-action',
+        enterTime: Date.now() - 10000, answerTime: Date.now() - 1000, ...overrides };
+      fakeAmi.action.mockResolvedValue({ value: Buffer.from(JSON.stringify(meta)).toString('base64url') });
+      fakeAmi.getActiveChannels.mockResolvedValue({ events: [
+        { channel: 'PJSIP/101-aa', application: 'Bridge', uniqueid: 'leg', bridgeid: 'BR' },
+        { channel: 'PJSIP/client-01', uniqueid: 'client', bridgeid: 'BR' },
+      ] });
+      try { await service.reconcileActiveAgentCalls(); expect(state.getAllCalls(7)).toHaveLength(0); }
+      finally { fakeAmi.isConnected = () => false; }
+    });
+    it('never assigns a direct call to the operators first queue during reconciliation', async () => {
+      fakeAmi.isConnected = () => true;
+      fakeAmi.getActiveChannels.mockResolvedValue({ events: [{ channel: 'PJSIP/101-abc', application: 'Wait', uniqueid: 'direct.1' }] });
+      state.setAgent(7, 'PJSIP/101', { userId: 42, status: 'IN_CALL', queues: ['sales_7'] });
+      await service.reconcileActiveAgentCalls();
+      expect(state.getAgent(7, 'PJSIP/101')?.currentCall).toBeUndefined();
+      expect(state.getAllCalls(7)).toHaveLength(0);
+      fakeAmi.isConnected = () => false;
+    });
     it('restores currentCall + CID from CoreShowChannels for IN_CALL without binding', async () => {
       fakeAmi.isConnected = () => true;
       fakeAmi.getActiveChannels.mockResolvedValue({
         events: [
           {
             channel: 'PJSIP/101-0000000a',
+            application: 'AppQueue',
             uniqueid: 'AGENT.1',
             linkedid: 'CALLER.1',
             bridgeid: 'BR1',

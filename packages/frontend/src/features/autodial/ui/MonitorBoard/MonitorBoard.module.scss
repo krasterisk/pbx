@@ -10,9 +10,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-  }
+}
+.campaignGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  width: 100%;
+  gap: 1rem;
 }
 
 .kpiCard {
@@ -87,3 +90,9 @@
   width: 100%;
   padding: 2rem 1rem;
 }
+
+.callLanes { display: grid; gap: 0.75rem; padding: 0 1rem 1rem; min-width: 0; }
+.callLane { min-width: 0; overflow-wrap: anywhere; }
+.callTimeline { display: flex; height: 0.625rem; border-radius: 0.25rem; overflow: hidden; background: var(--color-muted); margin: 0.375rem 0; }
+.ringingSegment { background: var(--color-muted-foreground); }
+.talkingSegment { background: var(--color-primary); }

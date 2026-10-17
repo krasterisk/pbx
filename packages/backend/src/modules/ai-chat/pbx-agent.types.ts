@@ -9,6 +9,8 @@ export interface ChatMessage {
     name?: string;
     tool_call_id?: string;
     tool_calls?: unknown;
+    /** Internal provider continuation data; never a public timeline item. */
+    reasoning_content?: string;
 }
 
 export interface AgentToolCall {

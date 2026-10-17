@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { CallCenterReportSchedulesService } from './callcenter-report-schedules.service';
+import { CallCenterReportSchedulesService, computeNextRun } from './callcenter-report-schedules.service';
 import { CallCenterReportDeliveryService } from './callcenter-report-delivery.service';
 import {
   CreateReportScheduleDto,
@@ -45,6 +45,16 @@ export class CallCenterReportSchedulesController {
   ) {
     assertSupervisor(req.user);
     return this.schedulesService.findOne(uid, req.user.vpbx_user_uid);
+  }
+
+  /** Read-only preview uses exactly the scheduler's clock and calendar rules. */
+  @Post('preview')
+  preview(@Body() dto: CreateReportScheduleDto, @Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return {
+      nextRunAt: computeNextRun(dto).toISOString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
   }
 
   @Post()

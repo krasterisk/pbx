@@ -59,6 +59,7 @@ describe('moduleRegistry (NAV-01)', () => {
     expect(callcenter?.kind).toBe('market');
     expect(callcenter?.pages.map((p) => p.path)).toEqual(
       expect.arrayContaining([
+        '/callcenter/dashboard',
         '/callcenter/agent',
         '/callcenter/supervisor',
         '/callcenter/reports',
@@ -76,12 +77,15 @@ describe('moduleRegistry (NAV-01)', () => {
     const operatorPages = filterPagesByLevel(cc.pages, UserLevel.OPERATOR).map((p) => p.id);
     expect(operatorPages).toContain('cc-agent');
     expect(operatorPages).not.toContain('cc-supervisor');
+    expect(operatorPages).not.toContain('cc-dashboard');
     expect(operatorPages).not.toContain('cc-settings');
 
     const adminPages = filterPagesByLevel(cc.pages, UserLevel.ADMIN).map((p) => p.id);
     expect(adminPages).toEqual(
-      expect.arrayContaining(['cc-agent', 'cc-supervisor', 'cc-settings']),
+      expect.arrayContaining(['cc-dashboard', 'cc-agent', 'cc-supervisor', 'cc-settings']),
     );
+    // The management dashboard is the first page of the module.
+    expect(cc.pages[0].id).toBe('cc-dashboard');
   });
 
   it('filterModulesForLevel drops modules with no visible pages', () => {

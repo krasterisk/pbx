@@ -1,61 +1,41 @@
-/* QueuesTab — fixed-size clickable badges */
+/* Compact entity cards; table mode reuses the surrounding panel without another surface. */
 
 .wrap {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: 100%;
   min-height: 0;
-  overflow-y: auto;
 }
 
 .badgeGrid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
   gap: 10px;
   align-content: flex-start;
 }
 
 .badge {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
-  width: 240px;
-  flex: 0 0 240px;
+  width: 100%;
   max-width: 100%;
-  padding: 12px 14px;
+  padding: 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-card));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 5%);
   text-align: left;
   color: inherit;
   cursor: default;
   box-sizing: border-box;
 
-  &:disabled {
-    opacity: 1;
-  }
 }
 
-.badgeClickable {
-  cursor: pointer;
-
-  &:hover {
-    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent);
-  }
-}
-
-.badgeOk {
-  background: color-mix(in srgb, var(--color-success) 8%, transparent);
-}
-
-.badgeWarning {
-  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
-}
-
-.badgeDanger {
-  background: color-mix(in srgb, var(--color-destructive) 10%, transparent);
+.transferAction {
+  justify-self: start;
+  grid-column: 1 / -1;
+  gap: 6px;
 }
 
 .name {
@@ -73,19 +53,34 @@
   color: var(--color-muted-foreground);
 }
 
+.tableMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.8rem;
+}
+
 .totalsRow {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, max-content);
   gap: 4px 12px;
   font-size: 0.75rem;
   color: var(--color-muted-foreground);
-  padding-top: 6px;
-  border-top: 1px dashed var(--color-border);
+  grid-column: 1 / -1;
 }
 
-.freeOk { color: var(--color-success); font-weight: 600; }
-.freeWarning { color: var(--color-warning); font-weight: 600; }
-.freeDanger { color: var(--color-destructive); font-weight: 600; }
+@media (max-width: 1100px) {
+  .badge { grid-template-columns: minmax(0, 1fr); }
+  .kpiGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 400px) {
+  .totalsRow { grid-template-columns: minmax(0, 1fr); }
+}
+
+.freeOk { color: color-mix(in srgb, var(--color-success) 70%, var(--color-foreground)); font-weight: 600; }
+.freeWarning { color: color-mix(in srgb, var(--color-warning) 70%, var(--color-foreground)); font-weight: 600; }
+.freeDanger { color: color-mix(in srgb, var(--color-destructive) 70%, var(--color-foreground)); font-weight: 600; }
 
 .empty {
   display: flex;

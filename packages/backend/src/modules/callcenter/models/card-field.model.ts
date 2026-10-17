@@ -54,7 +54,7 @@ export class CcCardField extends Model {
 
   /** Options for select / multi_select fields. */
   @Column({ type: DataType.JSON, allowNull: true })
-  declare options: unknown[] | null;
+  declare options: import('@krasterisk/shared').CardFieldOptions | null;
 
   /** Parent field_key for dependent fields. */
   @Column({ type: DataType.STRING(64), allowNull: true })

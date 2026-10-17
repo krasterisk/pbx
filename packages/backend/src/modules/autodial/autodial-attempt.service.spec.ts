@@ -73,6 +73,13 @@ describe('AutodialAttemptService', () => {
     );
     expect(service['advanceTask']).toHaveBeenCalledWith(22, 'amd_machine', null);
   });
+  it('preserves authoritative CDR billsec when ARI finalizes after enrichment', async () => {
+    const { service, update } = serviceWith([1]);
+    const attempt = await service['attemptModel'].findByPk(41);
+    Object.assign(attempt!, { billsec: 12, scenario_result: { dtmf: '1', duration: 12 } });
+    await service.finalize({ attemptUid: 41, disposition: 'success', billsec: 13 });
+    expect(update.mock.calls[0][0]).not.toHaveProperty('billsec');
+  });
 
   it('retains a leave-message classification as voicemail disposition', async () => {
     const { service, update } = serviceWith([1]);

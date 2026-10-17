@@ -27,7 +27,7 @@ describe('pbx-agent-eval', () => {
     );
   });
 
-  it('makes no outbound network request; only the model client is a fixture', async () => {
+  it('makes no outbound network request with scripted model and service fixtures', async () => {
     const fetchSpy = jest.spyOn(globalThis as { fetch?: typeof fetch }, 'fetch' as never)
       .mockImplementation(async () => {
         throw new Error('eval suite must not reach the network');
@@ -72,7 +72,8 @@ describe('pbx-agent-eval', () => {
     const scenarios = loadReferenceScenarios();
     const byBucket = (bucket: EvalScenario['bucket']) => scenarios.filter((row) => row.bucket === bucket);
 
-    expect(scenarios).toHaveLength(16);
+    expect(scenarios).toHaveLength(28);
+    expect(byBucket('autodial')).toHaveLength(12);
     expect(byBucket('read').map((row) => row.id)).toEqual([
       'read-list-queues',
       'read-find-cdr-calls',
@@ -186,5 +187,17 @@ describe('pbx-agent-eval', () => {
     const last = result.events[result.events.length - 1];
     expect(last.name).toBe('error');
     expect(last.data).toEqual(expect.objectContaining({ code: 'max_steps_exceeded' }));
+  });
+  it.each(loadReferenceScenarios().filter((scenario) => scenario.bucket === 'autodial'))('replays $id through real autodial contracts without writes or origination', async (scenario) => {
+    const result = await runScenario(scenario);
+    expect(result.entityCountsAfter).toEqual(result.entityCountsBefore);
+    expect(result.entityCountsAfter.autodialWrites).toBe(0);
+    expect(result.outboundRequests).toBe(0);
+    expect(result.toolSequence.some((name) => /^(start|resume|stop|delete|redial)_autodial_/.test(name))).toBe(false);
+    if (scenario.pageContext) expect(result.pageContextObserved).toBe(true);
+    if (scenario.id === 'autodial-human-redial') expect(result.events.some((event) => event.name === 'item'
+      && (event.data as { kind?: string }).kind === 'action')).toBe(true);
+    if (scenario.id === 'autodial-collection-plan') expect(result.events.some((event) => event.name === 'item'
+      && (event.data as { kind?: string }).kind === 'proposal')).toBe(true);
   });
 });

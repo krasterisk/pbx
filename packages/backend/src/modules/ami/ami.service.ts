@@ -421,6 +421,13 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         this.getCcAmiService()?.handleUnhold(evt);
       });
 
+      this.ami.on('parkedcall', (evt: any) => {
+        this.getCcAmiService()?.handleParkedCall(evt);
+      });
+      this.ami.on('unparkedcall', (evt: any) => {
+        this.getCcAmiService()?.handleUnParkedCall(evt);
+      });
+
       // ─── All-channel agent-scoped events (D-08) ─────────
       // These fire for ANY channel (not just queue-tracked calls) and let
       // CallCenterAmiService resolve tenant/agent by channel name, so
@@ -441,6 +448,15 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
       // agent's own channel.
       this.ami.on('newchannel', (evt: any) => {
         this.getCcAmiService()?.handleNewchannel(evt);
+      });
+      this.ami.on('chanspystart', (evt: any) => {
+        this.getCcAmiService()?.handleMonitorConnected(evt);
+      });
+      this.ami.on('bridgeenter', (evt: any) => {
+        this.getCcAmiService()?.handlePickupBridgeEnter?.(evt);
+      });
+      this.ami.on('originateresponse', (evt: any) => {
+        this.getCcAmiService()?.handlePickupOriginateResponse?.(evt);
       });
 
       // Hangup (CC) — additional listener alongside the WebSocket forwarder
@@ -496,6 +512,46 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     return this.connected;
   }
 
+  /**
+   * Resolves when AMI is up, or rejects after timeoutMs.
+   * Bootstrap hooks that need GetConfig/UpdateConfig must wait — connect() is
+   * async from onModuleInit and often finishes after OnApplicationBootstrap.
+   */
+  waitUntilConnected(timeoutMs = 30_000): Promise<void> {
+    if (this.connected) return Promise.resolve();
+    if (this.destroyed) {
+      return Promise.reject(new Error('AMI service destroyed'));
+    }
+    if (!this.config.get('AMI_SECRET', '')) {
+      return Promise.reject(new Error('AMI_SECRET not configured'));
+    }
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (err?: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        unsubscribe();
+        if (err) reject(err);
+        else resolve();
+      };
+
+      const unsubscribe = this.subscribeInternalEvents((event) => {
+        if (event?.event === 'DashboardConnection' && event.connected === true) {
+          finish();
+        }
+      });
+
+      const timer = setTimeout(() => {
+        finish(new Error(`AMI not connected within ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      // connect() may have raced ahead of the subscription
+      if (this.connected) finish();
+    });
+  }
+
   // --- AMI Commands ---
 
   async action(action: Record<string, any>): Promise<any> {
@@ -528,7 +584,14 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
     return this.action({ action: 'Command', command: 'pjsip reload' });
   }
 
-  async originate(channel: string, callerid: string, context: string, exten: string, priority = '1'): Promise<any> {
+  async originate(
+    channel: string,
+    callerid: string,
+    context: string,
+    exten: string,
+    priority = '1',
+    variable?: string,
+  ): Promise<any> {
     return this.action({
       action: 'Originate',
       channel,
@@ -537,6 +600,7 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
       exten,
       priority,
       async: 'true',
+      ...(variable ? { variable } : {}),
     });
   }
 
@@ -549,8 +613,8 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
    * [ASSUMED — A1] PlayDTMF params `channel`/`digit` (no Duration) — verify on live
    * Asterisk during 10-09 checkpoint.
    */
-  async playDtmf(channel: string, digit: string): Promise<any> {
-    return this.action({ action: 'PlayDTMF', channel, digit });
+  async playDtmf(channel: string, digit: string, receive = false): Promise<any> {
+    return this.action({ action: 'PlayDTMF', channel, digit, ...(receive ? { receive: 'true' } : {}) });
   }
 
   /**
@@ -689,9 +753,10 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
   // --- Call Control (D-28: park/retrieve, ConfBridge, device presence) ---
 
   /** Park a channel into the (optional) named parking lot. */
-  async park(channel: string, parkingLot?: string): Promise<any> {
+  async park(channel: string, parkingLot?: string, timeoutChannel?: string): Promise<any> {
     const params: any = { action: 'Park', channel };
     if (parkingLot) params.parkinglot = parkingLot;
+    if (timeoutChannel) params.timeoutchannel = timeoutChannel;
     return this.action(params);
   }
 

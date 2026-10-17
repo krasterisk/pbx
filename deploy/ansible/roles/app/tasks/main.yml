@@ -46,6 +46,7 @@
 - name: Build application images
   ansible.builtin.command: >
     docker build
+    --build-arg APP_GIT_SHA={{ krasterisk_image_tag.stdout }}
     -f {{ krasterisk_src }}/deploy/compose/{{ item.file }}
     -t {{ item.image }}:{{ krasterisk_image_tag.stdout }}
     {{ krasterisk_src }}

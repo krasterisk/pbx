@@ -1,8 +1,8 @@
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { Button, Input, Label, Switch, Text, Skeleton } from '@/shared/ui';
+import { Input, Label, Switch, Text, Skeleton } from '@/shared/ui';
 import { UserLevel, selectUserLevel } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import {
@@ -10,6 +10,8 @@ import {
   useGetTenantSettingsQuery,
   useUpdateTenantSettingsMutation,
 } from '@/shared/api/endpoints/callCenterApi';
+import { useBaselineForm } from '../../lib/useBaselineForm';
+import { FormSaveBar } from '../FormSaveBar';
 import styles from './ShiftPolicyForm.module.scss';
 
 const DEFAULT_POLICY: IShiftPolicy = {
@@ -35,33 +37,41 @@ function normalizePolicy(raw: IShiftPolicy | null | undefined): IShiftPolicy {
   };
 }
 
-/** Tenant shift auto-close / extension policy (SUPERVISOR/ADMIN). */
+const DEFAULT_JOURNAL_DEPTH = 50;
+
+type ShiftForm = IShiftPolicy & { journal_depth: number };
+
+/** Tenant shift auto-close / extension policy + softphone journal depth (SUPERVISOR/ADMIN). */
 export function ShiftPolicyForm() {
   const { t } = useTranslation();
   const level = useAppSelector(selectUserLevel);
   const canEdit = level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN;
   const { data, isLoading, isError, refetch } = useGetTenantSettingsQuery();
   const [update, { isLoading: isSaving }] = useUpdateTenantSettingsMutation();
-  const [policy, setPolicy] = useState<IShiftPolicy>({ ...DEFAULT_POLICY });
-  const [saved, setSaved] = useState(false);
+  const { form: policy, setForm: setPolicy, dirty, syncFromServer, markSaved, revert } =
+    useBaselineForm<ShiftForm>({ ...DEFAULT_POLICY, journal_depth: DEFAULT_JOURNAL_DEPTH });
 
   useEffect(() => {
     if (!data) return;
-    setPolicy(normalizePolicy(data.shift_policy));
-  }, [data]);
+    const depth = data.journal_depth;
+    syncFromServer({
+      ...normalizePolicy(data.shift_policy),
+      journal_depth: typeof depth === 'number' && depth > 0 ? depth : DEFAULT_JOURNAL_DEPTH,
+    });
+  }, [data, syncFromServer]);
 
-  const patch = (partial: Partial<IShiftPolicy>) => {
+  const patch = (partial: Partial<ShiftForm>) => {
     if (!canEdit) return;
     setPolicy((prev) => ({ ...prev, ...partial }));
-    setSaved(false);
   };
 
   const handleSave = async () => {
     if (!canEdit) return;
     try {
-      await update({ shift_policy: policy }).unwrap();
-      setSaved(true);
-      toast.success(t('callcenter.settings.shifts.saved', 'Shift policy saved'));
+      const { journal_depth: rawDepth, ...shiftPolicy } = policy;
+      const journalDepth = Math.min(500, Math.max(1, Math.round(rawDepth) || DEFAULT_JOURNAL_DEPTH));
+      await update({ shift_policy: shiftPolicy, journal_depth: journalDepth }).unwrap();
+      markSaved();
     } catch {
       toast.error(t('common.saveFailed', 'Save failed'));
     }
@@ -126,12 +136,18 @@ export function ShiftPolicyForm() {
           />
           {t('callcenter.settings.shifts.closeAtEod', 'Close shifts at end of day')}
         </Label>
+        <Text variant="muted" className={styles.fieldHint} data-testid="shift-hint-closeAtEod">
+          {t('callcenter.settings.shifts.closeAtEodHint')}
+        </Text>
       </div>
 
       <div className={styles.field}>
         <Label htmlFor="shift-eod-time">
           {t('callcenter.settings.shifts.eodTime', 'End-of-day time')}
         </Label>
+        <Text variant="muted" className={styles.fieldHint} data-testid="shift-hint-eodTime">
+          {t('callcenter.settings.shifts.eodTimeHint')}
+        </Text>
         <Input
           id="shift-eod-time"
           type="time"
@@ -173,6 +189,9 @@ export function ShiftPolicyForm() {
             'Idle close only if device is unregistered',
           )}
         </Label>
+        <Text variant="muted" className={styles.fieldHint} data-testid="shift-hint-idleRequiresUnregistered">
+          {t('callcenter.settings.shifts.idleRequiresUnregisteredHint')}
+        </Text>
       </div>
 
       <div className={styles.row}>
@@ -184,18 +203,37 @@ export function ShiftPolicyForm() {
           />
           {t('callcenter.settings.shifts.freeExten', 'Free the operator extension on shift end')}
         </Label>
+        <Text variant="muted" className={styles.fieldHint} data-testid="shift-hint-freeExten">
+          {t('callcenter.settings.shifts.freeExtenHint')}
+        </Text>
+      </div>
+
+      <div className={styles.field}>
+        <Label htmlFor="shift-journal-depth">
+          {t('callcenter.settings.customize.journalDepth', 'Softphone journal depth')}
+        </Label>
+        <Text variant="muted" className={styles.fieldHint}>
+          {t(
+            'callcenter.settings.customize.journalDepthHint',
+            'Last N personal calls shown in the softphone Journal tab (default 50)',
+          )}
+        </Text>
+        <Input
+          id="shift-journal-depth"
+          type="number"
+          min={1}
+          max={500}
+          disabled={!canEdit}
+          value={policy.journal_depth}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            if (Number.isFinite(n)) patch({ journal_depth: n });
+          }}
+        />
       </div>
 
       {canEdit && (
-        <div className={styles.footer}>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving
-              ? t('common.saving', 'Saving…')
-              : saved
-                ? t('common.saved', 'Saved')
-                : t('common.save', 'Save')}
-          </Button>
-        </div>
+        <FormSaveBar dirty={dirty} saving={isSaving} onSave={handleSave} onCancel={revert} testId="shift-save-bar" />
       )}
     </div>
   );

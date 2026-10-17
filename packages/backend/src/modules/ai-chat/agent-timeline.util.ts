@@ -3,6 +3,8 @@ import {
   scrubToolIdsFromPublicText,
   type AgentTimelineItem,
   type AgentTurnCloseKind,
+  autodialUiActionSchema,
+  type AgentTimelineActionItem,
 } from '@krasterisk/shared';
 import { looksLikePlanningNarration } from './turn-outcome.util';
 
@@ -31,6 +33,12 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\
 
 export function progressLabelKey(toolName: string): string {
   return `aiChat.progress.tools.${toolName}`;
+}
+export function autodialActionFromTool(toolName: string, content: string | null | undefined,
+  id: string, createdAt: string): AgentTimelineActionItem | null {
+  if (toolName !== 'get_autodial_ui_action') return null;
+  const parsed = autodialUiActionSchema.safeParse(parseJsonObject(content)?.ui_action);
+  return parsed.success ? { kind: 'action', id, createdAt, action: parsed.data } : null;
 }
 
 export function isToolErrorContent(content: string | null | undefined): boolean {
@@ -135,6 +143,8 @@ export function buildTimeline(rows: TimelineSourceRow[], opts: BuildTimelineOpti
     }
 
     const toolName = source.tool_name ?? '';
+    const action = autodialActionFromTool(toolName, source.content, `a${source.uid}`, toCreatedAtIso(source.created_at));
+    if (action) items.push(action);
     const detail = humanStepDetail(toolName, source.content);
     items.push({
       kind: 'step',

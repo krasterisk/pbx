@@ -7,7 +7,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { Observable, finalize, interval, map, merge, startWith } from 'rxjs';
+import { Observable, finalize, interval, map, merge, startWith, from, exhaustMap, catchError, of } from 'rxjs';
+import { AutodialMonitorService } from './autodial-monitor.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
 import { RequiresModule } from '../cloud-admin/requires-module.decorator';
@@ -19,7 +20,7 @@ const SSE_HEARTBEAT_MS = 15_000;
 export class AutodialSseController {
   private readonly logger = new Logger(AutodialSseController.name);
 
-  constructor(private readonly state: AutodialStateService) {}
+  constructor(private readonly state: AutodialStateService, private readonly monitor: AutodialMonitorService) {}
 
   @UseGuards(JwtAuthGuard, ModuleAccessGuard)
   @RequiresModule('autodial')
@@ -38,7 +39,11 @@ export class AutodialSseController {
       map(() => ({ data: JSON.stringify({ type: 'heartbeat', ts: Date.now() }), type: 'heartbeat' })),
     );
 
-    return merge(events$, heartbeat$).pipe(
+    const health$ = interval(10000).pipe(startWith(0), exhaustMap(() => from(this.monitor.health(userUid)).pipe(
+      map((health) => ({ type: 'health', data: JSON.stringify({ type: 'health', health }) })),
+      catchError(() => of({ type: 'health_error', data: JSON.stringify({ type: 'health_error' }) })),
+    )));
+    return merge(events$, heartbeat$, health$).pipe(
       finalize(() => this.logger.log(`Autodial SSE closed for tenant ${userUid}`)),
     );
   }

@@ -44,6 +44,23 @@ describe('sanitizeAutodialArg', () => {
 });
 
 describe('generateAutodialCampaignDialplan', () => {
+  it('uses editor input parameters, tenant prompt and preserves the named variable', () => {
+    const { lines } = generateAutodialCampaignDialplan(campaign({ scenario_actions: [
+      action('collect_input', { variableName: 'AC_CHOICE', promptFile: 'question.wav', digitsCount: 2, timeout: 10 }),
+      action('label', { label_name: 'done' }),
+      action('hangup', { causecode: '17' }),
+    ] }), 42);
+    expect(lines).toContain('same => n,Read(AC_CHOICE,/usr/records/42/sounds/question,2,,1,10)');
+    expect(lines).toContain('same => n,Set(__KRSK_AC_DTMF=${AC_CHOICE})');
+    expect(lines).toContain('same => n(done),NoOp(label done)');
+    expect(lines).toContain('same => n,Hangup(17)');
+  });
+
+  it('does not accept channel-variable or prompt path injection', () => {
+    for (const params of [{ variableName: 'X)=evil' }, { promptFile: '../other-tenant/sound' }]) {
+      expect(() => generateAutodialCampaignDialplan(campaign({ scenario_actions: [action('collect_input', params)] }), 42)).toThrow();
+    }
+  });
   it('does not answer the channel — ARI hands it over already answered', () => {
     const { lines } = generateAutodialCampaignDialplan(campaign(), 42);
     expect(lines.some((l) => l.includes('Answer()'))).toBe(false);
@@ -83,7 +100,7 @@ describe('generateAutodialCampaignDialplan', () => {
       }),
       42,
     );
-    expect(lines).toContain('same => n,Queue(priority,t)');
+    expect(lines).toContain('same => n,Queue(qpriority_42,t)');
     expect(lines.some((l) => l.includes('Queue(sales'))).toBe(false);
   });
 
@@ -186,6 +203,8 @@ describe('withMachineTail', () => {
     );
     expect(category.lines.join('\n')).toContain('internal/autodial/attempt-machine');
     expect(category.lines.join('\n')).toContain('attempt=${URIENCODE(${KRSK_AC_ATTEMPT})}');
+    expect(category.lines.every((line) => !/[\r\n]/.test(line))).toBe(true);
+    expect(category.lines.some((line) => line.startsWith('same => n,Set(KRSK_HTTP_RESULT=${CURL('))).toBe(true);
   });
 
   it('plays the configured prompt in the machine tail for voicemail mode', () => {
@@ -237,7 +256,10 @@ describe('generateAutodialFinalizeContext', () => {
   });
 
   it('reports the post-answer facts ARI cannot see', () => {
-    const body = generateAutodialFinalizeContext(42).lines.join('\n');
+    const { lines } = generateAutodialFinalizeContext(42);
+    expect(lines.every((line) => !/[\r\n]/.test(line))).toBe(true);
+    expect(lines.some((line) => line.startsWith('same => n,Set(KRSK_HTTP_RESULT=${CURL('))).toBe(true);
+    const body = lines.join('\n');
     expect(body).toContain('billsec=');
     expect(body).toContain('queue=');
     expect(body).toContain('amd=');

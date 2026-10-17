@@ -29,6 +29,8 @@ import { useSchemaRefs } from '../../model/useSchemaRefs';
 import { normalizePlaybackParams } from '../../model/schemas/playback';
 import { normalizeToTrunkParams } from '../../model/schemas/totrunk';
 import type { FieldSchema, OptionsSource } from '../../model/schema.types';
+import type { DialplanHost } from '../../model/types';
+import { autodialEditorPatch, autodialEditorSchema, autodialEditorValues } from '../../model/autodialSchema';
 import styles from './StepSheet.module.scss';
 
 const EMPTY_SCHEMA: FieldSchema[] = [];
@@ -56,6 +58,7 @@ export interface StepSheetProps {
   /** Route extensions for live dial-number preview. */
   previewPatterns?: string[];
   autodialFields?: Array<{ value: string; label: string }>;
+  host?: DialplanHost;
 }
 
 export function isQueueTargetComplete(action: IRouteAction | null | undefined): boolean {
@@ -87,6 +90,7 @@ export function StepSheet({
   conditionsSlot,
   previewPatterns,
   autodialFields,
+  host,
 }: StepSheetProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
@@ -99,7 +103,9 @@ export function StepSheet({
   const bodyRef = useRef<HTMLDivElement>(null);
   const focusContext = useRef({ open: false, stepId, type: action?.type });
   const config = action?.type ? dialplanAppsRegistry[action.type] : undefined;
-  const schema = config?.schema ?? EMPTY_SCHEMA;
+  const schema = useMemo(() => host === 'autodial'
+    ? autodialEditorSchema(action?.type ?? '', config?.schema ?? EMPTY_SCHEMA)
+    : config?.schema ?? EMPTY_SCHEMA, [host, action?.type, config?.schema]);
   const catalogSources = useMemo(() => {
     const sources = schema
       .map((field) => field.optionsSource)
@@ -256,7 +262,9 @@ export function StepSheet({
     <SchemaFields
       schema={fields}
       params={
-        action?.type === 'playback'
+        host === 'autodial'
+          ? autodialEditorValues(config?.schema ?? [], action?.params ?? {})
+          : action?.type === 'playback'
           ? normalizePlaybackParams(action?.params ?? {})
           : action?.type === 'totrunk'
             ? normalizeToTrunkParams(action?.params ?? {})
@@ -270,7 +278,7 @@ export function StepSheet({
       fieldErrors={mergedFieldErrors}
       refs={schemaRefs}
       autodialFields={autodialFields}
-      onChange={onChange}
+      onChange={(patch) => onChange(host === 'autodial' ? autodialEditorPatch(config?.schema ?? [], patch) : patch)}
     />
   );
 
@@ -282,7 +290,7 @@ export function StepSheet({
       >
         <SheetHeader>
           <SheetTitle>
-            <Text variant="h4">{title}</Text>
+            <Text as="span" variant="h4">{title}</Text>
           </SheetTitle>
           <Text variant="xs">
             {t('routes.chain.stepIndex', 'Шаг {{index}}').replace('{{index}}', String(stepIndex))}
@@ -365,7 +373,7 @@ export function StepSheet({
               </AppCollapsibleSection>
             ) : null}
 
-            <AppCollapsibleSection
+            {host !== 'autodial' && <AppCollapsibleSection
               title={t('routes.chain.section.conditions', 'Условия')}
               open={conditionsOpen}
               onToggle={() => setConditionsOpen((v) => !v)}
@@ -382,7 +390,7 @@ export function StepSheet({
                   />
                 )}
               </VStack>
-            </AppCollapsibleSection>
+            </AppCollapsibleSection>}
           </VStack>
         </div>
 

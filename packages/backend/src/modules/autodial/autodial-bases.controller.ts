@@ -10,9 +10,10 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import type { AutodialDedupPolicy, IAutodialColumnMap } from '@krasterisk/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
@@ -20,6 +21,8 @@ import { RequiresModule } from '../cloud-admin/requires-module.decorator';
 import { AutodialBasesService } from './autodial-bases.service';
 import { AutodialImportService } from './autodial-import.service';
 import { AutodialImportUploadDto } from './dto/autodial-import.dto';
+import { AutodialWriteGuard } from './autodial-write.guard';
+import { AutodialSchemaService } from './autodial-schema.service';
 import {
   CreateAutodialBaseDto,
   CreateAutodialContactDto,
@@ -32,13 +35,14 @@ type AuthedRequest = Request & { user: { vpbx_user_uid: number; sub?: number } }
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
-@UseGuards(JwtAuthGuard, ModuleAccessGuard)
+@UseGuards(JwtAuthGuard, ModuleAccessGuard, AutodialWriteGuard)
 @RequiresModule('autodial')
 @Controller('autodial/bases')
 export class AutodialBasesController {
   constructor(
     private readonly basesService: AutodialBasesService,
     private readonly importService: AutodialImportService,
+    private readonly schema: AutodialSchemaService,
   ) {}
 
   @Get()
@@ -59,6 +63,21 @@ export class AutodialBasesController {
   @Get(':base_uid')
   findOne(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number) {
     return this.basesService.findOne(req.user.vpbx_user_uid, baseUid);
+  }
+
+  @Get(':base_uid/field-usage')
+  fieldUsage(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number) {
+    return this.schema.usage(req.user.vpbx_user_uid, baseUid);
+  }
+
+  @Post(':base_uid/schema-preview')
+  schemaPreview(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number, @Body() body: unknown) {
+    return this.schema.preview(req.user.vpbx_user_uid, baseUid, body);
+  }
+
+  @Post(':base_uid/schema-apply')
+  schemaApply(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number, @Body() body: unknown) {
+    return this.schema.apply(req.user.vpbx_user_uid, req.user.sub, baseUid, body);
   }
 
   @Put(':base_uid')
@@ -200,7 +219,28 @@ export class AutodialBasesController {
       dedup_policy: body.dedup_policy,
       replace: body.replace,
       expected_revision: body.expected_revision,
+      invalid_optional_policy: body.invalid_optional_policy,
     });
+  }
+
+  @Post(':base_uid/import-validation')
+  validateImport(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number, @Body() body: AutodialImportUploadDto) {
+    return this.importService.importFile(req.user.vpbx_user_uid, baseUid, { buffer: this.decodeUpload(body.content_base64),
+      filename: body.filename ?? 'upload', source: body.source ?? 'csv', profileUid: body.profile_uid,
+      column_map: body.column_map, delimiter: body.delimiter, has_header: body.has_header, dedup_policy: body.dedup_policy,
+      replace: body.replace, expected_revision: body.expected_revision, invalid_optional_policy: body.invalid_optional_policy, validation_only: true });
+  }
+
+  @Post(':base_uid/import-rejected')
+  async rejectedImport(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number,
+    @Body() body: AutodialImportUploadDto, @Res() res: Response) {
+    const buffer = await this.importService.rejectedFile(req.user.vpbx_user_uid, baseUid, { buffer: this.decodeUpload(body.content_base64),
+      filename: body.filename ?? 'upload', source: body.source ?? 'csv', profileUid: body.profile_uid,
+      column_map: body.column_map, delimiter: body.delimiter, has_header: body.has_header, dedup_policy: body.dedup_policy,
+      replace: body.replace, expected_revision: body.expected_revision, invalid_optional_policy: body.invalid_optional_policy });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="autodial-rejected-${baseUid}.xlsx"`);
+    res.setHeader('Cache-Control', 'no-store'); res.send(buffer);
   }
 
   private decodeUpload(contentBase64: string): Buffer {

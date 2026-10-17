@@ -40,4 +40,25 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-expressions': ['error', { allowShortCircuit: true, allowTernary: true }],
     },
   },
+  {
+    files: [
+      'src/features/callcenter/**/*.{ts,tsx}',
+      'src/features/cc-dashboard/**/*.{ts,tsx}',
+      'src/pages/CallCenter*/**/*.{ts,tsx}',
+    ],
+    ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'JSXOpeningElement[name.name=/^(button|select|input|textarea|label)$/]',
+          message: 'Use @/shared/ui components (Button, Select, Input, Textarea, Label, Checkbox) instead of native HTML controls in Call Center features/pages (ARCHITECTURE.md).',
+        },
+        {
+          selector: 'CallExpression[callee.object.name="window"][callee.property.name="confirm"]',
+          message: 'Use Dialog from @/shared/ui instead of window.confirm (ARCHITECTURE.md).',
+        },
+      ],
+    },
+  },
 );

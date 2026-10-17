@@ -17,6 +17,7 @@ import { AutodialReservationService } from './autodial-reservation.service';
 import { computeAutodialCapacity, effectivePacing } from './autodial-capacity.util';
 import { campaignWindowOpen } from './autodial-schedule.util';
 import { pacerOwnerClaimWhere } from './autodial-pacer-owner.util';
+import { countAutodialReadyAgents } from './autodial-ready-agents.util';
 import {
   computeOverDialFactor,
   defaultAutodialPredictive,
@@ -361,24 +362,7 @@ export class AutodialPacerService implements OnApplicationShutdown {
   }
 
   private availableAgents(campaign: AcCampaign): number {
-    // Capacity queues come only from the queue_agents pacing provider.
-    // campaign.queue_names is a persisted snapshot of that provider, not a
-    // second editable pool used for routing.
-    const names = new Set<string>();
-    for (const provider of campaign.pacing?.providers ?? []) {
-      if (provider.type === 'queue_agents') {
-        for (const n of provider.queue_names ?? []) names.add(n);
-      }
-    }
-    if (!names.size) return 0;
-    // Queue aggregates count the same READY operator once per membership. A
-    // campaign can use several queues, but one operator can take only one call.
-    const unique = new Set<string>();
-    for (const agent of this.ccState.getAllAgents(campaign.user_uid)) {
-      if (agent.status !== 'READY' || !agent.queues.some((name) => names.has(name))) continue;
-      unique.add(agent.userId > 0 ? `user:${agent.userId}` : `interface:${agent.interface}`);
-    }
-    return unique.size;
+    return countAutodialReadyAgents(campaign.pacing, this.ccState.getAllAgents(campaign.user_uid));
   }
 
   /**

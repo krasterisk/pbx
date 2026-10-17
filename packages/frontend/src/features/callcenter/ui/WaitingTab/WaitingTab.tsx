@@ -1,5 +1,5 @@
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/shared/ui';
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { PhoneIncoming, Phone, Users, Hand, Headphones } from 'lucide-react';
@@ -42,6 +42,9 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
   const allMonitorCalls = useSelector(selectQueueMonitorCalls);
   const { data: operatorSettings } = useGetMyOperatorSettingsQuery();
   const [agentPickCall] = useAgentPickCallMutation();
+  const pickingRef = useRef(false);
+  const [picking, setPicking] = useState<string | null>(null);
+  const [pickError, setPickError] = useState('');
 
   const monitorCalls = useMemo(() => {
     if (!myAgent) return [];
@@ -51,15 +54,27 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
   const totalWaiting = useMemo(() => monitorCalls.filter((c) => c.status === 'WAITING' || c.status === 'RINGING').length, [monitorCalls]);
   const totalTalking = useMemo(() => monitorCalls.filter((c) => c.status === 'TALKING' || c.status === 'HOLD').length, [monitorCalls]);
   const freeAgents = useMemo(
-    () => agents.filter((a) => a.status === 'READY' && myAgent?.queues.some((q) => a.queues.includes(q))).length,
+    () => agents.filter((a) => a.status === 'READY' && a.phoneOnline !== false && myAgent?.queues.some((q) => a.queues.includes(q))).length,
     [agents, myAgent],
   );
 
   const handlePickCall = async (uniqueid: string) => {
+    if (pickingRef.current) return;
+    pickingRef.current = true;
+    setPicking(uniqueid);
+    setPickError('');
     try {
       await agentPickCall({ uniqueid }).unwrap();
     } catch (err: any) {
-      console.warn('Pick call failed:', err?.data?.message || err?.message);
+      const status = err?.status;
+      setPickError(status === 404 || status === 409
+        ? t('callcenter.agent.pickCallGone', 'This call has already been taken or has ended.')
+        : status === 403
+          ? t('callcenter.agent.pickCallDenied', 'You do not have permission to take this call.')
+          : t('callcenter.agent.pickCallFailed', 'Could not take the call. Check your status and phone, then try again.'));
+    } finally {
+      pickingRef.current = false;
+      setPicking(null);
     }
   };
 
@@ -91,6 +106,8 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
     <div className={styles.wrap} data-testid="waiting-tab">
       {stats}
 
+      {(pickError || myAgent?.pickupFailed) && <Text variant="error" role="alert">{pickError || t('callcenter.agent.pickCallNoAnswer', 'Your phone did not answer. The caller is still waiting in the queue.')}</Text>}
+
       {monitorCalls.length === 0 ? (
         <div className={styles.empty}>
           <Headphones className="w-8 h-8 opacity-30" />
@@ -119,7 +136,7 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
                 const waitSec = Math.floor((Date.now() - new Date(call.enterTime).getTime()) / 1000);
                 const canPick = !isTalking
                   && operatorSettings?.pickup_enabled
-                  && myAgent?.status === 'READY'
+                  && myAgent?.status === 'READY' && myAgent.phoneOnline !== false
                   && myAgent.queues.includes(call.queue);
                 const agent = call.agent
                   ? agents.find((a) => a.interface === call.agent)
@@ -160,14 +177,16 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
                           <Button
                             size="sm"
                             variant="outline"
-                            disabled={!canPick}
+                            disabled={!canPick || !!picking}
                             onClick={() => handlePickCall(call.uniqueid)}
                             title={canPick
                               ? t('callcenter.agent.pickCallHint', 'Take this call now')
                               : t('callcenter.agent.pickCallBlocked', 'Pickup is only available while Waiting for call in that queue')}
                           >
                             <Hand className="w-3.5 h-3.5 mr-1" />
-                            {t('callcenter.agent.pickCall', 'Pick')}
+                            {picking === call.uniqueid
+                              ? t('callcenter.agent.pickingCall', 'Taking call…')
+                              : t('callcenter.agent.pickCall', 'Pick')}
                           </Button>
                         </Flex>
                       )}

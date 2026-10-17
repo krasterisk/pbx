@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { JwtOrServiceTokenGuard } from '../auth/jwt-or-service-token.guard';
 import { McpController } from './mcp.controller';
 import { McpSessionService } from './mcp-session.service';
+import { McpAutodialAuthGuard } from './mcp-autodial-auth.guard';
 
 const INTERNAL_TOOLS = [
   { name: 'list_contexts', description: 'contexts', inputSchema: { type: 'object', properties: {} } },
@@ -56,10 +57,10 @@ describe('McpController token-only tenant (D-28)', () => {
     controller = new McpController(sessionService);
   });
 
-  it('guards the external entry with JwtAuthGuard and not the service-token guard', () => {
+  it('guards external MCP with JWT-or-scoped-autodial admission and leaves session debugging JWT-only', () => {
     const handleGuards = Reflect.getMetadata(GUARDS_METADATA, McpController.prototype.handleMcp) ?? [];
     const sessionGuards = Reflect.getMetadata(GUARDS_METADATA, McpController.prototype.getSessions) ?? [];
-    expect(handleGuards).toContain(JwtAuthGuard);
+    expect(handleGuards).toContain(McpAutodialAuthGuard);
     expect(handleGuards).not.toContain(JwtOrServiceTokenGuard);
     expect(sessionGuards).toContain(JwtAuthGuard);
     expect(sessionGuards).not.toContain(JwtOrServiceTokenGuard);

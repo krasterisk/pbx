@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { appBuildDefines } from './app-build-defines';
 
 const configDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,6 +19,7 @@ export default defineConfig({
     },
   },
   define: {
+    ...appBuildDefines(),
     // @react-pdf/renderer needs process.env
     'process.env': {},
     'process.browser': true,

@@ -18,6 +18,7 @@ import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import {
   useGetAutodialCampaignsQuery,
   useGetAutodialMonitorQuery,
+  useGetAutodialMonitorHealthQuery,
 } from '@/shared/api/endpoints/autodialApi';
 import { useAutodialSse } from '../../lib/useAutodialSse';
 import {
@@ -27,6 +28,8 @@ import {
   formatAutodialDuration,
 } from '../../lib/labels';
 import cls from './MonitorBoard.module.scss';
+import { MonitorHealthPanel } from './MonitorHealthPanel';
+import { CallLanes } from './CallLanes';
 
 /** Ticks the live-duration column without re-subscribing to the SSE stream. */
 function useSecondTick(): number {
@@ -47,6 +50,8 @@ export const MonitorBoard = memo(() => {
     pollingInterval: 15_000,
   });
   const { data: campaigns } = useGetAutodialCampaignsQuery();
+  const { currentData: polledHealth, isError: healthFailed } = useGetAutodialMonitorHealthQuery(undefined, { pollingInterval: 15000 });
+  const health = live.health && (!polledHealth || live.health.checked_at > polledHealth.checked_at) ? live.health : polledHealth;
 
   const nameByUid = new Map((campaigns ?? []).map((c) => [c.uid, c.name]));
   const statsByUid = new Map((monitor ?? []).map((row) => [row.campaign_uid, row]));
@@ -63,6 +68,7 @@ export const MonitorBoard = memo(() => {
 
   return (
     <VStack gap="16" max>
+      <MonitorHealthPanel health={health} stats={monitor ?? []} failed={healthFailed || Boolean(live.healthError)} />
       <div className={cls.kpiGrid}>
         <Card className={cls.kpiCard}>
           <CardContent className={cls.kpiContent}>
@@ -124,7 +130,7 @@ export const MonitorBoard = memo(() => {
                   {activeCampaignUids.map((uid) => {
                     const runtime = live.runtimes[uid];
                     const stats = statsByUid.get(uid);
-                    const status = runtime?.status ?? stats?.status ?? 'draft';
+                    const status = stats?.status ?? runtime?.status ?? 'draft';
                     const channels = live.channels.filter((c) => c.campaignUid === uid).length;
                     return (
                       <TableRow key={uid}>
@@ -172,7 +178,7 @@ export const MonitorBoard = memo(() => {
                           {stats?.success_today ?? runtime?.success ?? 0}
                         </TableCell>
                         <TableCell className={cls.num}>
-                          {stats ? `${Math.round(stats.contact_rate * 100)}%` : '-'}
+                          {stats ? `${stats.contact_rate}%` : '-'}
                         </TableCell>
                         <TableCell className={cls.num}>{stats?.tasks_pending ?? '-'}</TableCell>
                       </TableRow>
@@ -199,11 +205,13 @@ export const MonitorBoard = memo(() => {
               <Text variant="muted">{t('autodial.monitor.noCalls')}</Text>
             </Flex>
           ) : (
-            <div className={cls.tableScroll}>
+            <><CallLanes channels={live.channels} now={now} /><div className={cls.tableScroll}>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('autodial.monitor.number')}</TableHead>
+                    <TableHead>{t('autodial.workspace.customerPreview')}</TableHead>
+                    <TableHead>{t('autodial.workspace.currentStep')}</TableHead>
                     <TableHead>{t('autodial.monitor.campaign')}</TableHead>
                     <TableHead>{t('autodial.monitor.trunk')}</TableHead>
                     <TableHead>{t('autodial.monitor.attempt')}</TableHead>
@@ -215,6 +223,8 @@ export const MonitorBoard = memo(() => {
                   {live.channels.map((channel) => (
                     <TableRow key={channel.channelId}>
                       <TableCell className={cls.num}>{channel.number}</TableCell>
+                      <TableCell>{channel.customerName || '—'}</TableCell>
+                      <TableCell>{channel.stepType ? t(`routes.action.${channel.stepType}`, channel.stepType) : '—'}</TableCell>
                       <TableCell>
                         {nameByUid.get(channel.campaignUid) ?? `#${channel.campaignUid}`}
                       </TableCell>
@@ -236,10 +246,14 @@ export const MonitorBoard = memo(() => {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </div></>
           )}
         </CardContent>
       </Card>
+      <VStack gap="4" max><Text>{t('autodial.workspace.liveEventFeed')}</Text>
+        {(live.recent ?? []).map((event, index) => <Text variant="muted" key={index}>{new Date(event.at).toLocaleTimeString()} · {nameByUid.get(event.campaignUid) ?? `#${event.campaignUid}`} ·
+          {t(`autodial.workspace.liveEvents.${event.type}`)}{event.disposition ? ` · ${t(`autodial.disposition.${event.disposition}`, event.disposition)}` : ''}</Text>)}
+      </VStack>
     </VStack>
   );
 });

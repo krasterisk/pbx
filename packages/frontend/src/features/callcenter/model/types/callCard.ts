@@ -44,7 +44,7 @@ export interface ICardField {
   placeholder?: string;
   is_required?: boolean;
   default_value?: string;
-  options?: string[] | null;
+  options?: import('@krasterisk/shared').CardFieldOptions | null;
   depends_on?: string | null;
   depends_values?: string[] | null;
   sort_order?: number;

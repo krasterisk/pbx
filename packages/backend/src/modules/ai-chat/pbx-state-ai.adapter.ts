@@ -33,11 +33,11 @@ export class PbxStateAiAdapter implements DomainAiAdapter, OnModuleInit {
         return {
             name: 'get_pbx_state',
             description:
-                'Compact tenant PBX snapshot: per-domain counts and a bounded name sample. Optional domain filter (endpoints, trunks, ivrs, queues, contexts, adapters).',
+                'Compact tenant PBX snapshot: per-domain counts and a bounded name sample. Optional domain filter (endpoints, trunks, ivrs, queues, contexts, adapters, autodial).',
             inputSchema: {
                 domain: {
                     type: 'string',
-                    description: 'Optional domain filter: endpoints | trunks | ivrs | queues | contexts | adapters',
+                    description: 'Optional domain filter: endpoints | trunks | ivrs | queues | contexts | adapters | autodial',
                 },
             },
             entityType: 'pbx',

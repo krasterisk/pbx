@@ -10,7 +10,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { ModuleRef } from '@nestjs/core';
 import { Cron } from '@nestjs/schedule';
 import { AmiService } from '../ami/ami.service';
-import { CallCenterStateService, AgentStatus, AgentState } from './callcenter-state.service';
+import { CallCenterStateService, AgentStatus, AgentState, CallState } from './callcenter-state.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import { CallCenterAutoPauseService } from './callcenter-autopause.service';
@@ -35,6 +35,13 @@ import {
 
 @Injectable()
 export class CallCenterAmiService implements OnModuleInit {
+  static readonly PICKUP_METADATA_VARIABLE = 'CC_PICKUP_META';
+  /** Base64 avoids AMI's comma-separated Variable syntax. Stored on the real leg for restart recovery. */
+  static pickupMetadata(call: CallState, userId: number): string {
+    return Buffer.from(JSON.stringify({ uniqueid: call.uniqueid, queue: call.queue, agent: call.agent,
+      userId, callerChannel: call.callerChannel, enterTime: call.enterTime.getTime(),
+      answerTime: call.answerTime?.getTime(), ...call.pickup })).toString('base64url');
+  }
   private readonly logger = new Logger(CallCenterAmiService.name);
 
   /** Tracks pending wrapup auto-timeout timers. Key = `${userUid}:${agentInterface}` */
@@ -70,10 +77,14 @@ export class CallCenterAmiService implements OnModuleInit {
     answerTime?: Date;
     /** Status to restore after dial ends (READY / PAUSED / OUTBOUND_WORK). */
     resumeStatus?: AgentStatus;
+    resumePauseReason?: string;
   }>();
 
   /** Warn only once if CallCenterService isn't resolvable via ModuleRef. */
   private warnedMissingCcService = false;
+
+  /** Queue calls moved out of Queue() into parking need their own completion path. */
+  private readonly parkingCalls = new Set<string>();
 
   /** Guard overlapping QueueStatus membership syncs. */
   private membershipSyncRunning = false;
@@ -229,6 +240,7 @@ export class CallCenterAmiService implements OnModuleInit {
               answered: metrics.answered,
               abandoned: metrics.abandoned,
               total: metrics.offered,
+              shortAbandoned: metrics.shortAbandoned,
             },
             avgWait: metrics.asa,
             avgTalk: metrics.aht,
@@ -322,6 +334,10 @@ export class CallCenterAmiService implements OnModuleInit {
       const prefixes = this.agentInterfacePrefixes(agent.interface);
       const agentEvt = events.find((evt) => {
         const ch = String(evt.channel || '');
+        if (String(evt.application || '').toLowerCase() === 'chanspy' || this.stateService.isMonitorChannel(ch)) return false;
+        // A direct call has no queue-owned binding. Do not invent one merely
+        // because its operator is also a member of a queue.
+        if (!['appqueue', 'bridge'].includes(String(evt.application || '').toLowerCase())) return false;
         return prefixes.some((p) => ch === p || ch.startsWith(`${p}-`));
       });
       if (!agentEvt) continue;
@@ -333,6 +349,31 @@ export class CallCenterAmiService implements OnModuleInit {
           return bid === bridgeId && String(evt.channel || '') !== String(agentEvt.channel || '');
         })
         : undefined;
+
+      // Bridge recovery requires our channel metadata; arbitrary direct calls stay outside queue statistics.
+      let recoveredPickup: Partial<CallState> | undefined;
+      if (String(agentEvt.application || '').toLowerCase() === 'bridge') {
+        if (!peerEvt) continue;
+        try {
+          const response = await this.amiService.action({ action: 'Getvar', channel: agentEvt.channel, variable: CallCenterAmiService.PICKUP_METADATA_VARIABLE });
+          if (!response?.value) continue;
+          const meta = JSON.parse(Buffer.from(String(response.value), 'base64url').toString('utf8'));
+          if (meta.uniqueid !== peerEvt.uniqueid || meta.callerChannel !== peerEvt.channel
+            || meta.agent !== agent.interface || meta.userId !== agent.userId
+            || this.resolveQueueTenant(meta.queue || '') !== agent.userUid || !agent.queues.includes(meta.queue)
+            || meta.channelId !== agentEvt.uniqueid || typeof meta.actionId !== 'string'
+            || !Number.isFinite(meta.enterTime) || !Number.isFinite(meta.answerTime)
+            || meta.enterTime > meta.answerTime || meta.answerTime > Date.now()) continue;
+          const current = this.stateService.getAgent(agent.userUid, agent.interface);
+          if (current?.currentCall && current.currentCall !== meta.uniqueid) continue;
+          recoveredPickup = { uniqueid: meta.uniqueid, queue: meta.queue,
+            enterTime: new Date(meta.enterTime), answerTime: new Date(meta.answerTime), status: 'TALKING',
+            pickup: { actionId: meta.actionId, channelId: meta.channelId, callerBridge: bridgeId, agentBridge: bridgeId } };
+        } catch (error: any) {
+          this.logger.warn(`Cannot recover queue pickup on ${agentEvt.channel}: ${error?.message}`);
+          continue;
+        }
+      }
 
       const callerIdNum = String(
         peerEvt?.calleridnum
@@ -348,7 +389,8 @@ export class CallCenterAmiService implements OnModuleInit {
         || '',
       ).trim();
       const uniqueid = String(
-        peerEvt?.linkedid
+        recoveredPickup?.uniqueid
+        || peerEvt?.linkedid
         || peerEvt?.uniqueid
         || agentEvt.linkedid
         || agentEvt.uniqueid
@@ -371,9 +413,11 @@ export class CallCenterAmiService implements OnModuleInit {
         answerTime: status === 'RINGING' ? undefined : new Date(),
         userUid: agent.userUid,
         queue: agent.queues[0] || '',
+        ...recoveredPickup,
       });
       this.stateService.setAgent(agent.userUid, agent.interface, {
         currentCall: uniqueid,
+        ...(recoveredPickup ? { status: 'IN_CALL' as const } : {}),
         ...(callerIdNum ? { peerNumber: callerIdNum } : {}),
       });
       repaired += 1;
@@ -449,6 +493,8 @@ export class CallCenterAmiService implements OnModuleInit {
     // while DialEnd/Hangup may be missed (Busy/Congestion/Hangup app) — remapping
     // READY→DIALING left a phantom "Calling · Outbound" forever.
     const pendingNonQueue = this.nonQueueCallStates.get(this.journalKey(userUid, agentIface));
+    if (existing && ['PAUSED', 'OUTBOUND_WORK'].includes(existing.status) && !pendingNonQueue
+      && (status === 'RINGING' || status === 'IN_CALL')) status = existing.status;
     const unansweredOutbound = Boolean(
       pendingNonQueue
       && !pendingNonQueue.answerTime
@@ -479,11 +525,23 @@ export class CallCenterAmiService implements OnModuleInit {
     // Queue-paused "outbound work" mode must survive AMI QueueMemberPause remap to PAUSED
     // (including the brief window before setAgent(OUTBOUND_WORK), via pausedreason).
     const amiReasonEarly = (evt.pausedreason || evt.reason || '').trim();
+    const pausedOutboundCall = paused && existing?.dialTarget
+      && ['DIALING', 'IN_CALL', 'CONSULT'].includes(existing.status)
+      && (!amiStatusCode || ['2', '3', '6', '7', '8'].includes(amiStatusCode));
     if (
       paused
       && (existing?.status === 'OUTBOUND_WORK' || amiReasonEarly === 'outbound_work')
+      && !pausedOutboundCall
     ) {
       status = 'OUTBOUND_WORK';
+    }
+    // Queue pause controls incoming distribution, not the state of an active outbound leg.
+    if (pausedOutboundCall) status = existing.status;
+    if (pendingNonQueue?.direction === 'personal' && existing
+      && ['PAUSED', 'OUTBOUND_WORK'].includes(pendingNonQueue.resumeStatus || '')) {
+      status = ['2', '3', '8'].includes(amiStatusCode) ? 'IN_CALL'
+        : ['6', '7'].includes(amiStatusCode) ? 'RINGING' : existing.status;
+      if (status === 'IN_CALL' && !pendingNonQueue.answerTime) pendingNonQueue.answerTime = new Date();
     }
     // Asterisk QueueMemberPause / QueueMember use PausedReason > pausedreason
     const amiReason = amiReasonEarly;
@@ -499,6 +557,14 @@ export class CallCenterAmiService implements OnModuleInit {
     // Panel READY / PAUSED / OUTBOUND_WORK overrides Asterisk only when provenance
     // is trusted (manual / policy / login / restore) — not ami/unknown ghosts.
     let panelHeld = false;
+    // Device Not in use follows AgentComplete immediately. It describes the phone,
+    // not the operator's remaining after-call work; only policy/manual completion
+    // may release that state.
+    if (existing?.userId && (existing.status === 'WRAPUP' || existing.status === 'ACW')
+      && status !== 'IN_CALL' && status !== 'RINGING' && status !== 'DIALING') {
+      status = existing.status;
+      panelHeld = true;
+    }
     if (
       existing?.userId
       && (existing.status === 'READY'
@@ -534,6 +600,8 @@ export class CallCenterAmiService implements OnModuleInit {
       }
     }
 
+    const pickupCall = existing?.currentCall && this.stateService.getCall(existing.currentCall);
+    if (pickupCall && pickupCall.pickup && !pickupCall.answerTime) status = 'RINGING';
     const nextOrigin: AgentStatusOrigin =
       status === 'IN_CALL' || status === 'RINGING' || status === 'DIALING'
         ? 'call'
@@ -543,6 +611,8 @@ export class CallCenterAmiService implements OnModuleInit {
 
     const updated = this.stateService.setAgent(userUid, agentIface, {
       status,
+      // Preserve the shift, but never count an unreachable handset as free.
+      ...(amiStatusCode ? { phoneOnline: !['0', '4', '5'].includes(amiStatusCode) } : {}),
       pauseReason,
       statusOrigin: nextOrigin,
       // Clear outbound label when AMI reports Not in use after a failed dial.
@@ -609,7 +679,8 @@ export class CallCenterAmiService implements OnModuleInit {
       const call = this.stateService.getCall(key);
       if (call) {
         const keepForConnectRace =
-          call.status === 'TALKING'
+          !!call.pickup
+          || call.status === 'TALKING'
           || call.status === 'HOLD'
           || call.status === 'TRANSFERRED'
           || (call.status === 'RINGING' && !!call.agent);
@@ -641,8 +712,18 @@ export class CallCenterAmiService implements OnModuleInit {
     const uniqueid = this.resolveCallerCallKey(evt, userUid);
     if (!uniqueid) return;
 
-    // Drop mistaken entries keyed by agent-channel uniqueid (destuniqueid missing)
-    const agentUid = evt.uniqueid;
+    const existingCall = this.stateService.getCall(uniqueid);
+    // Modern app_queue: Channel is the caller, DestChannel is the member.
+    // Preserve compatibility with older/reversed event fixtures by matching the
+    // established caller channel first, then the member interface boundary.
+    const channel = String(evt.channel || '');
+    const destChannel = String(evt.destchannel || '');
+    const sourceIsMember = channel === agentInterface || channel.startsWith(`${agentInterface}-`);
+    const reversed = existingCall?.callerChannel === destChannel && !!destChannel
+      || existingCall?.callerChannel !== channel && sourceIsMember;
+    const agentChannel = reversed ? channel : destChannel;
+    const callerChannel = reversed ? destChannel : channel;
+    const agentUid = reversed ? evt.uniqueid : evt.destuniqueid;
     if (agentUid && agentUid !== uniqueid) {
       const mistaken = this.stateService.getCall(agentUid);
       if (mistaken && mistaken.queue === queueName) {
@@ -650,13 +731,6 @@ export class CallCenterAmiService implements OnModuleInit {
       }
     }
 
-    // AgentConnect event fields (asterisk-manager lowercases):
-    //   channel      = agent's channel  (e.g. PJSIP/e101_42-00000002)
-    //   destchannel  = caller's channel (e.g. PJSIP/trunk-00000001)
-    const agentChannel = evt.channel || '';
-    const callerChannel = evt.destchannel || '';
-
-    const existingCall = this.stateService.getCall(uniqueid);
     const callerIdNum = String(
       existingCall?.callerIdNum
       || evt.calleridnum
@@ -685,6 +759,7 @@ export class CallCenterAmiService implements OnModuleInit {
     this.stateService.setAgent(userUid, agentInterface, {
       status: 'IN_CALL',
       currentCall: uniqueid,
+      pickupFailed: false,
       // Mirror CID on the agent so status bar / colleagues survive F5 even if
       // the CallState row is briefly missing from the snapshot.
       ...(callerIdNum ? { peerNumber: callerIdNum } : {}),
@@ -704,6 +779,11 @@ export class CallCenterAmiService implements OnModuleInit {
     // missed-call rows. Lives on CallCenterService (missedCallModel owner);
     // resolved lazily via ModuleRef to avoid a circular constructor dependency.
     const answeredCall = this.stateService.getCall(uniqueid);
+    if (answeredCall?.pickup && answeredCall.agentChannel && connectedAgent) {
+      void this.amiService.action({ action: 'Setvar', channel: answeredCall.agentChannel,
+        variable: CallCenterAmiService.PICKUP_METADATA_VARIABLE, value: CallCenterAmiService.pickupMetadata(answeredCall, connectedAgent.userId),
+      }).catch(error => this.logger.warn(`Cannot persist pickup metadata: ${error?.message}`));
+    }
     if (answeredCall?.callerIdNum) {
       void this.getCcService()?.autoResolveOnAnswer(userUid, answeredCall.callerIdNum);
     }
@@ -1052,26 +1132,25 @@ export class CallCenterAmiService implements OnModuleInit {
     this.metricsService.recordMissed(userUid, agentInterface, queueName);
     this.emitKpiUpdate(userUid, agentInterface, queueName);
 
-    // Durable RNA row so F5 / Nest restart can rebuild sinceLogin missed (D-31 KPI).
-    // Not a personal missed-call worklist row (D-10/D-20) — history only.
+    // Durable RNA offer so F5 / Nest restart can rebuild the agent "missed" KPI (D-31).
+    // An RNA is an attempt to ONE agent, not a caller outcome: it goes to cc_agent_offers and
+    // never into cc_queue_calls (queue aggregates, SLA, abandon, unique call_uniqueid index).
     if (agent.userId) {
       const callUid = (evt.uniqueid as string | undefined)
         || agent.currentCall
         || `rna:${agentInterface}:${Date.now()}`;
       const liveCall = this.stateService.getCall(callUid);
-      this.historyWriter.enqueue({
+      const now = new Date();
+      this.historyWriter.enqueueOffer({
         call_uniqueid: callUid,
         queue_name: queueName,
         agent_interface: agentInterface,
         agent_user_uid: agent.userId,
         caller_id_num: liveCall?.callerIdNum || evt.calleridnum || '',
-        caller_id_name: liveCall?.callerIdName || evt.calleridname || '',
-        enter_time: liveCall?.enterTime || new Date(),
-        end_time: new Date(),
-        wait_time: 0,
-        talk_time: 0,
-        disposition: 'timeout',
-        direction: 'inbound',
+        outcome: 'rna',
+        ring_time: Math.max(0, parseInt(evt.ringtime, 10) || 0),
+        offered_at: now,
+        created_at: now,
         user_uid: userUid,
       });
     }
@@ -1135,6 +1214,9 @@ export class CallCenterAmiService implements OnModuleInit {
 
     // Pull caller info from in-memory state before removing
     const call = uniqueid ? this.stateService.getCall(uniqueid) : undefined;
+    // Moving a claimed caller out of Queue() is not a lost customer.
+    // The tracked caller Hangup owns failure/completion after manual pickup.
+    if (call?.pickup) return;
     const callerIdNum = evt.calleridnum || call?.callerIdNum || '';
     const callerIdName = evt.calleridname || call?.callerIdName || '';
     const holdTime = parseInt(evt.holdtime, 10) || 0;
@@ -1152,7 +1234,8 @@ export class CallCenterAmiService implements OnModuleInit {
         enter_time: call?.enterTime,
         end_time: new Date(),
         wait_time: holdTime,
-        hold_time: holdTime,
+        // QueueCallerAbandon.HoldTime is time waiting in queue, never conversation hold.
+        hold_time: 0,
         disposition: 'abandoned',
         direction: 'inbound',
         position,
@@ -1161,7 +1244,7 @@ export class CallCenterAmiService implements OnModuleInit {
     }
 
     this.stateService.removeCall(uniqueid, 'abandoned');
-    this.metricsService.recordAbandoned(userUid, queueName);
+    this.metricsService.recordAbandoned(userUid, queueName, holdTime);
     this.publishQueueMetrics(userUid, queueName);
     this.stateService.emitEvent('callAbandon', userUid, {
       uniqueid,
@@ -1381,6 +1464,35 @@ export class CallCenterAmiService implements OnModuleInit {
     }
   }
 
+  handleParkedCall(evt: any): void {
+    // ParkedCalls list replies reuse this event name. Treating those replies as
+    // a new park would invalidate the list again and create an SSE/HTTP loop.
+    if (evt.actionid) return;
+    const call = this.iterateAllCalls().find(item => item.callerChannel === evt.parkeechannel);
+    if (!call) return;
+    this.parkingCalls.add(call.uniqueid);
+    this.stateService.setCall(call.uniqueid, { status: 'HOLD' });
+    this.stateService.emitEvent('parkedCallsUpdate', call.userUid, { action: 'parked', parkingSpace: evt.parkingspace });
+  }
+
+  handleUnParkedCall(evt: any): void {
+    const call = this.iterateAllCalls().find(item => item.callerChannel === evt.parkeechannel);
+    if (!call || !this.parkingCalls.has(call.uniqueid)) return;
+    const agent = this.stateService.findAgentByChannel(evt.retrieverchannel || '');
+    // An AMI event must never attach a call to another tenant's operator.
+    if (!agent || agent.userUid !== call.userUid) return;
+    this.clearNonQueueDialAttempt(agent.userUid, agent.interface);
+    this.personalRingingChannels.delete(evt.retrieverchannel);
+    this.stateService.setCall(call.uniqueid, {
+      status: 'TALKING', agent: agent.interface, agentChannel: evt.retrieverchannel,
+    });
+    this.stateService.setAgent(agent.userUid, agent.interface, {
+      status: 'IN_CALL', currentCall: call.uniqueid, peerNumber: call.callerIdNum,
+    });
+    this.stateService.emitEvent('callUnhold', call.userUid, { uniqueid: call.uniqueid, channel: evt.parkeechannel });
+    this.stateService.emitEvent('parkedCallsUpdate', call.userUid, { action: 'retrieved', parkingSpace: evt.parkingspace });
+  }
+
   /**
    * Get all active calls across all tenants.
    * Delegates to stateService.getAllCallsGlobal().
@@ -1408,6 +1520,7 @@ export class CallCenterAmiService implements OnModuleInit {
   handleDialBegin(evt: any): void {
     const channel = evt.channel || '';
     const destChannel = evt.destchannel || '';
+    if (this.stateService.isMonitorChannel(channel) || this.stateService.isMonitorChannel(destChannel)) return;
 
     // Inbound leg: DestChannel is our softphone / SIP — seed personal RINGING for journal.
     if (destChannel) {
@@ -1472,6 +1585,7 @@ export class CallCenterAmiService implements OnModuleInit {
         : agent.status;
     this.stateService.setAgent(agent.userUid, agent.interface, {
       status: 'DIALING',
+      directCallUniqueid: evt.uniqueid || channel,
       dialTarget: dialedNumber || undefined,
       // Keep pause / outbound-work reason across the dial attempt
       pauseReason: agent.pauseReason,
@@ -1500,7 +1614,7 @@ export class CallCenterAmiService implements OnModuleInit {
   ): void {
     if (agent.currentCall) return;
     if (agent.status === 'DIALING' || agent.status === 'IN_CALL' || agent.status === 'CONSULT') return;
-    if (agent.status !== 'READY' && agent.status !== 'RINGING') return;
+    if (!['READY', 'RINGING', 'PAUSED', 'OUTBOUND_WORK'].includes(agent.status)) return;
 
     const agentExt = interfaceToExtension(agent.interface);
     if (info.callerIdNum && agentExt && info.callerIdNum === agentExt) return;
@@ -1509,17 +1623,21 @@ export class CallCenterAmiService implements OnModuleInit {
       callerIdNum: info.callerIdNum,
       callerIdName: info.callerIdName,
     });
+    const previous = this.nonQueueCallStates.get(this.journalKey(agent.userUid, agent.interface));
     this.nonQueueCallStates.set(this.journalKey(agent.userUid, agent.interface), {
       uniqueid: info.uniqueid,
       direction: 'personal',
       callerIdNum: info.callerIdNum,
       callerIdName: info.callerIdName,
       enterTime: new Date(),
+      resumeStatus: agent.status === 'PAUSED' || agent.status === 'OUTBOUND_WORK' ? agent.status : previous?.resumeStatus || 'READY',
+      resumePauseReason: previous?.resumePauseReason || agent.pauseReason,
     });
-    if (agent.status === 'READY') {
+    if (agent.status !== 'RINGING') {
       this.stateService.setAgent(agent.userUid, agent.interface, {
         status: 'RINGING',
         dialTarget: undefined,
+        directCallUniqueid: info.uniqueid,
         peerNumber: info.callerIdNum || undefined,
       });
       this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'RINGING');
@@ -1527,6 +1645,7 @@ export class CallCenterAmiService implements OnModuleInit {
       this.stateService.setAgent(agent.userUid, agent.interface, {
         dialTarget: undefined,
         peerNumber: info.callerIdNum || agent.peerNumber || undefined,
+        directCallUniqueid: info.uniqueid,
       });
     }
   }
@@ -1539,17 +1658,23 @@ export class CallCenterAmiService implements OnModuleInit {
    * personal "missed" call. Never touches queue-driven transitions.
    */
   handleDialEnd(evt: any): void {
+    if (this.stateService.isMonitorChannel(String(evt.channel || '')) || this.stateService.isMonitorChannel(String(evt.destchannel || ''))) return;
     const channel = evt.channel || '';
     if (!channel) return;
 
     const agent = this.stateService.findAgentByChannel(channel);
     if (!agent) return;
-    if (agent.status !== 'DIALING') return;
+    const key = this.journalKey(agent.userUid, agent.interface);
+    const nonQueueState = this.nonQueueCallStates.get(key);
+    // A device/QueueStatus refresh can race DialEnd. Only a confirmed answer,
+    // not the operator's already-connected callback leg, finishes remote dialing.
+    const pendingOutbound = nonQueueState && !nonQueueState.answerTime
+      && (nonQueueState.direction === 'outbound' || nonQueueState.direction === 'internal');
+    if (agent.status !== 'DIALING'
+      && !(pendingOutbound && agent.status === 'IN_CALL' && !agent.currentCall)) return;
 
     void this.endTimedStatus(agent);
     const dialStatus = String(evt.dialstatus || '').toUpperCase();
-    const key = this.journalKey(agent.userUid, agent.interface);
-    const nonQueueState = this.nonQueueCallStates.get(key);
 
     if (dialStatus === 'ANSWER') {
       this.stateService.setAgent(agent.userUid, agent.interface, {
@@ -1627,13 +1752,59 @@ export class CallCenterAmiService implements OnModuleInit {
    * (field casing/values to be confirmed against a live Asterisk ? see
    * 09-RESEARCH "Manual-Only" verification note).
    */
+  handleMonitorConnected(evt: any): void {
+    const channel = String(evt.spyerchannel || '');
+    if (channel) this.stateService.connectMonitorSession(channel);
+  }
+
+  handlePickupOriginateResponse(evt: any): void {
+    if (!evt.actionid || String(evt.response).toLowerCase() !== 'failure') return;
+    const call = this.iterateAllCalls().find(item => item.pickup && item.pickup.actionId === evt.actionid);
+    if (!call || call.answerTime) return;
+    const agent = call.agent && this.stateService.getAgent(call.userUid, call.agent);
+    this.stateService.setCall(call.uniqueid, { pickup: undefined, agent: undefined, agentChannel: undefined, status: 'WAITING' });
+    if (agent && agent.currentCall === call.uniqueid) {
+      this.stateService.setAgent(call.userUid, agent.interface, { status: 'READY', currentCall: undefined, peerNumber: '', pickupFailed: true });
+    }
+  }
+
+  handlePickupBridgeEnter(evt: any): void {
+    const channel = String(evt.channel || '');
+    const bridge = String(evt.bridgeuniqueid || '');
+    if (!bridge) return;
+    const call = this.iterateAllCalls().find(item => item.pickup &&
+      (item.callerChannel === channel || item.agentChannel === channel));
+    if (!call?.pickup || call.answerTime) return;
+    const pickup = { ...call.pickup, ...(channel === call.callerChannel ? { callerBridge: bridge } : { agentBridge: bridge }) };
+    this.stateService.setCall(call.uniqueid, { pickup });
+    if (pickup.callerBridge !== pickup.agentBridge) return;
+    this.handleAgentConnect({ queue: call.queue, interface: call.agent, uniqueid: call.uniqueid,
+      channel: call.callerChannel, destchannel: call.agentChannel, destuniqueid: pickup.channelId,
+      holdtime: Math.max(0, Math.round((Date.now() - call.enterTime.getTime()) / 1000)) });
+  }
+
   handleNewchannel(evt: any): void {
     const channel = evt.channel || '';
     if (!channel) return;
 
+    const pickup = this.iterateAllCalls().find(call => call.pickup && call.pickup.channelId === evt.uniqueid
+      && call.agent && channel.startsWith(`${call.agent}-`));
+    if (pickup) {
+      this.stateService.setCall(pickup.uniqueid, { agentChannel: channel });
+      return;
+    }
+
+    const spySessionId =
+      evt.chanvariable?.CC_SPY_SESSION
+      ?? evt.variable?.CC_SPY_SESSION
+      ?? (typeof evt.chanvariable === 'string' && evt.chanvariable.startsWith('CC_SPY_SESSION=')
+        ? evt.chanvariable.slice('CC_SPY_SESSION='.length)
+        : undefined);
+    if (this.stateService.bindMonitorSessionChannel(channel, spySessionId)) return;
+
     const agent = this.stateService.findAgentByChannel(channel);
     if (!agent) return;
-    if (agent.status !== 'READY') return;
+    if (!['READY', 'PAUSED', 'OUTBOUND_WORK'].includes(agent.status)) return;
 
     const stateDesc = String(evt.channelstatedesc || '').toLowerCase();
     const isRinging = stateDesc.includes('ring') || evt.channelstate === '4' || evt.channelstate === '5';
@@ -1665,6 +1836,45 @@ export class CallCenterAmiService implements OnModuleInit {
   handleAgentHangup(evt: any): void {
     const channel = evt.channel || '';
     if (!channel) return;
+
+    if (this.stateService.endMonitorSessionByChannel(channel)) return;
+
+    const picked = this.iterateAllCalls().find(call => call.pickup &&
+      (call.callerChannel === channel || (call.answerTime && call.agentChannel === channel)));
+    if (picked) {
+      if (picked.answerTime) {
+        this.handleAgentComplete({ queue: picked.queue, interface: picked.agent, uniqueid: picked.uniqueid, channel });
+      } else {
+        const agent = picked.agent && this.stateService.getAgent(picked.userUid, picked.agent);
+        if (picked.agentChannel) void this.amiService.hangup(picked.agentChannel).catch(() => undefined);
+        this.stateService.setCall(picked.uniqueid, { pickup: undefined });
+        if (agent) this.stateService.setAgent(picked.userUid, agent.interface, { status: 'READY', currentCall: undefined, peerNumber: '' });
+        this.handleCallerAbandon({ queue: picked.queue, uniqueid: picked.uniqueid,
+          holdtime: Math.max(0, Math.round((Date.now() - picked.enterTime.getTime()) / 1000)) });
+      }
+      return;
+    }
+
+    // Queue() has already returned after redirecting both legs to ConfBridge.
+    // The operator leaving that conference must release their own queue work,
+    // while the conference service continues to own the remaining participants.
+    const conference = this.iterateAllCalls().find(call => call.conference && call.agentChannel === channel);
+    if (conference) {
+      this.handleAgentComplete({ queue: conference.queue, interface: conference.agent, uniqueid: conference.uniqueid, channel });
+      return;
+    }
+
+    // Queue() no longer emits AgentComplete after a parked caller is retrieved.
+    // Only the tracked caller ending completes it; the original operator leg
+    // ends during parking and must leave the parked caller available.
+    const parked = this.iterateAllCalls().find(call =>
+      this.parkingCalls.has(call.uniqueid) && call.callerChannel === channel);
+    if (parked) {
+      this.parkingCalls.delete(parked.uniqueid);
+      this.handleAgentComplete({ queue: parked.queue, interface: parked.agent,
+        uniqueid: parked.uniqueid, channel });
+      return;
+    }
 
     const personalRing = this.personalRingingChannels.get(channel);
     this.personalRingingChannels.delete(channel);
@@ -1727,11 +1937,14 @@ export class CallCenterAmiService implements OnModuleInit {
     }
 
     if (agent.status === 'RINGING' && personalRing) {
+      const resume = nonQueueState?.resumeStatus === 'PAUSED' || nonQueueState?.resumeStatus === 'OUTBOUND_WORK' ? nonQueueState.resumeStatus : 'READY';
       this.stateService.setAgent(agent.userUid, agent.interface, {
-        status: 'READY',
+        status: resume,
+        pauseReason: nonQueueState?.resumePauseReason || '',
+        statusOrigin: resume === 'READY' ? 'call' : 'manual',
         callsMissed: (agent.callsMissed || 0) + 1,
       });
-      this.metricsService.recordAgentStatus(agent.userUid, agent.interface, 'READY');
+      this.metricsService.recordAgentStatus(agent.userUid, agent.interface, resume);
       this.metricsService.recordMissed(agent.userUid, agent.interface);
       void this.autoPauseService.evaluateOnMissed(agent.userUid, agent.interface, agent.queues);
       // D-19 personal miss: queue_name is NOT NULL, so encode ownership as
@@ -1803,8 +2016,7 @@ export class CallCenterAmiService implements OnModuleInit {
       // Outbound already counted in callsMade at DialEnd ANSWER — only bump
       // callsTaken for personal inbound answers (aligns with status-bar KPI).
       const resume =
-        isOutbound
-        && (nonQueueState?.resumeStatus === 'PAUSED'
+        (nonQueueState?.resumeStatus === 'PAUSED'
           || nonQueueState?.resumeStatus === 'OUTBOUND_WORK')
           ? nonQueueState!.resumeStatus!
           : 'READY';
@@ -1815,8 +2027,9 @@ export class CallCenterAmiService implements OnModuleInit {
         pauseReason: resume === 'OUTBOUND_WORK'
           ? (agent.pauseReason || 'outbound_work')
           : resume === 'PAUSED'
-            ? agent.pauseReason
+            ? (nonQueueState?.resumePauseReason || agent.pauseReason)
             : '',
+        statusOrigin: resume === 'READY' ? 'call' : 'manual',
         callsTaken:
           answered && !isOutbound
             ? (agent.callsTaken || 0) + 1
@@ -1842,8 +2055,8 @@ export class CallCenterAmiService implements OnModuleInit {
       // 09-VALIDATION).
       this.nonQueueCallStates.delete(key);
       if (nonQueueState) {
-        const answerTime = nonQueueState.answerTime || nonQueueState.enterTime;
-        const talkSec = Math.max(0, Math.round((Date.now() - answerTime.getTime()) / 1000));
+        const answerTime = nonQueueState.answerTime || (!isOutbound ? nonQueueState.enterTime : undefined);
+        const talkSec = answerTime ? Math.max(0, Math.round((Date.now() - answerTime.getTime()) / 1000)) : 0;
         this.historyWriter.enqueue({
           call_uniqueid: nonQueueState.uniqueid,
           queue_name: `direct:${agent.interface}`,
@@ -1856,10 +2069,10 @@ export class CallCenterAmiService implements OnModuleInit {
           end_time: new Date(),
           wait_time: 0,
           talk_time: talkSec,
-          disposition: 'answered',
+          disposition: answerTime ? 'answered' : 'abandoned',
           position: 0,
           direction: nonQueueState.direction,
-          call_type: nonQueueState.direction === 'personal' ? 'ring' : 'dial',
+          call_type: nonQueueState.direction === 'personal' ? 'ring' : answerTime ? 'dial' : 'cancel',
           user_uid: agent.userUid,
         });
       }
@@ -1936,7 +2149,9 @@ export class CallCenterAmiService implements OnModuleInit {
 
     for (const m of members) {
       const qName = m.queue;
-      const rawIface = m.interface || m.name;
+      // A QueueMember row carries the device in `location`; `name` is only a label (MemberName,
+      // or the third field of a static `member =>` line) and must never become the agent key.
+      const rawIface = m.interface || m.location || m.name;
       if (!qName || !rawIface) continue;
 
       const tenant = queueTenantMap.get(qName);
@@ -1994,7 +2209,11 @@ export class CallCenterAmiService implements OnModuleInit {
       let statusOrigin: AgentStatusOrigin = loggedIn ? (existingAgent?.statusOrigin || 'unknown') : 'ami';
       if (loggedIn && existingAgent) {
         const keep = existingAgent.status;
-        if (
+        if (existingAgent.dialTarget && ['DIALING', 'IN_CALL', 'CONSULT'].includes(keep)
+          && meta.status === 'PAUSED') {
+          status = keep;
+          statusOrigin = 'call';
+        } else if (
           keep === 'READY'
           || keep === 'PAUSED'
           || keep === 'OUTBOUND_WORK'
@@ -2019,6 +2238,14 @@ export class CallCenterAmiService implements OnModuleInit {
             statusOrigin = 'ami';
           }
         }
+      }
+
+      const pendingDial = this.nonQueueCallStates.get(key);
+      if (pendingDial && !pendingDial.answerTime && !existingAgent?.currentCall
+        && (pendingDial.direction === 'outbound' || pendingDial.direction === 'internal')
+        && (meta.status === 'IN_CALL' || meta.status === 'RINGING')) {
+        status = 'DIALING';
+        statusOrigin = 'call';
       }
 
       this.stateService.setAgent(meta.userUid, meta.iface, {
@@ -2528,7 +2755,11 @@ export class CallCenterAmiService implements OnModuleInit {
       }
     }
 
-    // Prefer caller destuniqueid; never invent a key from agent-only uniqueid
+    // With no join row, infer direction from the member channel boundary.
+    // Agent-only Uniqueid without a destination cannot establish a caller key.
+    const memberInterface = String(evt.interface || evt.membername || '');
+    const channelIsMember = memberInterface && (channel === memberInterface || channel.startsWith(`${memberInterface}-`));
+    if (!channelIsMember && uid && destChannel) return uid;
     return destUid || null;
   }
 
@@ -2549,6 +2780,7 @@ export class CallCenterAmiService implements OnModuleInit {
         answered: metrics.answered,
         abandoned: metrics.abandoned,
         total: metrics.offered,
+        shortAbandoned: metrics.shortAbandoned,
       },
     });
   }

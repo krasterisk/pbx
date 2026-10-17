@@ -1,0 +1,19 @@
+.row {
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+.kbd {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-muted);
+  white-space: nowrap;
+}
+
+.hint {
+  font-size: 0.75rem;
+  margin-top: 4px;
+}

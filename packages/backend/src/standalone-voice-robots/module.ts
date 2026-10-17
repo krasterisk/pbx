@@ -41,6 +41,7 @@ import { VoiceRobotConfigurationService } from '../modules/voice-robots/voice-ro
 import { VoiceRobotToolsService } from '../modules/voice-robots/voice-robot-tools.service';
 import { RobotMcpCredentials, RobotMcpGuard, RobotMcpCredentialsController } from './mcp-credentials';
 import { StandaloneRobotMcpController, StandaloneRobotMcpService } from './mcp';
+import { withAppIdentity } from '../modules/health/app-identity';
 
 export const STANDALONE_ROBOT_MODELS = [VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword,
   VoiceRobotLog, VoiceRobotCdr, VoiceRobotDataList, SttEngine, TtsEngine];
@@ -48,7 +49,9 @@ export const STANDALONE_ROBOT_MODELS = [VoiceRobot, VoiceRobotKeywordGroup, Voic
 @Controller('health')
 class StandaloneHealthController {
   constructor(private readonly ari: AriConnectionService, private readonly vad: SileroVadProvider) {}
-  @Get() health() { return { profile: 'v3-voice-robots', ari: this.ari.isConnected(), vad: this.vad.isAvailable }; }
+  @Get() health() {
+    return withAppIdentity({ profile: 'v3-voice-robots', ari: this.ari.isConnected(), vad: this.vad.isAvailable });
+  }
 }
 
 /** Explicit composition: no AppModule, AMI, cron jobs, schema sync or PBX provisioning. */

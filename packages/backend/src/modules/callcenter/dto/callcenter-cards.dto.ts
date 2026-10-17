@@ -13,6 +13,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import type { CardFieldOptions } from '@krasterisk/shared';
 
 /** v1 field types (14) — 'file' excluded per D-11. */
 export const CARD_FIELD_TYPES = [
@@ -65,7 +66,7 @@ export class CardFieldDto {
   default_value?: string;
 
   @IsOptional()
-  options?: unknown[];
+  options?: CardFieldOptions;
 
   @IsOptional()
   @IsString()
@@ -221,4 +222,25 @@ export class UpdateCardDto {
   @IsOptional()
   @IsObject()
   field_values?: Record<string, unknown>;
+}
+
+/** Wrap-up note written into the call card (created when the call has none yet). */
+export class WrapupNoteDto {
+  @IsString()
+  @MaxLength(64)
+  call_uniqueid!: string;
+
+  @IsString()
+  @MaxLength(4000)
+  note!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  caller_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  queue_name?: string;
 }

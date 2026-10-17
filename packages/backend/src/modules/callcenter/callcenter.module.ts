@@ -16,11 +16,22 @@ import { CallCenterService } from './callcenter.service';
 import { CallCenterPermissionsService } from './callcenter-permissions.service';
 import { CallCenterAccessListService } from './callcenter-access-list.service';
 import { CallCenterAiAdapter } from './callcenter-ai.adapter';
+import { CallCenterSettingsAiTools } from './callcenter-settings-ai.tools';
+import { CallCenterCardsAiTools } from './callcenter-cards-ai.tools';
+import { DirectoriesModule } from '../directories/directories.module';
 import { CallCenterMediaBridgeService } from './callcenter-media-bridge.service';
 import { CallCenterHistoryWriterService } from './callcenter-history-writer.service';
 import { CallCenterPresenceService } from './callcenter-presence.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
+import { CallCenterMetricsConfigService } from './callcenter-metrics-config.service';
 import { CallCenterRollupService } from './callcenter-rollup.service';
+import { CallCenterIntervalService } from './callcenter-interval.service';
+import { CallCenterIntervalsController } from './callcenter-intervals.controller';
+import { CallCenterDashboardService } from './dashboard/callcenter-dashboard.service';
+import { CallCenterLossesService } from './dashboard/callcenter-losses.service';
+import { CallCenterPausesService } from './dashboard/callcenter-pauses.service';
+import { CallCenterOperatorsService } from './dashboard/callcenter-operators.service';
+import { CallCenterDashboardController } from './dashboard/callcenter-dashboard.controller';
 import { CallCenterQueueLogReconcilerService } from './callcenter-queuelog-reconciler.service';
 import { CallCenterZombieService } from './callcenter-zombie.service';
 import { CallCenterAutoPauseService } from './callcenter-autopause.service';
@@ -51,9 +62,11 @@ import { CcAgentSession } from './models/agent-session.model';
 import { CcAgentEvent } from './models/agent-event.model';
 import { CcAgentQueue } from './models/agent-queue.model';
 import { CcMissedCall } from './models/missed-call.model';
+import { CcAgentOffer } from './models/agent-offer.model';
 import { CcContact } from './models/cc-contact.model';
 import { CcQueueCall } from './models/queue-call.model';
 import { CcDailyQueueStats } from './models/daily-queue-stats.model';
+import { CcIntervalQueueStats } from './models/interval-queue-stats.model';
 import { CcDailyAgentStats } from './models/daily-agent-stats.model';
 import { CcOperatorSettings } from './models/operator-settings.model';
 import { CcSettings } from './models/cc-settings.model';
@@ -84,9 +97,11 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       CcAgentEvent,
       CcAgentQueue,
       CcMissedCall,
+      CcAgentOffer,
       CcContact,
       CcQueueCall,
       CcDailyQueueStats,
+      CcIntervalQueueStats,
       CcDailyAgentStats,
       CcOperatorSettings,
       CcSettings,
@@ -116,6 +131,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     ConfigModule,
     LoggerModule,
     ConferencesModule,
+    DirectoriesModule,
   ],
   providers: [
     CallCenterStateService,
@@ -126,8 +142,14 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
       provide: 'CallCenterPresenceService',
       useExisting: CallCenterPresenceService,
     },
+    CallCenterMetricsConfigService,
     CallCenterMetricsService,
     CallCenterRollupService,
+    CallCenterIntervalService,
+    CallCenterDashboardService,
+    CallCenterLossesService,
+    CallCenterPausesService,
+    CallCenterOperatorsService,
     CallCenterAutoPauseService,
     FileQueueLogReader,
     RealtimeQueueLogReader,
@@ -159,6 +181,8 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterPermissionsService,
     CallCenterAccessListService,
     CallCenterAiAdapter,
+    CallCenterSettingsAiTools,
+    CallCenterCardsAiTools,
     CallCenterMediaBridgeService,
     CallCenterSettingsService,
     CallCenterCardsService,
@@ -179,13 +203,17 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     CallCenterChatController,
     CallCenterWallboardController,
     CallCenterReportsController,
+    CallCenterIntervalsController,
+    CallCenterDashboardController,
     CallCenterReportSchedulesController,
     CallCenterWebrtcController,
   ],
   exports: [
     CallCenterStateService,
+    CallCenterMetricsConfigService,
     CallCenterMetricsService,
     CallCenterRollupService,
+    CallCenterIntervalService,
     CallCenterQueueLogReconcilerService,
     CallCenterAmiService, // exported so AmiService can resolve it via ModuleRef
     CallCenterService,

@@ -1,18 +1,21 @@
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { Button, Input, Label, Switch, Text, Skeleton } from '@/shared/ui';
+import { Input, Label, Switch, Text, Skeleton } from '@/shared/ui';
 import { UserLevel, selectUserLevel } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import {
   useGetTenantSettingsQuery,
   useUpdateTenantSettingsMutation,
 } from '@/shared/api/endpoints/callCenterApi';
+import { useBaselineForm } from '../../lib/useBaselineForm';
+import { FormSaveBar } from '../FormSaveBar';
 import styles from './AlertThresholdsForm.module.scss';
 
 interface ThresholdForm {
   default_sla_threshold: number;
+  short_abandon_sec: number;
   alert_sound_enabled: boolean;
   max_wait_sec: number;
   abandon_rate_pct: number;
@@ -20,14 +23,69 @@ interface ThresholdForm {
   agents_available_min: number;
 }
 
+type NumericKey = Exclude<keyof ThresholdForm, 'alert_sound_enabled'>;
+
 const DEFAULTS: ThresholdForm = {
   default_sla_threshold: 20,
+  short_abandon_sec: 5,
   alert_sound_enabled: true,
   max_wait_sec: 60,
   abandon_rate_pct: 10,
   sla_critical_pct: 70,
   agents_available_min: 1,
 };
+
+interface NumericField {
+  key: NumericKey;
+  id: string;
+  labelKey: string;
+  hintKey: string;
+  max?: number;
+}
+
+/** Every threshold carries an explanation: what it measures, where it fires, an example (U5.5). */
+export const SLA_FIELDS: NumericField[] = [
+  {
+    key: 'default_sla_threshold',
+    id: 'cc-default-sla',
+    labelKey: 'callcenter.settings.alerts.defaultSla',
+    hintKey: 'callcenter.settings.alerts.defaultSlaHint',
+  },
+  {
+    key: 'short_abandon_sec',
+    id: 'cc-short-abandon',
+    labelKey: 'callcenter.settings.alerts.shortAbandon',
+    hintKey: 'callcenter.settings.alerts.shortAbandonHint',
+    max: 60,
+  },
+];
+
+export const ALERT_FIELDS: NumericField[] = [
+  {
+    key: 'max_wait_sec',
+    id: 'cc-max-wait',
+    labelKey: 'callcenter.settings.alerts.maxWait',
+    hintKey: 'callcenter.settings.alerts.maxWaitHint',
+  },
+  {
+    key: 'abandon_rate_pct',
+    id: 'cc-abandon',
+    labelKey: 'callcenter.settings.alerts.abandonRate',
+    hintKey: 'callcenter.settings.alerts.abandonRateHint',
+  },
+  {
+    key: 'sla_critical_pct',
+    id: 'cc-sla-crit',
+    labelKey: 'callcenter.settings.alerts.slaCritical',
+    hintKey: 'callcenter.settings.alerts.slaCriticalHint',
+  },
+  {
+    key: 'agents_available_min',
+    id: 'cc-agents-min',
+    labelKey: 'callcenter.settings.alerts.agentsAvailableMin',
+    hintKey: 'callcenter.settings.alerts.agentsAvailableMinHint',
+  },
+];
 
 /**
  * Tenant default SLA + alert thresholds (D-07 / D-27). Editable by supervisor/admin only.
@@ -38,27 +96,26 @@ export function AlertThresholdsForm() {
   const canEdit = level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN;
   const { data, isLoading, isError, refetch } = useGetTenantSettingsQuery();
   const [update, { isLoading: isSaving }] = useUpdateTenantSettingsMutation();
-  const [form, setForm] = useState<ThresholdForm>(DEFAULTS);
-  const [saved, setSaved] = useState(false);
+  const { form, setForm, dirty, syncFromServer, markSaved, revert } = useBaselineForm<ThresholdForm>(DEFAULTS);
 
   useEffect(() => {
     if (!data) return;
     const th = data.alert_thresholds ?? {};
-    setForm({
+    syncFromServer({
       default_sla_threshold: data.default_sla_threshold,
+      short_abandon_sec: data.short_abandon_sec ?? DEFAULTS.short_abandon_sec,
       alert_sound_enabled: data.alert_sound_enabled,
       max_wait_sec: th.max_wait_sec ?? DEFAULTS.max_wait_sec,
       abandon_rate_pct: th.abandon_rate_pct ?? DEFAULTS.abandon_rate_pct,
       sla_critical_pct: th.sla_critical_pct ?? DEFAULTS.sla_critical_pct,
       agents_available_min: th.agents_available_min ?? DEFAULTS.agents_available_min,
     });
-  }, [data]);
+  }, [data, syncFromServer]);
 
-  const setNum = (key: keyof ThresholdForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const setNum = (key: NumericKey) => (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!canEdit) return;
     const n = Number(e.target.value);
     setForm((prev) => ({ ...prev, [key]: Number.isFinite(n) ? n : prev[key] }));
-    setSaved(false);
   };
 
   const handleSave = async () => {
@@ -66,6 +123,7 @@ export function AlertThresholdsForm() {
     try {
       await update({
         default_sla_threshold: form.default_sla_threshold,
+        short_abandon_sec: form.short_abandon_sec,
         alert_sound_enabled: form.alert_sound_enabled,
         alert_thresholds: {
           max_wait_sec: form.max_wait_sec,
@@ -74,9 +132,7 @@ export function AlertThresholdsForm() {
           agents_available_min: form.agents_available_min,
         },
       }).unwrap();
-      setSaved(true);
-      toast.success(t('callcenter.settings.alerts.saved'));
-      setTimeout(() => setSaved(false), 3000);
+      markSaved();
     } catch {
       toast.error(t('common.error', 'Ошибка сохранения'));
     }
@@ -98,12 +154,31 @@ export function AlertThresholdsForm() {
     );
   }
 
+  const renderField = (f: NumericField) => (
+    <div className={styles.field} key={f.key}>
+      <Label htmlFor={f.id}>{t(f.labelKey)}</Label>
+      <Input
+        id={f.id}
+        type="number"
+        min={0}
+        max={f.max}
+        value={form[f.key]}
+        onChange={setNum(f.key)}
+        disabled={!canEdit}
+        aria-describedby={`${f.id}-hint`}
+      />
+      <Text id={`${f.id}-hint`} className={styles.hint} data-testid={`${f.id}-hint`}>
+        {t(f.hintKey)}
+      </Text>
+    </div>
+  );
+
   return (
     <form
       className={styles.form}
       onSubmit={(e) => {
         e.preventDefault();
-        void handleSave();
+        if (dirty) void handleSave();
       }}
     >
       {!canEdit && (
@@ -112,66 +187,12 @@ export function AlertThresholdsForm() {
 
       <div className={styles.section}>
         <Text className={styles.sectionTitle}>{t('callcenter.settings.alerts.sla')}</Text>
-        <div className={styles.field}>
-          <Label htmlFor="cc-default-sla">{t('callcenter.settings.alerts.defaultSla')}</Label>
-          <Input
-            id="cc-default-sla"
-            type="number"
-            min={0}
-            value={form.default_sla_threshold}
-            onChange={setNum('default_sla_threshold')}
-            disabled={!canEdit}
-          />
-          <Text className={styles.hint}>{t('callcenter.settings.alerts.defaultSlaHint')}</Text>
-        </div>
+        {SLA_FIELDS.map(renderField)}
       </div>
 
       <div className={styles.section}>
         <Text className={styles.sectionTitle}>{t('callcenter.settings.alerts.thresholds')}</Text>
-        <div className={styles.field}>
-          <Label htmlFor="cc-max-wait">{t('callcenter.settings.alerts.maxWait')}</Label>
-          <Input
-            id="cc-max-wait"
-            type="number"
-            min={0}
-            value={form.max_wait_sec}
-            onChange={setNum('max_wait_sec')}
-            disabled={!canEdit}
-          />
-        </div>
-        <div className={styles.field}>
-          <Label htmlFor="cc-abandon">{t('callcenter.settings.alerts.abandonRate')}</Label>
-          <Input
-            id="cc-abandon"
-            type="number"
-            min={0}
-            value={form.abandon_rate_pct}
-            onChange={setNum('abandon_rate_pct')}
-            disabled={!canEdit}
-          />
-        </div>
-        <div className={styles.field}>
-          <Label htmlFor="cc-sla-crit">{t('callcenter.settings.alerts.slaCritical')}</Label>
-          <Input
-            id="cc-sla-crit"
-            type="number"
-            min={0}
-            value={form.sla_critical_pct}
-            onChange={setNum('sla_critical_pct')}
-            disabled={!canEdit}
-          />
-        </div>
-        <div className={styles.field}>
-          <Label htmlFor="cc-agents-min">{t('callcenter.settings.alerts.agentsAvailableMin')}</Label>
-          <Input
-            id="cc-agents-min"
-            type="number"
-            min={0}
-            value={form.agents_available_min}
-            onChange={setNum('agents_available_min')}
-            disabled={!canEdit}
-          />
-        </div>
+        {ALERT_FIELDS.map(renderField)}
         <div className={styles.row}>
           <Label htmlFor="cc-alert-sound" className={styles.label}>
             {t('callcenter.settings.alerts.alertSound')}
@@ -182,20 +203,24 @@ export function AlertThresholdsForm() {
             onCheckedChange={(checked) => {
               if (!canEdit) return;
               setForm((prev) => ({ ...prev, alert_sound_enabled: checked }));
-              setSaved(false);
             }}
             disabled={!canEdit}
+            aria-describedby="cc-alert-sound-hint"
           />
         </div>
+        <Text id="cc-alert-sound-hint" className={styles.hint}>
+          {t('callcenter.settings.alerts.alertSoundHint')}
+        </Text>
       </div>
 
       {canEdit && (
-        <div className={styles.actions}>
-          <Button type="submit" disabled={isSaving}>
-            {t('callcenter.settings.save')}
-          </Button>
-          {saved && <Text className={styles.saved}>{t('callcenter.settings.alerts.saved')}</Text>}
-        </div>
+        <FormSaveBar
+          dirty={dirty}
+          saving={isSaving}
+          onSave={handleSave}
+          onCancel={revert}
+          testId="alerts-save-bar"
+        />
       )}
     </form>
   );

@@ -4,9 +4,16 @@ import {
   parseTurnModeDecision,
   toolsForMode,
   selectAgentToolBudget,
+  isExplicitReadOnlyRequest,
 } from './turn-mode';
 
 describe('turn mode', () => {
+  it('distinguishes scoped field constraints from a global read-only request', () => {
+    expect(isExplicitReadOnlyRequest('Измени описание карточки, поля не меняй')).toBe(false);
+    expect(isExplicitReadOnlyRequest('Проверь регистрацию. Настройки не меняй')).toBe(true);
+    expect(isExplicitReadOnlyRequest('Прочитай карточку, только чтение')).toBe(true);
+    expect(isExplicitReadOnlyRequest('Покажи как изменить карточку. Ничего не меняй')).toBe(true);
+  });
   it('parses a mode decision and falls open on garbage', () => {
     expect(parseTurnModeDecision('{"mode":"diagnose","domain":"diagnostics","missing":[]}')).toEqual({
       mode: 'diagnose',
@@ -34,6 +41,11 @@ describe('turn mode', () => {
     expect(diagnoseNeedsEvidence('Причина: маршрут смотрит не туда.', new Set())).toBe(true);
     expect(diagnoseNeedsEvidence('Причина: маршрут смотрит не туда.', new Set(['describe_number']))).toBe(false);
     expect(diagnoseNeedsEvidence('У вас три очереди.', new Set())).toBe(false);
+  });
+
+  it('keeps call-center list reads available without admitting mutations', () => {
+    expect(toolsForMode([{ name: 'cc_list_card_templates' }, { name: 'cc_list_pause_reasons' }, { name: 'cc_update_card_template' }], 'read', true).map(tool => tool.name))
+      .toEqual(['cc_list_card_templates', 'cc_list_pause_reasons']);
   });
 
   it('retains all requested robot tools plus discovery inside a 128-tool model budget', () => {

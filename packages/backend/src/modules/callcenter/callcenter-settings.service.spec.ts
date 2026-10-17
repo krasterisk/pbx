@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import {
   CallCenterSettingsService,
   DEFAULT_OPERATOR_SETTINGS,
@@ -28,6 +29,8 @@ describe('CallCenterSettingsService', () => {
     getEffective: jest.Mock;
   };
 
+  let metricsConfig: { invalidate: jest.Mock };
+
   beforeEach(() => {
     operatorModel = {
       findOne: jest.fn().mockResolvedValue(null),
@@ -45,11 +48,13 @@ describe('CallCenterSettingsService', () => {
     permissionsService = {
       getEffective: jest.fn().mockResolvedValue({ ...SAFE_DEFAULT_PERMISSIONS }),
     };
+    metricsConfig = { invalidate: jest.fn() };
     service = new CallCenterSettingsService(
       operatorModel as any,
       ccSettingsModel as any,
       userModel as any,
       permissionsService as any,
+      metricsConfig as any,
     );
   });
 
@@ -194,6 +199,29 @@ describe('CallCenterSettingsService', () => {
       expect(created.journal_depth).toBe(100);
     });
 
+    it('persists short_abandon_sec, clamped to the allowed range (R2)', async () => {
+      await service.updateTenantSettings(7, { short_abandon_sec: 8 });
+      expect(ccSettingsModel.create.mock.calls[0][0].short_abandon_sec).toBe(8);
+
+      ccSettingsModel.create.mockClear();
+      await service.updateTenantSettings(7, { short_abandon_sec: 0 });
+      expect(ccSettingsModel.create.mock.calls[0][0].short_abandon_sec).toBe(0);
+
+      ccSettingsModel.create.mockClear();
+      await service.updateTenantSettings(7, { short_abandon_sec: 9999 });
+      expect(ccSettingsModel.create.mock.calls[0][0].short_abandon_sec).toBeLessThanOrEqual(60);
+    });
+
+    it('defaults short_abandon_sec to 5 for a tenant with no row', async () => {
+      await service.updateTenantSettings(7, { journal_depth: 100 });
+      expect(ccSettingsModel.create.mock.calls[0][0].short_abandon_sec).toBe(5);
+    });
+
+    it('drops the metrics config cache so a new threshold applies at once', async () => {
+      await service.updateTenantSettings(7, { short_abandon_sec: 3 });
+      expect(metricsConfig.invalidate).toHaveBeenCalledWith(7);
+    });
+
     it('persists sanitized callback_policy (D-49)', async () => {
       await service.updateTenantSettings(7, {
         callback_policy: {
@@ -209,6 +237,49 @@ describe('CallCenterSettingsService', () => {
         dtmf_digit: '9',
         dial_order: 'caller_first',
       });
+    });
+  });
+
+  describe('agent_hotkeys (cc-ux U5.6)', () => {
+    it('returns null override and the default effective map when no row exists', async () => {
+      const result = await service.getTenantSettings(7);
+      expect(result.agent_hotkeys).toBeNull();
+      expect(result.agent_hotkeys_effective.answer).toBe('Alt+KeyA');
+    });
+
+    it('stores only the non-default entries, in canonical spelling', async () => {
+      await service.updateTenantSettings(7, {
+        agent_hotkeys: { answer: 'Shift+Alt+KeyY', hangup: 'Alt+KeyH' },
+      });
+      expect(ccSettingsModel.create.mock.calls[0][0].agent_hotkeys).toEqual({ answer: 'Alt+Shift+KeyY' });
+    });
+
+    it('rejects reserved combos, duplicates and unknown actions with 400', async () => {
+      await expect(
+        service.updateTenantSettings(7, { agent_hotkeys: { answer: 'Alt+KeyD' } }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.updateTenantSettings(7, { agent_hotkeys: { answer: 'Alt+KeyM' } }), // collides with default mute
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.updateTenantSettings(7, { agent_hotkeys: { bogus: 'Alt+KeyZ' } }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(ccSettingsModel.create).not.toHaveBeenCalled();
+    });
+
+    it('null (or an empty map) resets to the built-in set', async () => {
+      await service.updateTenantSettings(7, { agent_hotkeys: null });
+      expect(ccSettingsModel.create.mock.calls[0][0].agent_hotkeys).toBeNull();
+      ccSettingsModel.create.mockClear();
+      await service.updateTenantSettings(7, { agent_hotkeys: {} });
+      expect(ccSettingsModel.create.mock.calls[0][0].agent_hotkeys).toBeNull();
+    });
+
+    it('exposes the effective map for a stored override', async () => {
+      ccSettingsModel.findOne.mockResolvedValueOnce({ toJSON: () => ({ user_uid: 7, agent_hotkeys: { answer: 'Alt+KeyY' } }) });
+      const result = await service.getTenantSettings(7);
+      expect(result.agent_hotkeys_effective.answer).toBe('Alt+KeyY');
+      expect(result.agent_hotkeys_effective.hangup).toBe('Alt+KeyH');
     });
   });
 

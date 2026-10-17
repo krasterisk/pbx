@@ -1,24 +1,53 @@
 ---
 name: callcenter
-description: Снимок очередей и статусы агентов; KPI только за сегодня; live pause/unpause.
+description: Настройка колл-центра, очередей, смен, операторов, прав, уведомлений, карточек и рассылок; live-состояние и KPI.
 domains: ["callcenter"]
-intents: ["configure_callcenter"]
-aliases: ["колл-центр", "callcenter"]
-related: ["queues"]
+intents: ["configure_callcenter", "configure_call_cards"]
+aliases: ["колл-центр", "колл центр", "callcenter", "КЦ", "карточка звонка", "карточки звонков", "карточки звонка", "карточки КЦ", "карточек звонка", "редактор карточек", "тема обращения", "постобработка", "супервизор", "SLA", "автопауза"]
+related: ["queues", "directories"]
 risk: high
 ---
-# Колл-центр
+# Настройка колл-центра
 
-Агент = SIP-интерфейс (если PJSIP — `e{exten}_{tenant}`) плюс статус: `OFFLINE` | `READY` | `IN_CALL` | `RINGING` | `PAUSED` | `WRAPUP`. Очередь = `name` + strategy + waiting/talking. Активный звонок = `uniqueid` + queue + agent + `callerChannel`. История — `cc_queue_calls`. AI-агент как оператор очереди не поддерживается.
+Сначала прочитай текущее состояние, затем предложи только запрошенные изменения. Все изменения `cc_create_*`, `cc_update_*`, `cc_delete_*`, управление паузой и участием в очереди используют предложение → подтверждение → повторную проверку прав/тенанта/ревизии → применение. Слова пользователя «подтверждаю» не заменяют серверное подтверждение. Устаревшее предложение требует нового предпросмотра. Нет SQL/HTTP обхода ограничений.
 
-## Снимок очереди и состояние агента
+## Найти возможность и параметры
 
-`cc_get_queue_snapshot` даёт waiting/talking, агентов (total/available/paused), SLA и счётчики. `cc_get_agents` — статусы, причину паузы и очереди. Это live in-memory состояние тенанта, не исторический отчёт.
+`get_configuration_capabilities(domain="callcenter")` перечисляет инструменты; `tool="cc_update_tenant_settings"` возвращает строгую схему, `field="patch.shift_policy"` — конкретный параметр. Не выдумывай ключи/UID. Идентичность КЦ и пользователя приходит из сессии. operatorId отсутствует → текущий оператор; чужие настройки требуют роли супервизора/администратора. Роли 0/1/3, а не числовое >=3.
 
-## Live-операции супервизора
+## Политики, операторы и доступ
 
-`cc_force_pause_agent` и `cc_force_unpause_agent` — живые supervisor-операции. Их вызывает dispatch, это не draft и не proposal. Остальные мутации АТС идут через proposal.
+- `cc_get/update_tenant_settings`: SLA по умолчанию в секундах, короткие потери 0–60 сек, глубина журнала 1–500, пороги алертов, автопауза, смены, callback_policy, горячие клавиши.
+- SLA servicelevel очереди имеет приоритет над общим порогом. Короткие потери исключаются из знаменателя SLA/доли ответов/потерь. Пороги предупреждений не меняют распределение звонков.
+- shift_policy: max_duration_min/idle_timeout_min в минутах, 0 отключает; close_at_eod/eod_time по часам сервера; idle_requires_unregistered; free_exten_on_close. Изменение может завершить открытые смены при следующей проверке.
+- autopause_enabled — общий выключатель, включая RONA. Пользовательские правила missed_count/idle_time/status_duration, до 20; встроенную RONA нельзя добавлять как правило. `cc_list/create/update/delete_pause_reason` — причины и лимиты пауз.
+- `cc_get/update_operator_settings`: автоответ/сигнал перед ответом/перехват, постобработка и её продление в секундах, звуки, громкость 0–100, автосохранение черновика.
+- `cc_get/update_operator_ui`, `cc_get/update_operator_permissions`, `cc_get/update_operator_notifications`; ролевые defaults и locks — `cc_get/update_permission_defaults`, `ui_defaults`, `notification_defaults`; `cc_get_permissions_matrix` показывает эффективные права.
+- Сервер объединяет личные настройки с ролевыми и блокировками; блокированные значения не обещай изменить. can_spy — право слушать, spyable — можно ли слушать оператора; spy_modes listen/whisper/barge.
+- Вид таблица/карточки и вкладки на компьютере — локальные настройки браузера, MCP их не меняет.
 
-## KPI только за текущий день
+## Очереди и наблюдение
 
-`cc_get_today_kpi` и цифры SLA/answered/abandoned/avgWait/avgTalk на снимке очереди — аккумуляторы с полуночи текущих суток. Не экстраполировать их на неделю, месяц или прошлые дни.
+`list_queues`, `get_queue_configuration`, `create_queue/update_queue/delete_queue` — постоянная конфигурация: стратегия, timeout одного предложения оператору, retry, wrapuptime, музыка, объявления, servicelevel, overflow, состав. Общее ожидание клиента не равно timeout одного вызова. Сначала прочитай номер и идентификатор очереди.
+
+`cc_get/update_watched_agents` — личное наблюдение супервизора в пределах его списка доступа. `cc_add/remove/penalty_queue_member` — участие оператора в текущей смене, не постоянный состав. `cc_force_pause_agent`/`cc_force_unpause_agent` тоже требуют предпросмотра и подтверждения.
+
+## Карточка из описания
+
+1. `cc_list_card_templates`, `cc_get_card_template`: проверь существующий шаблон и очереди. Для нового `cc_create_card_template`, для изменения `cc_update_card_template`.
+2. Название и понятные подписи. auto_open_on: answer/ring/manual. queue_names=[] — все очереди. auto_save_on_timeout сохраняет незавершённый черновик после постобработки без отправки в CRM.
+3. `fields` — полный упорядоченный список; сохраняй поля и стабильные field_key, которые пользователь не просил удалить. Переименование подписи не должно переименовывать ключ исторических ответов.
+4. text/textarea/phone/email/number/date/checkbox; select/multi_select для выбора, heading/divider для разделов; width half/full, is_required, placeholder. depends_on/depends_values показывают зависимые поля по кодам выбранных вариантов.
+5. Тема обращения, реклама, услуга, результат — пользовательские данные универсального справочника, не статические таблицы. Найди `list_directories`/`list_directory_records`. Для нового `create_directory` и `add_directory_records`; произвольные коды требуют key_normalization=none. Справочник можно переиспользовать между полями/карточками.
+6. options={source:"directory",directoryUid,valueFieldUid,labelFieldUid}; UID колонок из схемы справочника. Код уникальный, подпись непустая. В карточке сохраняются код и подпись на момент выбора; переименование справочника не меняет историю. Небольшой ручной список допустим options=[строки], но не заменяй им существующий справочник.
+7. Не включай webhook без запроса: окончательное сохранение карточки передаёт данные в выбранную интеграцию. integration_uid получай из доступных интеграций, секреты в чат не запрашивай.
+
+## Экраны, предупреждения и отчёты
+
+`cc_list/create/revoke_display_token`: TV-доступ; модель видит только метаданные. Человек копирует ссылку в настройках экранов. `cc_get/update_alert_routing`: реальная доставка через интеграцию; cooldown_sec 30–3600.
+
+`cc_list/create/update/delete_report_schedule`; `cc_preview_report_schedule` проверяет следующий запуск и часовой пояс сервера без отправки. enabled=true включает реальную доставку, поэтому явно указывай получателя, канал, период и время в предложении. Проверяй существующий integration_uid. Инструменты не отправляют run-now.
+
+## Live-данные
+
+`cc_get_queue_snapshot`/`cc_get_agents` — текущий снимок; статус и регистрация телефона различны. Агент READY с недоступным телефоном не может принимать звонки. `cc_get_today_kpi` — только текущие сутки, не исторический отчёт. Не выдавай эти цифры за неделю/месяц. AI-оператор очереди не поддерживается, работа с людьми и SIP/WebRTC-устройствами.

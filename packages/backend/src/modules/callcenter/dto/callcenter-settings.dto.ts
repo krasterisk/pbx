@@ -79,6 +79,16 @@ export class UpdateCcSettingsDto {
   @Min(0)
   default_sla_threshold?: number;
 
+  /**
+   * R2: abandon within this many seconds is a "short abandon" and is excluded from the offered
+   * denominator of SLA / answer / abandon rates. 0 disables the exclusion.
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(60)
+  short_abandon_sec?: number;
+
   /** D-04: Journal last-N depth (tenant-level; no per-operator override). */
   @IsOptional()
   @IsInt()
@@ -119,6 +129,15 @@ export class UpdateCcSettingsDto {
   @ValidateNested()
   @Type(() => CallbackPolicyDto)
   callback_policy?: CallbackPolicyDto;
+
+  /**
+   * cc-ux U5.6: agent workspace hotkeys, `{ action: 'Alt+KeyA' }`. Partial maps override the defaults;
+   * `null` resets to the built-in set. Deep validation (known actions, format, reserved, duplicates)
+   * is done in the service with the shared `validateHotkeyMap`.
+   */
+  @IsOptional()
+  @IsObject()
+  agent_hotkeys?: Record<string, string> | null;
 }
 
 /** D-05: tab/panel visibility + softphone placement. Locked keys rejected server-side (D-06). */

@@ -23,7 +23,9 @@ export function coerceAutodialValue(field: Field, raw: unknown): string | number
     case 'number':
     case 'money': {
       if (typeof raw === 'boolean' || !String(raw).trim()) invalid('AC_INVALID_NUMBER', field.key);
-      const value = Number(String(raw).replace(',', '.'));
+      const text = String(raw).trim().replace(/[\u0020\u00a0\u202f]/g, '').replace(',', '.');
+      if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(text)) invalid('AC_INVALID_NUMBER', field.key);
+      const value = Number(text);
       if (!Number.isFinite(value)) invalid('AC_INVALID_NUMBER', field.key);
       return value;
     }
@@ -33,7 +35,9 @@ export function coerceAutodialValue(field: Field, raw: unknown): string | number
       return value;
     }
     case 'date': {
-      const value = String(raw);
+      const text = String(raw).trim();
+      const local = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(text);
+      const value = local ? `${local[3]}-${local[2]}-${local[1]}` : text;
       const parsed = new Date(value);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(parsed.getTime())
         || parsed.toISOString().slice(0, 10) !== value) invalid('AC_INVALID_DATE', field.key);
@@ -76,9 +80,9 @@ export function prepareAutodialContact(
   }
   const seen = new Set<string>();
   const phones = dto.phones.map((phone, position) => {
-    if (typeof phone.raw !== 'string') invalid('AC_INVALID_PHONE', 'phones');
+    if (typeof phone.raw !== 'string' || !/^[+\d\s().-]+$/.test(phone.raw)) invalid('AC_INVALID_PHONE', 'phones');
     const normalized = normalizeAutodialPhone(phone.raw, normalization);
-    if (!normalized) invalid('AC_INVALID_PHONE', 'phones');
+    if (!normalized || !normalizeAutodialPhone(phone.raw)) invalid('AC_INVALID_PHONE', 'phones');
     if (seen.has(normalized)) invalid('AC_DUPLICATE_PHONE', 'phones');
     seen.add(normalized);
     const offset = phone.tz_offset_min ?? 180;
@@ -87,6 +91,7 @@ export function prepareAutodialContact(
       ...(phone.uid !== undefined ? { uid: phone.uid } : {}),
       raw: phone.raw.trim(),
       normalized,
+      canonical_phone: normalizeAutodialPhone(phone.raw),
       is_primary: phone.is_primary ?? false,
       tz_offset_min: offset,
       position,

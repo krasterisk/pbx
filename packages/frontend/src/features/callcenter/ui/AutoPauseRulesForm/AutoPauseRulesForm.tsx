@@ -1,5 +1,5 @@
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { Button, Input, Label, Select, Switch, Text, Skeleton } from '@/shared/ui';
@@ -13,6 +13,8 @@ import {
 } from '@/shared/api/endpoints/callCenterApi';
 import { agentStatusLabel, AGENT_STATUS_LABEL_KEYS } from '@/features/callcenter/lib/displayLabels';
 import type { AgentStatus } from '@/features/callcenter/model/types/callCenterSchema';
+import { useBaselineForm } from '../../lib/useBaselineForm';
+import { FormSaveBar } from '../FormSaveBar';
 import styles from './AutoPauseRulesForm.module.scss';
 
 type RuleType = AutoPauseRule['type'];
@@ -58,22 +60,28 @@ export function AutoPauseRulesForm() {
   const { data, isLoading, isError, refetch } = useGetTenantSettingsQuery();
   const { data: pauseReasons = [] } = useGetPauseReasonsQuery();
   const [update, { isLoading: isSaving }] = useUpdateTenantSettingsMutation();
-  const [enabled, setEnabled] = useState(true);
-  const [rules, setRules] = useState<AutoPauseRule[]>([]);
-  const [saved, setSaved] = useState(false);
+  const { form, setForm, dirty, syncFromServer, markSaved, revert } = useBaselineForm<{
+    enabled: boolean;
+    rules: AutoPauseRule[];
+  }>({ enabled: true, rules: [] });
+  const { enabled, rules } = form;
+  const setEnabled = (next: boolean) => setForm((prev) => ({ ...prev, enabled: next }));
+  const setRules = (fn: (prev: AutoPauseRule[]) => AutoPauseRule[]) =>
+    setForm((prev) => ({ ...prev, rules: fn(prev.rules) }));
 
   useEffect(() => {
     if (!data) return;
-    setEnabled(data.autopause_enabled !== false);
-    setRules(normalizeRules(data.autopause_rules));
-  }, [data]);
+    syncFromServer({
+      enabled: data.autopause_enabled !== false,
+      rules: normalizeRules(data.autopause_rules),
+    });
+  }, [data, syncFromServer]);
 
   const rulesEditable = canEdit && enabled;
 
   const updateRule = (index: number, next: AutoPauseRule) => {
     if (!rulesEditable) return;
     setRules((prev) => prev.map((r, i) => (i === index ? next : r)));
-    setSaved(false);
   };
 
   const changeType = (index: number, type: RuleType) => {
@@ -88,13 +96,11 @@ export function AutoPauseRulesForm() {
   const addRule = () => {
     if (!rulesEditable) return;
     setRules((prev) => [...prev, defaultRule()]);
-    setSaved(false);
   };
 
   const removeRule = (index: number) => {
     if (!rulesEditable) return;
     setRules((prev) => prev.filter((_, i) => i !== index));
-    setSaved(false);
   };
 
   const handleSave = async () => {
@@ -104,9 +110,7 @@ export function AutoPauseRulesForm() {
         autopause_enabled: enabled,
         autopause_rules: rules,
       }).unwrap();
-      setSaved(true);
-      toast.success(t('callcenter.settings.autoPause.saved'));
-      setTimeout(() => setSaved(false), 3000);
+      markSaved();
     } catch {
       toast.error(t('common.error', 'Ошибка сохранения'));
     }
@@ -153,7 +157,6 @@ export function AutoPauseRulesForm() {
           onCheckedChange={(next) => {
             if (!canEdit) return;
             setEnabled(next);
-            setSaved(false);
           }}
         />
       </div>
@@ -197,6 +200,9 @@ export function AutoPauseRulesForm() {
                       </option>
                     ))}
                   </Select>
+                  <Text className={styles.hint} data-testid={`cc-ap-type-hint-${index}`}>
+                    {t(`callcenter.settings.autoPause.typeHints.${rule.type}`)}
+                  </Text>
                 </div>
                 {rulesEditable && (
                   <Button
@@ -361,11 +367,16 @@ export function AutoPauseRulesForm() {
               {t('callcenter.settings.autoPause.add')}
             </Button>
           )}
-          <Button type="submit" disabled={isSaving}>
-            {t('callcenter.settings.save')}
-          </Button>
-          {saved && <Text className={styles.saved}>{t('callcenter.settings.autoPause.saved')}</Text>}
         </div>
+      )}
+      {canEdit && (
+        <FormSaveBar
+          dirty={dirty}
+          saving={isSaving}
+          onSave={handleSave}
+          onCancel={revert}
+          testId="autopause-save-bar"
+        />
       )}
     </form>
   );

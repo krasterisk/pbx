@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   AUTODIAL_DIAL_MODES,
   AUTODIAL_SCHEDULE_KINDS,
+  autodialScenarioActionSchema,
   type IAutodialBaseField,
   type IAutodialCampaign,
   type IAutodialSchedule,
@@ -23,6 +24,10 @@ import { AutodialCampaignsService } from './autodial-campaigns.service';
 import { AutodialBasesService } from './autodial-bases.service';
 import { AutodialReportsService } from './autodial-reports.service';
 import { AutodialDncService } from './autodial-dnc.service';
+import { AutodialDiagnosisService } from './autodial-diagnosis.service';
+import { AutodialPreflightService } from './autodial-preflight.service';
+import { assertAutodialWriteRole } from './autodial-write.guard';
+import { AutodialAiDataTools } from './autodial-ai-data.tools';
 import type {
   CreateAutodialCampaignDto,
   UpdateAutodialCampaignDto,
@@ -39,6 +44,8 @@ const pauseArgs = pauseInput;
 const dncInput = z.strictObject({
   phone: z.string().min(3).describe('Номер, который больше не набирать'),
   reason: z.string().optional().describe('Причина внесения в стоп-лист'),
+  base_uid: z.number().int().positive().optional().describe('Ограничить одной базой; не сочетать с campaign_uid'),
+  expires_at: z.iso.datetime({ offset: true }).optional().describe('Срок действия в ISO с часовым поясом'),
   campaign_uid: z
     .number()
     .int()
@@ -121,15 +128,7 @@ const scheduleSchema = z.strictObject({
   enabled: z.boolean().optional(),
 });
 
-const scenarioActionSchema = z
-  .object({
-    type: z.string().min(1),
-    id: z.string().optional(),
-    enabled: z.boolean().optional(),
-    condition: z.record(z.string(), z.unknown()).optional(),
-    params: z.record(z.string(), z.unknown()).optional(),
-  })
-  .passthrough();
+const scenarioActionSchema = autodialScenarioActionSchema;
 
 const campaignFields = {
   name: z.string().min(1).max(255).describe('Отображаемое имя кампании'),
@@ -172,7 +171,7 @@ const updateInput = z.strictObject({
 
 const updateArgs = z.strictObject({
   uid: z.number().int().positive(),
-  expected_revision: z.number().int().min(1),
+  expected_revision: z.number().int().nonnegative(),
   name: z.string().min(1).max(255).optional(),
   dial_mode: campaignFields.dial_mode,
   base_uid: campaignFields.base_uid,
@@ -212,6 +211,9 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
     private readonly reports: AutodialReportsService,
     private readonly dnc: AutodialDncService,
     private readonly registry: AiAdapterRegistryService,
+    private readonly diagnosis: AutodialDiagnosisService,
+    private readonly preflight: AutodialPreflightService,
+    private readonly dataTools: AutodialAiDataTools,
   ) {}
 
   onModuleInit(): void {
@@ -220,7 +222,7 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
   }
 
   getTools(): AiToolDefinition[] {
-    return [
+    const tools: AiToolDefinition[] = [
       this.toolListCampaigns(),
       this.toolGetCampaign(),
       this.toolListBases(),
@@ -229,11 +231,59 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
       this.toolUpdateCampaign(),
       this.toolPauseCampaign(),
       this.toolAddToDnc(),
+      ...this.diagnosticTools(),
+      ...this.dataTools.getTools(),
     ];
+    for (const tool of tools) {
+      if (!tool.mutation) continue;
+      const mutation = tool.mutation;
+      const { propose, revalidate, apply } = mutation;
+      mutation.propose = async (input, ctx) => { assertAutodialWriteRole(ctx.role); return propose(input, ctx); };
+      mutation.revalidate = async (args, ctx) => { assertAutodialWriteRole(ctx.role); return revalidate(args, ctx); };
+      mutation.apply = async (args, ctx) => { assertAutodialWriteRole(ctx.role); return apply(args, ctx); };
+    }
+    return tools;
   }
 
   getStateProvider(): AiStateProvider {
-    return { domain: this.domain, buildSummary: (uid) => this.buildSummary(uid) };
+    return { domain: this.domain, buildSummary: (uid) => this.buildSummary(uid),
+      buildSnapshot: async (uid) => {
+        const campaigns = await this.campaigns.findAll(uid);
+        return { count: campaigns.length, sample: campaigns.slice(0, 10).map((campaign) =>
+          `${campaign.uid}: ${campaign.name} (${campaign.status}, ${campaign.dial_mode}, pending=${campaign.tasks_pending ?? 0})`) };
+      } };
+  }
+
+  private diagnosticTools(): AiToolDefinition[] {
+    const campaignRead = (name: string, description: string,
+      read: (tenant: number, campaign: number) => Promise<object>): AiToolDefinition => ({
+      name, description, entityType: 'autodial_campaign',
+      inputSchema: { uid: { type: 'integer', description: 'UID кампании' }, name: { type: 'string', description: 'Имя кампании вместо UID' } },
+      handler: async (args, tenant) => {
+        const campaign = await this.resolveCampaign({ uid: numberOrUndef(args.uid), name: stringOrUndef(args.name) }, tenant);
+        return 'refused' in campaign ? campaign : { ...await read(tenant, campaign.uid) };
+      },
+    });
+    return [
+      { name: 'describe_autodial_capabilities', description: 'Точный контракт поддерживаемых шагов/параметров, режимов и полей; доступные TTS и очереди тенанта. Чтение.',
+        inputSchema: {}, entityType: 'autodial_campaign', handler: async (_args, tenant) => this.preflight.capabilities(tenant) },
+      { name: 'get_autodial_base', description: 'Схема базы, переменные AC_*, ревизия, политика дедупликации и число контактов. Без персональных данных.',
+        inputSchema: { uid: { type: 'integer', description: 'UID базы из list_autodial_bases' } }, entityType: 'autodial_base',
+        handler: async (args, tenant) => this.dataTools.base(tenant, Number(args.uid)) },
+      campaignRead('get_autodial_diagnosis', 'Фактические причины простоя: статус, расписание, READY-агенты, ожидающие повторы, ближайшее время, ёмкость и apply_error. Не запускает звонки.',
+        async (tenant, campaign) => {
+          const diagnosis = await this.diagnosis.diagnose(tenant, campaign);
+          const timezone = await this.reports.reportingTimezone(tenant);
+          return { ...diagnosis, timezone, next_attempt_local: diagnosis.next_attempt_at
+            ? new Intl.DateTimeFormat('ru-RU', { timeZone: timezone, dateStyle: 'short', timeStyle: 'short' }).format(new Date(diagnosis.next_attempt_at)) : null };
+        }),
+      campaignRead('get_autodial_preflight', 'Проверка готовности: контракт сценария, файлы, TTS, AMD, транки, стоп-лист и временные ожидания. Не запускает звонки.',
+        (tenant, campaign) => this.preflight.check(tenant, campaign)),
+      { name: 'get_autodial_monitor', description: 'Живой монитор и сохранённые дневные показатели автообзвона. Без изменений.', inputSchema: {}, entityType: 'autodial_campaign',
+        handler: async (_args, tenant) => ({ campaigns: await this.reports.liveStats(tenant), health: await this.dataTools.monitorHealth(tenant) }) },
+      { name: 'list_autodial_dnc', description: 'Стоп-лист тенанта: область, срок, причина; телефоны маскируются. Без изменений.', inputSchema: {}, entityType: 'autodial_dnc',
+        handler: async (_args, tenant) => this.dataTools.listDnc(tenant) },
+    ];
   }
 
   getKnowledgeBlock(): string {
@@ -360,9 +410,12 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
       args: createArgs,
       reload: { kind: 'none' },
       propose: async (input, ctx) => {
-        const refused = await this.refuseMissingBase(input.base_uid, ctx);
+        const plannedBase = ctx.planned?.autodialBases?.find((base) => base.uid === input.base_uid);
+        const refused = plannedBase ? null : await this.refuseMissingBase(input.base_uid, ctx);
         if (refused) return refused;
         const applyArgs = input;
+        if (plannedBase) await this.preflight.validateDraft(ctx.vpbxUserUid, applyArgs, plannedBase);
+        else await this.preflight.validateDraft(ctx.vpbxUserUid, applyArgs);
         return {
           entityType: 'autodial_campaign',
           entityLabel: input.name,
@@ -383,12 +436,16 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
       revalidate: async (args, ctx) => {
         const refused = await this.refuseMissingBase(args.base_uid, ctx);
         if (refused) return { ok: false, reason: String(refused.message) };
+        try { await this.preflight.validateDraft(ctx.vpbxUserUid, args); }
+        catch (error) { return { ok: false, reason: (error as Error).message }; }
         return { ok: true, args };
       },
       apply: async (args, ctx) => {
         const created = await this.campaigns.create(
           ctx.vpbxUserUid,
           args as CreateAutodialCampaignDto,
+          ctx.userUid,
+          { source: 'ai_assistant', threadUid: ctx.threadUid },
         );
         return { uid: created.uid, status: created.status, revision: created.revision };
       },
@@ -420,6 +477,7 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
           expected_revision: campaign.revision,
           ...patch,
         };
+        await this.preflight.validateDraft(ctx.vpbxUserUid, { ...campaign, ...patch });
         return {
           entityType: 'autodial_campaign',
           entityLabel: campaign.name,
@@ -439,6 +497,7 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
               reason: `Кампания «${current.name}» изменилась (ревизия ${current.revision}, карточка на ${args.expected_revision}). Обновите и повторите.`,
             };
           }
+          await this.preflight.validateDraft(ctx.vpbxUserUid, { ...current, ...args });
           return { ok: true, args };
         } catch {
           return { ok: false, reason: `Кампания ${args.uid} не найдена у тенанта` };
@@ -449,7 +508,7 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
         const updated = await this.campaigns.update(ctx.vpbxUserUid, uid, {
           expected_revision,
           ...rest,
-        } as UpdateAutodialCampaignDto);
+        } as UpdateAutodialCampaignDto, ctx.userUid, { source: 'ai_assistant', threadUid: ctx.threadUid });
         return { uid: updated.uid, revision: updated.revision, status: updated.status };
       },
     });
@@ -488,7 +547,7 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
         return { ok: true, args };
       },
       apply: async (args, ctx) => {
-        const paused = await this.campaigns.pause(ctx.vpbxUserUid, args.uid);
+        const paused = await this.campaigns.pause(ctx.vpbxUserUid, args.uid, ctx.userUid, { source: 'ai_assistant', threadUid: ctx.threadUid });
         return { uid: paused.uid, status: paused.status };
       },
     });
@@ -504,8 +563,12 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
       input: dncInput,
       args: dncArgs,
       reload: { kind: 'none' },
-      propose: async (input) => {
-        const scope = input.campaign_uid ? 'кампании' : 'всего тенанта';
+      propose: async (input, ctx) => {
+        if (input.base_uid && input.campaign_uid) throw new Error('Choose base_uid or campaign_uid');
+        if (input.base_uid) await this.bases.findOne(ctx.vpbxUserUid, input.base_uid);
+        if (input.campaign_uid) await this.campaigns.findOne(ctx.vpbxUserUid, input.campaign_uid);
+        if (input.expires_at && Date.parse(input.expires_at) <= Date.now()) throw new Error('Choose future expires_at');
+        const scope = input.campaign_uid ? 'кампании' : input.base_uid ? 'базы' : 'всего тенанта';
         return {
           entityType: 'autodial_dnc',
           entityLabel: input.phone,
@@ -516,18 +579,25 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
           before: null,
           after: {
             phone: input.phone,
-            scope: input.campaign_uid ? 'campaign' : 'global',
+            scope: input.campaign_uid ? 'campaign' : input.base_uid ? 'base' : 'global',
             reason: input.reason ?? '',
           },
           applyPayload: { tool: 'add_autodial_dnc', args: input },
           includesDialplanReload: false,
         } satisfies AgentDiffProposal;
       },
-      revalidate: async (args) => ({ ok: true, args }),
+      revalidate: async (args, ctx) => {
+        if (args.base_uid && args.campaign_uid) return { ok: false, reason: 'Choose base_uid or campaign_uid' };
+        if (args.expires_at && Date.parse(args.expires_at) <= Date.now()) return { ok: false, reason: 'DNC expiry must be in the future' };
+        if (args.base_uid) await this.bases.findOne(ctx.vpbxUserUid, args.base_uid);
+        if (args.campaign_uid) await this.campaigns.findOne(ctx.vpbxUserUid, args.campaign_uid);
+        return { ok: true, args };
+      },
       apply: async (args, ctx) => {
         const created = await this.dnc.create(ctx.vpbxUserUid, {
-          scope: args.campaign_uid ? 'campaign' : 'global',
-          scope_uid: args.campaign_uid ?? null,
+          scope: args.campaign_uid ? 'campaign' : args.base_uid ? 'base' : 'global',
+          scope_uid: args.campaign_uid ?? args.base_uid ?? null,
+          expires_at: args.expires_at,
           normalized_phone: args.phone,
           reason: args.reason ?? '',
           source: 'ai-agent',

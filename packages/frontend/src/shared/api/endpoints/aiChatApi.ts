@@ -2,7 +2,8 @@ import type { AgentTimelineItem } from '@krasterisk/shared';
 import { rtkApi } from '../rtkApi';
 import type { AiModel } from '@/features/ai-chat/model/types/AiChatSchema';
 import { getLiveTimeline, mergeTimelines, setLiveTimeline } from './aiChatLiveTimeline';
-export const AI_CHAT_CONFIGURATION_TAGS = ['Ivrs', 'CallGroups', 'Endpoints', 'Trunks', 'Contexts', 'Routes', 'Queues', 'TenantSettings', 'TimeGroups', 'Directory', 'Moh', 'Prompts', 'Notifications', 'AiProviders', 'TtsEngines', 'SttEngines', 'PickupGroups', 'ProvisionTemplates'] as const;
+export const AUTODIAL_CONFIGURATION_TAGS = ['AutodialCampaigns', 'AutodialBases', 'AutodialContacts', 'AutodialDnc', 'AutodialReports', 'AutodialImportProfiles'] as const;
+export const AI_CHAT_CONFIGURATION_TAGS = ['Ivrs', 'CallGroups', 'Endpoints', 'Trunks', 'Contexts', 'Routes', 'Queues', 'TenantSettings', 'TimeGroups', 'Directory', 'DialplanDirectories', 'Moh', 'Prompts', 'Notifications', 'AiProviders', 'TtsEngines', 'SttEngines', 'PickupGroups', 'ProvisionTemplates', 'CallCenter', 'CcSettings', 'CcOperatorSettings', 'CcPermissions', 'CcNotifications', 'PauseReasons', 'CardTemplates', 'ReportSchedules', 'CcDisplayTokens', 'CcAlertConfig', 'CcSupervisorWatchlist', ...AUTODIAL_CONFIGURATION_TAGS] as const;
 
 export interface IAiChatSettings {
     confirmDestructive: boolean;
@@ -58,6 +59,7 @@ export interface IAgentProposalView {
     proposalId: string;
     entityType: string;
     entityLabel: string;
+    includesDialplanReload?: boolean;
     summary: string[];
     before?: Record<string, unknown> | null;
     after?: Record<string, unknown> | null;
@@ -121,9 +123,31 @@ export interface IAiChatThreadDetail extends IAiChatThread {
     cards: Record<string, IAiChatCard>;
 }
 
+export interface IHelpdeskSession {
+    schema_version: 'support-session-v1';
+    task: null | {
+        task_id: string; ticket_id: number;
+        status: 'queued' | 'running' | 'needs_input' | 'completed' | 'escalated' | 'failed' | 'cancelled';
+        version: number; question_id: string | null;
+        result: { answer?: string; question?: string; reason?: string; resolution?: string };
+    };
+    history: { id: string; role: 'user' | 'support'; text: string; created_at: string }[];
+}
+export interface IHelpdeskMessage {
+    threadUid: number; requestId: string; message: string;
+    expectedTaskId: string | null; expectedVersion: number | null;
+}
+
 const aiChatApi = rtkApi.injectEndpoints({
     overrideExisting: import.meta.hot != null,
     endpoints: (builder) => ({
+        getHelpdeskSession: builder.query<IHelpdeskSession, number>({
+            query: (uid) => `/ai-chat/threads/${uid}/helpdesk`,
+        }),
+        sendHelpdeskMessage: builder.mutation<IHelpdeskSession, IHelpdeskMessage>({
+            query: ({ threadUid, ...body }) => ({ url: `/ai-chat/threads/${threadUid}/helpdesk/message`, method: 'POST', body }),
+            invalidatesTags: ['AiChatThreads'],
+        }),
         getAiChatModels: builder.query<AiModel[], void>({
             query: () => '/ai-chat/models',
         }),
@@ -263,6 +287,9 @@ const aiChatApi = rtkApi.injectEndpoints({
                 'AiChatThreads',
             ],
         }),
+        getPendingAiChatProposals: builder.query<IAgentProposalView[], void>({
+            query: () => '/ai-chat/proposals/pending', providesTags: ['AiChatThreads'],
+        }),
         confirmAiChatProposal: builder.mutation<IAgentProposalActionResult, string | { proposalId: string; secureInputs: Record<string, { password: string }> }>({
             query: (input) => {
               const proposalId = typeof input === 'string' ? input : input.proposalId;
@@ -272,7 +299,7 @@ const aiChatApi = rtkApi.injectEndpoints({
                 ...(typeof input === 'string' ? {} : { body: { secureInputs: input.secureInputs } }),
               };
             },
-            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints', 'Trunks', 'Contexts', 'Routes', 'Queues', 'TenantSettings', 'TimeGroups', 'Directory', 'Moh', 'Prompts', 'Notifications', 'AiProviders', 'TtsEngines', 'SttEngines', 'PickupGroups', 'ProvisionTemplates'],
+            invalidatesTags: ['AiChatThreads', ...AI_CHAT_CONFIGURATION_TAGS],
         }),
         rejectAiChatProposal: builder.mutation<IAgentProposalActionResult, string>({
             query: (proposalId) => ({
@@ -291,7 +318,7 @@ const aiChatApi = rtkApi.injectEndpoints({
                 method: 'POST',
                 ...(typeof input === 'string' ? {} : { body: { secureInputs: input.secureInputs } }),
             }),
-            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints', 'Trunks', 'Contexts', 'Routes', 'Queues', 'TenantSettings', 'TimeGroups', 'Directory', 'Moh', 'Prompts', 'Notifications', 'AiProviders', 'TtsEngines', 'SttEngines', 'PickupGroups', 'ProvisionTemplates'],
+            invalidatesTags: ['AiChatThreads', 'Ivrs', 'CallGroups', 'Endpoints', 'Trunks', 'Contexts', 'Routes', 'Queues', 'TenantSettings', 'TimeGroups', 'Directory', 'Moh', 'Prompts', 'Notifications', 'AiProviders', 'TtsEngines', 'SttEngines', 'PickupGroups', 'ProvisionTemplates', ...AUTODIAL_CONFIGURATION_TAGS],
         }),
         rejectAiChatWorkflow: builder.mutation<IAgentWorkflowPlanView, string>({
             query: (workflowId) => ({
@@ -306,6 +333,8 @@ const aiChatApi = rtkApi.injectEndpoints({
 export { aiChatApi };
 
 export const {
+    useGetHelpdeskSessionQuery,
+    useSendHelpdeskMessageMutation,
     useGetAiChatModelsQuery,
     useGetAiChatStateQuery,
     useGetAiChatSettingsQuery,
@@ -326,6 +355,7 @@ export const {
     useConfirmAiChatProposalMutation,
     useRejectAiChatProposalMutation,
     useGetPendingAiChatWorkflowsQuery,
+    useGetPendingAiChatProposalsQuery,
     useConfirmAiChatWorkflowMutation,
     useRejectAiChatWorkflowMutation,
 } = aiChatApi;

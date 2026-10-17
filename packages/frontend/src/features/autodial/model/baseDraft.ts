@@ -6,11 +6,12 @@ import type {
   IAutodialBaseField,
   CreateAutodialBaseInput,
 } from '@krasterisk/shared';
+import { autodialFieldsSchema } from '@krasterisk/shared';
 
 export type AutodialFieldDraft = Pick<
   IAutodialBaseField,
   'key' | 'label' | 'type' | 'required' | 'is_phone' | 'var_name'
-> & { uid?: number; enum_values?: string[] | null };
+> & { uid?: number; enum_values?: string[] | null; format?: IAutodialBaseField['format'] };
 
 export interface AutodialBaseDraft {
   revision?: number;
@@ -67,6 +68,17 @@ export function emptyBaseDraft(): AutodialBaseDraft {
   };
 }
 
+export type AutodialBaseTemplate = 'collection' | 'appointment' | 'survey';
+export function baseTemplateFields(template: AutodialBaseTemplate): AutodialFieldDraft[] {
+  const extras: Record<AutodialBaseTemplate, Array<[string, string, AutodialFieldType]>> = {
+    collection: [['debt', 'Сумма долга', 'money'], ['payment_date', 'Дата платежа', 'date'], ['contract', 'Договор', 'string'], ['segment', 'Сегмент', 'string']],
+    appointment: [['appointment_date', 'Дата записи', 'date'], ['appointment_time', 'Время записи', 'string'], ['specialist', 'Специалист', 'string']],
+    survey: [['segment', 'Сегмент', 'string'], ['score', 'Оценка', 'number']],
+  };
+  return [...emptyBaseDraft().fields, ...extras[template].map(([key, label, type]) => ({ key, label, type,
+    required: false, is_phone: false, var_name: suggestVarName(key), ...(type === 'money' ? { format: { currency: 'RUB' as const, decimal_places: 2 } } : {}) }))];
+}
+
 export function baseToDraft(base: IAutodialBase): AutodialBaseDraft {
   return {
     revision: base.revision,
@@ -86,6 +98,7 @@ export function baseToDraft(base: IAutodialBase): AutodialBaseDraft {
         is_phone: f.is_phone,
         var_name: f.var_name,
         enum_values: f.enum_values ?? null,
+        format: f.format ?? null,
       })),
   };
 }
@@ -120,6 +133,11 @@ export function validateBaseDraft(draft: AutodialBaseDraft): BaseDraftErrors {
     else if (seen.has(field.key)) fieldKeys[index] = 'duplicate';
     else seen.add(field.key);
   });
+  const contract = autodialFieldsSchema.safeParse(draft.fields);
+  if (!contract.success) {
+    const issue = contract.error.issues[0];
+    if (typeof issue.path[0] === 'number' && !fieldKeys[issue.path[0]]) fieldKeys[issue.path[0]] = 'contract';
+  }
   if (Object.keys(fieldKeys).length) errors.fieldKeys = fieldKeys;
 
   // A base with no phone field can never produce a dialable task.
@@ -151,6 +169,7 @@ export function baseDraftToPayload(draft: AutodialBaseDraft): CreateAutodialBase
       is_phone: field.is_phone || field.type === 'phone',
       var_name: field.var_name || suggestVarName(field.key),
       ...(field.type === 'enum' ? { enum_values: field.enum_values ?? [] } : {}),
+      ...(field.format ? { format: field.format } : {}),
     })),
   };
 }

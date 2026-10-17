@@ -207,7 +207,10 @@ export function MissedCallsPanel() {
 
   return (
     <div className={styles.wrap}>
-      <button
+      <Button
+        type="button"
+        variant="unstyled"
+        size="none"
         className={`${styles.badge} ${badgeClass}`}
         onClick={() => setOpen((o) => !o)}
         title={t('callcenter.missed.title')}
@@ -215,7 +218,7 @@ export function MissedCallsPanel() {
       >
         <PhoneMissed className="w-4 h-4" />
         <span className={styles.count}>{count}</span>
-      </button>
+      </Button>
 
       {open && (
         <div className={styles.dropdown}>
@@ -224,13 +227,16 @@ export function MissedCallsPanel() {
               <PhoneMissed className="w-4 h-4 inline mr-1.5" />
               {t('callcenter.missed.title')}
             </Text>
-            <button
+            <Button
+              type="button"
+              variant="unstyled"
+              size="none"
               className={styles.close}
               onClick={() => setOpen(false)}
               aria-label={t('common.close', 'Close')}
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           <SegmentedControl
@@ -260,8 +266,10 @@ export function MissedCallsPanel() {
                   const claimedByOther = g.claimedBy != null && !claimedByMe;
                   return (
                     <div key={key} className={styles.row}>
-                      <button
+                      <Button
                         type="button"
+                        variant="unstyled"
+                        size="none"
                         className={styles.rowMain}
                         onClick={() => setExpandedKey(expanded ? null : key)}
                         aria-expanded={expanded}
@@ -293,7 +301,7 @@ export function MissedCallsPanel() {
                             {t('callcenter.missed.claim', 'Claim')}: #{g.claimedBy}
                           </Text>
                         )}
-                      </button>
+                      </Button>
 
                       {failedFlash[g.callerIdNum] && (
                         <Text className={styles.errorFlash}>{t('callcenter.missed.attemptFailed')}</Text>

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/sequelize';
 import { CcQueueCall } from './models/queue-call.model';
+import { CcAgentOffer } from './models/agent-offer.model';
 import { CallCenterStateService } from './callcenter-state.service';
 
 /** Interval between automatic flushes (ms). */
@@ -27,11 +28,27 @@ type HistoryRowSource = Partial<CcQueueCall> & Record<string, unknown>;
 export class CallCenterHistoryWriterService {
   private readonly logger = new Logger(CallCenterHistoryWriterService.name);
   private buffer: Partial<CcQueueCall>[] = [];
+  /** Agent-level Ring-No-Answer attempts (cc_agent_offers) — never mixed with caller-level rows. */
+  private offerBuffer: Partial<CcAgentOffer>[] = [];
 
   constructor(
     @InjectModel(CcQueueCall) private readonly model: typeof CcQueueCall,
     private readonly stateService: CallCenterStateService,
+    @InjectModel(CcAgentOffer) private readonly offerModel?: typeof CcAgentOffer,
   ) {}
+
+  /** Sync push of one agent offer outcome (RNA). Flushed with the call rows. */
+  enqueueOffer(row: Partial<CcAgentOffer>): void {
+    this.offerBuffer.push(row);
+    if (this.offerBuffer.length > MAX_BUFFER) {
+      const dropped = this.offerBuffer.length - MAX_BUFFER;
+      this.offerBuffer.splice(0, dropped);
+      this.logger.warn(`Offer buffer cap exceeded — dropped ${dropped} oldest row(s)`);
+    }
+    if (this.offerBuffer.length >= FLUSH_MAX_BATCH) {
+      void this.flush();
+    }
+  }
 
   /** Sync push into the in-memory buffer. Never awaits DB I/O. */
   enqueue(row: Partial<CcQueueCall>): void {
@@ -63,6 +80,7 @@ export class CallCenterHistoryWriterService {
   /** Drain buffer via bulkCreate. Interval-driven; also callable from tests/threshold. */
   @Interval(FLUSH_INTERVAL_MS)
   async flush(): Promise<void> {
+    await this.flushOffers();
     if (this.buffer.length === 0) return;
 
     const batch = this.buffer;
@@ -86,9 +104,26 @@ export class CallCenterHistoryWriterService {
     }
   }
 
+  private async flushOffers(): Promise<void> {
+    if (this.offerBuffer.length === 0 || !this.offerModel) return;
+    const batch = this.offerBuffer;
+    this.offerBuffer = [];
+    try {
+      await this.offerModel.bulkCreate(batch as any[], { validate: false });
+    } catch (e: any) {
+      // Same policy as call rows: never re-queue (D-09).
+      this.logger.error(`Offer batch flush failed (${batch.length} rows): ${e?.message}`);
+    }
+  }
+
   /** Current buffer length (tests / metrics). */
   get bufferLength(): number {
     return this.buffer.length;
+  }
+
+  /** Pending RNA offers (tests / metrics). */
+  get offerBufferLength(): number {
+    return this.offerBuffer.length;
   }
 
   private emitHistoryRow(row: HistoryRowSource): void {

@@ -10,12 +10,13 @@ import { AiVoiceModule } from '../modules/ai-voice/ai-voice.module';
 import { AiToolConnectivityModule } from '../modules/ai-tool-connectivity/ai-tool-connectivity.module';
 import { KnowledgeModule } from '../modules/knowledge/knowledge.module';
 import { evaluateAiReadiness } from './ai-readiness';
+import { withAppIdentity } from '../modules/health/app-identity';
 
 /** HTTP AI API. Must not import ARI/AMI or billing cron. */
 @Controller()
 class AiApiHealthController {
   @Get('health/live')
-  live() { return { live: true, role: 'ai-api' }; }
+  live() { return withAppIdentity({ live: true, role: 'ai-api' }); }
 
   @Get('health/ready')
   ready() {

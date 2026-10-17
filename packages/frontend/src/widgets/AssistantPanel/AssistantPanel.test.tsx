@@ -4,6 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { AgentTimelineItem } from '@krasterisk/shared';
 
+vi.mock('@/features/ai-chat/ui/HelpdeskChat/HelpdeskChat', () => ({ HelpdeskChat: () => <p>support-mode-fixture</p> }));
+
 const useIsMobileMock = vi.fn((_bp?: number) => false);
 
 vi.mock('@/shared/hooks/useIsMobile', () => ({
@@ -340,6 +342,7 @@ describe('AssistantPanel', () => {
     expect(screen.queryByTestId('ai-agent-composer')).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: 'aiChat.send' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'helpdeskChat.entry' })).toBeNull();
   });
 
   it('does not render the former floating trigger', () => {
@@ -1126,4 +1129,15 @@ describe('AssistantPanel', () => {
     );
     expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-mode', 'dock');
   });
+  it('opens support explicitly and restores the assistant without sending a normal turn', () => {
+    render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'helpdeskChat.entry' }));
+    expect(screen.getByText('support-mode-fixture')).toBeTruthy();
+    expect(screen.queryByTestId('ai-agent-composer')).toBeNull();
+    expect(turnApi.send).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'helpdeskChat.back' }));
+    expect(screen.queryByText('support-mode-fixture')).toBeNull();
+    expect(screen.getByTestId('ai-agent-composer')).toBeTruthy();
+  });
+
 });

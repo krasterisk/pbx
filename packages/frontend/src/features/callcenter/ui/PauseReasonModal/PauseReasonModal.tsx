@@ -7,6 +7,7 @@ import {
 import { Button, Text } from '@/shared/ui';
 import type { IPauseReason } from '@/features/callcenter/model/types/callCenterSchema';
 import { formatPauseReason } from '@/features/callcenter/lib/displayLabels';
+import { pauseLimitState } from '@/features/callcenter/lib/pauseLimit';
 import styles from './PauseReasonModal.module.scss';
 
 /**
@@ -67,9 +68,10 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason, qui
     return Math.floor((now - activeReason.startedAt) / 1000);
   }, [activeReason, now]);
 
-  const maxSec = (activeReason?.maxDurationMin ?? 0) * 60;
-  const overdue = maxSec > 0 && elapsedSec > maxSec;
-  const warning = maxSec > 0 && elapsedSec > maxSec * 0.8 && !overdue;
+  const limit = pauseLimitState(elapsedSec, activeReason?.maxDurationMin);
+  const maxSec = limit.limitSec;
+  const overdue = limit.level === 'over';
+  const warning = limit.level === 'warn';
 
   // Sort reasons by sort_order (lower first)
   const sorted = useMemo(
@@ -85,9 +87,16 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason, qui
             <Pause className="w-5 h-5 inline mr-2" />
             {t('callcenter.pause.title', 'Pause Reason')}
           </span>
-          <button className={styles.close} onClick={onClose} aria-label={t('common.close', 'Close')}>
+          <Button
+            type="button"
+            variant="unstyled"
+            size="none"
+            className={styles.close}
+            onClick={onClose}
+            aria-label={t('common.close', 'Close')}
+          >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Active pause status banner */}
@@ -118,7 +127,10 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason, qui
 
         {/* Quick "no reason" pause */}
         <div className={styles.grid}>
-          <button
+          <Button
+            type="button"
+            variant="unstyled"
+            size="none"
             className={styles.tile}
             onClick={() => onSelect(
               quickPauseValue !== undefined ? quickPauseValue : t('callcenter.pause.quickPause'),
@@ -130,13 +142,16 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason, qui
             <span className={styles.tileName}>
               {t('callcenter.pause.quickPause', 'Quick Pause')}
             </span>
-          </button>
+          </Button>
 
           {sorted.map(r => {
             const Icon = pickIcon(r.name);
             return (
-              <button
+              <Button
                 key={r.uid}
+                type="button"
+                variant="unstyled"
+                size="none"
                 className={styles.tile}
                 onClick={() => onSelect(r.name, r.max_duration ?? 0)}
                 style={{ '--tile-color': r.color || '#888' } as React.CSSProperties}
@@ -154,7 +169,7 @@ export function PauseReasonModal({ reasons, onSelect, onClose, activeReason, qui
                     {t('callcenter.pause.paid', 'Paid')}
                   </span>
                 )}
-              </button>
+              </Button>
             );
           })}
         </div>

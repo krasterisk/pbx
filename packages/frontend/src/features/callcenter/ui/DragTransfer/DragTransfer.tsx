@@ -7,7 +7,7 @@ import {
   createContext, useState, useCallback, useContext, ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PhoneForwarded } from 'lucide-react';
+import { PhoneForwarded, GripVertical } from 'lucide-react';
 import {
   Button, Text,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -52,7 +52,7 @@ export function DragTransferProvider({ onTransfer, activeCall, children }: Provi
   } | null>(null);
 
   const openConfirm = useCallback((agent: IAgent) => {
-    if (!activeCall || agent.status !== 'READY') return;
+    if (!activeCall || agent.status !== 'READY' || agent.phoneOnline === false) return;
     const ext = agent.interface.split('/').pop() || agent.interface;
     setConfirmTarget({ iface: agent.interface, name: agent.name, ext });
   }, [activeCall]);
@@ -64,8 +64,8 @@ export function DragTransferProvider({ onTransfer, activeCall, children }: Provi
   const handleEnd = useCallback((e: DragEndEvent) => {
     setActiveId(null);
     if (!e.over || !activeCall) return;
-    const data = e.over.data.current as { iface?: string; name?: string; status?: string } | undefined;
-    if (!data?.iface || data.status !== 'READY') return;
+    const data = e.over.data.current as { iface?: string; name?: string; status?: string; phoneOnline?: boolean } | undefined;
+    if (!data?.iface || data.status !== 'READY' || data.phoneOnline === false) return;
     const ext = data.iface.split('/').pop() || data.iface;
     setConfirmTarget({ iface: data.iface, name: data.name || data.iface, ext });
   }, [activeCall]);
@@ -138,14 +138,15 @@ interface DraggableCallProps {
 }
 
 export function DraggableCall({ uniqueid, className, children }: DraggableCallProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `call-${uniqueid}` });
+  const { t } = useTranslation();
+  const enabled = uniqueid !== 'idle' && uniqueid !== 'webrtc';
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `call-${uniqueid}`, disabled: !enabled });
   return (
     <div
       ref={setNodeRef}
-      className={`${className || ''} ${styles.draggable} ${isDragging ? styles.dragging : ''}`}
-      {...listeners}
-      {...attributes}
+      className={`${className || ''} ${styles.callWrapper} ${isDragging ? styles.dragging : ''}`}
     >
+      {enabled ? <Button type="button" variant="ghost" size="icon" className={styles.draggable} {...listeners} {...attributes} aria-label={t('callcenter.agent.dragCall', 'Drag call to a colleague')}><GripVertical size={16} /></Button> : null}
       {children}
     </div>
   );
@@ -169,9 +170,9 @@ export function DroppableColleague({
 }: DroppableColleagueProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `agent-${agent.interface}`,
-    data: { iface: agent.interface, name: agent.name, status: agent.status },
+    data: { iface: agent.interface, name: agent.name, status: agent.status, phoneOnline: agent.phoneOnline },
   });
-  const canAccept = agent.status === 'READY' || agent.status === 'OUTBOUND_WORK';
+  const canAccept = agent.phoneOnline !== false && (agent.status === 'READY' || agent.status === 'OUTBOUND_WORK');
   const Comp = as === 'tr' ? 'tr' : 'div';
   return (
     <Comp

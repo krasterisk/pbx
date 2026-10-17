@@ -53,6 +53,7 @@ function blankProvider(type: ProviderType): Provider {
 }
 
 interface Props {
+  hideQueueAgents?: boolean;
   draft: AutodialCampaignDraft;
   onChange: (next: AutodialCampaignDraft) => void;
   errors: CampaignDraftErrors;
@@ -62,7 +63,7 @@ interface Props {
  * The dialer takes the minimum across every provider, so each row here can only
  * ever slow dialing down — never raise it above another provider's ceiling.
  */
-export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
+export const CampaignPacingTab = memo(({ draft, onChange, errors, hideQueueAgents = false }: Props) => {
   const { t } = useTranslation();
   const { data: queues } = useGetQueuesQuery();
 
@@ -82,7 +83,7 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
     );
 
   const usedTypes = new Set(draft.pacing.providers.map((p) => p.type));
-  const addableTypes = PROVIDER_TYPES.filter((type) => !usedTypes.has(type));
+  const addableTypes = PROVIDER_TYPES.filter((type) => !usedTypes.has(type) && !(hideQueueAgents && type === 'queue_agents'));
 
   return (
     <VStack gap="16" max>
@@ -198,7 +199,7 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors }: Props) => {
       )}
 
       <VStack gap="8" max>
-        {draft.pacing.providers.map((provider, index) => (
+        {draft.pacing.providers.map((provider, index) => hideQueueAgents && provider.type === 'queue_agents' ? null : (
           <div key={provider.type} className={cls.row}>
             <div className={cls.pacingGrid}>
               <VStack gap="8" max className={cls.field}>

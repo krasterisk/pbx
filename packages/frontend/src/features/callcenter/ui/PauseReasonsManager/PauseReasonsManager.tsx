@@ -337,7 +337,7 @@ export function PauseReasonsManager() {
                     {t("callcenter.pauseReasons.color", "Цвет")}
                   </Label>
                   <div className={styles.colorRow}>
-                    <input
+                    <Input
                       id="pr-color"
                       type="color"
                       className={styles.colorPicker}

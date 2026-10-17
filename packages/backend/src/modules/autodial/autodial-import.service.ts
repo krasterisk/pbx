@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import type { Transaction } from 'sequelize';
 import type {
   AutodialDedupPolicy,
   IAutodialColumnMap,
@@ -22,7 +23,7 @@ import { AcImportProfile } from './models/ac-import-profile.model';
 import { AcImportRun } from './models/ac-import-run.model';
 import { AutodialBasesService } from './autodial-bases.service';
 import { normalizeAutodialPhone } from './autodial-phone.util';
-import { prepareAutodialContact } from './autodial-contact.util';
+import { coerceAutodialValue, prepareAutodialContact } from './autodial-contact.util';
 
 export interface ImportPreviewResult {
   headers: string[];
@@ -34,8 +35,25 @@ export interface ImportPreviewResult {
 export interface ImportExecuteResult {
   imported: number;
   skipped: number;
-  errors: Array<{ row: number; code: string; message: string }>;
+  errors: Array<{ row: number; code: string; message: string; values?: string[] }>;
+  headers?: string[];
+  rejected_rows?: Array<{ row: number; code: string; message: string; values?: string[] }>;
+  warnings: Array<{ row: number; field: string; value: string; code: string }>;
   run: IAutodialImportRun;
+}
+
+export interface ImportValidationResult {
+  base_revision: number; total_rows: number; valid: number; skipped: number; ready: boolean;
+  headers: string[]; errors: ImportExecuteResult['errors']; warnings: ImportExecuteResult['warnings'];
+  rejected_rows: NonNullable<ImportExecuteResult['rejected_rows']>;
+}
+export interface AutodialImportOptions {
+  buffer: Buffer; filename: string; source: 'csv' | 'xlsx'; profileUid?: number;
+  column_map?: IAutodialColumnMap[]; delimiter?: string; has_header?: boolean;
+  dedup_policy?: AutodialDedupPolicy; replace?: boolean; expected_revision?: number;
+  invalid_optional_policy?: 'reject' | 'omit'; validation_only?: boolean;
+  /** Internal durable-job transaction, never accepted from HTTP input. */
+  transaction?: Transaction;
 }
 
 @Injectable()
@@ -135,19 +153,7 @@ export class AutodialImportService {
   }
 
   async previewXlsx(buffer: Buffer, options: { has_header?: boolean } = {}): Promise<ImportPreviewResult> {
-    const wb = new ExcelJS.Workbook();
-    // exceljs typings accept Buffer via any
-    await wb.xlsx.load(buffer as unknown as ExcelJS.Buffer);
-    const sheet = wb.worksheets[0];
-    if (!sheet) throw new BadRequestException({ code: 'AC_XLSX_EMPTY', message: 'Empty workbook' });
-    const rows: string[][] = [];
-    sheet.eachRow({ includeEmpty: false }, (row) => {
-      const cells: string[] = [];
-      row.eachCell({ includeEmpty: true }, (cell, col) => {
-        cells[col - 1] = cell.text?.trim() ?? '';
-      });
-      rows.push(cells.map((c) => c ?? ''));
-    });
+    const rows = await this.readAllXlsx(buffer);
     if (!rows.length) throw new BadRequestException({ code: 'AC_XLSX_EMPTY', message: 'Empty sheet' });
     return {
       headers: options.has_header === false ? rows[0].map((_, i) => String(i)) : rows[0],
@@ -157,22 +163,13 @@ export class AutodialImportService {
     };
   }
 
+  async importFile(userUid: number, baseUid: number, opts: AutodialImportOptions & { validation_only: true }): Promise<ImportValidationResult>;
+  async importFile(userUid: number, baseUid: number, opts: AutodialImportOptions): Promise<ImportExecuteResult>;
   async importFile(
     userUid: number,
     baseUid: number,
-    opts: {
-      buffer: Buffer;
-      filename: string;
-      source: 'csv' | 'xlsx';
-      profileUid?: number;
-      column_map?: IAutodialColumnMap[];
-      delimiter?: string;
-      has_header?: boolean;
-      dedup_policy?: AutodialDedupPolicy;
-      replace?: boolean;
-      expected_revision?: number;
-    },
-  ): Promise<ImportExecuteResult> {
+    opts: AutodialImportOptions,
+  ): Promise<ImportExecuteResult | ImportValidationResult> {
     const base = await this.assertBase(userUid, baseUid);
     const fields = await this.fieldModel.findAll({ where: { base_uid: baseUid } });
     let columnMap = opts.column_map;
@@ -209,12 +206,14 @@ export class AutodialImportService {
     const headers = hasHeader ? table[0] : table[0].map((_, i) => String(i));
     const dataRows = hasHeader ? table.slice(1) : table;
 
-    const errors: Array<{ row: number; code: string; message: string }> = [];
+    const errors: ImportExecuteResult['errors'] = [];
+    const warnings: ImportExecuteResult['warnings'] = [];
     const prepared: Array<{
       external_id: string | null;
       values: Record<string, string | number | boolean>;
-      phones: Array<{ raw: string; normalized: string; is_primary: boolean; tz_offset_min: number; position: number }>;
+      phones: Array<{ raw: string; normalized: string; canonical_phone: string; is_primary: boolean; tz_offset_min: number; position: number }>;
       comment: string;
+      source_row: number;
     }> = [];
 
     const seenPhones = new Set<string>();
@@ -224,7 +223,7 @@ export class AutodialImportService {
       const rowNum = i + (hasHeader ? 2 : 1);
       const cells = dataRows[i];
       try {
-        const mapped = this.mapRow(headers, cells, columnMap, fields, base.phone_normalization);
+        const mapped = this.mapRow(headers, cells, columnMap, fields, base.phone_normalization, opts.invalid_optional_policy);
         if (dedup === 'phone' && mapped.phones.some((p) => seenPhones.has(p.normalized))) {
           errors.push({ row: rowNum, code: 'duplicate_phone', message: 'duplicate_phone' });
           continue;
@@ -241,7 +240,8 @@ export class AutodialImportService {
           continue;
         }
         mapped.phones.forEach((phone) => seenPhones.add(phone.normalized));
-        prepared.push(mapped);
+        warnings.push(...mapped.warnings.map((warning) => ({ row: rowNum, ...warning })));
+        prepared.push({ ...mapped, source_row: rowNum });
       } catch (e) {
         errors.push({
           row: rowNum,
@@ -251,13 +251,14 @@ export class AutodialImportService {
       }
     }
 
-    if (!prepared.length) {
+    for (const error of errors) error.values = dataRows[error.row - (hasHeader ? 2 : 1)];
+    if (!prepared.length && !opts.validation_only) {
       throw new BadRequestException({ code: 'AC_IMPORT_NO_VALID_ROWS', message: 'No valid rows. Existing contacts were not changed.', errors });
     }
-    if (opts.replace && errors.length) {
+    if (opts.replace && errors.length && !opts.validation_only) {
       throw new BadRequestException({ code: 'AC_IMPORT_REPLACE_ERRORS', message: 'Fix all invalid or duplicate rows before replacing contacts.', errors });
     }
-    const result = await this.sequelize.transaction(async (transaction) => {
+    const write = async (transaction: Transaction) => {
       const lockedBase = await this.basesService.lockBase(userUid, baseUid, transaction);
       if (lockedBase.revision !== base.revision
         || (opts.expected_revision !== undefined && lockedBase.revision !== opts.expected_revision)
@@ -265,12 +266,13 @@ export class AutodialImportService {
         throw new ConflictException({ code: 'AC_REVISION_CONFLICT', message: 'Preview the current base before importing.' });
       }
       let skipped = 0;
+      const existingRejected: NonNullable<ImportExecuteResult['rejected_rows']> = [];
       if (opts.replace) {
         await this.basesService.assertBaseReplaceable(userUid, baseUid, transaction);
-        await this.contactModel.destroy({
-          where: { base_uid: baseUid, user_uid: userUid },
-          transaction,
-        });
+        if (!opts.validation_only) {
+          await this.phoneModel.destroy({ where: { base_uid: baseUid }, transaction });
+          await this.contactModel.destroy({ where: { base_uid: baseUid, user_uid: userUid }, transaction });
+        }
       } else if (dedup === 'phone') {
         const existing = await this.phoneModel.findAll({
           where: { base_uid: baseUid },
@@ -279,6 +281,8 @@ export class AutodialImportService {
         });
         const existSet = new Set(existing.map((p) => p.normalized));
         const filtered = prepared.filter((p) => !p.phones.some((ph) => existSet.has(ph.normalized)));
+        for (const item of prepared.filter((p) => p.phones.some((ph) => existSet.has(ph.normalized)))) existingRejected.push({ row: item.source_row,
+          code: 'existing_duplicate_phone', message: 'existing_duplicate_phone', values: dataRows[item.source_row - (hasHeader ? 2 : 1)] });
         skipped += prepared.length - filtered.length;
         prepared.length = 0;
         prepared.push(...filtered);
@@ -288,11 +292,16 @@ export class AutodialImportService {
         });
         const ids = new Set(existing.map((contact) => contact.external_id).filter(Boolean));
         const filtered = prepared.filter((contact) => !contact.external_id || !ids.has(contact.external_id));
+        for (const item of prepared.filter((contact) => contact.external_id && ids.has(contact.external_id))) existingRejected.push({ row: item.source_row,
+          code: 'existing_duplicate_external_id', message: 'existing_duplicate_external_id', values: dataRows[item.source_row - (hasHeader ? 2 : 1)] });
         skipped += prepared.length - filtered.length;
         prepared.length = 0;
         prepared.push(...filtered);
       }
 
+      if (opts.validation_only) return { base_revision: lockedBase.revision, total_rows: dataRows.length, valid: prepared.length,
+        skipped: skipped + errors.length, ready: prepared.length > 0 && (!opts.replace || !errors.length), headers, errors, warnings,
+        rejected_rows: [...errors, ...existingRejected].sort((a, b) => a.row - b.row) };
       for (const item of prepared) {
         const contact = await this.contactModel.create(
           {
@@ -334,14 +343,27 @@ export class AutodialImportService {
         imported: prepared.length,
         skipped: skipped + errors.length,
         errors,
+        warnings,
+        headers,
+        rejected_rows: [...errors, ...existingRejected].sort((a, b) => a.row - b.row),
         run: this.toRunDto(run),
       };
-    });
+    };
+    const result = opts.transaction ? await write(opts.transaction) : await this.sequelize.transaction(write);
 
-    this.logger.log(
-      `Import base=${baseUid} imported=${result.imported} skipped=${result.skipped} errors=${errors.length}`,
-    );
+    if ('imported' in result) this.logger.log(`Import base=${baseUid} imported=${result.imported} skipped=${result.skipped} errors=${errors.length}`);
     return result;
+  }
+
+  async rejectedFile(userUid: number, baseUid: number, opts: AutodialImportOptions): Promise<Buffer> {
+    const validation = await this.importFile(userUid, baseUid, { ...opts, validation_only: true });
+    const workbook = new ExcelJS.Workbook(); workbook.creator = 'Krasterisk';
+    const sheet = workbook.addWorksheet('Rejected');
+    sheet.addRow(['source_row', 'reason', ...validation.headers]);
+    for (const row of validation.rejected_rows) sheet.addRow([String(row.row), row.code, ...(row.values ?? [])]);
+    sheet.eachRow((row) => row.eachCell((cell) => { cell.numFmt = '@'; }));
+    sheet.getRow(1).font = { bold: true }; sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
   // ── private ───────────────────────────────────────────────────────
@@ -358,6 +380,7 @@ export class AutodialImportService {
     columnMap: IAutodialColumnMap[],
     fields: AcBaseField[],
     phoneNorm: AcBase['phone_normalization'],
+    invalidOptionalPolicy: 'reject' | 'omit' = 'reject',
   ) {
     const byHeader = new Map(headers.map((h, i) => [h, cells[i] ?? '']));
     const byIndex = new Map(headers.map((_, i) => [String(i), cells[i] ?? '']));
@@ -366,6 +389,7 @@ export class AutodialImportService {
     const phones: Array<{
       raw: string;
       normalized: string;
+      canonical_phone: string;
       is_primary: boolean;
       tz_offset_min: number;
       position: number;
@@ -373,6 +397,7 @@ export class AutodialImportService {
     let external_id: string | null = null;
     let tz = 180;
     let comment = '';
+    const warnings: Array<{ field: string; value: string; code: string }> = [];
 
     for (const m of columnMap) {
       if (m.column_index === undefined && headers.filter((header) => header === m.column).length > 1) {
@@ -382,23 +407,21 @@ export class AutodialImportService {
         throw new BadRequestException({ code: 'AC_INVALID_COLUMN', message: 'Invalid column index.' });
       }
       const raw = m.column_index !== undefined ? cells[m.column_index] ?? '' : byHeader.get(m.column) ?? byIndex.get(m.column) ?? '';
-      const transformed = this.applyTransform(raw, m.transform, phoneNorm);
-      if (m.field_key === '__phone') {
-        const normalized = normalizeAutodialPhone(transformed, phoneNorm);
-        if (raw.trim() && !normalized) {
-          throw new BadRequestException({ code: 'AC_INVALID_PHONE', message: 'Invalid mapped phone.' });
-        }
-        if (normalized) {
-          phones.push({
-            raw: transformed,
-            normalized,
-            is_primary: phones.length === 0,
-            tz_offset_min: tz,
-            position: phones.length,
-          });
+      const field = fieldByKey.get(m.field_key);
+      // Split before phone_normalize; otherwise separators disappear and two
+      // destinations become one incorrect dialable number.
+      if (m.field_key === '__phone' || field?.is_phone || field?.type === 'phone') {
+        for (const part of raw.split(/[,;\n\r|]+/).map((value) => value.trim()).filter(Boolean)) {
+          const normalized = normalizeAutodialPhone(part, phoneNorm);
+          if (!normalized || !/^[+\d\s().-]+$/.test(part)) {
+            throw new BadRequestException({ code: 'AC_INVALID_PHONE', field: m.field_key, message: 'Invalid mapped phone.' });
+          }
+          if (phones.some((phone) => phone.normalized === normalized)) continue;
+          phones.push({ raw: part, normalized, canonical_phone: normalizeAutodialPhone(part), is_primary: phones.length === 0, tz_offset_min: tz, position: phones.length });
         }
         continue;
       }
+      const transformed = this.applyTransform(raw, m.transform, phoneNorm);
       if (m.field_key === '__external_id') {
         external_id = transformed || null;
         continue;
@@ -416,28 +439,22 @@ export class AutodialImportService {
         comment = transformed;
         continue;
       }
-      const field = fieldByKey.get(m.field_key);
       if (!field) throw new BadRequestException({ code: 'AC_UNKNOWN_FIELD', message: 'Unknown field.' });
-      if (field.is_phone || field.type === 'phone') {
-        const normalized = normalizeAutodialPhone(transformed, phoneNorm);
-        if (raw.trim() && !normalized) {
-          throw new BadRequestException({ code: 'AC_INVALID_PHONE', message: 'Invalid mapped phone.' });
-        }
-        if (normalized) {
-          phones.push({
-            raw: transformed,
-            normalized,
-            is_primary: phones.length === 0,
-            tz_offset_min: tz,
-            position: phones.length,
-          });
+      if (transformed !== '') {
+        try {
+          coerceAutodialValue(field, transformed);
+        } catch (error) {
+          if (field.required || invalidOptionalPolicy !== 'omit') throw error;
+          warnings.push({ field: field.key, value: raw,
+            code: (error as { response?: { code?: string } }).response?.code ?? 'AC_INVALID_VALUE' });
+          continue;
         }
       }
       values[field.key] = transformed;
     }
 
     for (const p of phones) p.tz_offset_min = tz;
-    return { ...prepareAutodialContact(fields, { external_id, values, phones }, phoneNorm), comment };
+    return { ...prepareAutodialContact(fields, { external_id, values, phones }, phoneNorm), comment, warnings };
   }
 
   private applyTransform(
@@ -452,6 +469,8 @@ export class AutodialImportService {
       case 'phone_normalize':
         return normalizeAutodialPhone(v, phoneNorm);
       case 'date_iso': {
+        const local = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(v);
+        if (local) return `${local[3]}-${local[2]}-${local[1]}`;
         const d = new Date(v);
         return Number.isNaN(d.getTime()) ? v : d.toISOString().slice(0, 10);
       }
@@ -539,7 +558,11 @@ export class AutodialImportService {
     sheet.eachRow({ includeEmpty: false }, (row) => {
       const cells: string[] = [];
       row.eachCell({ includeEmpty: true }, (cell, col) => {
-        cells[col - 1] = cell.text?.trim() ?? '';
+        // Cached formula results are data; never evaluate spreadsheet formulas.
+        const value = cell.value && typeof cell.value === 'object' && 'result' in cell.value ? cell.value.result : cell.value;
+        cells[col - 1] = value instanceof Date ? value.toISOString().slice(0, 10)
+          : typeof value === 'number' && /^0+$/.test(cell.numFmt) ? String(value).padStart(cell.numFmt.length, '0')
+          : cell.text?.trim() ?? '';
       });
       rows.push(cells.map((c) => c ?? ''));
     });

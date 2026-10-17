@@ -262,6 +262,7 @@ export class PbxAgentDiffService {
     }
 
     const mutationCtx = this.mutationContext(ctx);
+    mutationCtx.threadUid = row.thread_uid;
     mutationCtx.secureInput = secure.proposal;
     if ((args as { requiresSecureInput?: boolean }).requiresSecureInput && !mutationCtx.secureInput) {
       await this.releaseClaim(row);

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Languages, Moon, Sun } from "lucide-react";
-import { VStack, HStack, Flex, Button, Text } from "@/shared/ui";
+import { VStack, HStack, Flex, Button, Text, AppVersionLabel } from "@/shared/ui";
 import cls from "./AuthScreen.module.scss";
 
 /** Shared auth layout with corner controls and branding inside the card. */
@@ -97,10 +97,11 @@ export function AuthScreen({
           {children}
         </VStack>
       </Flex>
-      <Flex as="footer" className={cls.footer} justify="center">
+      <Flex as="footer" className={cls.footer} direction="column" align="center" gap="4">
         <Text variant="xs" align="center">
           {t("auth.copyright", { year: new Date().getFullYear() })}
         </Text>
+        <AppVersionLabel />
       </Flex>
     </VStack>
   );

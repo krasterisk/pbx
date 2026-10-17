@@ -21,10 +21,12 @@ interface Props {
   onChange: (next: AutodialCampaignDraft) => void;
   errors: CampaignDraftErrors;
   dialModeOptions: Array<{ value: string; label: string }>;
+  section?: 'all' | 'audience' | 'mode';
+  modeCards?: boolean;
 }
 
 export const CampaignGeneralTab = memo(
-  ({ draft, onChange, errors, dialModeOptions }: Props) => {
+  ({ draft, onChange, errors, dialModeOptions, section = 'all', modeCards = false }: Props) => {
     const { t } = useTranslation();
     const { data: bases } = useGetAutodialBasesQuery();
     const { data: prompts } = useGetPromptsQuery(undefined, {
@@ -37,6 +39,7 @@ export const CampaignGeneralTab = memo(
     return (
       <VStack gap="16" max>
         <div className={cls.grid}>
+          {section !== 'mode' && <>
           <VStack gap="8" max className={cls.field}>
             <Label htmlFor="autodial-campaign-name" className={cls.fieldLabel}>
               {t("autodial.form.name")} *
@@ -84,7 +87,9 @@ export const CampaignGeneralTab = memo(
             )}
           </VStack>
 
-          <VStack gap="8" max className={cls.field}>
+          </>}
+          {section !== 'audience' && <>
+          {!modeCards && <VStack gap="8" max className={cls.field}>
             <HStack gap="4" align="center">
               <Label htmlFor="autodial-campaign-mode" className={cls.fieldLabel}>
                 {t("autodial.form.dialMode")} *
@@ -107,7 +112,7 @@ export const CampaignGeneralTab = memo(
                 </option>
               ))}
             </Select>
-          </VStack>
+          </VStack>}
 
           <VStack gap="8" max className={cls.field}>
             <HStack gap="4" align="center">
@@ -143,9 +148,10 @@ export const CampaignGeneralTab = memo(
               }
             />
           </VStack>
+          </>}
         </div>
 
-        <VStack gap="8" max>
+        {section !== 'audience' && <VStack gap="8" max>
           <HStack gap="4" align="center">
             <Text className={cls.sectionTitle}>{t("autodial.amd.title")}</Text>
             <InfoTooltip text={t("autodial.amd.hint")} />
@@ -232,7 +238,7 @@ export const CampaignGeneralTab = memo(
               </VStack>
             )}
           </div>
-        </VStack>
+        </VStack>}
       </VStack>
     );
   },

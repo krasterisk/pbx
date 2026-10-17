@@ -11,7 +11,7 @@ export class CcPauseReason extends Model {
   @Column({ type: DataType.STRING(7), allowNull: true, defaultValue: '#f59e0b' })
   declare color: string;
 
-  /** Maximum pause duration in seconds (0 = unlimited) */
+  /** Maximum pause duration in minutes, matching the settings UI (0 = unlimited). */
   @Column({ type: DataType.INTEGER, allowNull: true, defaultValue: 0 })
   declare max_duration: number;
 

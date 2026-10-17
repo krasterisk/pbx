@@ -1,0 +1,33 @@
+.row {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.name {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.facts {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.fact {
+  font-variant-numeric: tabular-nums;
+}
+
+.fact_flagged {
+  color: var(--color-warning);
+  font-weight: 600;
+}

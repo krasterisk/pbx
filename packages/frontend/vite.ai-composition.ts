@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { appBuildDefines } from './app-build-defines';
 
 type Product = 'analytics' | 'robot';
 
@@ -30,6 +31,7 @@ export function aiCompositionConfig(product: Product) {
       '@': path.resolve(configDirectory, './src'),
       '@krasterisk/shared': path.resolve(configDirectory, '../shared/src'),
     } },
+    define: appBuildDefines(),
     build: {
       outDir: `dist-${product}`,
       emptyOutDir: true,

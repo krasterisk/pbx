@@ -39,6 +39,13 @@ function makeCall(over: Partial<ICall> = {}): ICall {
 }
 
 describe('useSipPhoneAmi', () => {
+  it('never reports microphone privacy from local SIP mute/unmute calls', () => {
+    const { result } = renderHook(() => useSipPhoneAmi(makeCall()));
+    act(() => result.current.mute());
+    expect(result.current.isMuted).toBe(false);
+    act(() => result.current.unmute());
+    expect(result.current.isMuted).toBe(false);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     regOnline = true;

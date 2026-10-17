@@ -373,6 +373,15 @@ describe('DiffConfirmCard', () => {
         expect(screen.queryByRole('button', { name: 'aiChat.card.reject' })).toBeNull();
     });
 
+    it('keeps an autodial card pending when browser confirmation proof requires signing in again', async () => {
+        confirmUnwrap = async () => { throw { status: 403, data: { code: 'AC_INTERACTIVE_SESSION_REQUIRED' } }; };
+        render(<DiffConfirmCard proposal={{ ...pendingView(), entityType: 'autodial_campaign' }} />);
+        fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
+        await vi.waitFor(() => expect(screen.getByText('aiChat.card.applyFailed:aiChat.card.interactiveRequired')).toBeInTheDocument());
+        expect(screen.getByTestId('ai-agent-diff-card')).toHaveAttribute('data-status', 'pending');
+        expect(screen.getByRole('button', { name: 'aiChat.card.retry' })).toBeEnabled();
+    });
+
     it('keeps a failed apply pending with the error and a retry', async () => {
         confirmResult = { ok: false, error: 'switch reload failed', reason: 'switch_failed' };
         render(<DiffConfirmCard proposal={pendingView()} />);
@@ -385,6 +394,16 @@ describe('DiffConfirmCard', () => {
         expect(screen.getByTestId('ai-agent-diff-card')).toHaveAttribute('data-status', 'pending');
         expect(screen.getByRole('button', { name: 'aiChat.card.retry' })).toBeInTheDocument();
         expect(screen.queryByText('aiChat.card.badge.applied')).toBeNull();
+    });
+
+    it('keeps the browser-login error visible when pending polling refreshes the same proposal', async () => {
+        confirmUnwrap = async () => { throw { status: 403, data: { code: 'AC_INTERACTIVE_SESSION_REQUIRED' } }; };
+        const { rerender } = render(<DiffConfirmCard proposal={pendingView()} />);
+        fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
+        await vi.waitFor(() => expect(screen.getByText('aiChat.card.applyFailed:aiChat.card.interactiveRequired')).toBeInTheDocument());
+        rerender(<DiffConfirmCard proposal={pendingView()} />);
+        expect(screen.getByText('aiChat.card.applyFailed:aiChat.card.interactiveRequired')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'aiChat.card.retry' })).toBeEnabled();
     });
 
     it('shows an expired card cannot be applied and offers to ask again', () => {

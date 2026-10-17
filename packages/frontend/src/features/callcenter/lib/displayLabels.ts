@@ -70,7 +70,7 @@ export function queueNumberFromName(queueName: string): string | null {
  */
 export function queueDisplayName(
   queueName: string,
-  queues: Array<Pick<IQueueStats, 'name' | 'displayName'> & { exten?: string }>,
+  queues: ReadonlyArray<Pick<IQueueStats, 'name' | 'displayName'> & { exten?: string }>,
 ): string {
   const q = queues.find((x) => x.name === queueName);
   const num = q?.exten || queueNumberFromName(queueName);
@@ -133,9 +133,14 @@ export function formatPauseReason(
 }
 
 /** Caller cell: "Name (201)" or just number. */
+export function callerDisplayName(name?: string | null): string {
+  const value = (name || '').trim();
+  return /^(?:<)?(?:unknown|anonymous|unavailable)(?:>)?$/i.test(value) ? '' : value;
+}
+
 export function callerDisplayLabel(callerIdNum?: string, callerIdName?: string): string {
-  const num = (callerIdNum || '').trim();
-  const name = (callerIdName || '').trim();
+  const num = callerDisplayName(callerIdNum);
+  const name = callerDisplayName(callerIdName);
   if (name && name !== 'unknown' && name !== num) {
     return num ? `${name} (${num})` : name;
   }
@@ -197,6 +202,13 @@ export function agentStatusColorFamily(status: AgentStatus): AgentStatusColorFam
   return AGENT_STATUS_COLOR_FAMILY[status] ?? 'muted';
 }
 
+export function endpointPresenceLabel(presence: string, t: TranslateFn): string {
+  const status = presence.toUpperCase();
+  const normalized = ['NOT_INUSE', 'IDLE', 'AVAILABLE'].includes(status) ? 'READY'
+    : ['INUSE', 'BUSY'].includes(status) ? 'IN_CALL' : status;
+  return agentStatusLabel(normalized as AgentStatus, t);
+}
+
 export type CoworkerActivityTone = 'warning' | 'success' | 'muted' | 'default';
 
 /**
@@ -204,12 +216,13 @@ export type CoworkerActivityTone = 'warning' | 'success' | 'muted' | 'default';
  * RINGING/DIALING → warning; IN_CALL → success.
  */
 export function coworkerActivityLabel(
-  agent: Pick<IAgent, 'status' | 'dialTarget' | 'pauseReason' | 'peerNumber'>,
+  agent: Pick<IAgent, 'status' | 'phoneOnline' | 'dialTarget' | 'pauseReason' | 'peerNumber'>,
   call: { callerIdNum?: string; callerIdName?: string; queue?: string } | undefined,
   queues: Array<Pick<IQueueStats, 'name' | 'displayName'> & { exten?: string }>,
   t: TranslateFn,
 ): { text: string; tone: CoworkerActivityTone } {
   const status = agent.status;
+  if (status === 'READY' && agent.phoneOnline === false) return { text: t('callcenter.status.phoneUnavailable', 'Phone unavailable · cannot receive calls'), tone: 'warning' };
 
     if (status === 'RINGING' || status === 'DIALING' || status === 'IN_CALL') {
     const verb =

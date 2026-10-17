@@ -18,7 +18,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsInt } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsObject } from 'class-validator';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { InjectModel } from '@nestjs/sequelize';
 import type { AgentItemVisibility } from '@krasterisk/shared';
@@ -52,6 +52,9 @@ const BODY_IDENTITY_KEYS = [
 ];
 
 class SendMessageDto {
+    @IsOptional()
+    @IsObject()
+    page_context?: Record<string, unknown>;
     @IsString()
     message: string;
 
@@ -279,6 +282,7 @@ export class AiChatController {
 
         await this.streamTurn(dto.message, conversation.uid, req, res, {
             visibility: 'public',
+            pageContext: dto.page_context,
             locale: this.resolveLocale(dto.locale, req),
         });
     }
@@ -328,7 +332,7 @@ export class AiChatController {
         threadUid: number,
         req: { user?: { vpbx_user_uid?: number; sub?: number; id?: number; level?: number }; on?: (event: string, listener: () => void) => void; headers?: Record<string, unknown> },
         res: Response,
-        opts: { visibility: AgentItemVisibility; locale?: string },
+        opts: { visibility: AgentItemVisibility; locale?: string; pageContext?: unknown },
     ) {
         const { tenantUid, authorUid, role } = this.identityFromToken(req);
         const startedAt = Date.now();
@@ -354,6 +358,7 @@ export class AiChatController {
                 locale: opts.locale ?? this.resolveLocale(undefined, req),
                 signal: abortController.signal,
                 userVisibility: opts.visibility,
+                pageContext: opts.pageContext,
             })) {
                 if (abortController.signal.aborted) break;
                 session.emit(event.name, event.data);

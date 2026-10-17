@@ -132,6 +132,7 @@ export class AutodialOriginatorService {
     const attemptNo = Math.max(cycleAttempt, await this.attempts.nextAttemptNo(task.uid));
     const channelId = buildAutodialChannelId(campaign.uid, task.uid, attemptNo);
     const attemptInput = {
+        tourNo: task.tour_no ?? campaign.tour_no ?? 1,
       userUid: campaign.user_uid,
       taskUid: task.uid,
       campaignUid: campaign.uid,
@@ -152,6 +153,7 @@ export class AutodialOriginatorService {
         ...attemptInput,
         leaseId,
         cycleAttempt,
+        normalizedPhone: phone.normalized,
         gate: dncGate,
       })
       : await this.attempts.openAttempt(attemptInput);
@@ -218,6 +220,8 @@ export class AutodialOriginatorService {
         trunkId: target.trunkId,
         startedAt: Date.now(),
         answeredAt: null,
+        contactUid: input.task.contact_uid,
+        customerName: typeof input.contactValues.name === 'string' ? input.contactValues.name.slice(0, 255) : undefined,
       });
 
       try {
@@ -309,16 +313,16 @@ export class AutodialOriginatorService {
       });
     }
 
-    this.state.removeChannel(channelId, disposition);
-    if (attemptUid == null) return;
+    if (attemptUid == null) { this.state.removeChannel(channelId, disposition); return; }
 
-    await this.attempts.finalize({
+    const finalizedDisposition = await this.attempts.finalize({
       attemptUid,
       disposition,
       hangupCause: event.cause_txt ?? String(cause),
       billsec,
       answeredAt,
     });
+    this.state.removeChannel(channelId, finalizedDisposition ?? disposition);
   }
 
   /**
@@ -342,8 +346,9 @@ export class AutodialOriginatorService {
     ]);
     if (!contact) return { variables: vars, contactValues: {} };
 
-    Object.assign(vars, autodialContactVariables(fields, contact.values ?? {}, number));
-    return { variables: vars, contactValues: contact.values ?? {} };
+    Object.assign(vars, autodialContactVariables(fields, contact.values ?? {}, number, true));
+    return { variables: vars, contactValues: { ...(contact.values ?? {}), ...Object.fromEntries(fields.map((field) =>
+      [field.key, contact.values?.[String(field.uid)] ?? contact.values?.[field.key]]).filter(([, value]) => value !== undefined)) } };
   }
 
   /**

@@ -12,8 +12,13 @@ describe('GET /api/health', () => {
 
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as { status: string; timestamp: string };
+    const body = (await response.json()) as {
+      status: string; timestamp: string; version: string; sha: string; schema: string | null;
+    };
     expect(body.status).toBe('ok');
     expect(body.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(body.version).toMatch(/^4\.\d+\.\d+\.\d+$/);
+    expect(body.sha.length).toBeGreaterThan(0);
+    expect(body).toHaveProperty('schema');
   });
 });

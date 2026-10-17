@@ -21,9 +21,11 @@ import { CloudSetting } from '../cloud-admin/cloud-setting.model';
 import { CloudSettingsService } from '../cloud-admin/cloud-settings.service';
 import { Context } from '../contexts/context.model';
 import { TenantIdentityModule } from '../tenant-identity/tenant-identity.module';
+import { InteractiveSessionModule } from './interactive-session.module';
 
 @Module({
   imports: [
+    InteractiveSessionModule,
     SequelizeModule.forFeature([UserSession, User, Tenant, Context, CloudSetting]),
     TenantIdentityModule,
     UsersModule,

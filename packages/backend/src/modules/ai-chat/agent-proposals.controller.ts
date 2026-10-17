@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PbxAgentDiffService, type ProposalContext } from './pbx-agent-diff.service';
+import { AutodialInteractiveGuard } from './autodial-interactive.guard';
 
 function contextFromToken(req: { user?: any }): ProposalContext {
   const user = req.user ?? {};
@@ -30,6 +31,7 @@ export class AgentProposalsController {
   @ApiOperation({ summary: 'Apply a pending proposal by identifier' })
   @Throttle({ global: { limit: 10, ttl: 60000 } })
   @Post(':proposalId/apply')
+  @UseGuards(AutodialInteractiveGuard)
   apply(@Param('proposalId') proposalId: string, @Req() req: any, @Body() body: SecureConfirmationDto = {}) {
     return this.diffService.apply(proposalId, contextFromToken(req), body.secureInputs);
   }

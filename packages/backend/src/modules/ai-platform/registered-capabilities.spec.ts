@@ -7,6 +7,7 @@ import { McpToolsService } from '../mcp/mcp-tools.service';
 import { collectCoverageFailures, MODULE_COVERAGE, listModuleDirectories } from './module-coverage.registry';
 import { VoiceRobotToolsService } from '../voice-robots/voice-robot-tools.service';
 import { selectAgentToolBudget } from '../ai-chat/turn-mode';
+import { AutodialAiDataTools } from '../autodial/autodial-ai-data.tools';
 
 function adapterFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -31,6 +32,7 @@ describe('registered configuration capabilities', () => {
       const adapter = Object.create(factory!.prototype);
       adapter.domain = domain;
       if (domain === 'voice-robots') adapter.robotTools = new VoiceRobotToolsService({} as never, {} as never, {} as never);
+      if (domain === 'autodial') adapter.dataTools = Object.create(AutodialAiDataTools.prototype);
       registry.register(adapter);
     }
     expect(collectCoverageFailures({ coverage: MODULE_COVERAGE, directories: listModuleDirectories(), registeredDomains: registry.getDomains() })).toEqual([]);

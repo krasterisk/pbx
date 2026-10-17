@@ -90,8 +90,16 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 250));
     }
     assert.equal(health?.status, 200, `Analytics API health did not start: ${output.slice(-1000)}`);
-    assert.deepEqual(await health.json(), { status: 'ok', profile,
-      productRuntime: 'not-installed' });
+    const body = await health.json();
+    assert.equal(body.status, 'ok');
+    assert.equal(body.profile, profile);
+    assert.equal(body.productRuntime, 'not-installed');
+    assert.equal(body.usable, false);
+    assert.equal(body.pilot, false);
+    assert.match(body.version, /^4\.\d+\.\d+\.\d+$/);
+    assert.equal(typeof body.sha, 'string');
+    assert.ok(body.sha.length > 0);
+    assert.equal(typeof body.schema, 'string');
     const rejectedLogin = await fetch(`${base}/auth/login`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ login: 'nobody@example.test', password: 'wrong' }),

@@ -8,6 +8,7 @@ import { callCenterApi, type IOperatorHistoryRow } from '@/shared/api/endpoints/
 import {
   setSnapshot,
   setConnected,
+  touchSseHeartbeat,
   setMyAgentInterface,
   updateAgent,
   updateQueue,
@@ -15,6 +16,7 @@ import {
   updateCall,
   removeCall,
   chatMessageReceived,
+  setMonitorSession,
 } from '../model/slice/callCenterSlice';
 import type { IAgent } from '../model/types/callCenterSchema';
 
@@ -351,11 +353,49 @@ export function useCallCenterSSE(enabled: boolean = true) {
       } catch { /* ignore */ }
     });
 
-    // Heartbeat - no action needed, just keeps SSE alive
+    es.addEventListener('monitorSession', (e: MessageEvent) => {
+      try {
+        const detail = JSON.parse(e.data) as {
+          state?: 'start' | 'mode' | 'end';
+          connected?: boolean;
+          sessionId?: string;
+          agentInterface?: string;
+          agentName?: string;
+          mode?: 'spy' | 'whisper' | 'barge';
+          startedAt?: string;
+        };
+        if (detail.state === 'end') {
+          dispatch(setMonitorSession(null));
+        } else if (detail.agentInterface && detail.mode) {
+          dispatch(
+            setMonitorSession({
+              sessionId: detail.sessionId || `spy_${Date.now()}`,
+              connected: detail.connected ?? false,
+              agentInterface: detail.agentInterface,
+              agentName: detail.agentName || detail.agentInterface,
+              mode: detail.mode,
+              startedAt: detail.startedAt || new Date().toISOString(),
+            }),
+          );
+        }
+      } catch { /* ignore */ }
+    });
+
     es.addEventListener('heartbeat', () => {
-      // noop - prevents proxy timeout
+      dispatch(touchSseHeartbeat());
     });
   }, [enabled, dispatch, store]);
+
+  // An open socket with no calls is a quiet shift, not an outage. Touch liveness
+  // while EventSource is OPEN so the banner does not fire between heartbeats.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (esRef.current?.readyState === EventSource.OPEN) {
+        dispatch(touchSseHeartbeat());
+      }
+    }, 10_000);
+    return () => window.clearInterval(id);
+  }, [dispatch]);
 
   useEffect(() => {
     connect();

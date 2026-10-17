@@ -33,6 +33,15 @@ export class ConfbridgeStaticProfileService implements OnApplicationBootstrap {
     }
 
     try {
+      try {
+        await this.amiService.waitUntilConnected();
+      } catch (e: any) {
+        this.logger.error(
+          `Skipping ${CONFBRIDGE_BRIDGE_PROFILE} provision — AMI not ready: ${e?.message || e}`,
+        );
+        return;
+      }
+
       const config = await this.readConfig();
       const loaded = await this.isProfileLoaded();
       const staleAllow = this.configHasInvalidAllow(config, CONFBRIDGE_BRIDGE_PROFILE);

@@ -5,6 +5,7 @@ import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { ProposalContext } from './pbx-agent-diff.service';
 import { PbxWorkflowRunnerService } from './pbx-workflow-runner.service';
+import { AutodialInteractiveGuard } from './autodial-interactive.guard';
 
 function contextFromToken(req: { user?: any }): ProposalContext {
   const user = req.user ?? {};
@@ -37,6 +38,7 @@ export class AgentWorkflowsController {
   @ApiOperation({ summary: 'Apply a staged workflow (stops on first failure)' })
   @Throttle({ global: { limit: 10, ttl: 60000 } })
   @Post(':workflowId/apply')
+  @UseGuards(AutodialInteractiveGuard)
   apply(@Param('workflowId') workflowId: string, @Req() req: any, @Body() body: SecureConfirmationDto = {}) {
     return this.workflows.apply(workflowId, contextFromToken(req), body.secureInputs);
   }

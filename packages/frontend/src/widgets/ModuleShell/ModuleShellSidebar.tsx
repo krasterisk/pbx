@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react';
-import { Button, NavItem, Text, Flex } from '@/shared/ui';
+import { Button, NavItem, Text, Flex, AppVersionLabel } from '@/shared/ui';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import type { HubModuleRow } from '@/features/modules/types';
 import type { UserLevel } from '@krasterisk/shared';
@@ -34,6 +34,7 @@ export const ModuleShellSidebar = memo(function ModuleShellSidebar({ modules, re
       <NavItem to='/modules' className={cls.footBtn + (pathname === '/modules' ? ' ' + cls.sidebarItemActive : '')} aria-current={pathname === '/modules' ? 'page' : undefined} data-testid='sidebar-modules-trigger' aria-label={t('hub.title')} title={t('hub.title')}>
         <LayoutGrid size={18} className={cls.sidebarIcon} aria-hidden /><Text as='span' className={cls.sidebarText}>{t('hub.title')}</Text>
       </NavItem>
+      <AppVersionLabel className={cls.appVersion} />
     </Flex>
     {!collapsed && <Flex role='separator' tabIndex={0} className={cls.sidebarResizer} data-testid='sidebar-resizer'
       aria-orientation='vertical' aria-label={t('hub.resizeSidebar')} aria-controls='module-shell-sidebar'

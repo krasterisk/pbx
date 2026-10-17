@@ -304,7 +304,7 @@ export class CreateAutodialCampaignDto {
 
 export class UpdateAutodialCampaignDto {
   @IsInt()
-  @Min(1)
+  @Min(0)
   expected_revision!: number;
 
   @IsOptional()

@@ -27,6 +27,8 @@ function buildService(revision = 3) {
     AutodialCampaignsService.prototype,
   ) as AutodialCampaignsService;
   service["sequelize"] = {
+    getDialect: () => 'mysql',
+    query: jest.fn().mockResolvedValue([0, 1]),
     transaction: jest.fn(async (work) => work(transaction)),
   } as unknown as AutodialCampaignsService["sequelize"];
   service["campaignModel"] = {
@@ -98,7 +100,7 @@ describe("autodial campaign configuration transaction", () => {
       service["assertScenario"]("progressive", [
         { id: "trunk", type: "totrunk", condition: {}, params: {} },
       ]),
-    ).toThrow("Autodial does not support scenario step totrunk");
+    ).toThrow("Autodial does not support scenario step 1: totrunk");
   });
 
   it("accepts agentless text2speech so CSV fields can be spoken", () => {

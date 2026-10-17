@@ -85,13 +85,24 @@ export class PbxWorkflowCompilerService {
       const tool = this.registry.getMutationTool(step.tool);
       if (!tool) throw new Error(`WORKFLOW_UNKNOWN_TOOL:${step.tool}`);
 
-      const input = parseMutationInput(tool.mutation, stripTenantAliasesDeep(step.args ?? {}));
+      const rawArgs = stripTenantAliasesDeep(step.args ?? {});
+      let baseReference: { value: string; dependency: string; uid: number; fields: NonNullable<PlannedWorkflowEntities['autodialBases']>[number]['fields'] } | undefined;
+      if (step.tool === 'create_autodial_campaign' && typeof rawArgs.base_uid === 'string') {
+        const match = /^steps\.([a-zA-Z0-9_-]+)\.result\.uid$/.exec(rawArgs.base_uid);
+        const source = match && compiled.find((entry) => entry.stepKey === match[1] && entry.tool === 'create_autodial_base');
+        if (!match || !source || !Array.isArray(source.canonicalArgs.fields)) throw new Error('WORKFLOW_INVALID_AUTODIAL_BASE_REF');
+        baseReference = { value: rawArgs.base_uid, dependency: match[1], uid: 2147483647 - index,
+          fields: source.canonicalArgs.fields as NonNullable<PlannedWorkflowEntities['autodialBases']>[number]['fields'] };
+        rawArgs.base_uid = baseReference.uid;
+      }
+      const input = parseMutationInput(tool.mutation, rawArgs);
       const proposed = await tool.mutation.propose(input, {
         vpbxUserUid: ctx.vpbxUserUid,
         userUid: ctx.userUid,
         role: ctx.role,
         isAdmin: ctx.role === UserLevel.ADMIN,
-        planned: plannedEntitiesFromSteps(draft.steps.slice(0, index)),
+        planned: { ...plannedEntitiesFromSteps(draft.steps.slice(0, index)),
+          ...(baseReference ? { autodialBases: [{ uid: baseReference.uid, fields: baseReference.fields }] } : {}) },
       });
       if (isToolSkip(proposed)) {
         skippedIds.add(step.id);
@@ -112,17 +123,18 @@ export class PbxWorkflowCompilerService {
         tool.mutation,
         stripTenantAliasesDeep(proposal.applyPayload?.args ?? {}),
       ) as Record<string, unknown>;
+      if (baseReference) canonicalArgs.base_uid = baseReference.value;
 
       compiled.push({
         stepKey: step.id,
         tool: step.tool,
         entityType: proposal.entityType || tool.entityType,
         entityLabel: step.label || proposal.entityLabel || step.tool,
-        dependsOn: [...(step.dependsOn ?? [])].filter((id) => !skippedIds.has(id)),
+        dependsOn: [...new Set([...(step.dependsOn ?? []), ...(baseReference ? [baseReference.dependency] : [])])].filter((id) => !skippedIds.has(id)),
         canonicalArgs,
         schemaVersion: tool.mutation.schemaVersion,
         before: proposal.before ?? null,
-        after: proposal.after ?? null,
+        after: proposal.after ? { ...proposal.after, ...(baseReference ? { base_uid: baseReference.value } : {}) } : null,
         summary: proposal.summary ?? [],
         requiresSecureInput: !!(canonicalArgs as any).requiresSecureInput,
       });

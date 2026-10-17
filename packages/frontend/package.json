@@ -1,6 +1,6 @@
 {
   "name": "@krasterisk/frontend",
-  "version": "4.5.6",
+  "version": "4.7.1",
   "description": "Krasterisk v4 Frontend",
   "private": true,
   "type": "module",
@@ -57,6 +57,7 @@
     "@react-pdf/renderer": "^4.5.1",
     "@reduxjs/toolkit": "^2.6.1",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.20",
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -144,6 +144,11 @@ const sampleRows: IOperatorHistoryRow[] = [
 ];
 
 describe('history segment / search helpers (D-07 / D-10)', () => {
+  it('shows calls made to colleagues in Outbound, matching the Made counter', () => {
+    const internal = row({ uid: 100, direction: 'internal', callerIdNum: '201' });
+    expect(matchesHistorySegment(internal, 'outbound')).toBe(true);
+    expect(matchesHistorySegment(internal, 'personal')).toBe(false);
+  });
   it('classifies queue vs outbound vs personal/direct; never a Missed segment', () => {
     expect(isQueueHistoryRow(sampleRows[0])).toBe(true);
     expect(matchesHistorySegment(sampleRows[0], 'queue')).toBe(true);

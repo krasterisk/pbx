@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Building2, LayoutGrid, MapPin, MessagesSquare, CircleDollarSign } from 'lucide-react';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { HStack, VStack } from '@/shared/ui/Stack';
+import { AppVersionLabel } from '@/shared/ui';
 import { UserBlock } from '@/widgets/UserBlock';
 import cls from './PlatformLayout.module.scss';
 
@@ -36,7 +37,10 @@ export const PlatformLayout = () => {
               {t('platform.consoleEmphasis', 'platform console')}
             </strong>
           </div>
-          <UserBlock />
+          <HStack gap="12" align="center">
+            <AppVersionLabel />
+            <UserBlock />
+          </HStack>
         </HStack>
 
         <nav className={cls.nav} aria-label={t('platform.navAria', 'Platform console')}>

@@ -1,8 +1,17 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { useDispatch } from 'react-redux';
 import { PhoneCall } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Text,
+} from '@/shared/ui';
 import type { CallbackSource, CallbackStatus } from '@krasterisk/shared';
 import {
   useCancelCallbackRequestMutation,
@@ -65,6 +74,7 @@ export function CallbackRequestsList({
   const [claim] = useClaimCallbackRequestMutation();
   const [cancel] = useCancelCallbackRequestMutation();
   const [callbackMissed, { isLoading: isCalling }] = useCallbackMissedCallMutation();
+  const [confirmCancelRow, setConfirmCancelRow] = useState<ICallbackRequest | null>(null);
 
   const handleCallNow = async (row: ICallbackRequest) => {
     try {
@@ -87,14 +97,10 @@ export function CallbackRequestsList({
     }
   };
 
-  const handleCancel = async (row: ICallbackRequest) => {
-    const ok = window.confirm(
-      t(
-        'callcenter.callback.cancelConfirm',
-        'Cancel the request: nobody will call {{number}} back. Continue?',
-      ).replace('{{number}}', row.caller),
-    );
-    if (!ok) return;
+  const handleConfirmCancel = async () => {
+    if (!confirmCancelRow) return;
+    const row = confirmCancelRow;
+    setConfirmCancelRow(null);
     try {
       await cancel(row.id).unwrap();
     } catch {
@@ -159,7 +165,7 @@ export function CallbackRequestsList({
                   <PhoneCall className="w-3.5 h-3.5 mr-1" />
                   {t('callcenter.callback.callNow', 'Call now')}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleCancel(row)}>
+                <Button size="sm" variant="outline" onClick={() => setConfirmCancelRow(row)}>
                   {t('callcenter.callback.cancel', 'Cancel the request')}
                 </Button>
               </div>
@@ -167,6 +173,27 @@ export function CallbackRequestsList({
           </div>
         );
       })}
+      <Dialog open={confirmCancelRow != null} onOpenChange={(v) => { if (!v) setConfirmCancelRow(null); }}>
+        <DialogContent size="default">
+          <DialogHeader>
+            <DialogTitle>{t('callcenter.callback.cancel', 'Cancel the request')}</DialogTitle>
+          </DialogHeader>
+          <Text>
+            {t(
+              'callcenter.callback.cancelConfirm',
+              'Cancel the request: nobody will call {{number}} back. Continue?',
+            ).replace('{{number}}', confirmCancelRow?.caller ?? '')}
+          </Text>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmCancelRow(null)}>
+              {t('common.cancel', 'Cancel')}
+            </Button>
+            <Button variant="destructive" onClick={() => void handleConfirmCancel()}>
+              {t('callcenter.callback.cancel', 'Cancel the request')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

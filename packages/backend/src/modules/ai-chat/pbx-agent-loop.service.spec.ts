@@ -84,6 +84,7 @@ function createHarness(
     pendingWorkflow?: Record<string, unknown> | null;
     pendingProposal?: Record<string, unknown> | null;
     skillNames?: string[];
+    domains?: string[];
     modeDecision?: TurnModeDecision;
     setupBrief?: SetupBrief | null;
     provider?: ReturnType<typeof providerRow>;
@@ -204,7 +205,7 @@ function createHarness(
       classify: jest.fn(() => ({
         intents: ['general'],
         skillNames: options.skillNames ?? [],
-        domains: [],
+        domains: options.domains ?? [],
         confidence: options.skillNames?.length ? 0.8 : 0.2,
         source: 'fallback',
       })),
@@ -221,6 +222,34 @@ function createHarness(
 }
 
 describe('PbxAgentLoopService', () => {
+  it('keeps provider reasoning for continuation without exposing it in public events', async () => {
+    const h = createHarness([
+      { text: '', reasoning: 'private-continuation-only', toolCalls: [{ id: 'c-reason', name: 'get_pbx_state', arguments: {} }] },
+      { text: 'Проверено.', toolCalls: [] },
+    ]);
+    const events = await collect(h.service.runTurn('Покажи состояние АТС', { uid: THREAD }, turnContext()));
+    expect(h.llm.chat.mock.calls[1][0].messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'assistant', reasoning_content: 'private-continuation-only' }),
+    ]));
+    expect(JSON.stringify(events)).not.toContain('private-continuation-only');
+  });
+  it('requires the UI button for autodial cards even when chat text explicitly confirms', async () => {
+    for (const options of [
+      { pendingProposal: { proposalId: 'ac-one', entityType: 'autodial_dnc' } },
+      { pendingWorkflow: { workflowId: 'ac-plan', steps: [{ tool: 'create_autodial_campaign' }] } },
+    ]) {
+      const h = createHarness([], options);
+      const events = await collect(h.service.runTurn('Да, примени', { uid: THREAD }, turnContext()));
+      expect(h.proposals.apply).not.toHaveBeenCalled(); expect(h.workflows.apply).not.toHaveBeenCalled();
+      expect(h.llm.chat).not.toHaveBeenCalled(); expect(events.at(-1)?.data).toEqual({ closeKind: 'wait_confirm' });
+    }
+  });
+  it('does not send an autodial request to the IVR brief compiler when the mode model mislabels it', async () => {
+    const h = createHarness([{ text: 'Проверка завершена.', toolCalls: [] }], { domains: ['autodial'], skillNames: ['autodial'],
+      modeDecision: { mode: 'configure', domain: 'ivr', missing: [] } });
+    await collect(h.service.runTurn('Собери кампанию автообзвона с базой и озвучкой суммы', { uid: THREAD }, turnContext()));
+    expect(h.llm.completeJson).toHaveBeenCalledTimes(1);
+  });
   it('applies a thread-scoped single proposal on a natural confirmation without generating a new plan', async () => {
     const h = createHarness([], { pendingProposal: { proposalId: 'p-one', after: { maxChannels: 5 } } });
     const events = await collect(h.service.runTurn('Да, примени', { uid: THREAD }, turnContext()));
@@ -1747,6 +1776,18 @@ describe('PbxAgentLoopService', () => {
 });
 
 describe('turn mode', () => {
+  it('lets native call-center tools handle configuration outside the PBX setup compiler', async () => {
+    const { service, llm } = createHarness([{ text: 'Подготовлено предложение', toolCalls: [] }], {
+      modeDecision: { mode: 'configure', domain: 'callcenter', missing: [] },
+      setupBrief: { domain: null, missing: [], slots: {} },
+      tools: [{ name: 'cc_update_card_template', description: 'Update card', inputSchema: {} }],
+      skillNames: ['callcenter'],
+    });
+    await collect(service.runTurn('Измени описание тестового шаблона карточки КЦ', { uid: THREAD }, turnContext()));
+    expect(llm.chat).toHaveBeenCalled();
+    expect((llm.chat.mock.calls[0] as any)[0].tools.map((tool: any) => tool.name)).toContain('cc_update_card_template');
+  });
+
   it('does not force propose_plan after checklist reads on a support complaint', async () => {
     const { service, llm } = createHarness([
       { text: '', toolCalls: [{ id: 'a', name: 'list_endpoints', arguments: {} }] },

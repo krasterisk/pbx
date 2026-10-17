@@ -8,6 +8,19 @@ const fields = [field('name', 'string', 1, true), field('phone', 'phone', 2, tru
 const contact = { values: { name: 'Alice' }, phones: [{ raw: '8 (900) 123-45-67', uid: 21 }] };
 
 describe('prepareAutodialContact', () => {
+  it.each(['15 240,50', '15\u00a0240,50', '15\u202f240,50', '15240.50'])(
+    'normalizes localized amounts %s without losing cents', (amount) => {
+      const result = prepareAutodialContact([field('amount', 'money', 4)],
+        { ...contact, values: { amount } }, 'digits');
+      expect(result.values).toEqual({ '4': 15240.5 });
+    },
+  );
+  it('accepts a Russian calendar date and rejects rollover dates', () => {
+    const schema = [field('due', 'date', 4)];
+    expect(prepareAutodialContact(schema, { ...contact, values: { due: '25.10.2026' } }, 'digits').values)
+      .toEqual({ '4': '2026-10-25' });
+    expect(() => prepareAutodialContact(schema, { ...contact, values: { due: '30.02.2026' } }, 'digits')).toThrow();
+  });
   it('validates a required phone in phones, preserves UID and stores field values by UID', () => {
     const result = prepareAutodialContact(fields, contact, 'ru_8_to_7');
     expect(result.values).toEqual({ '1': 'Alice' });

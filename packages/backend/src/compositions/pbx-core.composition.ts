@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import type { DynamicModule, ForwardReference, Type } from '@nestjs/common';
 import type { ModelCtor } from 'sequelize-typescript';
 import { loadDatabaseCjs } from '../database/load-database-cjs';
+import { rememberSchemaVersion } from '../database/schema-stamp';
 
 const { resolveDatabaseConfig } = loadDatabaseCjs<typeof import('../database/database-config.cjs')>(
   'database-config.cjs',
@@ -98,9 +99,11 @@ import { CcAgentSession } from '../modules/callcenter/models/agent-session.model
 import { CcAgentEvent } from '../modules/callcenter/models/agent-event.model';
 import { CcAgentQueue } from '../modules/callcenter/models/agent-queue.model';
 import { CcMissedCall } from '../modules/callcenter/models/missed-call.model';
+import { CcAgentOffer } from '../modules/callcenter/models/agent-offer.model';
 import { CcContact } from '../modules/callcenter/models/cc-contact.model';
 import { CcQueueCall } from '../modules/callcenter/models/queue-call.model';
 import { CcDailyQueueStats } from '../modules/callcenter/models/daily-queue-stats.model';
+import { CcIntervalQueueStats } from '../modules/callcenter/models/interval-queue-stats.model';
 import { CcDailyAgentStats } from '../modules/callcenter/models/daily-agent-stats.model';
 import { CcOperatorSettings } from '../modules/callcenter/models/operator-settings.model';
 import { CcSettings } from '../modules/callcenter/models/cc-settings.model';
@@ -235,8 +238,8 @@ export const PBX_CORE_MODELS = [
   Cdr, VoiceRobot, VoiceRobotKeywordGroup, VoiceRobotKeyword, VoiceRobotLog,
   VoiceRobotCdr, VoiceRobotDataList, Queue, QueueMember, ServiceRequest, CcSubject,
   CcDistrict, KomandorClaim, KomandorStore, KomandorDict, CcPauseReason,
-  CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcContact, CcQueueCall,
-  CcDailyQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
+  CcAgentSession, CcAgentEvent, CcAgentQueue, CcMissedCall, CcAgentOffer, CcContact, CcQueueCall,
+  CcDailyQueueStats, CcIntervalQueueStats, CcDailyAgentStats, CcOperatorSettings, CcSettings,
   CcDisplayToken, CcAlertConfig, CcChatMessage, CcChatChannel, CcCardTemplate,
   CcCardField, CcCardData, CcReportSchedule, CcAiProvider, CcAiAuditLog,
   AgentThread, AgentThreadMessage, AgentProposal, AgentWorkflow, AgentWorkflowStep, SupportPlan,
@@ -281,7 +284,8 @@ export function createPbxSequelizeRoot(models: readonly unknown[]): DynamicModul
     imports: [ConfigModule],
     inject: [ConfigService],
     useFactory: async () => {
-      await checkSchemaReadiness();
+      const ready = await checkSchemaReadiness();
+      rememberSchemaVersion(ready.schemaVersion);
       return {
         ...resolveDatabaseConfig(process.env),
         models: [...models] as ModelCtor[],

@@ -1,3 +1,4 @@
+import { HelpdeskChat } from '@/features/ai-chat/ui/HelpdeskChat/HelpdeskChat';
 import { useEffect, useRef, useCallback, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Send, RotateCcw, ArrowDown, ArrowLeft, MoveDiagonal2 } from 'lucide-react';
@@ -88,6 +89,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const seedMessage = useAppSelector((s) => s.aiChat.seedMessage);
+    const requestedThreadUid = useAppSelector((s) => s.aiChat.requestedThreadUid);
     const pendingSeedRef = useRef<string | null>(null);
     const isNarrow = useNarrowViewport();
     const effectiveMode: AssistantPanelMode = isNarrow ? 'dock' : mode;
@@ -125,12 +127,19 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
         }
     };
     const [selectedThreadUid, setSelectedThreadUid] = useState<number | null>(readStoredThreadUid);
+    const [supportMode, setSupportMode] = useState(() => typeof sessionStorage !== 'undefined' && sessionStorage.getItem('assistant-support-thread') === String(readStoredThreadUid()));
+    useEffect(() => {
+        if (typeof sessionStorage === 'undefined') return;
+        if (supportMode && selectedThreadUid != null) sessionStorage.setItem('assistant-support-thread', String(selectedThreadUid));
+        else sessionStorage.removeItem('assistant-support-thread');
+    }, [supportMode, selectedThreadUid]);
     const [selectedReadOnly, setSelectedReadOnly] = useState(false);
     const [plansOpen, setPlansOpen] = useState(!isDock);
     const showPlanRail = canPinPlanRail && plansOpen;
     const [focusWorkflowId, setFocusWorkflowId] = useState<string | null>(null);
 
     const selectThread = useCallback((uid: number | null, readOnly = false) => {
+        setSupportMode(false);
         setSelectedThreadUid(uid);
         setSelectedReadOnly(readOnly);
         writeStoredThreadUid(uid);
@@ -308,6 +317,11 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
         dispatch(aiChatActions.clearSeed());
         selectThread(null);
     }, [dispatch, open, seedMessage, selectThread]);
+    useEffect(() => {
+        if (!open || !requestedThreadUid) return;
+        pendingSeedRef.current = null; setMinimized(false); selectThread(requestedThreadUid);
+        dispatch(aiChatActions.clearRequestedThread());
+    }, [dispatch, open, requestedThreadUid, selectThread, setMinimized]);
 
     useEffect(() => {
         const text = pendingSeedRef.current;
@@ -409,6 +423,13 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
                         align="stretch"
                         data-testid="ai-agent-conversation"
                     >
+                        {!readOnly && <HStack justify="end">
+                            <Button variant="ghost" disabled={isStreaming} onClick={() => setSupportMode((value) => !value)}>
+                                {t(supportMode ? 'helpdeskChat.back' : 'helpdeskChat.entry')}
+                            </Button>
+                        </HStack>}
+                        {supportMode && !readOnly ? <HelpdeskChat key={selectedThreadUid ?? 'new'} threadUid={selectedThreadUid} active={visible}
+                            onThreadCreated={(uid) => { selectThread(uid); setSupportMode(true); }} /> : <>
                         {showWelcome && !readOnly && (
                             <HStack className={cls.suggestions} gap="8" wrap="wrap">
                                 {SUGGESTION_KEYS.map((key) => (
@@ -512,6 +533,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
                                 {t('aiChat.jumpToLatest')}
                             </Button>
                         )}
+                        </>}
                     </VStack>
 
                     {showPlanRail && (
@@ -579,7 +601,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
                     </VStack>
                 )}
 
-                {readOnly ? (
+                {supportMode && !readOnly ? null : readOnly ? (
                     <VStack className={cls.composer} gap="8" align="stretch">
                         <Text as="p">{t('aiChat.timeline.readOnlyHint')}</Text>
                     </VStack>

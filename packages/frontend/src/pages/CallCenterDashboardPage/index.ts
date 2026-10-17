@@ -1,0 +1,1 @@
+export { CallCenterDashboardPage } from './CallCenterDashboardPage';

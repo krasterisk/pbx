@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_APP_GIT_SHA?: string;
+}
+
 declare module '*.module.scss' {
   const classes: { readonly [key: string]: string };
   export default classes;

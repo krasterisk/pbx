@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Menu } from 'lucide-react';
-import { AppBrand, Button, Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, isPlainNavigationClick } from '@/shared/ui';
+import { AppBrand, Button, Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, isPlainNavigationClick, AppVersionLabel } from '@/shared/ui';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import type { UserLevel } from '@krasterisk/shared';
@@ -36,6 +36,7 @@ export function MobileModuleMenu({ open: controlledOpen, onOpenChange }: { open?
       <ModuleNavigation rows={navigation ?? [...active, ...marketplace]} level={level} testIdPrefix='phone-module'
         isLoading={isLoading} isError={isError} refetch={refetch}
         onNavigate={(event) => { if (isPlainNavigationClick(event)) setOpen(false); }} />
+      <AppVersionLabel className={cls.version} />
     </SheetContent>
   </Sheet>;
 }

@@ -143,6 +143,50 @@
         {
           "id": "0035-support-plans.sql",
           "artifact": "0035-support-plans.sql"
+        },
+        {
+          "id": "0036-callcenter-metrics-truth.sql",
+          "artifact": "0036-callcenter-metrics-truth.sql"
+        },
+        {
+          "id": "0037-callcenter-interval-stats.sql",
+          "artifact": "0037-callcenter-interval-stats.sql"
+        },
+        {
+          "id": "0038-callcenter-dashboard-page.sql",
+          "artifact": "0038-callcenter-dashboard-page.sql"
+        },
+        {
+          "id": "0039-callcenter-agent-hotkeys.sql",
+          "artifact": "0039-callcenter-agent-hotkeys.sql"
+        },
+        {
+          "id": "0040-autodial-workspace.sql",
+          "artifact": "0040-autodial-workspace.sql"
+        },
+        {
+          "id": "0041-autodial-test-calls.sql",
+          "artifact": "0041-autodial-test-calls.sql"
+        },
+        {
+          "id": "0042-autodial-phone-identity.sql",
+          "artifact": "0042-autodial-phone-identity.sql"
+        },
+        {
+          "id": "0043-autodial-schema-migration.sql",
+          "artifact": "0043-autodial-schema-migration.sql"
+        },
+        {
+          "id": "0044-autodial-ai-privacy.sql",
+          "artifact": "0044-autodial-ai-privacy.sql"
+        },
+        {
+          "id": "0045-autodial-integration-keys.sql",
+          "artifact": "0045-autodial-integration-keys.sql"
+        },
+        {
+          "id": "0046-autodial-crm-jobs.sql",
+          "artifact": "0046-autodial-crm-jobs.sql"
         }
       ],
       "profiles": {
@@ -494,6 +538,50 @@
         {
           "id": "0035-support-plans.sql",
           "artifact": "postgres/0035-support-plans.sql"
+        },
+        {
+          "id": "0036-callcenter-metrics-truth.sql",
+          "artifact": "postgres/0036-callcenter-metrics-truth.sql"
+        },
+        {
+          "id": "0037-callcenter-interval-stats.sql",
+          "artifact": "postgres/0037-callcenter-interval-stats.sql"
+        },
+        {
+          "id": "0038-callcenter-dashboard-page.sql",
+          "artifact": "postgres/0038-callcenter-dashboard-page.sql"
+        },
+        {
+          "id": "0039-callcenter-agent-hotkeys.sql",
+          "artifact": "postgres/0039-callcenter-agent-hotkeys.sql"
+        },
+        {
+          "id": "0040-autodial-workspace.sql",
+          "artifact": "postgres/0040-autodial-workspace.sql"
+        },
+        {
+          "id": "0041-autodial-test-calls.sql",
+          "artifact": "postgres/0041-autodial-test-calls.sql"
+        },
+        {
+          "id": "0042-autodial-phone-identity.sql",
+          "artifact": "postgres/0042-autodial-phone-identity.sql"
+        },
+        {
+          "id": "0043-autodial-schema-migration.sql",
+          "artifact": "postgres/0043-autodial-schema-migration.sql"
+        },
+        {
+          "id": "0044-autodial-ai-privacy.sql",
+          "artifact": "postgres/0044-autodial-ai-privacy.sql"
+        },
+        {
+          "id": "0045-autodial-integration-keys.sql",
+          "artifact": "postgres/0045-autodial-integration-keys.sql"
+        },
+        {
+          "id": "0046-autodial-crm-jobs.sql",
+          "artifact": "postgres/0046-autodial-crm-jobs.sql"
         }
       ],
       "profiles": {

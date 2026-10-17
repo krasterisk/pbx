@@ -9,6 +9,10 @@ import { AcContact } from './ac-contact.model';
   freezeTableName: true,
 })
 export class AcContactPhone extends Model {
+  /** Dialling/DNC identity is independent of the base's presentation policy. */
+  @Default('')
+  @Column({ type: DataType.STRING(64), allowNull: false })
+  declare canonical_phone: string;
   @PrimaryKey
   @AutoIncrement
   @Column(DataType.INTEGER)

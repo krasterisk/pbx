@@ -56,7 +56,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-muted-foreground) 50%, transparent);
+  color: color-mix(in srgb, var(--color-muted-foreground) 40%, var(--color-foreground));
 }
 
 .footer {

@@ -1,0 +1,60 @@
+.stat {
+  min-width: 72px;
+}
+
+.value {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+}
+
+.tone_default {
+  color: var(--color-foreground);
+}
+
+.tone_success {
+  color: var(--color-success);
+}
+
+.tone_warning {
+  color: var(--color-warning);
+}
+
+.delta {
+  font-variant-numeric: tabular-nums;
+}
+
+.delta_success {
+  color: var(--color-success);
+}
+
+.delta_destructive {
+  color: var(--color-destructive);
+}
+
+.delta_default {
+  color: var(--color-muted-foreground);
+}
+
+.bucket {
+  width: 100%;
+  min-width: 0;
+}
+
+.bucketLabel {
+  flex: 0 0 76px;
+}
+
+.bar {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bucketCount {
+  flex: 0 0 84px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

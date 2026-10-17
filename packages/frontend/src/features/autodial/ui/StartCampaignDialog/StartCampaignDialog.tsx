@@ -16,11 +16,13 @@ import {
 import { HStack, VStack } from '@/shared/ui/Stack';
 import {
   useStartAutodialCampaignMutation,
+  useGetAutodialPreflightQuery,
   type AutodialCampaignWithSchedules,
 } from '@/shared/api/endpoints/autodialApi';
 import { autodialDispositionLabel } from '../../lib/labels';
 import { autodialErrorKey } from '../../lib/mutationError';
 import cls from './StartCampaignDialog.module.scss';
+import { PreflightChecks } from '../CampaignWorkspace/PreflightChecklist';
 
 /**
  * Dispositions worth another dial. Terminal outcomes (success, dnc,
@@ -42,20 +44,24 @@ const REDIAL_DISPOSITIONS: AutodialDisposition[] = [
 interface StartCampaignDialogProps {
   campaign: AutodialCampaignWithSchedules | null;
   onClose: () => void;
+  initialDispositions?: string;
 }
 
-export const StartCampaignDialog = memo(({ campaign, onClose }: StartCampaignDialogProps) => {
+export const StartCampaignDialog = memo(({ campaign, onClose, initialDispositions = '' }: StartCampaignDialogProps) => {
   const { t } = useTranslation();
   const [start, { isLoading }] = useStartAutodialCampaignMutation();
   const [selected, setSelected] = useState<AutodialDisposition[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { currentData: preflight, isFetching: checking, isError: checkFailed, refetch } = useGetAutodialPreflightQuery(campaign?.uid ?? 0, {
+    skip: !campaign, refetchOnMountOrArgChange: true,
+  });
 
   useEffect(() => {
     if (campaign) {
-      setSelected([]);
+      setSelected(initialDispositions.split(',').filter((value): value is AutodialDisposition => REDIAL_DISPOSITIONS.includes(value as AutodialDisposition)));
       setError(null);
     }
-  }, [campaign]);
+  }, [campaign?.uid, initialDispositions]);
 
   const toggle = (disposition: AutodialDisposition) => {
     setSelected((prev) =>
@@ -91,6 +97,9 @@ export const StartCampaignDialog = memo(({ campaign, onClose }: StartCampaignDia
         </DialogHeader>
 
         <VStack gap="8" max className={cls.list}>
+          {preflight && <PreflightChecks data={preflight} />}
+          {checkFailed && <Text role="alert">{t('autodial.common.loadFailed')}</Text>}
+          <Button variant="outline" disabled={checking} onClick={() => void refetch()}>{t('autodial.workspace.recheck')}</Button>
           <Text variant="muted">{t('autodial.start.redialHint')}</Text>
           {REDIAL_DISPOSITIONS.map((disposition) => (
             <HStack key={disposition} gap="8" align="center">
@@ -111,7 +120,7 @@ export const StartCampaignDialog = memo(({ campaign, onClose }: StartCampaignDia
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button disabled={isLoading} onClick={() => void onStart()}>
+          <Button disabled={isLoading || checking || !preflight?.ready} onClick={() => void onStart()}>
             {t('autodial.campaigns.start')}
           </Button>
         </DialogFooter>

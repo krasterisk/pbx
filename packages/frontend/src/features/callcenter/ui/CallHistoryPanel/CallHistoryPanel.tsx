@@ -16,7 +16,7 @@ import {
 } from '@/shared/api/endpoints/callCenterApi';
 import { selectCcQueues } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import { requestOutboundDial } from '@/features/callcenter/model/slice/callCenterSlice';
-import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
+import { callerDisplayName, queueDisplayName } from '@/features/callcenter/lib/displayLabels';
 import {
   loadKpiDisplay,
   PANEL_PREFS_EVENT,
@@ -55,7 +55,7 @@ function directionVisual(row: Pick<IOperatorHistoryRow, 'direction' | 'dispositi
     return { Icon: PhoneMissed, colorClass: styles.iconMissed };
   }
   if (row.direction === 'inbound') return { Icon: PhoneIncoming, colorClass: styles.iconInbound };
-  if (row.direction === 'outbound') return { Icon: PhoneOutgoing, colorClass: styles.iconOutbound };
+  if (row.direction === 'outbound' || row.direction === 'internal') return { Icon: PhoneOutgoing, colorClass: styles.iconOutbound };
   return { Icon: Phone, colorClass: styles.iconOther };
 }
 
@@ -85,11 +85,11 @@ export function matchesHistorySegment(
   segment: HistorySegment,
 ): boolean {
   if (segment === 'queue') return isQueueHistoryRow(row);
-  if (segment === 'outbound') return row.direction === 'outbound';
-  // Personal = personal / direct inbound / internal (not queue, not outbound)
+  if (segment === 'outbound') return row.direction === 'outbound' || row.direction === 'internal';
+  // Personal = direct inbound. Internal calls initiated here belong to Outbound,
+  // matching the operator's Made counter.
   return (
     row.direction === 'personal'
-    || row.direction === 'internal'
     || (row.direction === 'inbound' && isDirectQueue(row.queueName))
   );
 }
@@ -425,7 +425,7 @@ export function CallHistoryPanel({
                 <div className={styles.rowMain}>
                   <div className={styles.rowTop}>
                     <Text className={styles.rowNum}>
-                      {row.callerIdName || row.callerIdNum || t('callcenter.missed.unknown', 'Unknown')}
+                      {callerDisplayName(row.callerIdName) || callerDisplayName(row.callerIdNum) || t('callcenter.missed.unknown', 'Unknown')}
                     </Text>
                     {status && (
                       <span className={isMissed ? styles.missedTag : styles.tag}>{status}</span>

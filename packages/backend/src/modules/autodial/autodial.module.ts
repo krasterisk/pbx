@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { AmiModule } from '../ami/ami.module';
 import { AriModule } from '../ari/ari.module';
 import { CallCenterModule } from '../callcenter/callcenter.module';
@@ -45,6 +46,24 @@ import { AutodialRollupService } from './autodial-rollup.service';
 import { AutodialSchedulerService } from './autodial-scheduler.service';
 import { AutodialSseController } from './autodial-sse.controller';
 import { AutodialStateService } from './autodial-state.service';
+import { AutodialDiagnosisService } from './autodial-diagnosis.service';
+import { AutodialPreflightService } from './autodial-preflight.service';
+import { AutodialTestCallService } from './autodial-test-call.service';
+import { AutodialPreviewService } from './autodial-preview.service';
+import { AutodialSchemaService } from './autodial-schema.service';
+import { AutodialAiPrivacyService } from './autodial-ai-privacy.service';
+import { AutodialAiPrivacyController } from './autodial-ai-privacy.controller';
+import { AutodialAiDataTools } from './autodial-ai-data.tools';
+import { AutodialMonitorService } from './autodial-monitor.service';
+import { AutodialMonitorController } from './autodial-monitor.controller';
+import { AutodialAnalyticsService } from './autodial-analytics.service';
+import { AutodialAnalyticsController } from './autodial-analytics.controller';
+import { AutodialReportSelectionService } from './autodial-report-selection.service';
+import { IvrsModule } from '../ivrs/ivrs.module';
+import { AutodialIntegrationModule } from '../autodial-integration/autodial-integration.module';
+import { AutodialCrmService } from './autodial-crm.service';
+import { AutodialCrmController } from './autodial-crm.controller';
+import { AutodialWebhooksService } from './autodial-webhooks.service';
 
 /**
  * Autodial (Автообзвон) — commercial outbound dialer module.
@@ -55,6 +74,7 @@ import { AutodialStateService } from './autodial-state.service';
  */
 @Module({
   imports: [
+    AutodialIntegrationModule,
     SequelizeModule.forFeature([
       AcBase,
       AcBaseField,
@@ -78,12 +98,18 @@ import { AutodialStateService } from './autodial-state.service';
     CallCenterModule,
     CloudAdminModule,
     AiPlatformModule,
+    AiConnectivityModule,
     LoggerModule,
     ReportsCdrModule,
     DirectoriesModule,
     PromptsModule,
+    IvrsModule,
   ],
   controllers: [
+    AutodialCrmController,
+    AutodialAnalyticsController,
+    AutodialMonitorController,
+    AutodialAiPrivacyController,
     AutodialBasesController,
     AutodialCampaignsController,
     AutodialReportsController,
@@ -91,6 +117,13 @@ import { AutodialStateService } from './autodial-state.service';
     AutodialInternalController,
   ],
   providers: [
+    AutodialWebhooksService,
+    AutodialCrmService,
+    AutodialReportSelectionService,
+    AutodialAnalyticsService,
+    AutodialMonitorService,
+    AutodialAiDataTools,
+    AutodialAiPrivacyService,
     AutodialBasesService,
     AutodialImportService,
     AutodialCampaignsService,
@@ -106,6 +139,11 @@ import { AutodialStateService } from './autodial-state.service';
     AutodialReportsService,
     AutodialRollupService,
     AutodialAiAdapter,
+    AutodialDiagnosisService,
+    AutodialPreflightService,
+    AutodialTestCallService,
+    AutodialPreviewService,
+    AutodialSchemaService,
   ],
   exports: [AutodialBasesService, AutodialCampaignsService, AutodialStateService],
 })

@@ -4,9 +4,12 @@ import { InfoTooltip, Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { DialplanAppsEditor } from '@/features/dialplan-apps';
 import { allowedTypesForHost } from '@/features/dialplan-apps/model/hostTypes';
+import { AUTODIAL_SUPPORTED_ACTIONS } from '@krasterisk/shared';
 import { useGetAutodialBaseQuery } from '@/shared/api/endpoints/autodialApi';
 import type { AutodialCampaignDraft, CampaignDraftErrors } from '../../model/campaignDraft';
 import cls from './CampaignTabs.module.scss';
+import { AutodialSpeechBuilder } from './AutodialSpeechBuilder';
+import { AutodialOutcomeEditor } from './AutodialOutcomeEditor';
 
 interface Props {
   draft: AutodialCampaignDraft;
@@ -33,7 +36,10 @@ export const CampaignScenarioTab = memo(({ draft, onChange, errors }: Props) => 
     [base],
   );
 
-  const scenarioError =
+  const contractError = errors.scenario_actions?.startsWith('contract:') ? errors.scenario_actions.split(':') : null;
+  const scenarioError = contractError
+    ? t('autodial.scenario.invalidStep', { step: contractError[1], field: contractError[2] })
+    :
     errors.scenario_actions === 'queueRequired'
       ? t('autodial.scenario.queueRequired')
       : errors.scenario_actions
@@ -49,9 +55,12 @@ export const CampaignScenarioTab = memo(({ draft, onChange, errors }: Props) => 
       {scenarioError && (
         <Text className={cls.error}>{scenarioError}</Text>
       )}
+      <AutodialSpeechBuilder fields={base?.fields ?? []} draft={draft} onChange={onChange} />
       <DialplanAppsEditor
         host="autodial"
-        allowedTypes={allowedTypesForHost('autodial')}
+        allowedTypes={allowedTypesForHost('autodial').filter((type) =>
+          (AUTODIAL_SUPPORTED_ACTIONS as readonly string[]).includes(type)
+          && !(draft.dial_mode === 'agentless' && type === 'toqueue'))}
         actions={draft.scenario_actions}
         onChange={(scenario_actions) => onChange({ ...draft, scenario_actions })}
         autodialFields={autodialFields}
@@ -60,6 +69,7 @@ export const CampaignScenarioTab = memo(({ draft, onChange, errors }: Props) => 
           emptyBody: t('autodial.scenario.emptyBody'),
         }}
       />
+      <AutodialOutcomeEditor draft={draft} onChange={onChange} />
     </VStack>
   );
 });

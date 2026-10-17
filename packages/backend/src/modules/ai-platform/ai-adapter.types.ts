@@ -94,6 +94,8 @@ export interface AiStateProvider {
   domain: string;
   /** Compact text block — NOT full entity dumps (Pitfall 10 — context bloat) */
   buildSummary(vpbxUserUid: number): Promise<string>;
+  /** Optional bounded structured snapshot, shared by prompt and state discovery. */
+  buildSnapshot?(vpbxUserUid: number): Promise<{ count: number; sample: string[] }>;
 }
 
 /** A domain module's full AI integration surface. */

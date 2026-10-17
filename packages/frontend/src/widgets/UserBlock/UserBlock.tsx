@@ -66,8 +66,8 @@ export function UserBlock({ displayName, secondaryLine, className, preferences }
           id="user-block-trigger"
           variant="ghost"
           className={`${styles.trigger} ${className || ''}`}
-          aria-label={t('auth.profile')}
         >
+          <span className="sr-only">{t('auth.profile')} </span>
           <HStack gap="8" align="center">
             <VStack gap="0" className={styles.meta}>
               <Text className={styles.name}>{name}</Text>

@@ -2,7 +2,7 @@ import { forwardRef, HTMLAttributes, FormHTMLAttributes, ReactNode } from 'react
 import { classNames, Mods } from '@/shared/lib/classNames/classNames';
 import cls from './Flex.module.scss';
 
-type FlexTag = 'div' | 'header' | 'main' | 'section' | 'footer' | 'nav' | 'form';
+type FlexTag = 'div' | 'header' | 'main' | 'section' | 'footer' | 'nav' | 'form' | 'span';
 
 export type FlexJustify = 'start' | 'center' | 'end' | 'between';
 export type FlexAlign = 'start' | 'center' | 'end' | 'stretch' | 'baseline';

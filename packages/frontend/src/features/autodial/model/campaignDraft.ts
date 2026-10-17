@@ -1,5 +1,6 @@
 import {
   AUTODIAL_DISPOSITIONS,
+  autodialScenarioActionSchema,
   type AutodialDialMode,
   type AutodialDisposition,
   type CreateAutodialCampaignInput,
@@ -197,6 +198,14 @@ export function validateCampaignDraft(
   }
   if (draft.dial_mode === "agentless" && draft.scenario_actions.length === 0) {
     errors.scenario_actions = "required";
+  }
+  for (const [index, action] of draft.scenario_actions.entries()) {
+    if (action.enabled === false) continue;
+    const parsed = autodialScenarioActionSchema.safeParse(action);
+    if (!parsed.success) {
+      errors.scenario_actions = `contract:${index + 1}:${parsed.error.issues[0].path.join('.')}`;
+      break;
+    }
   }
 
   if (

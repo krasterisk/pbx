@@ -79,6 +79,7 @@ export const HUB_MODULE_PAGES_SEED: HubModulePageSeed[] = [
   { hub_code: 'system', page_code: 'ai_providers', path: '/ai-providers', sort_order: 90 },
 
   // Call Center (market) — custom robot tables stay off the general menu
+  { hub_code: 'callcenter', page_code: 'cc_dashboard', path: '/callcenter/dashboard', sort_order: 10 },
   { hub_code: 'callcenter', page_code: 'cc_agent', path: '/callcenter/agent', sort_order: 20 },
   { hub_code: 'callcenter', page_code: 'cc_supervisor', path: '/callcenter/supervisor', sort_order: 30 },
   { hub_code: 'callcenter', page_code: 'cc_reports', path: '/callcenter/reports', sort_order: 40 },

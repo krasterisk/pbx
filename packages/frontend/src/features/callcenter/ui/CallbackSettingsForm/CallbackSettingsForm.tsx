@@ -1,6 +1,7 @@
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   CALLBACK_DIAL_ORDERS,
@@ -10,13 +11,15 @@ import {
   type CallbackOrderMode,
   type ICallbackPolicy,
 } from '@krasterisk/shared';
-import { Button, InfoTooltip, Label, SegmentedControl, Select, Text, Skeleton } from '@/shared/ui';
+import { InfoTooltip, Label, SegmentedControl, Select, Text, Skeleton } from '@/shared/ui';
 import { UserLevel, selectUserLevel } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import {
   useGetTenantSettingsQuery,
   useUpdateTenantSettingsMutation,
 } from '@/shared/api/endpoints/callCenterApi';
+import { useBaselineForm } from '../../lib/useBaselineForm';
+import { FormSaveBar } from '../FormSaveBar';
 import styles from './CallbackSettingsForm.module.scss';
 
 const DTMF_DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'] as const;
@@ -60,26 +63,24 @@ export function CallbackSettingsForm() {
   const canEdit = level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN;
   const { data, isLoading, isError, refetch } = useGetTenantSettingsQuery();
   const [update, { isLoading: isSaving }] = useUpdateTenantSettingsMutation();
-  const [policy, setPolicy] = useState<ICallbackPolicy>({ ...DEFAULT_CALLBACK_POLICY });
-  const [saved, setSaved] = useState(false);
+  const { form: policy, setForm: setPolicy, dirty, syncFromServer, markSaved, revert } =
+    useBaselineForm<ICallbackPolicy>(normalizeCallbackPolicy(DEFAULT_CALLBACK_POLICY));
 
   useEffect(() => {
     if (!data) return;
-    setPolicy(normalizeCallbackPolicy(data.callback_policy));
-  }, [data]);
+    syncFromServer(normalizeCallbackPolicy(data.callback_policy));
+  }, [data, syncFromServer]);
 
   const patch = (partial: Partial<ICallbackPolicy>) => {
     if (!canEdit) return;
     setPolicy((prev) => ({ ...prev, ...partial }));
-    setSaved(false);
   };
 
   const handleSave = async () => {
     if (!canEdit) return;
     try {
       await update({ callback_policy: policyForSave(policy) }).unwrap();
-      setSaved(true);
-      toast.success(t('callcenter.settings.callback.saved', 'Callback settings saved'));
+      markSaved();
     } catch {
       toast.error(t('common.saveFailed', 'Save failed'));
     }
@@ -221,16 +222,12 @@ export function CallbackSettingsForm() {
         )}
       </Text>
 
+      <Link to="/routes" className="text-primary underline">
+        {t('callcenter.openCallbackRoutes', 'Open routes to configure callback attempts and calling hours')}
+      </Link>
+
       {canEdit && (
-        <div className={styles.footer}>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving
-              ? t('common.saving', 'Saving…')
-              : saved
-                ? t('common.saved', 'Saved')
-                : t('callcenter.settings.callback.save', 'Save callback settings')}
-          </Button>
-        </div>
+        <FormSaveBar dirty={dirty} saving={isSaving} onSave={handleSave} onCancel={revert} testId="callback-save-bar" />
       )}
     </div>
   );

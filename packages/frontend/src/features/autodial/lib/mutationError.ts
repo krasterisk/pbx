@@ -1,8 +1,10 @@
+import { autodialWorkspaceErrorsEn } from '@/shared/config/locales/autodialWorkspace';
 /** Only display known, localized errors. Never render raw SQL/provider messages. */
 export function autodialErrorKey(error: unknown, fallback: string): string {
   const data = (error as { data?: { code?: unknown } } | undefined)?.data;
   const code = data?.code;
   const supported = [
+    ...Object.keys(autodialWorkspaceErrorsEn),
     "AC_REVISION_CONFLICT",
     "AC_CAMPAIGN_REVISION_CONFLICT",
     "AC_BASE_IN_USE",

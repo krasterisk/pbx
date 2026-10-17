@@ -1,0 +1,28 @@
+export const helpdeskChatRu = {
+    entry: 'Обратиться в техническую поддержку', back: 'Вернуться к ассистенту',
+    intro: 'Helpdesk зарегистрирует обращение и проверит доступные сведения. Не отправляйте пароли и секреты.',
+    empty: 'Опишите проблему: что произошло, когда и какого результата вы ожидали.',
+    message: 'Сообщение в поддержку', answer: 'Ответ на уточняющий вопрос', send: 'Отправить в поддержку', sending: 'Отправка…',
+    ticket: 'Обращение №{{id}}', refresh: 'Обновить', retry: 'Повторить отправку',
+    unavailable: 'Поддержка недоступна или ещё не подключена к вашему кабинету.',
+    retryHint: 'Отправка не подтверждена. Повторите запрос: второе обращение не создастся.',
+    staleHint: 'Состояние обращения изменилось. Проверьте новый вопрос и отправьте сообщение снова.',
+    escalated: 'Нужна помощь специалиста. Автоматическое решение не подтверждено.',
+    failed: 'Проверка завершилась с ошибкой. Можно отправить дополнительное сообщение.',
+    role: { user: 'Вы', support: 'Техническая поддержка' },
+    status: { queued: 'В очереди', running: 'Проверяем', needs_input: 'Нужно уточнение', completed: 'Ответ подготовлен', escalated: 'Нужен специалист', failed: 'Ошибка проверки', cancelled: 'Отменено' },
+};
+export const helpdeskChatEn = {
+    entry: 'Contact technical support', back: 'Back to assistant',
+    intro: 'Helpdesk will register your request and investigate available information. Do not send passwords or secrets.',
+    empty: 'Describe the issue, when it happened, and the result you expected.',
+    message: 'Message to support', answer: 'Answer the clarification', send: 'Send to support', sending: 'Sending…',
+    ticket: 'Ticket #{{id}}', refresh: 'Refresh', retry: 'Retry sending',
+    unavailable: 'Support is unavailable or has not been connected to your account.',
+    retryHint: 'Delivery was not confirmed. Retry the request; it will not create a duplicate ticket.',
+    staleHint: 'The conversation changed. Review the latest question and send your message again.',
+    escalated: 'A specialist is required. An automatic resolution has not been confirmed.',
+    failed: 'The investigation failed. You can send an additional message.',
+    role: { user: 'You', support: 'Technical support' },
+    status: { queued: 'Queued', running: 'Investigating', needs_input: 'Clarification needed', completed: 'Answer ready', escalated: 'Specialist needed', failed: 'Investigation failed', cancelled: 'Cancelled' },
+};

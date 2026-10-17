@@ -97,6 +97,8 @@ export class CallCenterAlertService {
       queueName: string;
       sla: number;
       abandonRate: number;
+      offered?: number;
+      shortAbandoned?: number;
     }>,
     snapshot: {
       queues: Array<{ agents: { available: number } }>;
@@ -104,6 +106,11 @@ export class CallCenterAlertService {
     },
   ): Breach[] {
     const breaches: Breach[] = [];
+    // A queue with no effective traffic (idle, or only short abandons) reports sla = 0 and
+    // abandonRate = 0 by construction: it is "no data", not a breach.
+    metrics = metrics.filter(
+      (m) => m.offered === undefined || m.offered - (m.shortAbandoned ?? 0) > 0,
+    );
 
     if (thresholds.sla_critical_pct != null) {
       for (const m of metrics) {

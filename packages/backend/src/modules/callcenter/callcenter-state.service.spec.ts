@@ -17,8 +17,27 @@ describe('CallCenterStateService', () => {
   });
 
   // ─── Agent state ────────────────────────────────────────
+  it('confirms monitor audio once and keeps the event private to its supervisor', () => {
+    const events: any[] = [];
+    service.getEventStream(7).subscribe(event => events.push(event));
+    service.startMonitorSession({ id: 'monitor-1', userUid: 7, supervisorId: 42, supervisorChannelPrefix: 'PJSIP/e203_7', agentInterface: 'PJSIP/e202_7', agentName: 'Alice', mode: 'spy', startedAt: new Date() });
+    service.bindMonitorSessionChannel('PJSIP/e203_7-001');
+    service.connectMonitorSession('PJSIP/e203_7-001');
+    service.connectMonitorSession('PJSIP/e203_7-001');
+    expect(events).toHaveLength(2);
+    expect(events[1].data).toMatchObject({ connected: true, recipientUserIds: [42], state: 'mode' });
+    expect(service.getMonitorSession(7, 42)?.connected).toBe(true);
+  });
 
   describe('setAgent', () => {
+    it('explicitly clears a finished call binding in SSE JSON for merging clients', () => {
+      service.setAgent(7, 'PJSIP/101', { status: 'IN_CALL', currentCall: 'ended-call' });
+      const received: any[] = [];
+      service.getEventStream(7).subscribe(e => received.push(e));
+      service.setAgent(7, 'PJSIP/101', { status: 'READY', currentCall: undefined });
+      expect(service.getAgent(7, 'PJSIP/101')?.currentCall).toBeUndefined();
+      expect(JSON.parse(JSON.stringify(received[0])).data.currentCall).toBe('');
+    });
     it('upserts an agent and emits agentUpdate', done => {
       service.getEventStream(7).subscribe(event => {
         expect(event.type).toBe('agentUpdate');

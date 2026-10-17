@@ -2,11 +2,11 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { Headphones, PhoneOff, PhoneForwarded, Hand, Users } from 'lucide-react';
+import { Headphones, PhoneOff, PhoneForwarded, Hand, Users, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Text, Popover, PopoverTrigger, PopoverContent, SegmentedControl,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button,
-  Tooltip,
+  Tooltip, Input, Select,
 } from '@/shared/ui';
 import {
   usePeerSpyMutation,
@@ -34,6 +34,7 @@ import {
   loadKpiDisplay,
   PANEL_PREFS_EVENT,
   type KpiDisplayMode,
+  type AgentPanelView,
 } from '@/features/callcenter/lib/agentPanelPrefs';
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import { DroppableColleague, useDragTransfer } from '@/features/callcenter/ui/DragTransfer/DragTransfer';
@@ -47,6 +48,7 @@ interface CoworkersTabProps {
   hasActiveCall: boolean;
   /** Panel KPI period - same preference as status bar (Day / Shift / Both). */
   kpiDisplay?: KpiDisplayMode;
+  view?: AgentPanelView;
 }
 
 /** Presence follows shared status→color map - OUTBOUND_WORK is available (info), not busy-red. */
@@ -60,8 +62,8 @@ function presenceDotClass(status: AgentStatus): string {
 }
 
 /** Queue-idle or outbound-work peers can take a transfer. */
-function canReceiveTransfer(status: AgentStatus): boolean {
-  return status === 'READY' || status === 'OUTBOUND_WORK';
+function canReceiveTransfer(status: AgentStatus, phoneOnline?: boolean): boolean {
+  return phoneOnline !== false && (status === 'READY' || status === 'OUTBOUND_WORK');
 }
 
 function activityToneClass(tone: string): string {
@@ -80,10 +82,16 @@ const SPY_MODES: { value: SpyMode; labelKey: string; fallback: string }[] = [
  * Coworkers tab - self + callable peers; desktop table / mobile cards.
  * OFFLINE (Invalid / unreachable) peers are hidden; self is always listed.
  */
-export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: CoworkersTabProps) {
+export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp, view }: CoworkersTabProps) {
   const { t } = useTranslation();
   const tLabel = (key: string, fallback = ''): string => t(key, fallback);
   const isMobile = useIsMobile(768);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [availability, setAvailability] = useState('all');
+  const [page, setPage] = useState(0);
   const currentUser = useSelector(selectCurrentUser);
   const myAgent = useSelector(selectMyAgent);
   const agents = useSelector(selectCcAgents);
@@ -136,7 +144,7 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
   const [nowTick, setNowTick] = useState(() => Date.now());
   const statusSinceRef = useRef<Record<string, { status: AgentStatus; at: number }>>({});
 
-  const colleagues = useMemo(() => {
+  const allColleagues = useMemo(() => {
     if (!myAgent) return [];
     const shared = agents.filter((a) => {
       if (a.interface === myAgent.interface) return true;
@@ -152,9 +160,29 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
     return visible.sort((a, b) => {
       if (a.interface === myAgent.interface) return -1;
       if (b.interface === myAgent.interface) return 1;
-      return agentDisplayName(a).localeCompare(agentDisplayName(b));
+      const aReady = canReceiveTransfer(a.status, a.phoneOnline);
+      const bReady = canReceiveTransfer(b.status, b.phoneOnline);
+      if (aReady !== bReady) return aReady ? -1 : 1;
+      return agentDisplayName(a).localeCompare(agentDisplayName(b), undefined, { numeric: true });
     });
   }, [agents, myAgent]);
+
+  const colleagues = useMemo(() => allColleagues.filter((a) => {
+    if (availability === 'available' && !canReceiveTransfer(a.status, a.phoneOnline)) return false;
+    if (availability === 'busy' && !['IN_CALL', 'RINGING', 'DIALING', 'CONSULT'].includes(a.status)) return false;
+    return `${agentDisplayName(a)} ${interfaceToExtension(a.interface)}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
+  }), [allColleagues, search, availability]);
+  const pageCount = Math.max(1, Math.ceil(colleagues.length / 20));
+  const currentPage = Math.min(page, pageCount - 1);
+  const visibleColleagues = colleagues.slice(currentPage * 20, (currentPage + 1) * 20);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => setContainerWidth(entry.contentRect.width));
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [allColleagues.length]);
 
   useEffect(() => {
     const map = statusSinceRef.current;
@@ -179,9 +207,9 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
     return () => clearInterval(id);
   }, []);
 
-  const isSupervisor = (currentUser?.level ?? -1) >= UserLevel.SUPERVISOR;
+  const isSupervisor = [UserLevel.SUPERADMIN, UserLevel.ADMIN, UserLevel.SUPERVISOR].includes(currentUser?.level ?? -1);
   const pickupEnabled = Boolean(operatorSettings?.pickup_enabled);
-  const iAmReady = myAgent?.status === 'READY';
+  const iAmReady = myAgent?.status === 'READY' && myAgent.phoneOnline !== false;
 
   const handleSpyMode = async (targetInterface: string, mode: SpyMode) => {
     setSpyTarget(null);
@@ -216,9 +244,9 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
     }
   };
 
-  if (colleagues.length === 0) {
+  if (allColleagues.length === 0) {
     return (
-      <div className={styles.wrap}>
+      <div className={styles.wrap} ref={containerRef}>
         <div className={styles.empty}>
           <Users className="w-8 h-8 opacity-30" />
           <Text className="font-semibold">{t('callcenter.coworkersTab.emptyTitle', 'No coworkers online')}</Text>
@@ -233,7 +261,7 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
   }
 
   const renderActions = (agent: IAgent, isSelf: boolean) => {
-    const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status) && !isSelf;
+    const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status, agent.phoneOnline) && !isSelf;
     const canSpy = !!permissions?.can_spy && agent.status === 'IN_CALL';
     const canHangup = isSelf
       ? (agent.status === 'IN_CALL' || agent.status === 'DIALING' || agent.status === 'RINGING' || !!agent.currentCall)
@@ -248,38 +276,44 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
       <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
         {canClickTransfer && (
           <Tooltip content={t('callcenter.coworkersTab.transferHint', 'Transfer active call')}>
-            <button
+            <Button
               type="button"
+              variant="unstyled"
+              size="none"
               className={styles.iconBtn}
               aria-label={t('callcenter.coworkersTab.transferAria', 'Transfer to {{name}}', { name: agentDisplayName(agent) })}
               onClick={() => requestTransfer(agent)}
             >
               <PhoneForwarded className="w-4 h-4" />
-            </button>
+            </Button>
           </Tooltip>
         )}
         {canIntercept && (
           <Tooltip content={t('callcenter.coworkersTab.interceptHint', 'Take this ringing call')}>
-            <button
+            <Button
               type="button"
+              variant="unstyled"
+              size="none"
               className={styles.iconBtn}
               aria-label={t('callcenter.coworkersTab.interceptAria', 'Intercept {{name}}', { name: agentDisplayName(agent) })}
               onClick={() => void handleIntercept(agent)}
             >
               <Hand className="w-4 h-4" />
-            </button>
+            </Button>
           </Tooltip>
         )}
         {canSpy && (
           <Popover open={spyTarget === agent.interface} onOpenChange={(open) => setSpyTarget(open ? agent.interface : null)}>
             <PopoverTrigger asChild>
-              <button
+              <Button
                 type="button"
+                variant="unstyled"
+                size="none"
                 className={styles.iconBtn}
                 aria-label={t('callcenter.coworkersTab.spyAria', 'Listen in on {{name}}', { name: agentDisplayName(agent) })}
               >
                 <Headphones className="w-4 h-4" />
-              </button>
+              </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-3" align="end">
               <div className={styles.spyPicker}>
@@ -303,14 +337,16 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
           </Popover>
         )}
         {canHangup && (
-          <button
+          <Button
             type="button"
+            variant="unstyled"
+            size="none"
             className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
             aria-label={t('callcenter.coworkersTab.hangupAria', "Hang up {{name}}'s call", { name: agentDisplayName(agent) })}
             onClick={() => setHangupTarget(agent)}
           >
             <PhoneOff className="w-4 h-4" />
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -341,13 +377,51 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
     </Dialog>
   );
 
-  if (isMobile) {
+  const searchTools = allColleagues.length > 6 || searchOpen ? (
+    <div className={styles.searchTools}>
+      {(searchOpen || allColleagues.length > 12) && <Input
+        autoFocus
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+        aria-label={t('callcenter.coworkersSearch', 'Find a coworker')}
+        placeholder={t('callcenter.coworkersSearch', 'Find a coworker')}
+      />}
+      {allColleagues.length <= 12 && <Button
+        size="icon"
+        variant="ghost"
+        aria-label={t(searchOpen ? 'common.close' : 'callcenter.coworkersSearch', searchOpen ? 'Close' : 'Find a coworker')}
+        onClick={() => { setSearchOpen(!searchOpen); setSearch(''); }}
+      >
+        {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+      </Button>}
+      {allColleagues.length > 12 && <Select
+        value={availability}
+        aria-label={t('callcenter.coworkersAvailability', 'Coworker availability')}
+        onChange={(e) => { setAvailability(e.target.value); setPage(0); }}
+      >
+        <option value="all">{t('callcenter.coworkersAll', 'All coworkers')}</option>
+        <option value="available">{t('callcenter.coworkersAvailable', 'Available for transfer')}</option>
+        <option value="busy">{t('callcenter.coworkersBusy', 'In a call or dialing')}</option>
+      </Select>}
+    </div>
+  ) : null;
+  const listFooter = allColleagues.length > 12 ? <div className={styles.pagination}>
+    <Text variant="muted">{colleagues.length ? currentPage * 20 + 1 : 0}–{Math.min((currentPage + 1) * 20, colleagues.length)} / {colleagues.length}</Text>
+    {pageCount > 1 && <>
+      <Button size="icon" variant="ghost" disabled={currentPage === 0} aria-label={t('callcenter.coworkersPrevious', 'Previous coworkers')} onClick={() => setPage(currentPage - 1)}><ChevronLeft className="w-4 h-4" /></Button>
+      <Button size="icon" variant="ghost" disabled={currentPage + 1 >= pageCount} aria-label={t('callcenter.coworkersNext', 'Next coworkers')} onClick={() => setPage(currentPage + 1)}><ChevronRight className="w-4 h-4" /></Button>
+    </>}
+  </div> : null;
+
+  if (isMobile || view === 'cards' || (!view && containerWidth > 0 && containerWidth < 760)) {
     return (
-      <div className={styles.wrap} data-testid="coworkers-tab">
+      <div className={styles.wrap} data-testid="coworkers-tab" ref={containerRef}>
+        {searchTools}
+        {!colleagues.length && <Text role="status">{t('callcenter.coworkersNoResults', 'No coworkers found')}</Text>}
         <div className={styles.cardGrid}>
-          {colleagues.map((agent) => {
+          {visibleColleagues.map((agent) => {
             const isSelf = agent.interface === myAgent?.interface;
-            const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status) && !isSelf;
+            const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status, agent.phoneOnline) && !isSelf;
             const since = statusSinceRef.current[agent.interface]?.at ?? nowTick;
             const elapsed = Math.max(0, Math.floor((nowTick - since) / 1000));
             const call = agent.currentCall
@@ -411,39 +485,32 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
             );
           })}
         </div>
+        {listFooter}
         {hangupDialog}
       </div>
     );
   }
 
   return (
-    <div className={styles.wrap} data-testid="coworkers-tab">
+    <div className={styles.wrap} data-testid="coworkers-tab" ref={containerRef}>
+      {searchTools}
+      {!colleagues.length && <Text role="status">{t('callcenter.coworkersNoResults', 'No coworkers found')}</Text>}
       <div className={styles.tableWrap}>
-        <Table className={styles.table}>
+        <Table className={styles.table} surface={false} showSearch={false} showExport={false}>
           <TableHeader>
             <TableRow>
               <TableHead>{t('callcenter.coworkersTab.colAgent', 'Agent')}</TableHead>
               <TableHead>{t('callcenter.coworkersTab.colStatus', 'Status')}</TableHead>
-              <TableHead>{t('callcenter.coworkersTab.colTime', 'Time')}</TableHead>
-              <TableHead title={`${t('callcenter.coworkersTab.answeredHint', 'Incoming answered')} (${periodHint})`}>
-                {t('callcenter.kpi.answered', 'Answered')}
-              </TableHead>
-              <TableHead title={`${t('callcenter.coworkersTab.madeHint', 'Outbound answered')} (${periodHint})`}>
-                {t('callcenter.kpi.made', 'Made')}
-              </TableHead>
-              <TableHead title={`${t('callcenter.coworkersTab.missedHint', 'Missed calls')} (${periodHint})`}>
-                {t('callcenter.kpi.missed', 'Missed')}
-              </TableHead>
-              <TableHead title={`${t('callcenter.coworkersTab.totalHint', 'Answered + made')} (${periodHint})`}>
-                {t('callcenter.coworkersTab.total', 'Calls')}
+              <TableHead>
+                {periodHint}
               </TableHead>
               <TableHead aria-label={t('callcenter.coworkersTab.colActions', 'Actions')} />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {colleagues.map((agent) => {
+            {visibleColleagues.map((agent) => {
               const isSelf = agent.interface === myAgent?.interface;
-              const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status) && !isSelf;
+              const canClickTransfer = hasActiveCall && canReceiveTransfer(agent.status, agent.phoneOnline) && !isSelf;
               const since = statusSinceRef.current[agent.interface]?.at ?? nowTick;
               const elapsed = Math.max(0, Math.floor((nowTick - since) / 1000));
               const call = agent.currentCall
@@ -477,13 +544,16 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
                       <span className={styles.selfBadge}>{t('callcenter.coworkersTab.you', 'You')}</span>
                     ) : null}
                   </TableCell>
-                  <TableCell className={activityToneClass(activity.tone)}>{activity.text}</TableCell>
-                  <TableCell className={styles.timer}>{formatStatusElapsed(elapsed)}</TableCell>
-                  <TableCell className={styles.kpiCell}>{kpi.answered}</TableCell>
-                  <TableCell className={styles.kpiCell}>{kpi.made}</TableCell>
-                  <TableCell className={styles.kpiCell}>{kpi.missed}</TableCell>
+                  <TableCell className={activityToneClass(activity.tone)}>
+                    {activity.text}
+                    <div className={styles.meta}>{formatStatusElapsed(elapsed)}</div>
+                  </TableCell>
                   <TableCell className={styles.kpiCell}>
-                    {kpi.total}
+                    <div className={styles.kpiLine}>
+                      <span>{t('callcenter.kpi.answered', 'Answered')}: {kpi.answered}</span>
+                      <span>· {t('callcenter.kpi.made', 'Made')}: {kpi.made}</span>
+                      <span>· {t('callcenter.kpi.missed', 'Missed')}: {kpi.missed}</span>
+                    </div>
                   </TableCell>
                   <TableCell className={styles.actionsCell}>{renderActions(agent, isSelf)}</TableCell>
                 </DroppableColleague>
@@ -492,6 +562,7 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp }: Cowo
           </TableBody>
         </Table>
       </div>
+      {listFooter}
       {hangupDialog}
     </div>
   );

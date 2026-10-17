@@ -16,7 +16,7 @@ export const TURN_MODE_SYSTEM = [
   '- diagnose: a complaint about a call, registration, route, or "why".',
   '- configure: create or change PBX entities.',
   '- clarify: the request is too vague to choose a mode. Put the one missing fact in missing[].',
-  'domain is a short label such as ivr, route, queue, endpoints, diagnostics, or null.',
+  'domain is a short label such as autodial, ivr, route, queue, endpoints, diagnostics, or null.',
 ].join('\n');
 
 const MODES = new Set<TurnMode>(['confirm', 'clarify', 'configure', 'diagnose', 'read']);
@@ -32,6 +32,11 @@ export const EVIDENCE_TOOLS = new Set([
 
 /** Single-object reads stay intact. List payloads are still clipped. */
 export const UNTRUNCATED_TOOLS = new Set([
+  'get_autodial_campaign',
+  'get_autodial_base',
+  'describe_autodial_capabilities',
+  'get_autodial_diagnosis',
+  'get_autodial_preflight',
   'get_configuration_capabilities',
   'get_endpoint_configuration',
   'get_trunk_configuration',
@@ -46,7 +51,16 @@ export const UNTRUNCATED_TOOLS = new Set([
 const ROBOT_READ_TOOLS = new Set(['validate_voice_robot_scenario', 'check_voice_robot_readiness',
   'export_voice_robot_scenario', 'test_voice_robot_match', 'test_voice_robot_data_list']);
 
-const READ_TOOL_NAME = /^(?:get_|list_|read_|find_|describe_|evaluate_|cc_get_|dialplan_dry_run$)/;
+const READ_TOOL_NAME = /^(?:get_|list_|read_|find_|describe_|evaluate_|cc_get_|cc_list_|dialplan_dry_run$)/;
+
+/** Preserve explicit global read-only instructions, while allowing an edit
+ * with a scoped constraint such as "change description; don't change fields". */
+export function isExplicitReadOnlyRequest(message: string): boolean {
+  if (/ничего\s+не\s+(?:меня|изменя)|ничего\s+не\s+менять|только\s+(?:чтение|диагностик)|без\s+изменений|read.only/i.test(message)) return true;
+  const negative = /не\s+(?:меняй|изменяй)/i.test(message);
+  const positive = /(?:^|\s)(?:измени|изменить|обнови|создай|создать|настрой|change|update|create)\s/i.test(message);
+  return negative && !positive;
+}
 
 const CAUSE_CLAIM = /причин|потому что|из-за|виноват|не зарегистрир|уходит на|не туда/i;
 
@@ -84,6 +98,7 @@ export function parseTurnModeDecision(raw: string): TurnModeDecision | null {
 /** Regex hints for the mode call. They do not choose tools by themselves. */
 export function turnModeHint(message: string): string {
   const hints: string[] = [];
+  if (/обзвон|кампани|коллектор|должник|autodial/i.test(message)) hints.push('hint: autodial campaign/base/scenario, not a new IVR menu.');
   if (looksLikeRouteSetup(message)) {
     hints.push('hint: incoming route or schedule, not a new IVR menu.');
   }

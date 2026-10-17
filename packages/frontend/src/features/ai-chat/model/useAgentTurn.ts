@@ -7,6 +7,7 @@ import { aiChatApi, AI_CHAT_CONFIGURATION_TAGS, type IAiChatThreadDetail } from 
 import { setLiveTimeline } from '@/shared/api/endpoints/aiChatLiveTimeline';
 import { aiChatActions, type AgentTurnOutcome } from './slice/aiChatSlice';
 import { selectAiChatIsStreaming } from './selectors/aiChatSelectors';
+import { getAssistantPageContext } from './useAssistantContext';
 
 export type { AgentTurnOutcome };
 
@@ -272,6 +273,7 @@ export function useAgentTurn(options: UseAgentTurnOptions): UseAgentTurnApi {
         const apiBase = import.meta.env.VITE_API_URL || '/api';
         bindStream(`${apiBase}/ai-chat/message`, {
             message,
+            ...(getAssistantPageContext() ? { page_context: getAssistantPageContext() } : {}),
             ...(threadUidRef.current != null ? { threadUid: threadUidRef.current } : {}),
         });
     }, [bindStream, dispatch, isStreaming, resetLiveTimeline]);

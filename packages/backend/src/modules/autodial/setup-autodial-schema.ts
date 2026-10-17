@@ -6,6 +6,78 @@
  */
 
 export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
+  `CREATE TABLE IF NOT EXISTS ac_integration_commands (
+    vpbx_user_uid INT NOT NULL, key_uid CHAR(36) NOT NULL, request_id VARCHAR(128) NOT NULL,
+    request_hash CHAR(64) NOT NULL, response JSON NOT NULL, created_at DATETIME NOT NULL,
+    PRIMARY KEY (vpbx_user_uid, key_uid, request_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS ac_import_jobs (
+    uid CHAR(36) NOT NULL PRIMARY KEY, vpbx_user_uid INT NOT NULL, key_uid CHAR(36) NOT NULL,
+    base_uid INT NOT NULL, status VARCHAR(16) NOT NULL DEFAULT 'pending', payload JSON NOT NULL,
+    result JSON NULL, error VARCHAR(128) NULL, created_at DATETIME NOT NULL, completed_at DATETIME NULL,
+    KEY idx_ac_import_job_pending (status, created_at), KEY idx_ac_import_job_tenant (vpbx_user_uid, key_uid)
+  )`,
+  `CREATE TABLE IF NOT EXISTS ac_webhooks (
+    uid CHAR(36) NOT NULL PRIMARY KEY, vpbx_user_uid INT NOT NULL, key_uid CHAR(36) NOT NULL,
+    url VARCHAR(2048) NOT NULL, secret_cipher TEXT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE, created_at DATETIME NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS ac_webhook_deliveries (
+    uid CHAR(36) NOT NULL PRIMARY KEY, webhook_uid CHAR(36) NOT NULL, vpbx_user_uid INT NOT NULL,
+    event_key VARCHAR(128) NOT NULL, payload JSON NOT NULL, status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    attempt_count INT NOT NULL DEFAULT 0, next_attempt_at DATETIME NOT NULL, response_status INT NULL,
+    created_at DATETIME NOT NULL, completed_at DATETIME NULL,
+    UNIQUE KEY uq_ac_webhook_event (webhook_uid, event_key), KEY idx_ac_webhook_pending (status, next_attempt_at)
+  )`,
+  `CREATE TABLE IF NOT EXISTS ac_integration_keys (
+    uid CHAR(36) NOT NULL PRIMARY KEY, vpbx_user_uid INT NOT NULL, created_by INT NOT NULL, label VARCHAR(120) NOT NULL,
+    secret_hash CHAR(64) NOT NULL, scopes JSON NOT NULL, expires_at DATETIME NOT NULL, revoked_at DATETIME NULL,
+    created_at DATETIME NOT NULL, rate_window BIGINT NOT NULL DEFAULT 0, rate_count INT NOT NULL DEFAULT 0,
+    UNIQUE KEY uq_ac_integration_secret (secret_hash), KEY idx_ac_integration_tenant (vpbx_user_uid)
+  )`,
+  `CREATE TABLE IF NOT EXISTS ac_ai_settings (
+    vpbx_user_uid INT NOT NULL PRIMARY KEY, allow_personal_data BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_by INT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS ac_field_archive (
+  uid BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  vpbx_user_uid INT NOT NULL,
+  base_uid INT NOT NULL,
+  contact_uid INT NOT NULL,
+  field_uid INT NOT NULL,
+  base_revision INT NOT NULL,
+  actor_uid INT NULL,
+  field_snapshot JSON NOT NULL,
+  archived_value JSON NOT NULL,
+  created_at DATETIME NOT NULL,
+  KEY idx_ac_archive_base (vpbx_user_uid, base_uid, contact_uid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS ac_test_calls (
+  uid VARCHAR(36) NOT NULL PRIMARY KEY,
+  vpbx_user_uid INT NOT NULL,
+  actor_uid INT NOT NULL,
+  campaign_uid INT NOT NULL,
+  contact_uid INT NOT NULL,
+  revision INT NOT NULL,
+  idempotency_key VARCHAR(80) NOT NULL,
+  endpoint VARCHAR(128) NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'pending',
+  created_at DATETIME NOT NULL,
+  ended_at DATETIME NULL,
+  cleanup_done TINYINT(1) NOT NULL DEFAULT 0,
+  UNIQUE KEY uq_ac_test_idempotency (vpbx_user_uid, actor_uid, idempotency_key),
+  KEY idx_ac_test_rate (vpbx_user_uid, actor_uid, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS ac_campaign_events (
+  uid BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  vpbx_user_uid INT NOT NULL,
+  campaign_uid INT NOT NULL,
+  event_type VARCHAR(40) NOT NULL,
+  tour_no INT NOT NULL DEFAULT 0,
+  revision INT NOT NULL DEFAULT 0,
+  payload JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_ac_events_campaign (vpbx_user_uid, campaign_uid, uid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS \`ac_bases\` (
     \`uid\` INT NOT NULL AUTO_INCREMENT,
     \`vpbx_user_uid\` INT NOT NULL,
@@ -22,6 +94,7 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   `CREATE TABLE IF NOT EXISTS \`ac_base_fields\` (
+    \`format\` JSON NULL,
     \`uid\` INT NOT NULL AUTO_INCREMENT,
     \`base_uid\` INT NOT NULL,
     \`key\` VARCHAR(64) NOT NULL,
@@ -55,6 +128,7 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   `CREATE TABLE IF NOT EXISTS \`ac_contact_phones\` (
+    \`canonical_phone\` VARCHAR(64) NOT NULL DEFAULT '',
     \`uid\` INT NOT NULL AUTO_INCREMENT,
     \`contact_uid\` INT NOT NULL,
     \`base_uid\` INT NOT NULL,
@@ -66,6 +140,7 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
     PRIMARY KEY (\`uid\`),
     KEY \`idx_ac_phones_normalized\` (\`base_uid\`, \`normalized\`),
     KEY \`idx_ac_phones_contact\` (\`contact_uid\`),
+    KEY \`idx_ac_phone_identity\` (\`canonical_phone\`, \`uid\`),
     CONSTRAINT \`fk_ac_phones_contact\`
       FOREIGN KEY (\`contact_uid\`) REFERENCES \`ac_contacts\` (\`uid\`) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -107,6 +182,7 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   `CREATE TABLE IF NOT EXISTS \`ac_campaigns\` (
+    \`tour_no\` INT NOT NULL DEFAULT 0,
     \`uid\` INT NOT NULL AUTO_INCREMENT,
     \`vpbx_user_uid\` INT NOT NULL,
     \`name\` VARCHAR(255) NOT NULL,
@@ -169,6 +245,7 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   `CREATE TABLE IF NOT EXISTS \`ac_tasks\` (
+    \`tour_no\` INT NOT NULL DEFAULT 1,
     \`uid\` INT NOT NULL AUTO_INCREMENT,
     \`vpbx_user_uid\` INT NOT NULL,
     \`campaign_uid\` INT NOT NULL,
@@ -192,6 +269,7 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   `CREATE TABLE IF NOT EXISTS \`ac_attempts\` (
+    \`tour_no\` INT NOT NULL DEFAULT 1,
     \`uid\` INT NOT NULL AUTO_INCREMENT,
     \`vpbx_user_uid\` INT NOT NULL,
     \`task_uid\` INT NOT NULL,

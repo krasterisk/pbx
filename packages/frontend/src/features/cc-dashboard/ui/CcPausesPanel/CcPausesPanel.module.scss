@@ -1,0 +1,66 @@
+.stat {
+  min-width: 72px;
+}
+
+.value {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+}
+
+.tone_warning {
+  color: var(--color-warning);
+}
+
+.delta {
+  font-variant-numeric: tabular-nums;
+}
+
+.delta_success {
+  color: var(--color-success);
+}
+
+.delta_destructive {
+  color: var(--color-destructive);
+}
+
+.delta_default {
+  color: var(--color-muted-foreground);
+}
+
+.row {
+  width: 100%;
+  min-width: 0;
+}
+
+.rowLabel {
+  flex: 0 0 120px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rowValue {
+  flex: 0 0 132px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .rowLabel {
+    flex-basis: 68px;
+  }
+
+  .rowValue {
+    flex-basis: 118px;
+  }
+}

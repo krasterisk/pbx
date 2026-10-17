@@ -4,6 +4,12 @@
 
 import type { IRouteAction } from "./route.types";
 
+/** Compiler capabilities, shared by the editor and API validation. */
+export const AUTODIAL_SUPPORTED_ACTIONS = [
+  'playback', 'text2speech', 'toqueue', 'toexten', 'voicerobot',
+  'ai_voice_robot', 'collect_input', 'label', 'goto', 'hangup',
+] as const;
+
 // ── Field / contact schema ──────────────────────────────────────────
 
 export const AUTODIAL_FIELD_TYPES = [
@@ -33,6 +39,7 @@ export const AUTODIAL_DEDUP_POLICIES = [
 export type AutodialDedupPolicy = (typeof AUTODIAL_DEDUP_POLICIES)[number];
 
 export interface IAutodialBaseField {
+  format?: { currency?: 'RUB' | 'USD' | 'EUR'; date_input?: 'auto' | 'iso' | 'ru'; decimal_places?: number } | null;
   uid: number;
   base_uid: number;
   key: string;
@@ -81,7 +88,7 @@ export type AutodialFieldInput = Pick<
   Partial<
     Pick<
       IAutodialBaseField,
-      "uid" | "required" | "position" | "is_phone" | "var_name" | "enum_values"
+      "uid" | "required" | "position" | "is_phone" | "var_name" | "enum_values" | "format"
     >
   >;
 
@@ -285,6 +292,8 @@ export interface IAutodialAmdConfig {
 }
 
 export interface IAutodialCampaign {
+  /** Explicit dialling round; attempts retain their all-time sequence. */
+  tour_no?: number;
   uid: number;
   user_uid: number;
   name: string;
@@ -309,6 +318,8 @@ export interface IAutodialCampaign {
   tasks_total?: number;
   tasks_pending?: number;
   tasks_done?: number;
+  /** Distinct tasks with a finished attempt across all tours, never reset on redial. */
+  tasks_processed?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -465,6 +476,8 @@ export interface IAutodialDncEntry {
 // ── Metrics / live state ────────────────────────────────────────────
 
 export interface IAutodialCampaignLiveStats {
+  /** Estimate from the last 15 minutes, absent while no live capacity is available. */
+  eta_seconds?: number | null;
   campaign_uid: number;
   status: AutodialCampaignStatus;
   active_channels: number;
@@ -493,4 +506,82 @@ export interface IAutodialDailyStats {
   failed: number;
   talk_sec_sum: number;
   billsec_sum: number;
+}
+
+export interface IAutodialDiagnosis {
+  campaign_uid: number;
+  status: AutodialCampaignStatus;
+  revision: number;
+  applied_revision?: number | null;
+  checked_at: string;
+  reasons: Array<{ code: string; next_at?: string; count?: number; detail?: string }>;
+  schedule_open: boolean;
+  ready_agents: number;
+  ready_tasks: number;
+  waiting_tasks: number;
+  next_attempt_at: string | null;
+  active_channels: number;
+  runtime: { capacity: number; limitedBy: string; reserved: number; overDial?: number; abandonPct?: number } | null;
+}
+
+export interface IAutodialPreflightCheck {
+  id: string;
+  status: 'pass' | 'fail' | 'warning';
+  code: string;
+  detail?: string;
+}
+
+export interface IAutodialMonitorHealth {
+  checked_at: string; ari_connected: boolean; ami_connected: boolean; truncated: boolean;
+  campaigns: Array<{ campaign_uid: number; name: string; diagnosis: IAutodialDiagnosis;
+    trend: Array<{ minute: string; dials: number }>; agents: Array<{ user_uid: number; name: string; status: string; queues: string[] }>;
+    alerts: Array<{ code: 'apply_error' | 'idle' | 'abandon'; severity: 'warning' | 'error'; threshold?: number; value?: number }> }>;
+}
+
+export interface IAutodialPreflight {
+  campaign_uid: number;
+  revision: number;
+  checked_at: string;
+  ready: boolean;
+  eligible_numbers: number;
+  checks: IAutodialPreflightCheck[];
+  diagnosis: IAutodialDiagnosis;
+}
+/** Task state belongs to the campaign; the contact itself remains reusable. */
+export interface IAutodialCampaignContact extends IAutodialContact {
+  blocked_phone_uids: number[];
+  tasks: Array<{
+    uid: number;
+    phone_uid: number;
+    status: AutodialTaskStatus;
+    attempt_count: number;
+    last_disposition: AutodialDisposition;
+    last_cause: string | null;
+    next_attempt_at: string | null;
+    dnc: boolean;
+  }>;
+}
+
+export interface IAutodialCampaignContactsPage extends Omit<IAutodialContactsPage, 'items'> {
+  items: IAutodialCampaignContact[];
+}
+
+export interface AutodialSchemaMigrationRequest {
+  expected_revision: number; fields: AutodialFieldInput[];
+  defaults?: Record<string, string | number | boolean>;
+  invalid_optional_policy?: 'reject' | 'archive_omit'; preview_hash?: string;
+}
+export interface IAutodialFieldUsage {
+  base_uid: number; revision: number; contact_count: number;
+  fields: Array<{ uid: number; key: string; var_name: string; used_by: Array<{ kind: 'campaign' | 'import_profile'; uid: number; name: string }> }>;
+}
+export interface IAutodialSchemaPreview {
+  base_uid: number; expected_revision: number; preview_hash: string; ready: boolean;
+  scanned_contacts: number; error_count: number; archived_values: number;
+  errors: Array<{ contact_uid: number; field: string; code: string }>;
+  blockers: Array<{ field: string; code: string; used_by: Array<{ kind: string; uid: number; name: string }> }>;
+  sample: Array<{ contact_uid: number; before: Record<string, unknown>; after: Record<string, unknown> }>;
+  removed_fields: string[];
+  renames: Array<{ oldKey: string; key: string; oldVar: string; variable: string }>;
+  affected_campaigns: Array<{ uid: number; name: string }>;
 }

@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Languages } from 'lucide-react';
-import { Avatar, Button, Text } from '@/shared/ui';
+import { Avatar, Button, Text, AppVersionLabel } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import cls from './ConferenceGuestShell.module.scss';
 
@@ -48,17 +48,20 @@ export function ConferenceGuestShell({
             </Text>
           ) : null}
         </HStack>
-        <Button
-          id="guest-lang-toggle"
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={toggleLanguage}
-          title={langLabel}
-          aria-label={langLabel}
-        >
-          <Languages size={20} />
-        </Button>
+        <HStack gap="8" align="center">
+          <AppVersionLabel />
+          <Button
+            id="guest-lang-toggle"
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleLanguage}
+            title={langLabel}
+            aria-label={langLabel}
+          >
+            <Languages size={20} />
+          </Button>
+        </HStack>
       </HStack>
       <Flex className={cls.body} direction="column" align="stretch" max>
         {children}

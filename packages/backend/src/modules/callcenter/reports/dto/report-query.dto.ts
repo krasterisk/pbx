@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ReportQueryDto {
@@ -8,6 +8,7 @@ export class ReportQueryDto {
   @IsString()
   dateTo!: string;
 
+  /** One queue, or several names separated by commas. */
   @IsOptional()
   @IsString()
   queueName?: string;
@@ -28,4 +29,10 @@ export class ReportQueryDto {
   @Min(1)
   @Max(500)
   pageSize?: number;
+}
+
+/** Export has its own query contract; global whitelist rejects undeclared keys. */
+export class ExportReportQueryDto extends ReportQueryDto {
+  @IsIn(['csv', 'xlsx', 'pdf'])
+  format!: 'csv' | 'xlsx' | 'pdf';
 }

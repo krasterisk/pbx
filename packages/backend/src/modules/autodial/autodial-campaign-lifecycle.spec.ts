@@ -11,6 +11,7 @@ describe('autodial campaign start/stop safety', () => {
   });
   const serviceWith = (row: ReturnType<typeof campaign>, applied: boolean) => {
     const service = Object.create(AutodialCampaignsService.prototype) as AutodialCampaignsService;
+    service['sequelize'] = { query: jest.fn().mockResolvedValue([0, 1]), getDialect: () => 'mysql' } as never;
     jest.spyOn(service, 'getOrThrow').mockResolvedValue(row as unknown as AcCampaign);
     service['dialplanService'] = {
       assertAmdReady: jest.fn().mockResolvedValue(undefined),
@@ -27,6 +28,7 @@ describe('autodial campaign start/stop safety', () => {
 
   it('does not generate tasks or mark a campaign running when dialplan apply fails', async () => {
     const row = campaign();
+    row.status = 'stopped';
     const service = serviceWith(row, false);
     service['generateTasks'] = jest.fn();
     await expect(service.start(7, 11)).rejects.toMatchObject({

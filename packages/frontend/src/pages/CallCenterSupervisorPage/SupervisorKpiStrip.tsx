@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import {
   PhoneIncoming, Phone, Users, Clock, TrendingDown, Headphones, CheckCircle2,
 } from 'lucide-react';
@@ -13,19 +14,18 @@ import type {
   SupervisorKpiPeriodMeta,
   SupervisorKpiRollup,
 } from '@/features/callcenter/lib/supervisorKpiRollup';
+import { DEFAULT_KPI_THRESHOLDS } from '@/features/callcenter/lib/kpiThresholds';
+import { SLA_BREACH_MIN_SAMPLE } from '@/features/callcenter/lib/attentionItems';
+import { formatCcDuration } from '@/features/callcenter/lib/ccFormat';
+import { CcMetricLabel } from '@/features/callcenter/ui/CcMetricLabel/CcMetricLabel';
 import styles from './CallCenterSupervisorPage.module.scss';
-
-function formatWait(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
 
 function toSparkSnapshot(rollup: SupervisorKpiRollup): KpiSnapshot {
   return {
     waiting: rollup.live.waiting,
     talking: rollup.live.talking,
     freeAgents: rollup.live.freeAgents,
+    totalAgents: rollup.live.totalAgents,
     sla: rollup.period.sla,
     avgWait: rollup.period.avgWait,
     abandoned: rollup.period.abandoned,
@@ -62,13 +62,14 @@ export const SupervisorKpiStrip = memo(function SupervisorKpiStrip({
   thresholds?: SupervisorKpiThresholds;
 }) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile(1024);
   const sparkKpis = useMemo(() => toSparkSnapshot(rollup), [rollup]);
   const samples = useKpiSamples(sparkKpis);
 
   const waitingDanger = thresholds?.waitingDanger ?? 5;
   const waitingWarning = thresholds?.waitingWarning ?? 2;
-  const freeMin = thresholds?.freeAgentsMin ?? 2;
-  const slaCritical = thresholds?.slaCriticalPct ?? 80;
+  const freeMin = thresholds?.freeAgentsMin ?? DEFAULT_KPI_THRESHOLDS.agentsAvailableMin;
+  const slaCritical = thresholds?.slaCriticalPct ?? DEFAULT_KPI_THRESHOLDS.slaCriticalPct;
   const abandonedDanger = thresholds?.abandonedDanger ?? 5;
 
   const periodLabel = periodMeta.mode === 'business_day'
@@ -96,11 +97,13 @@ export const SupervisorKpiStrip = memo(function SupervisorKpiStrip({
     },
     {
       key: 'free',
-      label: t('callcenter.supervisor.freeAgents', 'Free'),
+      label: t('callcenter.supervisor.freeWatched', 'Ready in watchlist'),
       value: rollup.live.freeAgents,
       icon: Users,
-      danger: rollup.live.freeAgents < freeMin,
-      success: rollup.live.freeAgents >= freeMin,
+      danger:
+        rollup.live.freeAgents < freeMin
+        && (rollup.live.waiting > 0 || (rollup.live.totalAgents > 0 && rollup.live.talking > 0)),
+      success: rollup.live.totalAgents > 0 && rollup.live.freeAgents >= freeMin,
       spark: samples.map((s) => s.freeAgents),
     },
     {
@@ -108,7 +111,7 @@ export const SupervisorKpiStrip = memo(function SupervisorKpiStrip({
       label: t('callcenter.supervisor.totalAgents', 'Agents'),
       value: rollup.live.totalAgents,
       icon: Headphones,
-      spark: samples.map((s) => s.freeAgents),
+      spark: samples.map((s) => s.totalAgents ?? 0),
     },
   ];
 
@@ -132,21 +135,21 @@ export const SupervisorKpiStrip = memo(function SupervisorKpiStrip({
       key: 'sla',
       label: 'SLA %',
       value: `${rollup.period.sla}%`,
-      danger: rollup.period.offered > 0 && rollup.period.sla < slaCritical,
-      success: rollup.period.offered > 0 && rollup.period.sla >= slaCritical,
+      danger: rollup.period.effectiveOffered >= SLA_BREACH_MIN_SAMPLE && rollup.period.sla < slaCritical,
+      success: rollup.period.effectiveOffered >= SLA_BREACH_MIN_SAMPLE && rollup.period.sla >= slaCritical,
       spark: samples.map((s) => s.sla),
     },
     {
       key: 'avgWait',
       label: t('callcenter.supervisor.avgWait', 'Avg Wait'),
-      value: formatWait(rollup.period.avgWait),
+      value: formatCcDuration(rollup.period.avgWait),
       icon: Clock,
       spark: samples.map((s) => s.avgWait),
     },
   ];
 
   const renderCards = (cards: Array<{ key: string; label: string; value: string | number; icon?: typeof Phone; spark: number[]; danger?: boolean; warning?: boolean; success?: boolean }>) => (
-    <div className={styles.kpiStrip}>
+    <div className={styles.kpiStrip} title={t('callcenter.supervisor.kpiScope', 'Agent counts use the watchlist; call counts use the selected queues.')}>
       {cards.map((card) => {
         const Icon = card.icon;
         const cardClass = [
@@ -159,7 +162,7 @@ export const SupervisorKpiStrip = memo(function SupervisorKpiStrip({
           <div key={card.key} className={cardClass}>
             <Text className={styles.kpiLabel}>
               {Icon && <Icon className="w-3 h-3 inline mr-1" />}
-              {card.label}
+              <CcMetricLabel metric={card.key} period={['waiting', 'talking', 'free', 'totalAgents'].includes(card.key) ? t('callcenter.supervisor.kpi.now', 'Now') : periodLabel} sample={card.key === 'sla' ? rollup.period.effectiveOffered : undefined}>{card.label}</CcMetricLabel>
             </Text>
             <Flex align="center" justify="between" gap="8">
               <Text className={styles.kpiValue}>{card.value}</Text>
@@ -181,14 +184,14 @@ export const SupervisorKpiStrip = memo(function SupervisorKpiStrip({
         </div>
         {renderCards(liveCards)}
       </div>
-      <div className={styles.kpiGroup}>
-        <div className={styles.kpiGroupHeader}>
+      <details className={`${styles.kpiGroup} ${styles.periodGroup}`} open={!isMobile}>
+        <summary className={styles.kpiGroupHeader}>
           <Text className={styles.kpiGroupTitle} title={periodLabel}>
             {periodLabel}
           </Text>
-        </div>
+        </summary>
         {renderCards(periodCards)}
-      </div>
+      </details>
     </div>
   );
 }, (prev, next) => (

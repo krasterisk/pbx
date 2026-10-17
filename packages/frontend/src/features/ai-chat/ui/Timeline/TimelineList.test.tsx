@@ -8,6 +8,7 @@ import type { IAiChatCard } from './TimelineList';
 const AT = '2026-09-08T00:00:00.000Z';
 const PROPOSAL_ID = '11111111-1111-4111-8111-111111111111';
 const WORKFLOW_ID = '22222222-2222-4222-8222-222222222222';
+vi.mock('@/shared/hooks/useAppStore', () => ({ useAppDispatch: () => vi.fn() }));
 
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({
@@ -16,10 +17,10 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('../DiffConfirmCard/DiffConfirmCard', () => ({
-    DiffConfirmCard: ({ readOnly }: { readOnly?: boolean }) => (
+    DiffConfirmCard: ({ readOnly, proposal, onSettled }: { readOnly?: boolean; proposal: { entityType: string }; onSettled?: (result: { status: string; entityType: string }) => void }) => (
         <div>
             single-card
-            {!readOnly && <button type="button">apply</button>}
+            {!readOnly && <button type="button" onClick={() => onSettled?.({ status: 'applied', entityType: proposal.entityType })}>apply</button>}
         </div>
     ),
 }));
@@ -75,6 +76,19 @@ const cards: Record<string, IAiChatCard> = {
 };
 
 describe('TimelineList', () => {
+    it('finishes an applied single CC setting without continuing an old PBX brief', () => {
+        const onCardSettled = vi.fn();
+        render(<TimelineList items={items} cards={{ p1: { card: 'single', proposal: { ...singleProposal, entityType: 'callcenter_config' } } }} onCardSettled={onCardSettled} />);
+        fireEvent.click(screen.getByRole('button', { name: 'apply' }));
+        expect(onCardSettled).not.toHaveBeenCalled();
+    });
+
+    it('preserves continuation for other PBX configuration cards', () => {
+        const onCardSettled = vi.fn();
+        render(<TimelineList items={items} cards={cards} onCardSettled={onCardSettled} />);
+        fireEvent.click(screen.getByRole('button', { name: 'apply' }));
+        expect(onCardSettled).toHaveBeenCalledWith('applied');
+    });
     it('keeps user line breaks in the dialog bubble', () => {
         const multiline: AgentTimelineItem[] = [
             { kind: 'user', id: 'm1', text: 'строка 1\nстрока 2', createdAt: AT },

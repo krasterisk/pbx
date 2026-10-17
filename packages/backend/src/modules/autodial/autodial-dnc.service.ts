@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op } from 'sequelize';
+import { Op, type Transaction } from 'sequelize';
 import type { AutodialDncScope, IAutodialDncEntry } from '@krasterisk/shared';
 import { AcDnc } from './models/ac-dnc.model';
 import { AcBase } from './models/ac-base.model';
@@ -49,6 +49,30 @@ export class AutodialDncService {
       expires_at: dto.expires_at ? new Date(dto.expires_at) : null,
     });
     return this.toDto(row);
+  }
+
+  async createBulk(userUid: number, input: { scope: AutodialDncScope; scope_uid?: number; phones: string[]; reason?: string; expires_at?: string }, transaction?: Transaction) {
+    await this.assertScope(userUid, input.scope, input.scope_uid);
+    if (!Array.isArray(input.phones) || !input.phones.length || input.phones.length > 100
+      || (input.expires_at && (!Number.isFinite(Date.parse(input.expires_at)) || Date.parse(input.expires_at) <= Date.now())))
+      throw new BadRequestException({ code: 'AC_DNC_INPUT' });
+    const normalized = input.phones.map((phone) => normalizeAutodialPhone(phone));
+    if (normalized.some((phone) => !phone)) throw new BadRequestException({ code: 'AC_DNC_INVALID_PHONE' });
+    const write = async (tx: Transaction) => {
+      const unique = [...new Set(normalized)];
+      for (const phone of unique) {
+        const where = { user_uid: userUid, scope: input.scope, scope_uid: input.scope_uid ?? null, normalized_phone: phone };
+        const previous = await this.dncModel.findOne({ where, transaction: tx, lock: tx.LOCK.UPDATE });
+        const patch = { reason: input.reason?.trim() ?? '', source: 'integration', expires_at: input.expires_at ? new Date(input.expires_at) : null };
+        if (previous) {
+          // Bulk additions cannot shorten an existing ban or turn a permanent ban into a temporary one.
+          const expiry = !previous.expires_at || !patch.expires_at ? null : new Date(Math.max(previous.expires_at.getTime(), patch.expires_at.getTime()));
+          await previous.update({ ...patch, expires_at: expiry }, { transaction: tx });
+        } else await this.dncModel.create({ ...where, ...patch }, { transaction: tx });
+      }
+      return { accepted: unique.length, duplicates: input.phones.length - unique.length };
+    };
+    return transaction ? write(transaction) : this.dncModel.sequelize!.transaction(write);
   }
 
   async remove(userUid: number, uid: number): Promise<void> {

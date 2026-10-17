@@ -8,6 +8,7 @@ import { NumbersService } from '../numbers/numbers.service';
 import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 import { IvrTtsService } from '../ivrs/ivr-tts.service';
 import { IvrTtsCacheService } from '../ivrs/ivr-tts-cache.service';
+import { PromptsService } from '../prompts/prompts.service';
 import { Route } from '../routes/route.model';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import {
@@ -71,6 +72,7 @@ export class DialplanBridgeService {
     private readonly ivrTts: IvrTtsService,
     private readonly ttsCache: IvrTtsCacheService,
     @InjectModel(Route) private readonly routeModel: typeof Route,
+    private readonly prompts: PromptsService,
   ) {}
 
   callerIdNumbers(): NumbersService { return this.numbers; }
@@ -230,6 +232,9 @@ export class DialplanBridgeService {
       const file = AsteriskDialplanUtils.sanitizeFilePath(
         path.basename(written).replace(/\.[^.]+$/, ''),
       );
+      // Playback resolves only the tenant sounds directory. The synthesis cache
+      // is a separate private path and is not an Asterisk sound publication.
+      await this.prompts.savePromptAudio(tenant, file, wav, '.wav');
       return { status: 'ok', file };
     } catch (e: any) {
       this.logger.error(`TTS engine failed: ${e?.message ?? e}`);

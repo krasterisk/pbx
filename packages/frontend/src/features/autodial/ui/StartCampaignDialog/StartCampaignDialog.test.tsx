@@ -6,6 +6,7 @@ import type { AutodialCampaignWithSchedules } from '@/shared/api/endpoints/autod
 const mocks = vi.hoisted(() => ({ start: vi.fn() }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/shared/api/endpoints/autodialApi', () => ({
+  useGetAutodialPreflightQuery: () => ({ currentData: { ready: true, eligible_numbers: 1, checks: [], checked_at: '2026-10-16T00:00:00Z' }, isFetching: false, refetch: vi.fn() }),
   useStartAutodialCampaignMutation: () => [mocks.start, { isLoading: false }],
 }));
 

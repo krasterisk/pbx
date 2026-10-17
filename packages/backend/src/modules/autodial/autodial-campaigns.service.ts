@@ -7,16 +7,24 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/sequelize";
-import { Op, QueryTypes, type Transaction } from "sequelize";
+import { Op, QueryTypes, Transaction } from "sequelize";
 import type { Sequelize } from "sequelize-typescript";
 import { InjectConnection } from "@nestjs/sequelize";
+import { randomUUID } from 'node:crypto';
+import { autodialSqlDate } from './autodial-sql-time.util';
+import type { IAutodialBaseField } from '@krasterisk/shared';
 import {
   AUTODIAL_TERMINAL_DISPOSITIONS,
+  AUTODIAL_SUPPORTED_ACTIONS as SUPPORTED_ACTION_TYPES,
+  autodialScenarioActionSchema,
+  autodialTaskActionSchema,
   type AutodialCallerIdSource,
   type AutodialCampaignStatus,
   type AutodialDisposition,
   type IAutodialTrunkPoolItem,
   type IAutodialCampaign,
+  type IAutodialCampaignContactsPage,
+  type IAutodialCampaignContact,
   type IAutodialSchedule,
   type IRouteAction,
 } from "@krasterisk/shared";
@@ -24,6 +32,7 @@ import { AcCampaign } from "./models/ac-campaign.model";
 import { AcSchedule } from "./models/ac-schedule.model";
 import { AcTask } from "./models/ac-task.model";
 import { AcAttempt } from "./models/ac-attempt.model";
+import { autodialExtensionTarget, autodialQueueTarget } from './autodial-target.util';
 import { AcContactPhone } from "./models/ac-contact-phone.model";
 import { AcDnc } from "./models/ac-dnc.model";
 import { PsEndpoint } from "../endpoints/ps-endpoint.model";
@@ -49,18 +58,7 @@ import {
 export const AUTODIAL_ACTIVE_STATUSES: AutodialCampaignStatus[] = ["running"];
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const AUTODIAL_SUPPORTED_ACTIONS = new Set([
-  "playback",
-  "text2speech",
-  "toqueue",
-  "toexten",
-  "voicerobot",
-  "ai_voice_robot",
-  "collect_input",
-  "label",
-  "goto",
-  "hangup",
-]);
+const AUTODIAL_SUPPORTED_ACTIONS = new Set<string>(SUPPORTED_ACTION_TYPES);
 
 function isSupportedTimeZone(timeZone: string): boolean {
   try {
@@ -91,6 +89,100 @@ export class AutodialCampaignsService {
     private readonly dialplanService: AutodialDialplanService,
   ) {}
 
+  async changeContactTask(userUid: number, campaignUid: number, contactUid: number, input: unknown, actorUid?: number) {
+    const parsed = autodialTaskActionSchema.safeParse(input);
+    if (!parsed.success) throw new BadRequestException({ code: 'AC_TASK_ACTION_INVALID', message: 'Choose exclude or a future retry time' });
+    const data = parsed.data;
+    if (data.action === 'reschedule' && (!data.next_attempt_at || Date.parse(data.next_attempt_at) <= Date.now()
+      || Date.parse(data.next_attempt_at) > Date.now() + 366 * 86400000)) {
+      throw new BadRequestException({ code: 'AC_TASK_TIME_INVALID', message: 'Choose a future time within one year' });
+    }
+    return this.sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED }, async (transaction) => {
+      const campaign = await this.getOrThrow(userUid, campaignUid, transaction);
+      await this.basesService.findContact(userUid, campaign.base_uid, contactUid);
+      const tasks = await this.taskModel.findAll({ where: { campaign_uid: campaignUid, user_uid: userUid, contact_uid: contactUid,
+        ...(data.phone_uid ? { phone_uid: data.phone_uid } : {}) }, transaction, lock: transaction.LOCK.UPDATE });
+      if (!tasks.length) throw new NotFoundException({ code: 'AC_TASK_NOT_FOUND', message: 'No campaign tasks for this contact' });
+      if (tasks.some((t) => t.status === 'leased' || t.status === 'dialing')) throw new ConflictException({ code: 'AC_CAMPAIGN_ACTIVE_CALLS', message: 'Wait for this contact call to finish' });
+      if (data.action === 'reschedule' && tasks.some((t) => t.status !== 'pending')) throw new ConflictException({ code: 'AC_TASK_NOT_PENDING', message: 'Only pending tasks can be rescheduled; select a new tour for finished tasks' });
+      for (const task of tasks) await task.update(data.action === 'exclude'
+        ? { status: 'cancelled', last_disposition: 'excluded', next_attempt_at: null, leased_by: null, leased_at: null }
+        : { next_attempt_at: new Date(data.next_attempt_at!), last_disposition: 'callback_scheduled' }, { transaction });
+      await this.recordEvent(campaign, data.action === 'exclude' ? 'contact_excluded' : 'retry_rescheduled',
+        { contact_uid: contactUid, phone_uid: data.phone_uid, next_attempt_at: data.next_attempt_at, actor_uid: actorUid ?? null }, transaction);
+      return { updated: tasks.length };
+    });
+  }
+
+  async journal(userUid: number, uid: number, before?: number) {
+    await this.getOrThrow(userUid, uid);
+    return this.sequelize.query<{ uid: number; event_type: string; tour_no: number; revision: number; payload: unknown; created_at: Date }>(
+      `SELECT uid, event_type, tour_no, revision, payload, created_at FROM ac_campaign_events
+       WHERE vpbx_user_uid = :userUid AND campaign_uid = :uid AND (:before IS NULL OR uid < :before)
+       ORDER BY uid DESC LIMIT 100`,
+      { replacements: { userUid, uid, before: Number.isSafeInteger(before) && before! > 0 ? before : null }, type: QueryTypes.SELECT });
+  }
+
+  private async recordEvent(row: AcCampaign, eventType: string, payload: Record<string, unknown> = {}, transaction?: Transaction) {
+    await this.sequelize.query(`INSERT INTO ac_campaign_events
+      (vpbx_user_uid, campaign_uid, event_type, tour_no, revision, payload, created_at)
+      VALUES (:userUid, :uid, :eventType, :tourNo, :revision, :payload, :now)`, {
+      replacements: { userUid: row.user_uid, uid: row.uid, eventType, tourNo: row.tour_no ?? 0,
+        revision: row.revision ?? 0, payload: JSON.stringify(payload), now: autodialSqlDate(new Date(), this.sequelize) }, transaction, type: QueryTypes.INSERT,
+    });
+  }
+
+  async listContacts(userUid: number, uid: number, opts: {
+    page?: number; pageSize?: number; q?: string; disposition?: string;
+  } = {}): Promise<IAutodialCampaignContactsPage> {
+    const campaign = await this.getOrThrow(userUid, uid);
+    const page = Number.isSafeInteger(opts.page) ? Math.max(1, opts.page!) : 1;
+    const pageSize = Number.isSafeInteger(opts.pageSize) ? Math.min(200, Math.max(1, opts.pageSize!)) : 25;
+    const replacements = { userUid, uid, baseUid: campaign.base_uid,
+      q: `%${(opts.q ?? '').trim()}%`, disposition: opts.disposition ?? '',
+      limit: pageSize, offset: (page - 1) * pageSize };
+    const where = `c.vpbx_user_uid = :userUid AND c.base_uid = :baseUid
+      AND (c.external_id LIKE :q OR c.comment LIKE :q
+        OR CAST(c.${this.sequelize.getDialect() === 'postgres' ? '"values"' : '`values`'} AS ${this.sequelize.getDialect() === 'postgres' ? 'TEXT' : 'CHAR'}) LIKE :q OR EXISTS
+        (SELECT 1 FROM ac_contact_phones p WHERE p.contact_uid = c.uid
+          AND (p.normalized LIKE :q OR p.raw LIKE :q)))
+      AND (:disposition = '' OR EXISTS (SELECT 1 FROM ac_tasks t
+        WHERE t.contact_uid = c.uid AND t.campaign_uid = :uid
+          AND t.vpbx_user_uid = :userUid AND t.last_disposition = :disposition))`;
+    const counts = await this.sequelize.query<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM ac_contacts c WHERE ${where}`,
+      { replacements, type: QueryTypes.SELECT });
+    const ids = await this.sequelize.query<{ uid: number }>(
+      `SELECT c.uid FROM ac_contacts c WHERE ${where} ORDER BY c.uid DESC LIMIT :limit OFFSET :offset`,
+      { replacements, type: QueryTypes.SELECT });
+    if (!ids.length) return { items: [], total: Number(counts[0]?.total ?? 0), page, page_size: pageSize };
+    const contactIds = ids.map((r) => Number(r.uid));
+    const tasks = await this.taskModel.findAll({ where: {
+      user_uid: userUid, campaign_uid: uid, contact_uid: { [Op.in]: contactIds },
+    }, order: [['uid', 'ASC']] });
+    const blocked = await this.sequelize.query<{ phone_uid: number }>(
+      `SELECT p.uid AS phone_uid FROM ac_contact_phones p
+       JOIN ac_contacts c ON c.uid = p.contact_uid AND c.vpbx_user_uid = :userUid AND c.base_uid = :baseUid
+       WHERE p.contact_uid IN (:contactIds) AND EXISTS (SELECT 1 FROM ac_dnc d
+         WHERE d.vpbx_user_uid = :userUid AND d.normalized_phone = p.canonical_phone
+           AND (d.expires_at IS NULL OR d.expires_at > :now)
+           AND (d.scope = 'global' OR (d.scope = 'campaign' AND d.scope_uid = :uid)
+             OR (d.scope = 'base' AND d.scope_uid = :baseUid)))`,
+      { replacements: { ...replacements, contactIds, now: autodialSqlDate(new Date(), this.sequelize) }, type: QueryTypes.SELECT });
+    const blockedPhones = new Set(blocked.map((r) => Number(r.phone_uid)));
+    const contacts = await this.basesService.findContacts(userUid, campaign.base_uid, contactIds);
+    const items: IAutodialCampaignContact[] = contacts.sort((a, b) => b.uid - a.uid).map((contact) => ({
+      ...contact,
+      blocked_phone_uids: (contact.phones ?? []).filter((p) => blockedPhones.has(p.uid)).map((p) => p.uid),
+      tasks: tasks.filter((t) => t.contact_uid === contact.uid).map((t) => ({
+        uid: t.uid, phone_uid: t.phone_uid, status: t.status, attempt_count: t.attempt_count,
+        last_disposition: t.last_disposition, last_cause: t.last_cause,
+        next_attempt_at: t.next_attempt_at?.toISOString() ?? null, dnc: blockedPhones.has(t.phone_uid),
+      })),
+    }));
+    return { items, total: Number(counts[0]?.total ?? 0), page, page_size: pageSize };
+  }
+
   async findAll(userUid: number): Promise<IAutodialCampaign[]> {
     const rows = await this.campaignModel.findAll({
       where: { user_uid: userUid },
@@ -106,16 +198,32 @@ export class AutodialCampaignsService {
     );
   }
 
-  async findOne(userUid: number, uid: number): Promise<IAutodialCampaign> {
+  async findOne(userUid: number, uid: number): Promise<IAutodialCampaign & { schedules: IAutodialSchedule[] }> {
     const row = await this.getOrThrow(userUid, uid);
     const counters = await this.taskCounters(userUid, [uid]);
     const schedules = await this.schedulesFor([uid]);
     return this.toDto(row, schedules.get(uid) ?? [], counters.get(uid));
   }
 
+  /** Read-only validation shared by preflight, UI and AI proposal/revalidation. */
+  async validateConfiguration(userUid: number, input: {
+    base_uid: number; dial_mode?: string; scenario_actions?: unknown[];
+    trunk_pool?: unknown[]; pacing?: Parameters<typeof normalizeAutodialPacing>[0]; schedules?: CreateAutodialCampaignDto['schedules'];
+  }, plannedBase?: { fields: IAutodialBaseField[] }): Promise<void> {
+    assertAutodialSchedules(input.schedules ?? []);
+    const base = plannedBase ?? await this.basesService.findOne(userUid, input.base_uid);
+    const pacing = normalizeAutodialPacing(input.pacing);
+    this.assertScenario(input.dial_mode ?? 'progressive', input.scenario_actions);
+    await this.assertQueueReferences(userUid, queueNamesFromPacing(pacing), input.scenario_actions);
+    await this.assertExtensionReferences(userUid, input.scenario_actions);
+    await this.assertTrunkPoolConfig(userUid, base.fields ?? [], toAutodialTrunkPool(input.trunk_pool ?? []));
+  }
+
   async create(
     userUid: number,
     dto: CreateAutodialCampaignDto,
+    actorUid?: number,
+    audit?: { source: 'ai_assistant'; threadUid?: number },
   ): Promise<IAutodialCampaign> {
     const trunkPool = toAutodialTrunkPool(dto.trunk_pool ?? []);
     const base = await this.basesService.findOne(userUid, dto.base_uid);
@@ -142,7 +250,7 @@ export class AutodialCampaignsService {
           trunk_pool: dto.trunk_pool == null ? defaultAutodialTrunkPool() : trunkPool,
           cid_policy: dto.cid_policy ?? defaultAutodialCidPolicy(),
           queue_names: queueNames,
-          scenario_actions: (dto.scenario_actions ?? []) as IRouteAction[],
+          scenario_actions: normalizeAutodialScenario(dto.scenario_actions ?? []),
           amd: dto.amd ?? defaultAutodialAmd(),
           success_min_sec: dto.success_min_sec ?? 15,
           dial_timeout_sec: dto.dial_timeout_sec ?? 45,
@@ -158,6 +266,7 @@ export class AutodialCampaignsService {
           transaction,
         );
       }
+      await this.recordEvent(created, 'created', { actor_uid: actorUid ?? null, ...(audit ? { actor_source: audit.source, thread_uid: audit.threadUid ?? null } : {}) }, transaction);
       return created;
     });
     await this.applyAndRecord(row, row.revision);
@@ -168,6 +277,8 @@ export class AutodialCampaignsService {
     userUid: number,
     uid: number,
     dto: UpdateAutodialCampaignDto,
+    actorUid?: number,
+    audit?: { source: 'ai_assistant'; threadUid?: number },
   ): Promise<IAutodialCampaign> {
     const trunkPool = dto.trunk_pool == null ? undefined : toAutodialTrunkPool(dto.trunk_pool);
     const { row, revision } = await this.sequelize.transaction(async (transaction) => {
@@ -180,12 +291,16 @@ export class AutodialCampaignsService {
       }
       if (dto.base_uid != null && dto.base_uid !== locked.base_uid) {
         await this.basesService.findOne(userUid, dto.base_uid);
-        if (locked.status === "running") {
+        if (locked.status === "running" || locked.status === 'paused') {
           throw new BadRequestException({
             code: "AC_CAMPAIGN_RUNNING",
             message: "Cannot switch base while the campaign is running",
           });
         }
+      }
+      if (dto.dial_mode != null && dto.dial_mode !== locked.dial_mode
+        && (locked.status === 'running' || locked.status === 'paused')) {
+        throw new BadRequestException({ code: 'AC_CAMPAIGN_RUNNING', message: 'Stop the campaign before switching dial mode' });
       }
       const pacing = dto.pacing != null
         ? normalizeAutodialPacing(dto.pacing)
@@ -222,7 +337,7 @@ export class AutodialCampaignsService {
       if (trunkPool != null) patch.trunk_pool = trunkPool;
       if (dto.cid_policy != null) patch.cid_policy = dto.cid_policy;
       if (dto.scenario_actions != null) {
-        patch.scenario_actions = dto.scenario_actions as IRouteAction[];
+        patch.scenario_actions = normalizeAutodialScenario(dto.scenario_actions);
       }
       if (dto.amd != null) patch.amd = dto.amd;
       if (dto.success_min_sec != null)
@@ -234,6 +349,8 @@ export class AutodialCampaignsService {
       if (dto.schedules !== undefined) {
         await this.replaceSchedules(userUid, uid, dto.schedules, transaction);
       }
+      await this.recordEvent(locked, 'configuration_updated', { fields: Object.keys(dto).filter((key) => key !== 'expected_revision'), actor_uid: actorUid ?? null,
+        ...(audit ? { actor_source: audit.source, thread_uid: audit.threadUid ?? null } : {}) }, transaction);
       return { row: locked, revision: nextRevision };
     });
     await this.applyAndRecord(row, revision);
@@ -285,8 +402,12 @@ export class AutodialCampaignsService {
     userUid: number,
     uid: number,
     dto: StartAutodialCampaignDto = {},
+    actorUid?: number,
   ): Promise<{ campaign: IAutodialCampaign; tasks_created: number }> {
     const row = await this.getOrThrow(userUid, uid);
+    if (row.status === 'running' || row.status === 'paused') {
+      throw new ConflictException({ code: 'AC_CAMPAIGN_ACTIVE', message: 'Use resume for a paused tour' });
+    }
     if (!row.trunk_pool?.length) {
       throw new BadRequestException({
         code: "AC_NO_TRUNK",
@@ -308,8 +429,22 @@ export class AutodialCampaignsService {
       });
     }
 
-    const created = await this.generateTasks(userUid, row, dto);
-    await row.update({ status: "running" });
+    const created = await this.sequelize.transaction(async (transaction) => {
+      const locked = await this.getOrThrow(userUid, uid, transaction);
+      if (locked.revision !== row.revision) throw new ConflictException({ code: 'AC_CAMPAIGN_REVISION_CONFLICT', message: 'Configuration changed while preparing the tour' });
+      if (locked.status === 'running' || locked.status === 'paused') {
+        throw new ConflictException({ code: 'AC_CAMPAIGN_ACTIVE', message: 'Pause/resume an active tour instead of starting another' });
+      }
+      if (await this.attemptModel.count({ where: { campaign_uid: uid, user_uid: userUid, disposition: 'dialing' }, transaction })) {
+        throw new ConflictException({ code: 'AC_CAMPAIGN_ACTIVE_CALLS', message: 'Wait for previous calls to finish before starting a new tour' });
+      }
+      await locked.update({ tour_no: (locked.tour_no ?? 0) + 1 }, { transaction });
+      const generated = await this.generateTasks(userUid, locked, dto, transaction);
+      await locked.update({ status: 'running' }, { transaction });
+      await this.recordEvent(locked, 'tour_started', { include_dispositions: dto.include_dispositions ?? [], tasks_created: generated,
+        max_attempts: locked.retry?.max_attempts, actor_uid: actorUid ?? null }, transaction);
+      return generated;
+    });
     this.logger.log(`Campaign ${uid} started, ${created} task(s) queued`);
     return {
       campaign: await this.findOne(userUid, uid),
@@ -317,13 +452,14 @@ export class AutodialCampaignsService {
     };
   }
 
-  async pause(userUid: number, uid: number): Promise<IAutodialCampaign> {
+  async pause(userUid: number, uid: number, actorUid?: number, audit?: { source: 'ai_assistant'; threadUid?: number }): Promise<IAutodialCampaign> {
     const row = await this.getOrThrow(userUid, uid);
     await row.update({ status: "paused" });
+    await this.recordEvent(row, 'paused', { actor_uid: actorUid ?? null, ...(audit ? { actor_source: audit.source, thread_uid: audit.threadUid ?? null } : {}) });
     return this.findOne(userUid, uid);
   }
 
-  async resume(userUid: number, uid: number): Promise<IAutodialCampaign> {
+  async resume(userUid: number, uid: number, actorUid?: number): Promise<IAutodialCampaign> {
     const row = await this.getOrThrow(userUid, uid);
     if (row.status !== "paused" && row.status !== "scheduled") {
       throw new BadRequestException({
@@ -344,11 +480,12 @@ export class AutodialCampaignsService {
       });
     }
     await row.update({ status: "running" });
+    await this.recordEvent(row, 'resumed', { actor_uid: actorUid ?? null });
     return this.findOne(userUid, uid);
   }
 
   /** Stop new leasing while in-flight calls complete normally. */
-  async stop(userUid: number, uid: number): Promise<IAutodialCampaign> {
+  async stop(userUid: number, uid: number, actorUid?: number): Promise<IAutodialCampaign> {
     const row = await this.getOrThrow(userUid, uid);
     await row.update({ status: "stopped" });
     await this.taskModel.update(
@@ -361,6 +498,7 @@ export class AutodialCampaignsService {
         },
       },
     );
+    await this.recordEvent(row, 'stopped', { actor_uid: actorUid ?? null });
     return this.findOne(userUid, uid);
   }
 
@@ -373,6 +511,7 @@ export class AutodialCampaignsService {
     userUid: number,
     campaign: AcCampaign,
     dto: StartAutodialCampaignDto,
+    transaction?: Transaction,
   ): Promise<number> {
     const dispositions = dto.include_dispositions ?? [];
     if (dispositions.length) {
@@ -380,6 +519,7 @@ export class AutodialCampaignsService {
       await this.taskModel.update(
         {
           status: "pending",
+          tour_no: campaign.tour_no ?? 1,
           attempt_count: 0,
           next_attempt_at: null,
           leased_by: null,
@@ -392,17 +532,19 @@ export class AutodialCampaignsService {
             last_disposition: {
               [Op.in]: dispositions as AutodialDisposition[],
             },
+              status: { [Op.notIn]: ['leased', 'dialing'] },
           },
+            transaction,
         },
       );
     }
 
-    const [inserted] = await this.sequelize.query(
+    const [, affectedRows] = await this.sequelize.query(
       `INSERT INTO ac_tasks
          (vpbx_user_uid, campaign_uid, contact_uid, phone_uid, status,
-          attempt_count, next_attempt_at, last_disposition, priority, created_at, updated_at)
+          attempt_count, next_attempt_at, last_disposition, priority, tour_no, created_at, updated_at)
        SELECT :userUid, :campaignUid, p.contact_uid, p.uid, 'pending',
-              0, NULL, 'new', 0, NOW(), NOW()
+              0, NULL, 'new', 0, :tourNo, NOW(), NOW()
          FROM ac_contact_phones p
         WHERE p.base_uid = :baseUid
           AND p.normalized <> ''
@@ -413,7 +555,7 @@ export class AutodialCampaignsService {
           AND NOT EXISTS (
                 SELECT 1 FROM ac_dnc d
                  WHERE d.vpbx_user_uid = :userUid
-                   AND d.normalized_phone = p.normalized
+                   AND d.normalized_phone = p.canonical_phone
                    AND (d.expires_at IS NULL OR d.expires_at > NOW())
                    AND (d.scope = 'global'
                         OR (d.scope = 'campaign' AND d.scope_uid = :campaignUid)
@@ -423,11 +565,13 @@ export class AutodialCampaignsService {
           userUid,
           campaignUid: campaign.uid,
           baseUid: campaign.base_uid,
+          tourNo: campaign.tour_no ?? 1,
         },
+        transaction,
         type: QueryTypes.INSERT,
       },
     );
-    return typeof inserted === "number" ? inserted : 0;
+    return typeof affectedRows === "number" ? affectedRows : 0;
   }
 
   // ── schedules ─────────────────────────────────────────────────────
@@ -447,36 +591,7 @@ export class AutodialCampaignsService {
     }>,
     transaction?: Transaction,
   ): Promise<void> {
-    for (const draft of drafts) {
-      if (!TIME_RE.test(draft.time_from) || !TIME_RE.test(draft.time_to)) {
-        throw new BadRequestException({
-          code: "AC_SCHEDULE_TIME",
-          message: "time_from/time_to must be HH:MM",
-        });
-      }
-      if (draft.time_from >= draft.time_to) {
-        throw new BadRequestException({
-          code: "AC_SCHEDULE_RANGE",
-          message: "time_from must be earlier than time_to",
-        });
-      }
-      if (
-        draft.kind === "weekly" &&
-        (draft.weekday == null || draft.weekday < 0 || draft.weekday > 6)
-      ) {
-        throw new BadRequestException({
-          code: "AC_SCHEDULE_WEEKDAY",
-          message: "weekly schedule requires weekday 0..6",
-        });
-      }
-      const timezone = draft.timezone?.trim();
-      if (!timezone || !isSupportedTimeZone(timezone)) {
-        throw new BadRequestException({
-          code: "AC_SCHEDULE_TIMEZONE",
-          message: "timezone must be a supported IANA time zone",
-        });
-      }
-    }
+    assertAutodialSchedules(drafts);
 
     await this.scheduleModel.destroy({
       where: { campaign_uid: campaignUid },
@@ -553,10 +668,10 @@ export class AutodialCampaignsService {
   private async taskCounters(
     userUid: number,
     campaignUids: number[],
-  ): Promise<Map<number, { total: number; pending: number; done: number }>> {
+  ): Promise<Map<number, { total: number; pending: number; done: number; processed?: number }>> {
     const out = new Map<
       number,
-      { total: number; pending: number; done: number }
+      { total: number; pending: number; done: number; processed?: number }
     >();
     if (!campaignUids.length) return out;
     const rows = (await this.taskModel.findAll({
@@ -581,6 +696,14 @@ export class AutodialCampaignsService {
       if (r.status === "completed" || r.status === "cancelled") acc.done += cnt;
       else acc.pending += cnt;
       out.set(r.campaign_uid, acc);
+    }
+    const processed = await this.sequelize.query<{ campaign_uid: number; count: number }>(
+      `SELECT campaign_uid, COUNT(DISTINCT task_uid) AS count FROM ac_attempts
+       WHERE vpbx_user_uid = :userUid AND campaign_uid IN (:campaignUids) AND ended_at IS NOT NULL GROUP BY campaign_uid`,
+      { replacements: { userUid, campaignUids }, type: QueryTypes.SELECT });
+    for (const r of processed) {
+      const acc = out.get(Number(r.campaign_uid));
+      if (acc) acc.processed = Number(r.count);
     }
     return out;
   }
@@ -739,9 +862,9 @@ export class AutodialCampaignsService {
     for (const action of (actions ?? []) as IRouteAction[]) {
       if (action?.type !== "toqueue" || (action as { enabled?: boolean }).enabled === false) continue;
       const params = (action.params ?? {}) as Record<string, unknown>;
-      const target = params.target as { source?: unknown; value?: unknown } | undefined;
-      const name = String(params.queue ?? params.queue_name
-        ?? (target?.source === "fixed" ? target.value : "") ?? "").trim();
+      let name: string;
+      try { name = autodialQueueTarget(params, userUid); }
+      catch (error) { throw new BadRequestException({ code: (error as Error).message, message: 'Invalid tenant queue target' }); }
       if (name) names.add(name);
     }
     if (!names.size) return;
@@ -765,9 +888,9 @@ export class AutodialCampaignsService {
     for (const action of (actions ?? []) as IRouteAction[]) {
       if (action?.type !== "toexten" || (action as { enabled?: boolean }).enabled === false) continue;
       const params = (action.params ?? {}) as Record<string, unknown>;
-      const target = params.target as { source?: unknown; value?: unknown } | undefined;
-      const id = String(params.exten ?? params.extension
-        ?? (target?.source === "fixed" ? target.value : "") ?? "").trim();
+      let id: string;
+      try { id = autodialExtensionTarget(params, userUid).id; }
+      catch (error) { throw new BadRequestException({ code: (error as Error).message, message: 'Invalid tenant extension target' }); }
       if (id) ids.add(id);
     }
     if (!ids.size) return;
@@ -789,12 +912,18 @@ export class AutodialCampaignsService {
    * enabled steps before save/start; legacy campaigns remain readable.
    */
   private assertScenarioCapabilities(actions: IRouteAction[]): void {
-    for (const action of actions) {
-      if (!action || (action as { enabled?: boolean }).enabled === false) continue;
+    if (actions.length > 100) throw new BadRequestException({ code: 'AC_SCENARIO_TOO_LONG', message: 'At most 100 steps are supported' });
+    const ids = actions.map((action) => action?.id).filter(Boolean);
+    if (new Set(ids).size !== ids.length) throw new BadRequestException({ code: 'AC_SCENARIO_DUPLICATE_ID', message: 'Scenario step IDs must be unique' });
+    for (const [index, action] of actions.entries()) {
+      if (!action) throw new BadRequestException({ code: 'AC_SCENARIO_INVALID_PARAMS', step_index: index, message: 'Scenario step must be an object' });
+      if ((action as { enabled?: boolean }).enabled === false) continue;
       if (!AUTODIAL_SUPPORTED_ACTIONS.has(action.type)) {
         throw new BadRequestException({
           code: "AC_SCENARIO_UNSUPPORTED_ACTION",
-          message: `Autodial does not support scenario step ${action.type}`,
+          message: `Autodial does not support scenario step ${index + 1}: ${action.type}`,
+          field: `scenario_actions.${index}.type`,
+          step_index: index,
         });
       }
       if (hasScenarioCondition(action.condition)) {
@@ -816,6 +945,23 @@ export class AutodialCampaignsService {
           });
         }
       }
+      const parsed = autodialScenarioActionSchema.safeParse(action);
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0];
+        throw new BadRequestException({ code: 'AC_SCENARIO_INVALID_PARAMS', step_index: index,
+          field: `scenario_actions.${index}.${issue.path.join('.')}`, message: `Step ${index + 1}: ${issue.message}` });
+      }
+    }
+    const enabled = actions.filter((action) => action && action.enabled !== false);
+    const labels = enabled.filter((action) => action.type === 'label')
+      .map((action) => String(action.params?.label_name ?? action.params?.name ?? ''));
+    if (new Set(labels).size !== labels.length) throw new BadRequestException({ code: 'AC_SCENARIO_DUPLICATE_LABEL', message: 'Scenario labels must be unique' });
+    for (const action of enabled.filter((action) => action.type === 'goto')) {
+      const target = String(action.params?.label_name ?? action.params?.label ?? '');
+      const otherwise = String(action.params?.false_label ?? '');
+      if (!target || !labels.includes(target) || (otherwise && !labels.includes(otherwise))) {
+        throw new BadRequestException({ code: 'AC_SCENARIO_LABEL_NOT_FOUND', message: 'Goto must reference an existing enabled label' });
+      }
     }
   }
 
@@ -832,7 +978,7 @@ export class AutodialCampaignsService {
   private toDto(
     row: AcCampaign,
     schedules: IAutodialSchedule[],
-    counters?: { total: number; pending: number; done: number },
+    counters?: { total: number; pending: number; done: number; processed?: number },
   ): IAutodialCampaign & { schedules: IAutodialSchedule[] } {
     return {
       uid: row.uid,
@@ -856,6 +1002,8 @@ export class AutodialCampaignsService {
       tasks_total: counters?.total ?? 0,
       tasks_pending: counters?.pending ?? 0,
       tasks_done: counters?.done ?? 0,
+      tasks_processed: counters?.processed ?? 0,
+      tour_no: row.tour_no ?? 0,
       schedules,
       created_at: row.created_at?.toISOString(),
       updated_at: row.updated_at?.toISOString(),
@@ -876,12 +1024,17 @@ function hasScenarioCondition(condition: unknown): boolean {
   });
 }
 
+function normalizeAutodialScenario(actions: unknown[]): IRouteAction[] {
+  return (actions as IRouteAction[]).map((action) => ({ ...action,
+    id: action.id || randomUUID(), params: action.params ?? {}, condition: hasScenarioCondition(action.condition) ? action.condition : {} }));
+}
+
 /**
  * DTOs intentionally permit a union-shaped source while class-validator checks
  * its individual fields. Convert the transport shape once after those checks
  * instead of leaking DTO-only optional properties into persisted JSON.
  */
-function toAutodialTrunkPool(input: unknown[]): IAutodialTrunkPoolItem[] {
+export function toAutodialTrunkPool(input: unknown[]): IAutodialTrunkPoolItem[] {
   return input.map((raw) => {
     const item = raw as Record<string, unknown>;
     const source = item.caller_id_source as AutodialCallerIdSource | undefined;
@@ -897,4 +1050,38 @@ function toAutodialTrunkPool(input: unknown[]): IAutodialTrunkPoolItem[] {
 
 function hasDirectoryCallerIdSource(pool: IAutodialTrunkPoolItem[]): boolean {
   return pool.some((item) => item.caller_id_source?.mode === "directory");
+}
+
+
+export function assertAutodialSchedules(drafts: Array<{ kind: string; weekday?: number | null; time_from: string; time_to: string; timezone?: string }>): void {
+    for (const draft of drafts) {
+      if (!TIME_RE.test(draft.time_from) || !TIME_RE.test(draft.time_to)) {
+        throw new BadRequestException({
+          code: "AC_SCHEDULE_TIME",
+          message: "time_from/time_to must be HH:MM",
+        });
+      }
+      if (draft.time_from >= draft.time_to) {
+        throw new BadRequestException({
+          code: "AC_SCHEDULE_RANGE",
+          message: "time_from must be earlier than time_to",
+        });
+      }
+      if (
+        draft.kind === "weekly" &&
+        (draft.weekday == null || draft.weekday < 0 || draft.weekday > 6)
+      ) {
+        throw new BadRequestException({
+          code: "AC_SCHEDULE_WEEKDAY",
+          message: "weekly schedule requires weekday 0..6",
+        });
+      }
+      const timezone = draft.timezone?.trim();
+      if (!timezone || !isSupportedTimeZone(timezone)) {
+        throw new BadRequestException({
+          code: "AC_SCHEDULE_TIMEZONE",
+          message: "timezone must be a supported IANA time zone",
+        });
+      }
+    }
 }

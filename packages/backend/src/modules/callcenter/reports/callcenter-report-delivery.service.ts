@@ -148,6 +148,7 @@ export class CallCenterReportDeliveryService {
             schedule.report_id,
             result.columns,
             result.rows,
+            result.timezone,
           );
           const mailRes = await this.mailerService.sendReportMail({
             to,
@@ -165,7 +166,7 @@ export class CallCenterReportDeliveryService {
             : { success: false, error: 'mail_send_failed' };
         }
 
-        const csv = buildReportCsv(result.columns, result.rows);
+        const csv = buildReportCsv(result.columns, result.rows, result.timezone);
         const mailRes = await this.mailerService.sendReportMail({
           to,
           subject,

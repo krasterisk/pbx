@@ -10,6 +10,7 @@ import {
   IsString,
   Matches,
   MaxLength,
+  Max,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -25,7 +26,15 @@ import {
 
 export const AUTODIAL_FIELD_KEY_PATTERN = /^[a-z][a-z0-9_]{0,62}$/;
 
+export class AutodialFieldFormatDto {
+  @IsOptional() @IsIn(['RUB', 'USD', 'EUR']) currency?: 'RUB' | 'USD' | 'EUR';
+  @IsOptional() @IsIn(['auto', 'iso', 'ru']) date_input?: 'auto' | 'iso' | 'ru';
+  @IsOptional() @IsInt() @Min(0) @Max(6) decimal_places?: number;
+}
+
 export class AutodialFieldDraftDto {
+  @IsOptional() @ValidateNested() @Type(() => AutodialFieldFormatDto)
+  format?: AutodialFieldFormatDto | null;
   @IsOptional()
   @IsInt()
   uid?: number;

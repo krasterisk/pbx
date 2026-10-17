@@ -20,6 +20,10 @@ function queue(partial: Partial<IQueueStats> & Pick<IQueueStats, 'name' | 'calls
 }
 
 describe('supervisorKpiRollup', () => {
+  it('excludes unavailable phones from free agents while retaining the watchlist count', () => {
+    expect(rollupSupervisorKpis([{ status: 'READY', phoneOnline: false }, { status: 'READY', phoneOnline: true }], []).live)
+      .toMatchObject({ freeAgents: 1, totalAgents: 2 });
+  });
   it('weights SLA by offered and ignores empty queues', () => {
     const period = rollupSupervisorPeriodKpis([
       queue({ name: 'a', sla: 50, avgWait: 10, calls: { answered: 5, abandoned: 5, total: 10 } }),
@@ -28,6 +32,7 @@ describe('supervisorKpiRollup', () => {
     ]);
     // (50*10 + 100*10) / 20 = 75
     expect(period.sla).toBe(75);
+    expect(period.effectiveOffered).toBe(20);
     expect(period.answered).toBe(15);
     expect(period.abandoned).toBe(5);
     // ASA: (10*5 + 20*10) / 15 = 250/15 ≈ 17
@@ -41,9 +46,38 @@ describe('supervisorKpiRollup', () => {
       answered: 0,
       abandoned: 0,
       offered: 0,
+      effectiveOffered: 0,
       sla: 0,
       avgWait: 0,
     });
+  });
+
+  it('weights SLA by effective offered so short abandons do not dilute it', () => {
+    const period = rollupSupervisorPeriodKpis([
+      // 10 offered, 6 of them short abandons: effective 4, SLA 50 %
+      queue({ name: 'a', sla: 50, avgWait: 10, calls: { answered: 2, abandoned: 2, total: 10, shortAbandoned: 6 } }),
+      // 4 offered, SLA 100 %
+      queue({ name: 'b', sla: 100, avgWait: 5, calls: { answered: 4, abandoned: 0, total: 4 } }),
+    ]);
+    expect(period.offered).toBe(14);
+    expect(period.effectiveOffered).toBe(8);
+    // (50*4 + 100*4) / 8 = 75
+    expect(period.sla).toBe(75);
+  });
+
+  it('treats a queue with only short abandons as no data, not as SLA 0', () => {
+    const period = rollupSupervisorPeriodKpis([
+      queue({ name: 'a', sla: 0, avgWait: 0, calls: { answered: 0, abandoned: 0, total: 3, shortAbandoned: 3 } }),
+    ]);
+    expect(period.effectiveOffered).toBe(0);
+    expect(period.sla).toBe(0);
+  });
+
+  it('keeps one decimal of SLA like the reports do', () => {
+    const period = rollupSupervisorPeriodKpis([
+      queue({ name: 'a', sla: 33.3, avgWait: 0, calls: { answered: 1, abandoned: 2, total: 3 } }),
+    ]);
+    expect(period.sla).toBe(33.3);
   });
 
   it('rolls live counters from agents + queues', () => {

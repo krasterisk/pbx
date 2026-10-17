@@ -70,4 +70,8 @@ export class AutodialImportUploadDto {
   @IsInt()
   @Min(0)
   expected_revision?: number;
+
+  @IsOptional()
+  @IsIn(['reject', 'omit'])
+  invalid_optional_policy?: 'reject' | 'omit';
 }

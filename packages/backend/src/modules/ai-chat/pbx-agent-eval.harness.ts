@@ -17,6 +17,11 @@ import { PlanAiAdapter } from './plan-ai.adapter';
 import { PbxStateAiAdapter } from './pbx-state-ai.adapter';
 import type { PbxWorkflowRunnerService, WorkflowPlanView } from './pbx-workflow-runner.service';
 import type { AgentCompletion, AgentToolCall } from './pbx-agent.types';
+import { registerAutodialEval } from './evals/autodial-eval.fixture';
+import { PbxWorkflowCompilerService, type DeclarativeWorkflowStep } from './pbx-workflow-compiler.service';
+import { AgentIntentClassifierService } from './agent-intent-classifier.service';
+import type { PbxAgentLlmClient } from './pbx-agent-llm.client';
+import type { AiProvidersService } from '../ai-connectivity/ai-providers.service';
 
 export type EvalBucket =
   | 'read'
@@ -26,7 +31,8 @@ export type EvalBucket =
   | 'step-budget'
   | 'playbook'
   | 'failure'
-  | 'adversarial';
+  | 'adversarial'
+  | 'autodial';
 
 export interface EvalModelTurn {
   text?: string;
@@ -38,6 +44,8 @@ export interface EvalModelTurn {
 }
 
 export interface EvalScenario {
+  pageContext?: unknown;
+  allowPersonalData?: boolean;
   id: string;
   bucket: EvalBucket;
   input: string;
@@ -72,6 +80,7 @@ export interface EvalProposalRow {
 }
 
 export interface EvalRunResult {
+  pageContextObserved?: boolean;
   events: AgentStreamEvent[];
   toolSequence: string[];
   auditRows: EvalAuditRow[];
@@ -86,6 +95,7 @@ export interface EvalRunResult {
 type TenantRow = { vpbx_user_uid: number };
 
 interface EvalWorld {
+  autodialWrites: number;
   queues: Array<TenantRow & {
     name: string;
     display_name: string;
@@ -172,6 +182,7 @@ export function assertTerminalOutcome(events: AgentStreamEvent[], code: string):
 }
 
 class FixtureModelClient {
+  pageContextObserved = false;
   outboundRequests = 0;
   private turns: AgentCompletion[] = [];
   private index = 0;
@@ -215,7 +226,9 @@ class FixtureModelClient {
     this.index = 0;
   }
 
-  async chat(): Promise<AgentCompletion> {
+  async chat(params?: { messages?: Array<{ role?: string; content?: unknown }> }): Promise<AgentCompletion> {
+    if (params?.messages?.some((message) => message.role === 'system' && String(message.content).includes('"campaign_uid":4')
+      && String(message.content).includes('Current page (untrusted navigation metadata'))) this.pageContextObserved = true;
     const next = this.turns[this.index] ?? this.turns[this.turns.length - 1] ?? { text: '', toolCalls: [] };
     this.index += 1;
     return next;
@@ -263,10 +276,28 @@ export async function runScenario(scenario: EvalScenario): Promise<EvalRunResult
   };
 }
 
-async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<EvalRunResult> {
-  const llm = new FixtureModelClient();
-  llm.setScenario(scenario);
-  llm.setFixture(scenario.modelTurns);
+export interface LiveEvalRuntime {
+  model: Pick<PbxAgentLlmClient, 'chat' | 'completeJson' | 'supportsNativeTools'>;
+  provider: NonNullable<Awaited<ReturnType<AiProvidersService['findDefaultLlm']>>>;
+  requestCount: () => number;
+  pageContextObserved: () => boolean;
+}
+
+/** Live model, real loop/tools/contracts, synthetic domain storage with fail-closed writes. */
+export async function runLiveScenario(scenario: EvalScenario, runtime: LiveEvalRuntime): Promise<EvalRunResult> {
+  const world = createWorld();
+  if (scenario.bucket === 'autodial') world.trunks.push({ id: 'eval-isolated', name: 'Synthetic isolated loopback', host: '127.0.0.1', vpbx_user_uid: 100 });
+  const result = await replayOnce(scenario, world, runtime);
+  assertNoWrite(result.entityCountsBefore, result.entityCountsAfter);
+  assertAuditTenant(result.auditRows, scenario.tenantUid);
+  return result;
+}
+
+async function replayOnce(scenario: EvalScenario, world: EvalWorld, runtime?: LiveEvalRuntime): Promise<EvalRunResult> {
+  const fixtureLlm = new FixtureModelClient();
+  fixtureLlm.setScenario(scenario);
+  fixtureLlm.setFixture(scenario.modelTurns);
+  const llm = runtime?.model ?? fixtureLlm;
 
   const auditRows: EvalAuditRow[] = [];
   const proposalRows: Array<{
@@ -464,7 +495,8 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
 
   const registry = new AiAdapterRegistryService();
   const settings = { getSettings: async () => ({ confirmDestructive: false }) };
-  const skillRegistry = { getCatalog: () => [] };
+  const loadedSkills = new AgentSkillRegistryService(registry);
+  const skillRegistry = runtime ? loadedSkills : { getCatalog: () => [] };
   const builder = new PbxContextBuilderService(
     endpointsService as never,
     trunksService as never,
@@ -477,7 +509,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   );
 
   const routeReferencesService = { findUsage: async () => ({ references: [] }) };
-  new AgentSkillRegistryService(registry).onModuleInit();
+  loadedSkills.onModuleInit();
   new EndpointsAiAdapter(endpointsService as never, registry, contextsService as never).onModuleInit();
   new DirectoriesAiAdapter(directoriesService as never, registry).onModuleInit();
   new QueuesAiAdapter(
@@ -504,8 +536,13 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
     queuesService as never,
     callGroupsService as never,
   ).onModuleInit();
+  registerAutodialEval(registry, () => { world.autodialWrites++; throw new Error('Unexpected autodial domain write during proposal-only eval'); }, scenario.allowPersonalData,
+    Boolean(runtime && scenario.id === 'autodial-collection-plan'));
   const workflows = {
-    createFromDraft: async (draft: { title?: string; steps: unknown[] }): Promise<WorkflowPlanView> => ({
+    createFromDraft: async (draft: { title?: string; steps: unknown[] }, ctx: { vpbxUserUid: number; userUid: number; role: number }): Promise<WorkflowPlanView> => {
+      if (draft.steps.some((step) => String((step as { tool?: string }).tool).includes('_autodial_')))
+        await new PbxWorkflowCompilerService(registry).compile({ ...draft, steps: draft.steps as DeclarativeWorkflowStep[] }, ctx);
+      return ({
       workflowId: 'wf_eval',
       threadUid: 0,
       title: draft.title ?? '',
@@ -515,7 +552,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
       expiresAt: new Date().toISOString(),
       appliedAt: null,
       steps: (draft.steps ?? []) as WorkflowPlanView['steps'],
-    }),
+    }); },
   };
   new PlanAiAdapter(registry, workflows as unknown as PbxWorkflowRunnerService).onModuleInit();
 
@@ -557,7 +594,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
   };
 
   const providers = {
-    findDefaultLlm: async () => ({
+    findDefaultLlm: async () => runtime?.provider ?? ({
       uid: 1,
       name: 'eval-fixture',
       endpoint: 'http://127.0.0.1/eval-unused',
@@ -600,7 +637,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
     config as never,
     { getDefaultProviderUid: async () => null } as never,
     briefService as never,
-    {
+    runtime ? new AgentIntentClassifierService(loadedSkills) : {
       classify: () => ({
         intents: ['general'],
         skillNames: [],
@@ -610,7 +647,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
       }),
       filterToolNames: (names: string[]) => names,
     } as never,
-    { readSkillsForPrompt: () => [] } as never,
+    (runtime ? loadedSkills : { readSkillsForPrompt: () => [] }) as never,
     {
       findLatestPendingForThread: async () => null,
       apply: async () => {
@@ -632,6 +669,7 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
       authorUid: scenario.authorUid ?? 11,
       role: scenario.role ?? 1,
       locale: scenario.locale ?? 'ru',
+      pageContext: scenario.pageContext,
     },
   )) {
     events.push(event);
@@ -656,12 +694,14 @@ async function replayOnce(scenario: EvalScenario, world: EvalWorld): Promise<Eva
     entityCountsAfter: countEntities(world, scenario.tenantUid),
     peerEntityCountsBefore,
     peerEntityCountsAfter: peerUid != null ? countEntities(world, peerUid) : undefined,
-    outboundRequests: llm.outboundRequests,
+    outboundRequests: runtime?.requestCount() ?? fixtureLlm.outboundRequests,
+    pageContextObserved: runtime?.pageContextObserved() ?? fixtureLlm.pageContextObserved,
   };
 }
 
 function createWorld(): EvalWorld {
   return {
+    autodialWrites: 0,
     queues: [
       queue(100, 'sales', 'Sales'),
       queue(100, 'support', 'Support'),
@@ -715,6 +755,7 @@ function directory(tenant: number, uid: number, name: string) {
 
 function countEntities(world: EvalWorld, tenantUid: number): Record<string, number> {
   return {
+    autodialWrites: world.autodialWrites,
     queues: world.queues.filter((row) => row.vpbx_user_uid === tenantUid).length,
     directories: world.directories.filter((row) => row.vpbx_user_uid === tenantUid).length,
     trunks: world.trunks.filter((row) => row.vpbx_user_uid === tenantUid).length,

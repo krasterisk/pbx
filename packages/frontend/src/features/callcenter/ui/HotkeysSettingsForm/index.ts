@@ -1,0 +1,1 @@
+export { HotkeysSettingsForm } from './HotkeysSettingsForm';

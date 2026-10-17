@@ -7,6 +7,7 @@ import {
   useRetrieveParkedCallMutation,
 } from '@/shared/api/endpoints/callCenterApi';
 import styles from './ParkedCallsIndicator.module.scss';
+import { toast } from 'react-toastify';
 
 /**
  * Tenant-wide parking lot indicator (D-28) - badge + dropdown, mirrors
@@ -20,22 +21,24 @@ export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolea
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  const { data: parked = [] } = useGetParkedCallsQuery();
+  const { data: parked = [], isError, error, refetch } = useGetParkedCallsQuery(undefined, { pollingInterval: 5000 });
   const [retrieveParkedCall, { isLoading: isRetrieving }] = useRetrieveParkedCallMutation();
 
   const handleRetrieve = async (parkingSpace: string) => {
     try {
       await retrieveParkedCall({ parkingSpace }).unwrap();
-    } catch { /* server is source of truth - parked list refetches regardless via ParkedCalls tag */ }
+    } catch { toast.error(t('callcenter.parked.retrieveError', 'Could not retrieve the parked call. Refresh the list and try again.')); }
   };
 
   const count = parked.length;
-  if (count === 0) return null;
+  if (count === 0 && !isError) return null;
 
   return (
     <div className={styles.wrap}>
-      <button
+      <Button
         type="button"
+        variant="unstyled"
+        size="none"
         className={`${styles.badge}${showLabel ? ` ${styles.badgeLabeled}` : ''}`}
         onClick={() => setOpen((o) => !o)}
         title={t('callcenter.parked.title')}
@@ -46,8 +49,8 @@ export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolea
         {showLabel ? (
           <span className={styles.badgeLabel}>{t('callcenter.parked.title')}</span>
         ) : null}
-        <span className={styles.count}>{count}</span>
-      </button>
+        <span className={styles.count}>{isError ? '!' : count}</span>
+      </Button>
 
       {open && (
         <div className={styles.dropdown}>
@@ -56,16 +59,23 @@ export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolea
               <ParkingCircle className="w-4 h-4 inline mr-1.5" />
               {t('callcenter.parked.title')}
             </Text>
-            <button
+            <Button
+              type="button"
+              variant="unstyled"
+              size="none"
               className={styles.close}
               onClick={() => setOpen(false)}
               aria-label={t('common.close', 'Close')}
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           <div className={styles.list}>
+            {isError && <div className={styles.row} role="alert" data-error-status={error && 'status' in error ? String(error.status) : undefined}>
+              <Text>{t('callcenter.parked.loadError', 'Could not check parked calls')}</Text>
+              <Button size="sm" variant="outline" onClick={() => void refetch()}>{t('common.retry', 'Retry')}</Button>
+            </div>}
             {parked.map((p) => (
               <div key={p.parkingSpace} className={styles.row}>
                 <div className={styles.rowMain}>

@@ -18,6 +18,10 @@ export interface AutodialLiveChannel {
   trunkId: string;
   startedAt: number;
   answeredAt: number | null;
+  contactUid?: number;
+  customerName?: string;
+  stepId?: string;
+  stepType?: string;
 }
 
 export interface AutodialCampaignRuntime {
@@ -36,6 +40,7 @@ export interface AutodialCampaignRuntime {
 }
 
 export type AutodialSseEvent =
+  | { type: 'channel_step'; channel: AutodialLiveChannel }
   | { type: 'snapshot'; campaigns: AutodialCampaignRuntime[]; channels: AutodialLiveChannel[] }
   | { type: 'channel_started'; channel: AutodialLiveChannel }
   | { type: 'channel_answered'; channelId: string; campaignUid: number }
@@ -110,6 +115,12 @@ export class AutodialStateService {
 
   getChannel(channelId: string): AutodialLiveChannel | undefined {
     return this.channels.get(channelId);
+  }
+  markStep(userUid: number, attemptUid: number, stepId: string, stepType: string): void {
+    const channel = this.listChannels(userUid).find((row) => row.attemptUid === attemptUid);
+    if (!channel) return;
+    Object.assign(channel, { stepId: stepId.slice(0, 255), stepType: stepType.slice(0, 64) });
+    this.emit(userUid, { type: 'channel_step', channel: { ...channel } });
   }
 
   activeChannels(campaignUid: number): number {

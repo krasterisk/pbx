@@ -1,4 +1,5 @@
-import { memo, useCallback, useState, useRef, useEffect } from 'react';
+import { memo, useCallback, useState, useRef, useEffect, useId } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { X, ChevronDown, Check } from 'lucide-react';
 import cls from './MultiSelect.module.scss';
@@ -30,6 +31,8 @@ export interface MultiSelectProps {
   searchable?: boolean;
   /** Placeholder for the dropdown search field. */
   searchPlaceholder?: string;
+  /** Accessible name of the trigger. */
+  ariaLabel?: string;
 }
 
 /**
@@ -49,7 +52,11 @@ export const MultiSelect = memo(({
   className,
   searchable = false,
   searchPlaceholder,
+  ariaLabel,
 }: MultiSelectProps) => {
+  const { t } = useTranslation();
+  const listId = useId();
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -168,6 +175,8 @@ export const MultiSelect = memo(({
     <div ref={containerRef} className={`${cls.container} ${className || ''}`}>
       <div
         ref={triggerRef}
+        role="group"
+        aria-label={ariaLabel}
         className={`${cls.trigger} ${isOpen ? cls.triggerOpen : ''}`}
         onClick={() => {
           if (searchable) {
@@ -187,6 +196,7 @@ export const MultiSelect = memo(({
                 <button
                   type="button"
                   className={cls.tagRemove}
+                  aria-label={`${t('common.selectionBannerClear', 'Clear selection')}: ${label}`}
                   onClick={e => { e.stopPropagation(); remove(val); }}
                 >
                   <X className="w-3 h-3" />
@@ -199,6 +209,7 @@ export const MultiSelect = memo(({
               ref={searchRef}
               type="text"
               className={cls.searchInline}
+              aria-label={searchPlaceholder || t('common.search', 'Search')}
               value={query}
               placeholder={selected.length === 0 ? (searchPlaceholder || placeholder || 'Search...') : (searchPlaceholder || '')}
               onChange={(e) => setQuery(e.target.value)}
@@ -222,6 +233,7 @@ export const MultiSelect = memo(({
             <button
               type="button"
               className={cls.clearBtn}
+              aria-label={t('common.selectionBannerClear', 'Clear selection')}
               onClick={e => { e.stopPropagation(); clearAll(); }}
             >
               <X className="w-3.5 h-3.5" />
@@ -230,7 +242,11 @@ export const MultiSelect = memo(({
           <button
             type="button"
             className={cls.chevronBtn}
-            aria-label={isOpen ? 'Close' : 'Open'}
+            ref={toggleRef}
+            aria-label={isOpen ? t('common.close', 'Close') : `${ariaLabel || placeholder || t('common.select', 'Select')} — ${t('common.open', 'Open')}`}
+            aria-expanded={isOpen}
+            aria-controls={isOpen ? listId : undefined}
+            aria-haspopup="listbox"
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen((prev) => !prev);
@@ -244,6 +260,10 @@ export const MultiSelect = memo(({
       {isOpen && createPortal(
         <div
           ref={dropdownRef}
+          id={listId}
+          role="listbox"
+          aria-label={ariaLabel || placeholder || t('common.select', 'Select')}
+          aria-multiselectable="true"
           className={cls.dropdown}
           style={dropdownStyle}
           data-multiselect-dropdown=""
@@ -260,8 +280,22 @@ export const MultiSelect = memo(({
             return (
               <div
                 key={opt.value}
+                role="option"
+                aria-selected={isChecked}
+                tabIndex={0}
                 className={`${cls.option} ${isChecked ? cls.optionChecked : ''}`}
                 onClick={() => toggle(opt.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(opt.value); }
+                  else if (e.key === 'Escape') { e.preventDefault(); setIsOpen(false); toggleRef.current?.focus(); }
+                  else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
+                    e.preventDefault();
+                    const items = Array.from(dropdownRef.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? []);
+                    const index = items.indexOf(e.currentTarget);
+                    const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+                    items[next]?.focus();
+                  }
+                }}
               >
                 <div className={`${cls.checkbox} ${isChecked ? cls.checkboxChecked : ''}`}>
                   {isChecked && <Check className="w-3 h-3" />}

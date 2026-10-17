@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { Megaphone } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
+import { Button, Text, Textarea } from '@/shared/ui';
 import { selectCurrentUser } from '@/entities/User';
 import {
   useGetChatMessagesQuery,
@@ -136,7 +136,7 @@ export function ChatThread({ channel, targetUserId, groupUid }: Props) {
       </div>
 
       <div className={styles.composer}>
-        <textarea
+        <Textarea
           className={styles.textarea}
           value={draft}
           onChange={e => setDraft(e.target.value)}

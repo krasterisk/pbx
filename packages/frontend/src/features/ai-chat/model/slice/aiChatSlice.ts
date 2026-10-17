@@ -35,6 +35,7 @@ export type AgentChatState = AiChatSchema & {
     turnOutcome: AgentTurnOutcome;
     /** Message the panel should send once, then clear. Opens a new chat turn. */
     seedMessage: string | null;
+    requestedThreadUid?: number | null;
 };
 
 const initialState: AgentChatState = {
@@ -58,6 +59,10 @@ export const aiChatSlice = createSlice({
             state.isOpen = true;
             state.seedMessage = action.payload;
         },
+        openThread(state, action: PayloadAction<number>) {
+            state.isOpen = true; state.seedMessage = null; state.requestedThreadUid = action.payload;
+        },
+        clearRequestedThread(state) { state.requestedThreadUid = null; },
         clearSeed(state) {
             state.seedMessage = null;
         },

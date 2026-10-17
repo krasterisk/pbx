@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import {
   Button,
+  Checkbox,
   Card,
   CardContent,
   CardHeader,
@@ -45,30 +46,34 @@ import {
   useGetAutodialSummaryQuery,
 } from '@/shared/api/endpoints/autodialApi';
 import { autodialDispositionLabel } from '../../lib/labels';
-import { buildDispositionBreakdown, isoDaysAgo, isoToday } from '../../model/reportRange';
+import { buildDispositionBreakdown, isoDaysAgo, isoToday, previousReportPeriod } from '../../model/reportRange';
+import { ReportBreakdown } from './ReportBreakdown';
 import cls from './ReportsView.module.scss';
 
 const PIE_COLORS = ['#22c55e', '#6366f1', '#f59e0b', '#ef4444', '#3b82f6', '#a855f7', '#14b8a6'];
 
-export const ReportsView = memo(() => {
+export const ReportsView = memo(({ campaignUid }: { campaignUid?: number }) => {
   const { t } = useTranslation();
   const [from, setFrom] = useState(() => isoDaysAgo(6));
   const [to, setTo] = useState(() => isoToday());
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  const [compare, setCompare] = useState(false);
 
   const { data: campaigns } = useGetAutodialCampaignsQuery();
   const query = useMemo(
     () => ({
       from,
       to,
-      campaigns: selectedCampaigns.length ? selectedCampaigns.map(Number) : undefined,
+      campaigns: campaignUid ? [campaignUid] : selectedCampaigns.length ? selectedCampaigns.map(Number) : undefined,
     }),
-    [from, to, selectedCampaigns],
+    [from, to, selectedCampaigns, campaignUid],
   );
 
   const { data: summary, isFetching: summaryFetching } = useGetAutodialSummaryQuery(query);
   const { data: daily } = useGetAutodialDailyQuery(query);
   const { data: detail, isFetching: detailFetching } = useGetAutodialDetailQuery(query);
+  const previous = previousReportPeriod(from, to);
+  const { currentData: previousSummary } = useGetAutodialSummaryQuery({ ...query, ...(previous ?? {}) }, { skip: !compare || !previous });
 
   const nameByUid = new Map((campaigns ?? []).map((c) => [c.uid, c.name]));
   const summaryRows = summary ?? [];
@@ -112,7 +117,7 @@ export const ReportsView = memo(() => {
             onChange={(e) => setTo(e.target.value)}
           />
         </VStack>
-        <VStack gap="4" className={cls.campaignPicker}>
+        {!campaignUid && <VStack gap="4" className={cls.campaignPicker}>
           <Label>{t('autodial.reports.campaigns')}</Label>
           <MultiSelect
             options={(campaigns ?? []).map((c) => ({ value: String(c.uid), label: c.name }))}
@@ -120,7 +125,7 @@ export const ReportsView = memo(() => {
             onChange={setSelectedCampaigns}
             placeholder={t('autodial.reports.allCampaigns')}
           />
-        </VStack>
+        </VStack>}
       </HStack>
       <HStack gap="8" wrap="wrap">
         <Button variant="outline" asChild>
@@ -141,6 +146,16 @@ export const ReportsView = memo(() => {
 
   return (
     <VStack gap="16" max>
+      <HStack gap="8" wrap="wrap">{[1, 7, 30].map((days) => <Button key={days} variant="outline" onClick={() => { setFrom(isoDaysAgo(days - 1)); setTo(isoToday()); }}>
+        {t('autodial.workspace.reportPreset', { days })}</Button>)}
+        <Checkbox id="autodial-report-compare" checked={compare} onChange={(event) => setCompare(event.target.checked)} />
+        <Label htmlFor="autodial-report-compare">{t('autodial.workspace.comparePrevious')}</Label>
+      </HStack>
+      {compare && previous && <VStack gap="4" max><Text>{t('autodial.workspace.previousPeriod', previous)}</Text>
+        {(['dials', 'answered', 'success'] as const).map((key) => {
+          const current = summaryRows.reduce((sum, row) => sum + row[key], 0), before = (previousSummary ?? []).reduce((sum, row) => sum + row[key], 0);
+          return <Text key={key}>{t(`autodial.reports.${key}`)}: {current} / {previousSummary ? before : '…'} · Δ {previousSummary ? current - before : '…'}</Text>;
+        })}</VStack>}
       <Card className={cls.card}>
         <CardHeader>{filters}</CardHeader>
       </Card>
@@ -150,6 +165,7 @@ export const ReportsView = memo(() => {
           <TabsTrigger value="summary">{t('autodial.reports.tabs.summary')}</TabsTrigger>
           <TabsTrigger value="charts">{t('autodial.reports.tabs.charts')}</TabsTrigger>
           <TabsTrigger value="detail">{t('autodial.reports.tabs.detail')}</TabsTrigger>
+          <TabsTrigger value="breakdown">{t('autodial.workspace.breakdown')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary">
@@ -192,21 +208,21 @@ export const ReportsView = memo(() => {
                           <TableCell className={cls.num}>{row.answered}</TableCell>
                           <TableCell className={cls.num}>{row.success}</TableCell>
                           <TableCell className={cls.num}>
-                            {Math.round(row.kpi.contact_rate * 100)}%
+                            {row.kpi.contact_rate}%
                           </TableCell>
                           <TableCell className={cls.num}>
-                            {Math.round(row.kpi.rpc * 100)}%
+                            {row.kpi.rpc}%
                           </TableCell>
                           <TableCell className={cls.num}>
-                            {Math.round(row.kpi.asr * 100)}%
+                            {row.kpi.asr}%
                           </TableCell>
                           <TableCell className={cls.num}>{Math.round(row.kpi.aht)}</TableCell>
                           <TableCell className={cls.num}>{Math.round(row.kpi.acd)}</TableCell>
                           <TableCell className={cls.num}>
-                            {Math.round(row.kpi.abandon_rate * 100)}%
+                            {row.kpi.abandon_rate}%
                           </TableCell>
                           <TableCell className={cls.num}>
-                            {Math.round(row.kpi.list_penetration * 100)}%
+                            {row.kpi.list_penetration}%
                           </TableCell>
                           <TableCell className={cls.num}>
                             {Math.round(row.kpi.calls_per_hour)}
@@ -220,6 +236,7 @@ export const ReportsView = memo(() => {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="breakdown"><ReportBreakdown key={JSON.stringify(query)} query={query} /></TabsContent>
 
         <TabsContent value="charts">
           <div className={cls.chartGrid}>
@@ -330,12 +347,15 @@ export const ReportsView = memo(() => {
                         <TableHead>{t('autodial.reports.queue')}</TableHead>
                         <TableHead>{t('autodial.reports.agent')}</TableHead>
                         <TableHead>{t('autodial.reports.billsec')}</TableHead>
+                        <TableHead>DTMF</TableHead>
+                        <TableHead>{t('autodial.workspace.businessOutcomes')}</TableHead>
+                        <TableHead>AMD</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {(detail ?? []).map((row) => (
                         <TableRow key={row.attempt_uid}>
-                          <TableCell>{row.started_at}</TableCell>
+                          <TableCell>{new Date(row.started_at).toLocaleString()}</TableCell>
                           <TableCell>
                             {nameByUid.get(row.campaign_uid) ?? `#${row.campaign_uid}`}
                           </TableCell>
@@ -347,6 +367,9 @@ export const ReportsView = memo(() => {
                           <TableCell>{row.queue_name ?? '-'}</TableCell>
                           <TableCell>{row.agent_interface ?? '-'}</TableCell>
                           <TableCell className={cls.num}>{row.billsec}</TableCell>
+                          <TableCell>{row.scenario_result?.dtmf ?? '-'}</TableCell>
+                          <TableCell>{String(row.scenario_result?.business_outcome ?? '-')}</TableCell>
+                          <TableCell>{row.amd_result ?? '-'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

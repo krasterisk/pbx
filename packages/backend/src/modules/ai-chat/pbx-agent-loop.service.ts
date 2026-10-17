@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { validatedAutodialPageContext } from './autodial-page-context';
+import { autodialActionFromTool } from './agent-timeline.util';
 import { ConfigService } from '@nestjs/config';
 import {
   looksLikeUserConfirm,
@@ -37,6 +39,8 @@ import { compileSetupBrief, parseSetupBrief, SETUP_BRIEF_SYSTEM } from './setup-
 import {
   clipToolResult,
   diagnoseNeedsEvidence,
+  isExplicitReadOnlyRequest,
+  isReadToolName,
   EVIDENCE_TOOLS,
   evidenceReminder,
   parseTurnModeDecision,
@@ -60,7 +64,6 @@ const PLAN_CHECKLIST_TOOLS = new Set([
   'list_ivrs',
   'list_dialplan_apps',
 ]);
-const READ_TOOL_NAME = /^(?:get_|list_|read_|find_|describe_|evaluate_|cc_get_|dialplan_dry_run$)/;
 export const PROMPT_TOTAL_BUDGET_CHARS = 48_000;
 
 export const CONTINUE_AFTER_APPLY_PROMPT =
@@ -69,6 +72,7 @@ export const CONTINUE_AFTER_APPLY_PROMPT =
   'Не называй инструменты. Не предлагай «проверить через» что-либо. Таймаут называй таймаутом, не «цифра t».';
 
 export interface AgentTurnContext {
+  pageContext?: unknown;
   tenantUid: number;
   authorUid: number;
   role: number;
@@ -121,7 +125,7 @@ export class PbxAgentLoopService {
   ): AsyncGenerator<AgentStreamEvent> {
     const threadUid = conversation.uid;
     const { tenantUid, authorUid, role } = ctx;
-    const readOnlyRequest = /не меняй|не изменяй|ничего не менять|только диагностик|без изменений|read.only/i.test(message);
+    const readOnlyRequest = isExplicitReadOnlyRequest(message);
     const maxSteps = this.readInt('CC_AI_MAX_AGENT_STEPS', DEFAULT_MAX_AGENT_STEPS);
     const argRetries = this.readInt('CC_AI_TOOL_ARG_RETRIES', DEFAULT_TOOL_ARG_RETRIES);
     const argFailures = new Map<string, number>();
@@ -157,7 +161,11 @@ export class PbxAgentLoopService {
     const brief = this.briefService.compile(thread.brief_json, userRow.uid, message);
     await this.threads.saveBrief(threadUid, tenantUid, authorUid, brief);
 
-    const classification = this.intentClassifier.classify({ message, brief });
+    const pageContext = await validatedAutodialPageContext(ctx.pageContext, async (name, args) => {
+      const parts = await this.mcpTools.callTool(name, args, tenantUid, { userUid: authorUid, role, threadUid });
+      return JSON.parse(parts.map((part) => part.text).join(''));
+    });
+    const classification = this.intentClassifier.classify({ message: pageContext ? `Автообзвон. ${message}` : message, brief });
     const selectedSkillBodies = this.skillRegistry.readSkillsForPrompt(classification.skillNames);
 
     const state = await this.contextBuilder.buildState(tenantUid);
@@ -168,7 +176,7 @@ export class PbxAgentLoopService {
     });
     const history = await this.threads.listMessagesForReplay(threadUid, tenantUid, authorUid);
     const messages: LoopChatMessage[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: systemPrompt + pageContext },
       ...history
         .filter((row) => row.role !== 'system')
         .map((row) => this.toLoopMessage(row)),
@@ -203,6 +211,15 @@ export class PbxAgentLoopService {
     const pendingWorkflow = await this.workflows.findLatestPendingForThread(threadUid, proposalCtx);
     const pendingProposal = !pendingWorkflow && this.proposals
       ? await this.proposals.findLatestPendingForThread(threadUid, proposalCtx) : null;
+    const autodialConfirmation = pendingProposal?.entityType?.startsWith('autodial')
+      || pendingWorkflow?.steps?.some((step) => String(step.tool ?? '').includes('_autodial_'));
+    if (looksLikeUserConfirm(message) && autodialConfirmation) {
+      const closing = 'Проверьте карточку автообзвона и нажмите «Применить» в интерфейсе. Подтверждение текстом не применяет эти изменения; звонки запускаются отдельно.';
+      const row = await this.threads.appendMessage(threadUid, tenantUid, authorUid, { role: 'assistant', content: closing, close_kind: 'wait_confirm', visibility: 'public' });
+      yield { name: 'item', data: { kind: 'assistant', id: `m${row.uid}`, text: closing, closeKind: 'wait_confirm', createdAt: this.createdAtIso(row.created_at) } };
+      yield { name: 'done', data: { closeKind: 'wait_confirm' } };
+      return;
+    }
     const needsSecureInput = pendingWorkflow?.steps?.some(step => step.requiresSecureInput && step.status !== 'applied') || pendingProposal?.after?.requiresSecureInput === true;
 
     if (looksLikeUserConfirm(message) && needsSecureInput) {
@@ -309,6 +326,10 @@ export class PbxAgentLoopService {
       }
       if (decision.mode === 'configure') {
         forceToolChoice = true;
+        // The IVR/route setup compiler has different required facts. A collector
+        // campaign must reach its own tools instead of being asked for an IVR greeting.
+        if (pageContext || classification.domains.includes('autodial')) setupDomain = 'autodial';
+        else {
         const setup = yield* this.tryCompileSetup({
           message,
           threadUid,
@@ -322,6 +343,7 @@ export class PbxAgentLoopService {
         });
         if (setup.done) return;
         setupDomain = setup.domain;
+        }
       }
     }
     const visible = selectAgentToolBudget(toolsForMode(allTools, turnMode, readOnlyRequest),
@@ -333,7 +355,7 @@ export class PbxAgentLoopService {
     const preferTools =
       classification.confidence >= 0.5 &&
       classification.skillNames.some((name) =>
-        ['ivrs', 'endpoints', 'call-groups', 'queues', 'routes', 'trunks', 'pbx-setup', 'platform-configuration', 'contexts', 'settings'].includes(name),
+        ['ivrs', 'endpoints', 'call-groups', 'queues', 'routes', 'trunks', 'pbx-setup', 'platform-configuration', 'contexts', 'settings', 'autodial', 'autodial-scenarios', 'autodial-operations'].includes(name),
       );
 
     while (true) {
@@ -420,7 +442,7 @@ export class PbxAgentLoopService {
           visibility: 'internal',
           reasoning: completion.reasoning ?? null,
         });
-        messages.push(this.assistantToolMessage(completion.text, toolCalls));
+        messages.push(this.assistantToolMessage(completion.text, toolCalls, completion.reasoning));
         const answeredToolCallIds = new Set<string>();
 
         for (const [callIndex, call] of toolCalls.entries()) {
@@ -442,7 +464,7 @@ export class PbxAgentLoopService {
           const stepId = `s${threadUid}_${steps}_${callIndex}`;
           yield { name: 'item', data: this.stepItem(call.name, stepId, false) };
           const normalizedCall = this.normalizeToolCallArgs(call);
-          if (readOnlyRequest && !READ_TOOL_NAME.test(normalizedCall.name)) {
+          if (readOnlyRequest && !isReadToolName(normalizedCall.name)) {
             await this.closeUnansweredToolCalls({ toolCalls, answeredToolCallIds, messages,
               threadUid, tenantUid, authorUid, providerModel, reason: 'read_only_request' });
             yield { name: 'error', data: { code: 'read_only_request', message: 'Запрошена диагностика без изменений. Изменение не выполнено.' } };
@@ -602,6 +624,8 @@ export class PbxAgentLoopService {
             proposal_id: proposal?.id ?? null,
             provider_model: providerModel,
           });
+          const actionItem = autodialActionFromTool(normalizedCall.name, resultText, `a${toolRow.uid}`, this.createdAtIso(toolRow.created_at));
+          if (actionItem) yield { name: 'item', data: actionItem };
           if (proposal) {
             hadProposal = true;
             yield {
@@ -1084,7 +1108,10 @@ export class PbxAgentLoopService {
       return { done: false, domain: null };
     }
     const brief = parseSetupBrief(raw);
-    if (!brief) return { done: false, domain: null };
+    // This compiler only owns its five PBX setup domains. Other registered
+    // domains (e.g. call-center cards/settings) must reach their native tools.
+    // A vague request was already handled by resolveTurnMode above.
+    if (!brief?.domain) return { done: false, domain: null };
     const compiled = compileSetupBrief(brief);
     if (compiled.kind === 'clarify') {
       yield* this.closeWithQuestion({
@@ -1323,6 +1350,7 @@ export class PbxAgentLoopService {
     tool_name?: string | null;
     tool_calls?: unknown;
     tool_call_id?: string | null;
+    reasoning?: string | null;
   }): LoopChatMessage {
     if (row.role === 'tool') {
       return {
@@ -1342,6 +1370,7 @@ export class PbxAgentLoopService {
         ? `${content.slice(0, ASSISTANT_OUTPUT_BUDGET_CHARS)}\n[truncated]`
         : content,
       tool_calls: this.normalizeHistoryToolCalls(row.tool_calls),
+      ...(row.role === 'assistant' && row.reasoning ? { reasoning_content: row.reasoning } : {}),
     };
   }
 
@@ -1386,10 +1415,11 @@ export class PbxAgentLoopService {
     return content;
   }
 
-  private assistantToolMessage(text: string, toolCalls: AgentToolCall[]): LoopChatMessage {
+  private assistantToolMessage(text: string, toolCalls: AgentToolCall[], reasoning?: string): LoopChatMessage {
     return {
       role: 'assistant',
       content: text || '',
+      ...(reasoning ? { reasoning_content: reasoning } : {}),
       tool_calls: toolCalls.map((call) => ({
         id: call.id,
         type: 'function',

@@ -214,6 +214,7 @@ describe('ModuleShell (global accordion sidebar)', () => {
     );
 
     expect(screen.getByTestId('module-shell-sidebar')).toBeInTheDocument();
+    expect(within(screen.getByTestId('module-shell-sidebar')).getByTestId('app-version')).toHaveTextContent(/^v4\.\d+\.\d+\.\d+$/);
     expect(screen.getByTestId('sidebar-module-title')).toBeInTheDocument();
     expect(document.querySelector('#shell-logo img')).toHaveAttribute('src', '/brand/aipbx-logo.png?v=2');
     expect(document.getElementById('shell-logo')).toHaveTextContent('AI PBX Krasterisk');

@@ -18,6 +18,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
+import { Button } from '@/shared/ui';
 import { Progress } from '@/shared/ui/Progress/Progress';
 import { useWallboardSSE } from '@/features/callcenter/lib/useWallboardSSE';
 import { WallboardKpi } from '@/features/callcenter/ui/WallboardKpi/WallboardKpi';
@@ -35,20 +36,14 @@ import {
   selectTotalWaiting,
 } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import type { AgentStatus } from '@/features/callcenter/model/types/callCenterSchema';
+import { rollupSupervisorPeriodKpis } from '@/features/callcenter/lib/supervisorKpiRollup';
+import {
+  abandonTone,
+  availableTone,
+  slaTone,
+  type KpiTone,
+} from '@/features/callcenter/lib/kpiThresholds';
 import styles from './CallCenterWallboardPage.module.scss';
-
-/**
- * Visual defaults matching cc_settings alert_thresholds (07-05).
- * Thresholds on TV are visual defaults only; server-side D-27 thresholds live in
- * cc_settings and drive alerts in 07-10. Propagating thresholds into display-token
- * SSE is a backlog candidate so privileged settings are not exposed on a public screen.
- */
-const WALLBOARD_DEFAULT_THRESHOLDS = {
-  sla_critical_pct: 70,
-  max_wait_sec: 60,
-  abandon_rate_pct: 10,
-  agents_available_min: 1,
-} as const;
 
 const SAMPLE_INTERVAL_MS = 60_000;
 const FULLSCREEN_HIDE_MS = 3_000;
@@ -62,13 +57,6 @@ const AGENT_STATUSES: AgentStatus[] = [
   'OFFLINE',
 ];
 
-function slaTone(sla: number): 'success' | 'warning' | 'destructive' {
-  const critical = WALLBOARD_DEFAULT_THRESHOLDS.sla_critical_pct;
-  if (sla < critical) return 'destructive';
-  if (sla < critical + 10) return 'warning';
-  return 'success';
-}
-
 function waitingTone(waiting: number): WallboardKpiTone {
   // waiting is a count; use max_wait conceptually as soft/hard pressure bands
   if (waiting === 0) return 'success';
@@ -77,26 +65,13 @@ function waitingTone(waiting: number): WallboardKpiTone {
   return 'default';
 }
 
-function availableTone(available: number): WallboardKpiTone {
-  if (available < WALLBOARD_DEFAULT_THRESHOLDS.agents_available_min) return 'destructive';
-  if (available === WALLBOARD_DEFAULT_THRESHOLDS.agents_available_min) return 'warning';
-  return 'success';
-}
-
-function abandonTone(abandoned: number, total: number): WallboardKpiTone {
-  if (total <= 0) return 'default';
-  const rate = (abandoned / total) * 100;
-  if (rate >= WALLBOARD_DEFAULT_THRESHOLDS.abandon_rate_pct) return 'destructive';
-  if (rate >= WALLBOARD_DEFAULT_THRESHOLDS.abandon_rate_pct * 0.7) return 'warning';
-  return 'success';
-}
-
 export function CallCenterWallboardPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
-  useWallboardSSE(token, Boolean(token));
+  // Tone thresholds come from the tenant's cc_settings through the display-token stream.
+  const { thresholds } = useWallboardSSE(token, Boolean(token));
 
   const connected = useSelector(selectCcConnected);
   const queues = useSelector(selectCcQueues);
@@ -109,23 +84,19 @@ export function CallCenterWallboardPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Same dictionary as the supervisor strip and the reports: SLA weighted by effective offered
+  // (idle queues and short abandons no longer drag it down like the old plain average did).
   const totals = useMemo(() => {
-    let talking = 0;
-    let abandoned = 0;
-    let answered = 0;
-    let totalCalls = 0;
-    let slaSum = 0;
-    let slaCount = 0;
-    for (const q of queues) {
-      talking += q.talking;
-      abandoned += q.calls.abandoned;
-      answered += q.calls.answered;
-      totalCalls += q.calls.total;
-      slaSum += q.sla;
-      slaCount += 1;
-    }
-    const avgSla = slaCount > 0 ? Math.round(slaSum / slaCount) : 0;
-    return { talking, abandoned, answered, totalCalls, avgSla };
+    const period = rollupSupervisorPeriodKpis(queues);
+    const talking = queues.reduce((sum, q) => sum + q.talking, 0);
+    return {
+      talking,
+      abandoned: period.abandoned,
+      answered: period.answered,
+      totalCalls: period.offered,
+      effectiveOffered: period.effectiveOffered,
+      sla: period.sla,
+    };
   }, [queues]);
 
   // Live chart sampling from SSE snapshot only (no JWT history)
@@ -218,10 +189,11 @@ export function CallCenterWallboardPage() {
     );
   }
 
-  const slaKpiTone = slaTone(totals.avgSla);
+  // No effective traffic is "no data" (neutral), never a red 0 %.
+  const slaKpiTone: KpiTone = totals.effectiveOffered > 0 ? slaTone(totals.sla, thresholds) : 'default';
   const waitTone = waitingTone(totalWaiting);
-  const availTone = availableTone(availableAgents);
-  const abdTone = abandonTone(totals.abandoned, totals.totalCalls);
+  const availTone = availableTone(availableAgents, thresholds);
+  const abdTone = abandonTone(totals.abandoned, totals.effectiveOffered, thresholds);
 
   return (
     <div className={styles.root} data-wallboard="true">
@@ -256,7 +228,7 @@ export function CallCenterWallboardPage() {
           />
           <WallboardKpi
             label={t('callcenter.wallboard.kpiSla', 'SLA')}
-            value={`${totals.avgSla}%`}
+            value={`${totals.sla}%`}
             tone={slaKpiTone}
             critical={slaKpiTone === 'destructive'}
           />
@@ -291,8 +263,8 @@ export function CallCenterWallboardPage() {
                       key={entry.hour}
                       fill={
                         entry.hour === currentHour
-                          ? '#6366f1'
-                          : 'color-mix(in srgb, #94a3b8 50%, transparent)'
+                          ? 'var(--color-primary)'
+                          : 'color-mix(in srgb, var(--color-muted-foreground) 50%, transparent)'
                       }
                     />
                   ))}
@@ -327,7 +299,8 @@ export function CallCenterWallboardPage() {
           ) : (
             <ul className={styles.queueList}>
               {queues.map((q) => {
-                const tone = slaTone(q.sla);
+                const hasTraffic = q.calls.total - (q.calls.shortAbandoned ?? 0) > 0;
+                const tone = hasTraffic ? slaTone(q.sla, thresholds) : 'info';
                 return (
                   <li key={q.name} className={styles.queueRow}>
                     <div className={styles.queueMeta}>
@@ -351,15 +324,17 @@ export function CallCenterWallboardPage() {
         </section>
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="unstyled"
+        size="none"
         className={controlsVisible ? styles.fsBtn : styles.fsBtnHidden}
         onClick={toggleFullscreen}
         title={t('callcenter.wallboard.fullscreen', 'Полный экран')}
         aria-label={t('callcenter.wallboard.fullscreen', 'Полный экран')}
       >
         {fullscreen ? <Minimize size={22} /> : <Maximize size={22} />}
-      </button>
+      </Button>
     </div>
   );
 }

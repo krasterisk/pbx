@@ -5,7 +5,7 @@
  * taken from DTO. Permission merge/lock logic is delegated to CallCenterPermissionsService
  * (09-05) — this service never reimplements the role-default/override/lock merge.
  */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { CcOperatorSettings } from './models/operator-settings.model';
 import { CcSettings } from './models/cc-settings.model';
@@ -27,8 +27,16 @@ import {
   CALLBACK_DIAL_ORDERS,
   CALLBACK_ORDER_MODES,
   DEFAULT_CALLBACK_POLICY,
+  DEFAULT_SHORT_ABANDON_SEC,
+  DEFAULT_AGENT_HOTKEYS,
+  AGENT_HOTKEY_ACTIONS,
+  normalizeHotkey,
+  normalizeShortAbandonSec,
+  resolveAgentHotkeys,
+  validateHotkeyMap,
   type ICallbackPolicy,
 } from '@krasterisk/shared';
+import { CallCenterMetricsConfigService } from './callcenter-metrics-config.service';
 import { AsteriskDialplanUtils } from '../../shared/utils/dialplan.util';
 import {
   UpdateOperatorSettingsDto,
@@ -96,6 +104,8 @@ export const DEFAULT_OPERATOR_SETTINGS = {
 
 export const DEFAULT_TENANT_SETTINGS = {
   default_sla_threshold: 20,
+  /** R2: short-abandon window (sec); excluded from rate denominators. */
+  short_abandon_sec: DEFAULT_SHORT_ABANDON_SEC,
   /** D-04: softphone Journal last-N (not a frontend hardcode). */
   journal_depth: 50,
   alert_thresholds: { ...DEFAULT_ALERT_THRESHOLDS },
@@ -106,7 +116,33 @@ export const DEFAULT_TENANT_SETTINGS = {
   autopause_rules: [] as AutoPauseRule[],
   shift_policy: { ...DEFAULT_SHIFT_POLICY } as ShiftPolicy,
   callback_policy: { ...DEFAULT_CALLBACK_POLICY } as ICallbackPolicy,
+  /** cc-ux U5.6: null = built-in default hotkeys. */
+  agent_hotkeys: null as Record<string, string> | null,
 };
+
+/**
+ * Validates a (possibly partial) tenant hotkey override against the shared rules and returns the
+ * canonical stored object. A partial map is checked merged over the defaults, so it cannot collide
+ * with a default combo of another action. Invalid input -> 400 with machine-readable issues.
+ */
+export function sanitizeAgentHotkeys(raw: Record<string, unknown>): Record<string, string> {
+  const merged: Record<string, unknown> = { ...DEFAULT_AGENT_HOTKEYS, ...raw };
+  const { valid, issues } = validateHotkeyMap(merged);
+  if (!valid) {
+    throw new BadRequestException({
+      message: 'Invalid agent hotkeys',
+      code: 'invalid_agent_hotkeys',
+      issues,
+    });
+  }
+  const out: Record<string, string> = {};
+  for (const action of AGENT_HOTKEY_ACTIONS) {
+    if (raw[action] === undefined) continue;
+    const norm = normalizeHotkey(String(raw[action]));
+    if (norm && norm !== DEFAULT_AGENT_HOTKEYS[action]) out[action] = norm;
+  }
+  return out;
+}
 
 /** Soft cap for autopause_rules array (T-09-17-03). */
 const MAX_AUTOPAUSE_RULES = 20;
@@ -341,6 +377,7 @@ export class CallCenterSettingsService {
     @InjectModel(User)
     private readonly userModel: typeof User,
     private readonly permissionsService: CallCenterPermissionsService,
+    private readonly metricsConfig: CallCenterMetricsConfigService,
   ) {}
 
   async getOperatorSettings(userUid: number, operatorUserId: number) {
@@ -386,12 +423,14 @@ export class CallCenterSettingsService {
     if (!row) {
       return {
         ...DEFAULT_TENANT_SETTINGS,
+        agent_hotkeys_effective: resolveAgentHotkeys(null),
         user_uid: userUid,
       };
     }
     const plain = typeof (row as any).toJSON === 'function' ? (row as any).toJSON() : row;
     return {
       ...plain,
+      agent_hotkeys_effective: resolveAgentHotkeys(plain.agent_hotkeys ?? null),
       shift_policy: sanitizeShiftPolicy(
         (plain.shift_policy as Record<string, unknown> | null) ?? null,
         DEFAULT_SHIFT_POLICY,
@@ -411,6 +450,9 @@ export class CallCenterSettingsService {
     const patch: Record<string, unknown> = { updated_at: new Date() };
     if (dto.default_sla_threshold !== undefined) {
       patch.default_sla_threshold = dto.default_sla_threshold;
+    }
+    if (dto.short_abandon_sec !== undefined) {
+      patch.short_abandon_sec = normalizeShortAbandonSec(dto.short_abandon_sec);
     }
     if (dto.journal_depth !== undefined) {
       patch.journal_depth = dto.journal_depth;
@@ -440,6 +482,18 @@ export class CallCenterSettingsService {
       );
       AsteriskDialplanUtils.callbackPolicy = patch.callback_policy as ICallbackPolicy;
     }
+
+    if (dto.agent_hotkeys !== undefined) {
+      // null / empty override = reset to the built-in default set.
+      patch.agent_hotkeys = dto.agent_hotkeys === null
+        ? null
+        : (Object.keys(dto.agent_hotkeys).length === 0
+          ? null
+          : sanitizeAgentHotkeys(dto.agent_hotkeys));
+    }
+
+    // Metrics inputs (SLA default, short abandon, shift policy) are cached briefly: apply at once.
+    this.metricsConfig.invalidate(userUid);
 
     if (existing) {
       await existing.update(patch);

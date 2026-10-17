@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { McpSessionService } from './mcp-session.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { McpAutodialAuthGuard } from './mcp-autodial-auth.guard';
 
 /**
  * McpController — HTTP endpoint для MCP Streamable HTTP транспорта.
@@ -34,7 +35,7 @@ export class McpController {
      * Transport сам определяет тип по методу и заголовкам.
      */
     @ApiOperation({ summary: 'MCP Streamable HTTP endpoint (GET/POST/DELETE)' })
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(McpAutodialAuthGuard)
     @All()
     async handleMcp(
         @Req() req: Request & { user: any },

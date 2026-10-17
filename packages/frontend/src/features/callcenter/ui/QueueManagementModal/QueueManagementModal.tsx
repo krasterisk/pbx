@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
+  Input,
 } from '@/shared/ui';
 import {
   useSupervisorReconcileQueuesMutation,
@@ -123,20 +124,22 @@ function QueueCard({
       ref={setNodeRef}
       className={`${styles.card} ${isDragging ? styles.cardDragging : ''}`}
     >
-      <button
+      <Button
         type="button"
+        variant="unstyled"
+        size="none"
         className={styles.dragHandle}
         aria-label="Drag"
         {...listeners}
         {...attributes}
       >
         <GripVertical className="w-3.5 h-3.5 opacity-40" />
-      </button>
+      </Button>
       <span className={styles.cardName}>{queueLabel(queue, catalog)}</span>
       {mode === 'in' && (
         <div className={styles.penaltyWrap}>
           <span className={styles.penaltyLabel}>{penaltyLabel}</span>
-          <input
+          <Input
             type="number"
             className={styles.penaltyInput}
             value={penalty ?? 0}

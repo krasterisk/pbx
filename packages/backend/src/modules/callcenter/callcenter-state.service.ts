@@ -32,9 +32,14 @@ export type AgentStatus =
   | 'OUTBOUND_WORK';
 
 export interface AgentState {
+  /** Non-queue journal identity; currentCall remains reserved for queue ownership guards. */
+  directCallUniqueid?: string;
   interface: string;        // PJSIP/e101_42
   name: string;             // display name
   status: AgentStatus;
+  /** Device availability is independent of an open shift and pause policy. */
+  phoneOnline?: boolean;
+  pickupFailed?: boolean;
   pauseReason?: string;
   currentCall?: string;     // uniqueid of active call
   queues: string[];         // queue names this agent belongs to
@@ -79,7 +84,11 @@ export interface QueueState {
   talking: number;
   agents: { total: number; available: number; paused: number; busy: number };
   sla: number;              // % for reporting day (0 when no offered calls)
-  calls: { answered: number; abandoned: number; total: number };
+  /**
+   * answered = handled (answered + transferred); abandoned excludes short abandons;
+   * total = offered (incl. short abandons). SLA/ASR denominators are total - shortAbandoned.
+   */
+  calls: { answered: number; abandoned: number; total: number; shortAbandoned?: number };
   avgWait: number;          // seconds
   avgTalk: number;          // seconds
   userUid: number;
@@ -88,6 +97,9 @@ export interface QueueState {
 export type CallStatus = 'WAITING' | 'RINGING' | 'TALKING' | 'HOLD' | 'TRANSFERRED';
 
 export interface CallState {
+  /** Reserve a manual pickup; answer requires both legs in the same bridge. */
+  pickup?: { actionId: string; channelId: string; callerBridge?: string; agentBridge?: string };
+  conference?: boolean;
   uniqueid: string;
   callerIdNum: string;
   callerIdName: string;
@@ -112,6 +124,21 @@ export interface CcEvent {
   data: any;
 }
 
+export type SupervisorMonitorMode = 'spy' | 'whisper' | 'barge';
+
+export interface MonitorSessionState {
+  id: string;
+  userUid: number;
+  supervisorId: number;
+  supervisorChannelPrefix: string;
+  channel?: string;
+  connected?: boolean;
+  agentInterface: string;
+  agentName: string;
+  mode: SupervisorMonitorMode;
+  startedAt: Date;
+}
+
 // ─── Service ──────────────────────────────────────────────
 
 @Injectable()
@@ -126,6 +153,9 @@ export class CallCenterStateService implements OnModuleInit {
 
   /** Active calls. Key = uniqueid */
   private readonly activeCalls = new Map<string, CallState>();
+
+  /** Active supervisor monitor (ChanSpy) sessions. Key = `${userUid}:${supervisorId}` (U1.5). */
+  private readonly monitorSessions = new Map<string, MonitorSessionState>();
 
   /** RxJS Subject for all CC events — SSE subscribers filter by userUid */
   private readonly eventSubject = new Subject<CcEvent>();
@@ -314,6 +344,7 @@ export class CallCenterStateService implements OnModuleInit {
       || updated.status === 'IN_CALL'
       || updated.status === 'DIALING'
       || updated.status === 'CONSULT';
+    if (!keepPeer || updated.currentCall) delete updated.directCallUniqueid;
     if (
       !keepPeer
       || state.peerNumber === ''
@@ -345,6 +376,9 @@ export class CallCenterStateService implements OnModuleInit {
       ...(keepReason ? updated : { ...updated, pauseReason: null }),
       ...(!updated.peerNumber ? { peerNumber: null } : {}),
       ...(!updated.dialTarget ? { dialTarget: null } : {}),
+      // JSON drops undefined; explicitly clear a finished call on merging SSE clients.
+      ...(!updated.currentCall ? { currentCall: '' } : {}),
+      ...(!updated.directCallUniqueid ? { directCallUniqueid: '' } : {}),
     };
     this.emitEvent('agentUpdate', userUid, payload);
 
@@ -352,7 +386,7 @@ export class CallCenterStateService implements OnModuleInit {
     const queuesChanged =
       prevQueues.length !== updated.queues.length
       || prevQueues.some((q) => !updated.queues.includes(q));
-    if (!existing || prevStatus !== updated.status || queuesChanged) {
+    if (!existing || prevStatus !== updated.status || existing.phoneOnline !== updated.phoneOnline || queuesChanged) {
       const affected = new Set([...prevQueues, ...updated.queues]);
       for (const queueName of affected) {
         this.recomputeQueueAgentStats(userUid, queueName);
@@ -388,7 +422,7 @@ export class CallCenterStateService implements OnModuleInit {
     this.setQueue(userUid, queueName, {
       agents: {
         total: live.length,
-        available: live.filter((a) => a.status === 'READY').length,
+        available: live.filter((a) => a.status === 'READY' && a.phoneOnline !== false).length,
         paused: live.filter((a) =>
           a.status === 'PAUSED' || a.status === 'OUTBOUND_WORK'
         ).length,
@@ -499,6 +533,117 @@ export class CallCenterStateService implements OnModuleInit {
   }
 
   // ─── Snapshot (for initial SSE connection) ──────────────
+
+  // ─── Supervisor Monitor Sessions (U1.5) ─────────────────
+
+  private monitorSessionKey(userUid: number, supervisorId: number): string {
+    return `${userUid}:${supervisorId}`;
+  }
+
+  getMonitorSession(userUid: number, supervisorId: number): MonitorSessionState | undefined {
+    return this.monitorSessions.get(this.monitorSessionKey(userUid, supervisorId));
+  }
+
+  startMonitorSession(session: MonitorSessionState): MonitorSessionState {
+    this.monitorSessions.set(this.monitorSessionKey(session.userUid, session.supervisorId), session);
+    this.emitEvent('monitorSession', session.userUid, {
+      state: 'start',
+      sessionId: session.id,
+      supervisorId: session.supervisorId,
+      agentInterface: session.agentInterface,
+      agentName: session.agentName,
+      mode: session.mode,
+      channel: session.channel ?? null,
+      startedAt: session.startedAt.toISOString(),
+      recipientUserIds: [session.supervisorId],
+    });
+    return session;
+  }
+
+  updateMonitorSessionMode(
+    userUid: number,
+    supervisorId: number,
+    mode: SupervisorMonitorMode,
+    channel?: string,
+  ): MonitorSessionState | undefined {
+    const existing = this.getMonitorSession(userUid, supervisorId);
+    if (!existing) return undefined;
+    existing.mode = mode;
+    if (channel) existing.channel = channel;
+    this.emitEvent('monitorSession', userUid, {
+      state: 'mode',
+      sessionId: existing.id,
+      supervisorId: existing.supervisorId,
+      agentInterface: existing.agentInterface,
+      agentName: existing.agentName,
+      mode: existing.mode,
+      channel: existing.channel ?? null,
+      connected: existing.connected ?? false,
+      startedAt: existing.startedAt.toISOString(),
+      recipientUserIds: [existing.supervisorId],
+    });
+    return existing;
+  }
+
+  bindMonitorSessionChannel(channel: string, sessionId?: string): MonitorSessionState | undefined {
+    if (!channel) return undefined;
+    for (const session of this.monitorSessions.values()) {
+      const matchById = sessionId && session.id === sessionId;
+      const matchByPrefix =
+        !session.channel
+        && (channel === session.supervisorChannelPrefix
+          || channel.startsWith(`${session.supervisorChannelPrefix}-`));
+      if (matchById || matchByPrefix) {
+        session.channel = channel;
+        return session;
+      }
+    }
+    return undefined;
+  }
+
+  connectMonitorSession(channel: string): void {
+    const session = [...this.monitorSessions.values()].find(item => item.channel === channel)
+      ?? this.bindMonitorSessionChannel(channel);
+    if (!session || session.connected) return;
+    session.connected = true;
+    this.updateMonitorSessionMode(session.userUid, session.supervisorId, session.mode, channel);
+  }
+
+  isMonitorChannel(channel: string): boolean {
+    return [...this.monitorSessions.values()].some(session => session.channel === channel
+      || (!session.channel && channel.startsWith(`${session.supervisorChannelPrefix}-`)));
+  }
+
+  endMonitorSession(userUid: number, supervisorId: number): MonitorSessionState | undefined {
+    const key = this.monitorSessionKey(userUid, supervisorId);
+    const existing = this.monitorSessions.get(key);
+    if (!existing) return undefined;
+    this.monitorSessions.delete(key);
+    this.emitEvent('monitorSession', userUid, {
+      state: 'end',
+      sessionId: existing.id,
+      supervisorId: existing.supervisorId,
+      agentInterface: existing.agentInterface,
+      agentName: existing.agentName,
+      mode: existing.mode,
+      recipientUserIds: [existing.supervisorId],
+    });
+    return existing;
+  }
+
+  endMonitorSessionByChannel(channel: string): MonitorSessionState | undefined {
+    if (!channel) return undefined;
+    for (const session of this.monitorSessions.values()) {
+      if (
+        session.channel === channel
+        || channel === session.supervisorChannelPrefix
+        || channel.startsWith(`${session.supervisorChannelPrefix}-`)
+      ) {
+        return this.endMonitorSession(session.userUid, session.supervisorId);
+      }
+    }
+    return undefined;
+  }
 
   getSnapshot(userUid: number) {
     return {

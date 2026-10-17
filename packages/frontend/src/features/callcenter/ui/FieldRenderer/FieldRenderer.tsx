@@ -1,7 +1,10 @@
-import { memo } from 'react';
+import { memo, useId } from 'react';
+import { cardAnswerLabel, cardChoiceValue, isCardDirectorySource, type CardChoice } from '@krasterisk/shared';
+import { useGetCardFieldChoicesQuery } from '@/shared/api/endpoints/callCenterApi';
+import { useGetDirectoryQuery } from '@/shared/api/endpoints/directoryApi';
 import { useTranslation } from 'react-i18next';
 import {
-  Input, Textarea, Select, Checkbox, MultiSelect, Text, Label, Separator,
+  Button, Input, Textarea, Select, Checkbox, MultiSelect, Text, Label, Separator,
 } from '@/shared/ui';
 import type { ICardField } from '@/features/callcenter/model/types/callCard';
 import styles from './FieldRenderer.module.scss';
@@ -11,6 +14,11 @@ export interface FieldRendererProps {
   value: unknown;
   onChange: (v: unknown) => void;
   readOnly?: boolean;
+  templateId?: number;
+  preview?: boolean;
+  choices?: CardChoice[];
+  invalid?: boolean;
+  errorId?: string;
 }
 
 function toStringValue(value: unknown): string {
@@ -24,8 +32,13 @@ function toStringArray(value: unknown): string[] {
   return [];
 }
 
-export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRendererProps) => {
+export const FieldRenderer = memo(({ field, value, onChange, readOnly, templateId, preview, choices, invalid, errorId }: FieldRendererProps) => {
   const { t } = useTranslation();
+  const controlId = useId();
+  if (isCardDirectorySource(field.options)) return <DirectoryField field={field} value={value} onChange={onChange} readOnly={readOnly} templateId={templateId} preview={preview} invalid={invalid} errorId={errorId} />;
+  const available = choices ?? (Array.isArray(field.options) ? field.options.map(opt => ({ value: opt, label: opt })) : []);
+  const selected = Array.isArray(value) ? value.map(cardChoiceValue) : [];
+  const changeChoice = (code: string) => onChange(choices ? available.find(opt => opt.value === code) ?? '' : code);
 
   if (field.field_type === 'divider') {
     return <Separator className={styles.divider} />;
@@ -40,10 +53,10 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
   }
 
   const disabled = readOnly || field.field_type === 'readonly';
-  const strValue = toStringValue(value ?? field.default_value ?? '');
+  const strValue = choices ? cardChoiceValue(value ?? field.default_value ?? '') : toStringValue(value ?? field.default_value ?? '');
 
   const labelEl = field.field_type !== 'checkbox' ? (
-    <Label className={styles.label}>
+    <Label htmlFor={controlId} className={styles.label}>
       {field.label}
       {field.is_required ? <span className={styles.required}>*</span> : null}
     </Label>
@@ -55,6 +68,7 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Textarea
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             value={strValue}
             placeholder={field.placeholder}
             disabled={disabled}
@@ -68,13 +82,15 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Select
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             value={strValue}
             disabled={disabled}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => changeChoice(e.target.value)}
           >
             <option value="">{field.placeholder || t('callcenter.cards.builder.selectPlaceholder')}</option>
-            {(field.options ?? []).map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
+            {strValue && !available.some(opt => opt.value === strValue) ? <option value={strValue}>{cardAnswerLabel(value)}</option> : null}
+            {available.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </Select>
         </div>
@@ -84,12 +100,14 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
       return (
         <div className={styles.field}>
           {labelEl}
-          <MultiSelect
-            value={toStringArray(value)}
-            options={(field.options ?? []).map((opt) => ({ value: opt, label: opt }))}
+          {disabled ? <Text>{cardAnswerLabel(value)}</Text> : <MultiSelect
+            ariaLabel={field.label}
+            searchable
+            value={choices ? selected : toStringArray(value)}
+            options={available}
             placeholder={field.placeholder || t('callcenter.cards.builder.multiSelectPlaceholder')}
-            onChange={(v) => onChange(v)}
-          />
+            onChange={(v) => onChange(choices ? v.map(code => available.find(opt => opt.value === code) ?? (Array.isArray(value) ? value.find(item => cardChoiceValue(item) === code) : code)) : v)}
+          />}
         </div>
       );
 
@@ -97,11 +115,12 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
       return (
         <div className={styles.fieldCheckbox}>
           <Checkbox
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             checked={Boolean(value)}
             disabled={disabled}
             onChange={(e) => onChange(e.target.checked)}
           />
-          <Label className={styles.checkboxLabel}>
+          <Label htmlFor={controlId} className={styles.checkboxLabel}>
             {field.label}
             {field.is_required ? <span className={styles.required}>*</span> : null}
           </Label>
@@ -113,6 +132,7 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Input
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             type="date"
             value={strValue}
             disabled={disabled}
@@ -126,6 +146,7 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Input
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             type="datetime-local"
             value={strValue}
             disabled={disabled}
@@ -139,6 +160,7 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Input
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             type="tel"
             value={strValue}
             placeholder={field.placeholder || '+7 (___) ___-__-__'}
@@ -153,6 +175,7 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Input
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             type="email"
             value={strValue}
             placeholder={field.placeholder}
@@ -167,6 +190,7 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Input
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             type="number"
             value={strValue}
             placeholder={field.placeholder}
@@ -181,6 +205,7 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Input
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             value={strValue}
             placeholder={field.placeholder || t('callcenter.cards.builder.phonebookHint')}
             disabled={disabled}
@@ -206,6 +231,7 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
         <div className={styles.field}>
           {labelEl}
           <Input
+            id={controlId} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined}
             value={strValue}
             placeholder={field.placeholder}
             disabled={disabled}
@@ -217,3 +243,25 @@ export const FieldRenderer = memo(({ field, value, onChange, readOnly }: FieldRe
 });
 
 FieldRenderer.displayName = 'FieldRenderer';
+
+function DirectoryField(props: FieldRendererProps) {
+  const { t } = useTranslation();
+  const source = props.field.options;
+  const binding = isCardDirectorySource(source) ? source : null;
+  const saved = useGetCardFieldChoicesQuery({ templateId: props.templateId ?? 0, fieldKey: props.field.field_key }, { skip: !!props.preview || !props.templateId, refetchOnMountOrArgChange: true });
+  const directory = useGetDirectoryQuery(binding?.directoryUid ?? 0, { skip: !props.preview || !binding?.directoryUid });
+  let choices = saved.data ?? [];
+  if (props.preview && directory.data && binding) {
+    const valueKey = (directory.data.fields ?? []).find(f => f.uid === binding.valueFieldUid)?.key;
+    const labelKey = (directory.data.fields ?? []).find(f => f.uid === binding.labelFieldUid)?.key;
+    choices = valueKey && labelKey ? (directory.data.records ?? []).map(record => ({ value: String(record.values[valueKey] ?? ''), label: String(record.values[labelKey] ?? '') })) : [];
+  }
+  const loading = props.preview ? directory.isFetching : saved.isFetching;
+  const error = props.preview ? directory.isError : saved.isError;
+  return <div>
+    <FieldRenderer {...props} field={{ ...props.field, options: [] }} choices={choices} readOnly={props.readOnly || loading || error} />
+    {loading ? <Text variant="muted">{t('common.loading')}</Text> : null}
+    {error ? <div role="alert"><Text>{t('callcenter.cards.builder.directoryLoadError')}</Text><Button type="button" onClick={() => { void (props.preview ? directory.refetch() : saved.refetch()); }}>{t('common.retry')}</Button></div> : null}
+    {!loading && !error && !choices.length ? <Text variant="muted">{t('callcenter.cards.builder.directoryEmpty')}</Text> : null}
+  </div>;
+}

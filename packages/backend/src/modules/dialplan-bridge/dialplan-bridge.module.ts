@@ -10,6 +10,7 @@ import { TelegramModule } from '../telegram/telegram.module';
 import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
 import { IvrsModule } from '../ivrs/ivrs.module';
 import { Route } from '../routes/route.model';
+import { PromptsModule } from '../prompts/prompts.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { Route } from '../routes/route.model';
     TelegramModule,
     AiConnectivityModule,
     IvrsModule,
+    PromptsModule,
   ],
   controllers: [DialplanBridgeController],
   providers: [DialplanBridgeService],

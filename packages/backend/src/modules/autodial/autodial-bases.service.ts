@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
-import { Op, Transaction } from 'sequelize';
+import { Op, Transaction, QueryTypes } from 'sequelize';
+import { autodialFieldsSchema } from '@krasterisk/shared';
 import type {
   IAutodialBase,
   IAutodialContact,
@@ -31,6 +32,7 @@ import type {
 
 @Injectable()
 export class AutodialBasesService {
+  validateFields(fields: CreateAutodialBaseDto['fields']): void { this.assertFields(fields); }
   private readonly logger = new Logger(AutodialBasesService.name);
 
   constructor(
@@ -154,11 +156,64 @@ export class AutodialBasesService {
         'DELETE FROM ac_import_runs WHERE base_uid = :baseUid AND vpbx_user_uid = :userUid',
         { replacements: { baseUid: uid, userUid }, transaction },
       );
+      await this.sequelize.query('DELETE FROM ac_field_archive WHERE base_uid = :baseUid AND vpbx_user_uid = :userUid',
+        { replacements: { baseUid: uid, userUid }, transaction });
       await this.sequelize.query(
         "DELETE FROM ac_dnc WHERE scope = 'base' AND scope_uid = :baseUid AND vpbx_user_uid = :userUid",
         { replacements: { baseUid: uid, userUid }, transaction },
       );
       await base.destroy({ transaction });
+    });
+  }
+
+  /** Copy a report selection atomically, including scoped exclusions. No tasks are copied. */
+  async cloneContacts(userUid: number, sourceUid: number, contactUids: number[], name: string,
+    revision: number, campaignUid: number): Promise<IAutodialBase> {
+    const ids = [...new Set(contactUids)];
+    if (!name.trim() || name.trim().length > 128 || !ids.length || ids.length > 5000
+      || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new BadRequestException({ code: 'AC_SELECTION_INVALID' });
+    return this.sequelize.transaction(async (transaction) => {
+      const source = await this.lockBase(userUid, sourceUid, transaction);
+      if (source.revision !== revision) throw new ConflictException({ code: 'AC_REVISION_CONFLICT' });
+      if (!await this.campaignModel.findOne({ where: { uid: campaignUid, base_uid: sourceUid, user_uid: userUid }, transaction }))
+        throw new NotFoundException({ code: 'AC_CAMPAIGN_NOT_FOUND' });
+      const base = await this.baseModel.create({ user_uid: userUid, name: name.trim(), description: source.description,
+        phone_normalization: source.phone_normalization, dedup_policy: source.dedup_policy, revision: 1 }, { transaction });
+      await this.replaceFields(base.uid, (source.fields ?? []).map((field) => ({ key: field.key, label: field.label,
+        type: field.type, required: field.required, position: field.position, is_phone: field.is_phone,
+        var_name: field.var_name, enum_values: field.enum_values ?? undefined, format: field.format })), transaction);
+      const fields = await this.fieldModel.findAll({ where: { base_uid: base.uid }, transaction });
+      const newFields = new Map(fields.map((field) => [field.key, String(field.uid)]));
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const chunk = ids.slice(offset, offset + 100);
+        const contacts = await this.contactModel.findAll({ where: { uid: chunk, base_uid: sourceUid, user_uid: userUid },
+          include: [{ model: AcContactPhone, as: 'phones' }], transaction });
+        if (contacts.length !== chunk.length) throw new ConflictException({ code: 'AC_SELECTION_CHANGED' });
+        for (const contact of contacts) {
+          const values: AcContact['values'] = {};
+          for (const field of source.fields ?? []) {
+            const value = contact.values[String(field.uid)] ?? contact.values[field.key];
+            if (value !== undefined) values[newFields.get(field.key)!] = value;
+          }
+          const copy = await this.contactModel.create({ user_uid: userUid, base_uid: base.uid, values,
+            external_id: contact.external_id, comment: contact.comment }, { transaction });
+          await this.phoneModel.bulkCreate((contact.phones ?? []).map((phone) => ({ contact_uid: copy.uid, base_uid: base.uid,
+            raw: phone.raw, normalized: phone.normalized, canonical_phone: phone.canonical_phone, position: phone.position,
+            is_primary: phone.is_primary, tz_offset_min: phone.tz_offset_min })), { transaction });
+        }
+      }
+      // Merge base/campaign bans conservatively: a permanent ban wins, otherwise the latest expiry.
+      // Global bans remain tenant-wide; copying a selection must never bypass a scoped ban.
+      await this.sequelize.query(`INSERT INTO ac_dnc
+        (vpbx_user_uid, scope, scope_uid, normalized_phone, reason, source, expires_at, created_at)
+        SELECT :userUid, 'base', :newBase, normalized_phone, MIN(reason), 'report-selection',
+          CASE WHEN COUNT(*) > COUNT(expires_at) THEN NULL ELSE MAX(expires_at) END, CURRENT_TIMESTAMP
+        FROM ac_dnc WHERE vpbx_user_uid = :userUid AND
+          ((scope = 'base' AND scope_uid = :sourceUid) OR (scope = 'campaign' AND scope_uid = :campaignUid))
+          AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) GROUP BY normalized_phone`,
+        { replacements: { userUid, newBase: base.uid, sourceUid, campaignUid }, transaction, type: QueryTypes.INSERT });
+      base.fields = fields;
+      return this.toBaseDto(base, ids.length);
     });
   }
 
@@ -187,15 +242,21 @@ export class AutodialBasesService {
     baseUid: number,
     opts: { page?: number; pageSize?: number; q?: string } = {},
   ): Promise<IAutodialContactsPage> {
-    await this.loadBase(userUid, baseUid);
+    const base = await this.loadBase(userUid, baseUid);
     const page = Number.isSafeInteger(opts.page) ? Math.max(1, opts.page!) : 1;
     const pageSize = Number.isSafeInteger(opts.pageSize) ? Math.min(200, Math.max(1, opts.pageSize!)) : 50;
     const where: Record<string, unknown> = { base_uid: baseUid, user_uid: userUid };
     if (opts.q?.trim()) {
-      where[Op.or as unknown as string] = [
-        { external_id: { [Op.like]: `%${opts.q.trim()}%` } },
-        { comment: { [Op.like]: `%${opts.q.trim()}%` } },
-      ];
+      const values = this.sequelize.getDialect() === 'postgres' ? 'CAST(c."values" AS TEXT)' : 'CAST(c.`values` AS CHAR)';
+      const clause = `FROM ac_contacts c WHERE c.vpbx_user_uid = :userUid AND c.base_uid = :baseUid
+        AND (c.external_id LIKE :pattern OR c.comment LIKE :pattern OR ${values} LIKE :pattern OR EXISTS
+          (SELECT 1 FROM ac_contact_phones p WHERE p.contact_uid = c.uid AND p.base_uid = c.base_uid AND (p.normalized LIKE :pattern OR p.raw LIKE :pattern)))`;
+      const replacements = { userUid, baseUid, pattern: `%${opts.q.trim().slice(0, 128)}%`, limit: pageSize, offset: (page - 1) * pageSize };
+      const [count] = await this.sequelize.query<{ count: number | string }>(`SELECT COUNT(*) AS count ${clause}`, { replacements, type: QueryTypes.SELECT });
+      const ids = await this.sequelize.query<{ uid: number }>(`SELECT c.uid ${clause} ORDER BY c.uid DESC LIMIT :limit OFFSET :offset`, { replacements, type: QueryTypes.SELECT });
+      const rows = ids.length ? await this.contactModel.findAll({ where: { uid: { [Op.in]: ids.map((row) => row.uid) }, base_uid: baseUid, user_uid: userUid },
+        include: [{ model: AcContactPhone, as: 'phones' }], order: [['uid', 'DESC']] }) : [];
+      return { items: rows.map((row) => this.toContactDto(row, base.fields ?? [])), total: Number(count?.count ?? 0), page, page_size: pageSize };
     }
     const { rows, count } = await this.contactModel.findAndCountAll({
       where,
@@ -224,36 +285,102 @@ export class AutodialBasesService {
     return this.toContactDto(contact, base.fields ?? []);
   }
 
+  async findContacts(userUid: number, baseUid: number, ids: number[]): Promise<IAutodialContact[]> {
+    const base = await this.loadBase(userUid, baseUid);
+    if (!ids.length) return [];
+    const contacts = await this.contactModel.findAll({
+      where: { user_uid: userUid, base_uid: baseUid, uid: { [Op.in]: ids } },
+      include: [{ model: AcContactPhone, as: 'phones' }],
+    });
+    return contacts.map((r) => this.toContactDto(r, base.fields ?? []));
+  }
+
+  /** All ingestion paths lock the base, so concurrent writers share this policy. */
+  private async assertContactUnique(
+    base: AcBase,
+    prepared: ReturnType<typeof prepareAutodialContact>,
+    transaction: Transaction,
+    excludeContactUid?: number,
+  ): Promise<void> {
+    if (base.dedup_policy === 'phone') {
+      const duplicate = await this.phoneModel.findOne({
+        where: {
+          base_uid: base.uid,
+          normalized: { [Op.in]: prepared.phones.map((phone) => phone.normalized) },
+          ...(excludeContactUid === undefined ? {} : { contact_uid: { [Op.ne]: excludeContactUid } }),
+        }, transaction,
+      });
+      if (duplicate) throw new ConflictException({ code: 'AC_DUPLICATE_PHONE', field: 'phones', message: 'Phone already exists in this base' });
+    }
+    if (base.dedup_policy === 'external_id' && prepared.external_id) {
+      const duplicate = await this.contactModel.findOne({
+        where: {
+          base_uid: base.uid, user_uid: base.user_uid, external_id: prepared.external_id,
+          ...(excludeContactUid === undefined ? {} : { uid: { [Op.ne]: excludeContactUid } }),
+        }, transaction,
+      });
+      if (duplicate) throw new ConflictException({ code: 'AC_DUPLICATE_EXTERNAL_ID', field: 'external_id', message: 'External ID already exists in this base' });
+    }
+  }
+
   async createContact(
     userUid: number,
     baseUid: number,
     dto: CreateAutodialContactDto,
   ): Promise<IAutodialContact> {
-    return this.sequelize.transaction(async (transaction) => {
+    return (await this.createContacts(userUid, baseUid, [dto]))[0];
+  }
+
+  async createContacts(userUid: number, baseUid: number, contacts: CreateAutodialContactDto[], expectedRevision?: number): Promise<IAutodialContact[]> {
+    return this.writeContactBatch(userUid, baseUid, contacts, false, expectedRevision);
+  }
+
+  async upsertContacts(userUid: number, baseUid: number, contacts: CreateAutodialContactDto[], expectedRevision?: number, transaction?: Transaction) {
+    return this.writeContactBatch(userUid, baseUid, contacts, true, expectedRevision, transaction);
+  }
+
+  private async writeContactBatch(userUid: number, baseUid: number, contacts: CreateAutodialContactDto[], upsert: boolean,
+    expectedRevision?: number, existingTransaction?: Transaction): Promise<IAutodialContact[]> {
+    if (!contacts.length || contacts.length > 100) throw new BadRequestException({ code: 'AC_CONTACT_BATCH_SIZE' });
+    const write = async (transaction: Transaction) => {
       const base = await this.lockBase(userUid, baseUid, transaction);
+      if (expectedRevision !== undefined && base.revision !== expectedRevision) throw new ConflictException({ code: 'AC_REVISION_CONFLICT' });
       const fields = base.fields ?? [];
+      const result: IAutodialContact[] = [];
+      const seen = new Set<string>();
+      for (const dto of contacts) {
       if (dto.phones?.some((phone) => phone.uid !== undefined)) {
         throw new BadRequestException({ code: 'AC_PHONE_UID', message: 'New phones must not supply UID' });
       }
       const prepared = prepareAutodialContact(fields, dto, base.phone_normalization);
-      const contact = await this.contactModel.create(
+      if (upsert && (!prepared.external_id || seen.has(prepared.external_id))) throw new BadRequestException({ code: 'AC_EXTERNAL_ID_REQUIRED_UNIQUE' });
+      if (prepared.external_id) seen.add(prepared.external_id);
+      const matches = upsert ? await this.contactModel.findAll({ where: { user_uid: userUid, base_uid: baseUid,
+        external_id: prepared.external_id }, include: [{ model: AcContactPhone, as: 'phones' }], limit: 2, transaction }) : [];
+      if (matches.length > 1) throw new ConflictException({ code: 'AC_EXTERNAL_ID_AMBIGUOUS' });
+      const previous = matches[0];
+      await this.assertContactUnique(base, prepared, transaction, previous?.uid);
+      const data =
         {
           base_uid: baseUid,
           user_uid: userUid,
           external_id: prepared.external_id,
           values: prepared.values,
           comment: dto.comment?.trim() ?? '',
-        },
-        { transaction },
-      );
-      await this.writePhones(contact.uid, baseUid, prepared.phones, transaction);
-      await base.increment('revision', { transaction });
+        };
+      const contact = previous ? await previous.update(data, { transaction }) : await this.contactModel.create(data, { transaction });
+      if (previous) await this.syncPhones(userUid, baseUid, contact.uid, previous.phones ?? [], prepared.phones, transaction);
+      else await this.writePhones(contact.uid, baseUid, prepared.phones, transaction);
       const full = await this.contactModel.findByPk(contact.uid, {
         include: [{ model: AcContactPhone, as: 'phones' }],
         transaction,
       });
-      return this.toContactDto(full!, fields);
-    });
+      result.push(this.toContactDto(full!, fields));
+      }
+      await base.increment('revision', { transaction });
+      return result;
+    };
+    return existingTransaction ? write(existingTransaction) : this.sequelize.transaction(write);
   }
 
   async updateContact(
@@ -283,6 +410,7 @@ export class AutodialBasesService {
         comment: dto.comment ?? contact.comment,
       };
       const prepared = prepareAutodialContact(fields, merged, base.phone_normalization);
+      await this.assertContactUnique(base, prepared, transaction, contactUid);
       await contact.update(
         {
           external_id: prepared.external_id,
@@ -353,13 +481,21 @@ export class AutodialBasesService {
     if (!fields?.length) {
       throw new BadRequestException({ code: 'AC_FIELDS_REQUIRED', message: 'At least one field required' });
     }
+    const parsed = autodialFieldsSchema.safeParse(fields.map((f) => ({ uid: f.uid, key: f.key, label: f.label,
+      type: f.type, required: f.required, position: f.position, is_phone: f.is_phone,
+      var_name: f.var_name, enum_values: f.enum_values, format: f.format })));
+    if (!parsed.success) throw new BadRequestException({ code: 'AC_FIELD_INVALID', message: parsed.error.issues[0].message, field: parsed.error.issues[0].path.join('.') });
     const keys = new Set<string>();
     let phoneCount = 0;
+    const variables = new Set<string>();
     for (const f of fields) {
       if (keys.has(f.key)) {
         throw new BadRequestException({ code: 'AC_FIELD_DUP', message: `Duplicate field key ${f.key}` });
       }
       keys.add(f.key);
+      const variable = f.var_name?.trim() || fieldKeyToVarName(f.key);
+      if (variables.has(variable)) throw new BadRequestException({ code: 'AC_FIELD_VAR_DUP', message: `Duplicate variable ${variable}` });
+      variables.add(variable);
       if (f.is_phone || f.type === 'phone') phoneCount += 1;
     }
     if (phoneCount < 1) {
@@ -374,6 +510,7 @@ export class AutodialBasesService {
     baseUid: number,
     fields: CreateAutodialBaseDto['fields'],
     transaction: Transaction,
+    migration = false,
   ): Promise<void> {
     const existing = await this.fieldModel.findAll({ where: { base_uid: baseUid }, transaction });
     const byUid = new Map(existing.map((field) => [field.uid, field]));
@@ -400,22 +537,23 @@ export class AutodialBasesService {
           is_phone: field.is_phone === true || field.type === 'phone',
           var_name: field.var_name?.trim() || fieldKeyToVarName(field.key),
           enum_values: field.type === 'enum' ? field.enum_values ?? [] : null,
+          format: field.format ?? null,
         },
       };
     });
     const removed = existing.filter((field) => !retained.has(field.uid));
     const incompatible = removed.length > 0 || planned.some(({ previous, data }) => previous && (
       previous.type !== data.type || previous.is_phone !== data.is_phone
-      || JSON.stringify(previous.enum_values ?? []) !== JSON.stringify(data.enum_values ?? [])
+      || (previous.enum_values ?? []).some((value) => !(data.enum_values ?? []).includes(value))
       || (!previous.required && data.required)
     )) || planned.some(({ previous, data }) => !previous && data.required && !data.is_phone);
-    if (incompatible && await this.contactModel.count({ where: { base_uid: baseUid }, transaction })) {
+    if (!migration && incompatible && await this.contactModel.count({ where: { base_uid: baseUid }, transaction })) {
       throw new ConflictException({ code: 'AC_SCHEMA_IN_USE', message: 'Changing a populated schema requires an explicit migration.' });
     }
     const changesReferences = removed.length > 0 || planned.some(({ previous, data }) => previous && (
       previous.key !== data.key || previous.var_name !== data.var_name || previous.type !== data.type
     ));
-    if (changesReferences && (
+    if (!migration && changesReferences && (
       await this.campaignModel.count({ where: { base_uid: baseUid }, transaction })
       || await this.profileModel.count({ where: { base_uid: baseUid }, transaction })
     )) {
@@ -428,6 +566,12 @@ export class AutodialBasesService {
       if (previous) await previous.update(data, { transaction });
       else await this.fieldModel.create(data, { transaction });
     }
+  }
+
+  /** Called only by the revision-checked schema migration transaction. */
+  async replaceMigratedFields(baseUid: number, fields: CreateAutodialBaseDto['fields'], transaction: Transaction) {
+    this.assertFields(fields);
+    await this.replaceFields(baseUid, fields, transaction, true);
   }
 
   private async syncPhones(
@@ -523,6 +667,7 @@ export class AutodialBasesService {
           is_phone: f.is_phone,
           var_name: f.var_name,
           enum_values: f.enum_values,
+          format: f.format ?? null,
         })),
       created_at: row.created_at?.toISOString?.() ?? undefined,
       updated_at: row.updated_at?.toISOString?.() ?? undefined,

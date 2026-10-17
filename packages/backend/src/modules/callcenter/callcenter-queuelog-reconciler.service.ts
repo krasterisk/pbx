@@ -2,7 +2,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/sequelize';
 import { CcQueueCall } from './models/queue-call.model';
+import { zonedDateKey } from '@krasterisk/shared';
 import { CallCenterRollupService } from './callcenter-rollup.service';
+import { CallCenterMetricsConfigService } from './callcenter-metrics-config.service';
 import {
   QUEUE_LOG_READER,
   QueueLogEntry,
@@ -26,6 +28,7 @@ export class CallCenterQueueLogReconcilerService {
     @Inject(QUEUE_LOG_READER) private readonly reader: QueueLogReader,
     @InjectModel(CcQueueCall) private readonly queueCallModel: typeof CcQueueCall,
     private readonly rollupService: CallCenterRollupService,
+    private readonly config: CallCenterMetricsConfigService,
   ) {}
 
   async reconcileRange(since: Date, until: Date): Promise<number> {
@@ -79,10 +82,10 @@ export class CallCenterQueueLogReconcilerService {
 
         const daySrc = row.end_time || row.enter_time || callEntries[0]?.timestamp;
         if (daySrc) {
-          const day = startOfDay(daySrc);
-          const today = startOfDay(new Date());
-          if (day.getTime() < today.getTime()) {
-            touchedDays.add(`${toDateOnly(day)}|${userUid}`);
+          const { timezone } = await this.config.getTenantConfig(userUid);
+          const dayKey = zonedDateKey(daySrc, timezone);
+          if (dayKey < zonedDateKey(new Date(), timezone)) {
+            touchedDays.add(`${dayKey}|${userUid}`);
           }
         }
       }
@@ -96,8 +99,7 @@ export class CallCenterQueueLogReconcilerService {
 
       for (const key of touchedDays) {
         const [dateOnly, uidStr] = key.split('|');
-        const day = new Date(`${dateOnly}T00:00:00`);
-        await this.rollupService.recomputeDay(day, Number(uidStr));
+        await this.rollupService.recomputeDay(dateOnly, Number(uidStr));
       }
 
       this.logger.log(
@@ -215,20 +217,9 @@ function buildHistoryRow(entries: QueueLogEntry[]): Partial<CcQueueCall> | null 
     hold_time: 0,
     wrapup_time: 0,
     disposition,
+    // Attribute to the call's own time, not the reconcile time (reports/rollup group by created_at).
+    created_at: endTime,
     transfer_destination: transferDestination,
     position,
   };
-}
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function toDateOnly(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }

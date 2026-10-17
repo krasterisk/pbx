@@ -1,8 +1,9 @@
-import { HTTP_RESULT_VAR, type IAutodialAmdConfig, type IRouteAction } from '@krasterisk/shared';
+import { HTTP_RESULT_VAR, AUTODIAL_SUPPORTED_ACTIONS, autodialScenarioActionSchema, type IAutodialAmdConfig, type IRouteAction } from '@krasterisk/shared';
 import type { DialplanCategory } from '../ami/dialplan-apply.service';
 import { buildCurlCall } from '../../shared/utils/dialplan-curl.util';
 import { emitPlayback } from '../../shared/utils/dialplan-playback.util';
 import { renderActionChain } from '../../shared/utils/dialplan.util';
+import { autodialExtensionTarget, autodialQueueTarget } from './autodial-target.util';
 
 /** Chars that would break out of a dialplan application argument. */
 const DIALPLAN_UNSAFE = /[(),?[\]{}$\\";\n\r]/g;
@@ -131,7 +132,7 @@ function emitMachineTail(
       },
       { endpoint: 'internal/autodial/attempt-machine', vpbxUserUid },
     );
-    lines.push(`same => n,${curl}`);
+    lines.push(...autodialApplicationLines(curl));
   }
   lines.push('same => n,Hangup()');
   return lines;
@@ -148,6 +149,11 @@ function emitScenario(actions: IRouteAction[], vpbxUserUid: number): string[] {
 
   for (const action of list) {
     if (!action || (action as { enabled?: boolean }).enabled === false) continue;
+    lines.push(`same => n,UserEvent(AutodialStep,Tenant: ${vpbxUserUid},Attempt: \${KRSK_AC_ATTEMPT},Step: ${sanitizeAutodialArg(action.id)},Type: ${sanitizeAutodialArg(action.type)})`);
+    if ((AUTODIAL_SUPPORTED_ACTIONS as readonly string[]).includes(action.type)) {
+      const checked = autodialScenarioActionSchema.safeParse(action);
+      if (!checked.success) throw new Error(`AC_SCENARIO_INVALID_PARAMS: ${checked.error.issues[0].message}`);
+    }
     const params = (action.params ?? {}) as Record<string, unknown>;
 
     switch (action.type) {
@@ -165,36 +171,30 @@ function emitScenario(actions: IRouteAction[], vpbxUserUid: number): string[] {
       case 'toqueue': {
         // Route destination comes only from the scenario step. Campaign
         // queue_names is the pacing agent pool, never a silent Queue() fallback.
-        const target = params.target as { source?: unknown; value?: unknown } | undefined;
-        const fixedTarget = target?.source === 'fixed' ? target.value : undefined;
-        const queue = sanitizeAutodialArg(
-          params.queue
-            ?? params.queue_name
-            ?? fixedTarget
-            ?? '',
-        );
+        const queue = autodialQueueTarget(params, vpbxUserUid);
         if (!queue) {
           throw new Error('AC_SCENARIO_TARGET_UNSUPPORTED: toqueue requires a fixed queue');
         }
         const timeout = Number(params.timeout ?? 0);
         lines.push(`same => n,Set(__KRSK_AC_QUEUE=${queue})`);
+        const options = sanitizeAutodialArg(params.options ?? 't');
+        const announcement = autodialPromptPlaybackStem(params.announceoverride ?? '');
+        const announcePath = announcement ? `/usr/records/${vpbxUserUid}/sounds/${announcement}` : '';
+        const priority = typeof params.priority === 'object'
+          ? (params.priority as { value?: unknown })?.value : params.priority;
+        if (priority !== undefined) lines.push(`same => n,Set(QUEUE_PRIO=${Number(priority) || 0})`);
         lines.push(
-          timeout > 0
-            ? `same => n,Queue(${queue},t,,,${timeout})`
-            : `same => n,Queue(${queue},t)`,
+          timeout > 0 || announcement
+            ? `same => n,Queue(${queue},${options},,${announcePath},${timeout > 0 ? timeout : ''})`
+            : `same => n,Queue(${queue},${options})`,
         );
         break;
       }
       case 'toexten': {
-        const target = params.target as { source?: unknown; value?: unknown } | undefined;
-        const fixedTarget = target?.source === 'fixed' ? target.value : undefined;
-        const exten = sanitizeAutodialArg(
-          params.exten
-            ?? params.extension
-            ?? fixedTarget
-            ?? '',
-        );
-        lines.push(exten ? `same => n,Dial(PJSIP/${exten},60,tT)` : 'same => n,NoOp(Autodial: no exten)');
+        const exten = autodialExtensionTarget(params, vpbxUserUid);
+        const timeout = Number(params.timeout ?? 60);
+        const options = sanitizeAutodialArg(params.options ?? 'tT');
+        lines.push(exten.dial ? `same => n,Dial(${exten.dial},${timeout},${options})` : 'same => n,NoOp(Autodial: no exten)');
         break;
       }
       case 'voicerobot': {
@@ -216,24 +216,46 @@ function emitScenario(actions: IRouteAction[], vpbxUserUid: number): string[] {
         break;
       }
       case 'collect_input': {
-        const digits = Number(params.digits ?? 1);
+        const variable = String(params.variableName || 'KRSK_AC_DTMF');
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variable)) {
+          throw new Error('AC_SCENARIO_INVALID_VARIABLE');
+        }
+        const digits = Number(params.digitsCount ?? params.digits ?? 1);
         const timeout = Number(params.timeout ?? 5);
-        lines.push(`same => n,Read(KRSK_AC_DTMF,,${digits},,,${timeout})`);
-        lines.push('same => n,Set(__KRSK_AC_DTMF=${KRSK_AC_DTMF})');
+        const attempts = Number(params.attempts ?? 1);
+        if (!Number.isInteger(digits) || digits < 1 || digits > 255
+          || !Number.isInteger(timeout) || timeout < 1 || timeout > 3600
+          || !Number.isInteger(attempts) || attempts < 1 || attempts > 100) {
+          throw new Error('AC_SCENARIO_INVALID_INPUT_OPTIONS');
+        }
+        const stem = autodialPromptPlaybackStem(params.promptFile ?? '');
+        if (stem && !/^[A-Za-z0-9_-]+$/.test(stem)) {
+          throw new Error('AC_SCENARIO_INVALID_PROMPT');
+        }
+        const prompt = stem ? `/usr/records/${vpbxUserUid}/sounds/${stem}` : '';
+        lines.push(`same => n,Read(${variable},${prompt},${digits},,${attempts},${timeout})`);
+        lines.push(`same => n,Set(__${variable}=\${${variable}})`);
+        if (variable !== 'KRSK_AC_DTMF') {
+          lines.push(`same => n,Set(__KRSK_AC_DTMF=\${${variable}})`);
+        }
+        for (const [digits, outcome] of Object.entries((params.outcomeMap ?? {}) as Record<string, string>)) {
+          lines.push(`same => n,ExecIf($["\${${variable}}" = "${digits}"]?Set(__KRSK_AC_BUSINESS_OUTCOME=${outcome}))`);
+        }
         break;
       }
       case 'label': {
-        const labelName = sanitizeAutodialArg(params.name ?? '');
+        const labelName = sanitizeAutodialArg(params.label_name ?? params.name ?? '');
         if (labelName) lines.push(`same => n(${labelName}),NoOp(label ${labelName})`);
         break;
       }
       case 'goto': {
-        const target = sanitizeAutodialArg(params.label ?? '');
-        if (target) lines.push(`same => n,Goto(${target})`);
+        lines.push(...emitSharedChain({ ...action, params: {
+          ...params, label_name: params.label_name ?? params.label,
+        } } as IRouteAction, vpbxUserUid));
         break;
       }
       case 'hangup':
-        lines.push('same => n,Hangup()');
+        lines.push(...emitSharedChain(action, vpbxUserUid));
         break;
       default:
         lines.push(`same => n,NoOp(Autodial: unsupported step ${sanitizeAutodialArg(action.type)})`);
@@ -292,6 +314,9 @@ function emitAutodialText2Speech(
     {
       text: `\${${textVar}}`,
       engine: sanitizeAutodialArg(params.engine),
+      ...Object.fromEntries(Object.entries((params.settings ?? {}) as Record<string, unknown>)
+        .filter(([key, value]) => ['voice', 'language_code', 'speed', 'speaking_rate', 'role', 'pitch_shift'].includes(key) && value != null)
+        .map(([key, value]) => [key, sanitizeAutodialArg(value)])),
     },
     { vpbxUserUid },
   );
@@ -375,6 +400,7 @@ export function generateAutodialFinalizeContext(vpbxUserUid: number): DialplanCa
       // empty means the subscriber waited and left without an operator.
       agent: '${MEMBERINTERFACE}',
       dtmf: '${KRSK_AC_DTMF}',
+      business_outcome: '${KRSK_AC_BUSINESS_OUTCOME}',
       uniqueid: '${UNIQUEID}',
       linkedid: '${LINKEDID}',
     },
@@ -388,8 +414,14 @@ export function generateAutodialFinalizeContext(vpbxUserUid: number): DialplanCa
       'exten => s,1,NoOp(Autodial finalize task=${KRSK_AC_TASK})',
       // Nothing to report for a channel that never belonged to a campaign.
       'same => n,GotoIf($["${KRSK_AC_TASK}" = ""]?ac_done)',
-      `same => n,${curl}`,
+      ...autodialApplicationLines(curl),
       'same => n(ac_done),Return()',
     ],
   };
+}
+
+/** AMI Append accepts one physical application per category entry. */
+function autodialApplicationLines(text: string): string[] {
+  return text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    .map((line) => line.startsWith('same => ') ? line : `same => n,${line}`);
 }

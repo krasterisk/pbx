@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Input, Textarea, Select, Checkbox, TagInput, Label, Text, VStack } from '@/shared/ui';
 import type { ICardField } from '@/features/callcenter/model/types/callCard';
 import type { BuilderField } from './FieldRow';
+import { DirectorySourceEditor } from './DirectorySourceEditor';
 
 const AUTO_POPULATE_OPTIONS = [
   { value: '', labelKey: 'none' },
@@ -32,13 +33,8 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
       <Text className="font-medium">{t('callcenter.cards.builder.fieldConfigTitle')}</Text>
 
       <VStack gap="4">
-        <Label>{t('callcenter.cards.builder.fieldKey')}</Label>
-        <Input value={field.field_key} onChange={handleKeyChange} />
-      </VStack>
-
-      <VStack gap="4">
         <Label>{t('callcenter.cards.builder.fieldLabel')}</Label>
-        <Input value={field.label} onChange={(e) => onChange({ label: e.target.value })} />
+        <Input aria-label={t('callcenter.cards.builder.fieldLabel')} value={field.label} onChange={(e) => onChange({ label: e.target.value })} />
       </VStack>
 
       {field.field_type !== 'divider' && field.field_type !== 'heading' ? (
@@ -46,34 +42,30 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
           <VStack gap="4">
             <Label>{t('callcenter.cards.builder.placeholder')}</Label>
             <Input
-              value={field.placeholder ?? ''}
+              aria-label={t('callcenter.cards.builder.placeholder')} value={field.placeholder ?? ''}
               onChange={(e) => onChange({ placeholder: e.target.value })}
             />
           </VStack>
 
           <FlexRow>
             <Checkbox
-              checked={Boolean(field.is_required)}
+              aria-label={t('callcenter.cards.builder.required')} checked={Boolean(field.is_required)}
               onChange={(e) => onChange({ is_required: e.target.checked })}
             />
             <Label>{t('callcenter.cards.builder.required')}</Label>
           </FlexRow>
 
-          {showOptions ? (
-            <VStack gap="4">
-              <Label>{t('callcenter.cards.builder.options')}</Label>
-              <TagInput
-                value={field.options ?? []}
-                onChange={(opts) => onChange({ options: opts })}
-                placeholder={t('callcenter.cards.builder.optionsPlaceholder')}
-              />
-            </VStack>
-          ) : null}
+          {showOptions ? <DirectorySourceEditor value={field.options} onChange={(options) => onChange({ options })} /> : null}
+
+          <details><summary className="cursor-pointer text-sm text-muted-foreground">{t('callcenter.cards.builder.advancedField')}</summary><VStack gap="12" className="pt-3">      <VStack gap="4">
+        <Label>{t('callcenter.cards.builder.fieldKey')}</Label>
+        <Input aria-label={t('callcenter.cards.builder.fieldKey')} value={field.field_key} onChange={handleKeyChange} />
+      </VStack>
 
           <VStack gap="4">
             <Label>{t('callcenter.cards.builder.dependsOn')}</Label>
             <Select
-              value={field.depends_on ?? ''}
+              aria-label={t('callcenter.cards.builder.dependsOn')} value={field.depends_on ?? ''}
               onChange={(e) => onChange({ depends_on: e.target.value || null })}
             >
               <option value="">{t('callcenter.cards.builder.noDependency')}</option>
@@ -87,7 +79,7 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
             <VStack gap="4">
               <Label>{t('callcenter.cards.builder.dependsValues')}</Label>
               <TagInput
-                value={field.depends_values ?? []}
+                aria-label={t('callcenter.cards.builder.dependsValues')} value={field.depends_values ?? []}
                 onChange={(vals) => onChange({ depends_values: vals })}
                 placeholder={t('callcenter.cards.builder.dependsValuesPlaceholder')}
               />
@@ -97,7 +89,7 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
           <VStack gap="4">
             <Label>{t('callcenter.cards.builder.autoPopulate')}</Label>
             <Select
-              value={field.auto_populate ?? ''}
+              aria-label={t('callcenter.cards.builder.autoPopulate')} value={field.auto_populate ?? ''}
               onChange={(e) => onChange({ auto_populate: e.target.value || null })}
             >
               {AUTO_POPULATE_OPTIONS.map((opt) => (
@@ -106,7 +98,7 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
                 </option>
               ))}
             </Select>
-          </VStack>
+          </VStack></VStack></details>
         </>
       ) : (
         <VStack gap="4">

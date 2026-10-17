@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TranslateFn } from '@/shared/lib/translateFn';
 import { toast } from 'react-toastify';
 import {
-  Mic, MicOff, Pause, Play, Phone, PhoneOff, PhoneForwarded, PhoneIncoming, Users,
+  Phone, PhoneOff, PhoneIncoming, Users,
   BookUser, History, RotateCcw, Eraser,
 } from 'lucide-react';
 import {
-  Button, Text, HStack, VStack, Tooltip, Select, Tabs, TabsList, TabsTrigger, TabsContent,
+  Button, Input, Label, Text, HStack, VStack, Tooltip, Select, Tabs, TabsList, TabsTrigger, TabsContent,
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/shared/ui';
 import { DialpadGrid, DIALPAD_KEYS } from '@/features/callcenter/ui/DtmfKeypad/DialpadGrid';
@@ -74,10 +74,7 @@ export interface SoftphoneWidgetProps {
   /** Show text label next to the chrome trigger (e.g. "Softphone"). */
   showLabel?: boolean;
   visible?: boolean;
-  onTransferClick?: () => void;
   onOpenCard?: () => void;
-  /** Slot for park/zombie-reset controls (09-10's remaining CallControlBar full-variant actions). */
-  extraControls?: ReactNode;
   /**
    * uniqueid of the operator's own active call - required for the built-in
    * "Add to conference" control (D-28, 09-10→09-12 key link). Omit/undefined
@@ -150,7 +147,7 @@ function SoftphoneDevicePicker({
 
   return (
     <VStack gap="8" className={styles.devicePicker} data-testid="softphone-device-picker">
-      <label className={styles.deviceRow}>
+      <Label className={styles.deviceRow}>
         <Text className={styles.deviceLabel}>{t('callcenter.softphone.microphone', 'Microphone')}</Text>
         <Select
           value={audioDevices.selectedMic}
@@ -165,8 +162,8 @@ function SoftphoneDevicePicker({
             </option>
           ))}
         </Select>
-      </label>
-      <label className={styles.deviceRow}>
+      </Label>
+      <Label className={styles.deviceRow}>
         <Text className={styles.deviceLabel}>{t('callcenter.softphone.speaker', 'Speaker')}</Text>
         <Select
           value={audioDevices.selectedSpeaker}
@@ -181,7 +178,7 @@ function SoftphoneDevicePicker({
             </option>
           ))}
         </Select>
-      </label>
+      </Label>
       {deviceError ? (
         <Text variant="muted" className={styles.deviceError} data-testid="softphone-device-error">
           {deviceError}
@@ -245,9 +242,7 @@ export function SoftphoneWidget({
   callSeconds = 0,
   showLabel = false,
   visible = true,
-  onTransferClick,
   onOpenCard,
-  extraControls,
   activeCallUniqueid,
   onRecover,
   pendingOutboundDial,
@@ -345,6 +340,9 @@ export function SoftphoneWidget({
       if (isMobile) setMobileDialOpen(true);
     }
   }, [isDialing, isMobile]);
+
+  // Once connected, reveal the client workspace. The operator can reopen the dialpad for DTMF.
+  useEffect(() => { if (isInCall) { setOpen(false); setMobileDialOpen(false); } }, [isInCall]);
 
   // Opening the panel while offline - soft reconnect only (no credential refetch).
   const openReconnectNudgedRef = useRef(false);
@@ -452,17 +450,6 @@ export function SoftphoneWidget({
     void (onRecover?.() ?? phone.ensureConnected?.(true));
   }, [onRecover, phone]);
 
-  const handleHoldToggle = useCallback(() => {
-    if (mode === 'sip') return;
-    if (phone.isHeld) void phone.unhold();
-    else void phone.hold();
-  }, [mode, phone]);
-
-  const handleMuteToggle = useCallback(() => {
-    if (phone.isMuted) phone.unmute();
-    else phone.mute();
-  }, [phone]);
-
   if (!visible) return null;
 
   const regBadgeClass =
@@ -482,7 +469,7 @@ export function SoftphoneWidget({
   const qualityBlock = isWebrtc && phone.quality && isInCall ? (
     <div className={styles.qualityDetail} data-testid="softphone-quality-detail">
       <CallQualityIndicator quality={phone.quality} />
-      <Text className={styles.qualityMetrics}>
+      {phone.quality.level > 0 && <Text className={styles.qualityMetrics}>
         {t('callcenter.softphone.mos')}: {phone.quality.mos.toFixed(1)}
         {' · '}
         {t('callcenter.softphone.jitter')}: {phone.quality.jitterMs} ms
@@ -490,7 +477,7 @@ export function SoftphoneWidget({
         {t('callcenter.softphone.rtt')}: {phone.quality.rttMs} ms
         {' · '}
         {t('callcenter.softphone.loss')}: {phone.quality.lossPct}%
-      </Text>
+      </Text>}
     </div>
   ) : null;
 
@@ -539,55 +526,7 @@ export function SoftphoneWidget({
 
   const controlsRow = (
     <div className={styles.controlsRow}>
-      <Tooltip content={phone.isMuted
-        ? t('callcenter.controlBar.unmute', 'Unmute')
-        : t('callcenter.controlBar.muteHint', 'Mute or unmute your microphone')}
-      >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleMuteToggle}
-          disabled={!isInCall}
-          aria-label={phone.isMuted ? t('callcenter.softphone.unmute') : t('callcenter.softphone.mute')}
-        >
-          {phone.isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-        </Button>
-      </Tooltip>
-      <Tooltip content={mode === 'sip'
-        ? t(
-          'callcenter.controlBar.holdUseDeviceHint',
-          'Use the Hold button on your SIP phone or softphone client',
-        )
-        : phone.isHeld
-          ? t('callcenter.controlBar.unhold', 'Unhold')
-          : t('callcenter.controlBar.holdHint', 'Put the caller on hold or resume')}
-      >
-        <span className="inline-flex">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleHoldToggle}
-            disabled={!isInCall || mode === 'sip'}
-            aria-label={phone.isHeld ? t('callcenter.softphone.unhold') : t('callcenter.softphone.hold')}
-          >
-            {phone.isHeld ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-          </Button>
-        </span>
-      </Tooltip>
       <DtmfKeypad onDigit={handleDigit} disabled={!isInCall} />
-      {onTransferClick && (
-        <Tooltip content={t('callcenter.controlBar.transferHint', 'Open transfer panel')}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onTransferClick}
-            disabled={!isInCall}
-            aria-label={t('callcenter.softphone.transfer')}
-          >
-            <PhoneForwarded className="w-4 h-4" />
-          </Button>
-        </Tooltip>
-      )}
       <Tooltip content={t('callcenter.controlBar.conferenceHint', 'Add another party to this call')}>
         <Button
           variant="outline"
@@ -597,18 +536,6 @@ export function SoftphoneWidget({
           aria-label={t('callcenter.controlBar.conference', 'Add to conference')}
         >
           <Users className="w-4 h-4" />
-        </Button>
-      </Tooltip>
-      {extraControls}
-      <Tooltip content={t('callcenter.controlBar.hangupHint', 'End the active call')}>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => void phone.hangup()}
-          disabled={!isInCall && !isDialing}
-          aria-label={t('callcenter.softphone.hangup')}
-        >
-          <PhoneOff className="w-4 h-4" />
         </Button>
       </Tooltip>
     </div>
@@ -630,7 +557,7 @@ export function SoftphoneWidget({
   const dialPadBlock = (
     <VStack gap="8" className={styles.dialBlock} data-testid="softphone-dialpad">
       <div className={styles.dialDisplay}>
-        <input
+        <Input
           className={styles.dialInput}
           value={dialNumber}
           onChange={(e) => {
@@ -844,7 +771,7 @@ export function SoftphoneWidget({
   return (
     <div className={styles.chromeWrap} data-testid="softphone-widget-chrome">
       {open ? (
-        <div className={styles.chromePanel} data-testid="softphone-widget-panel">
+        <div className={styles.chromePanel} role="region" aria-label={t('callcenter.softphone.panelTitle')} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }} data-testid="softphone-widget-panel">
           {panelBody}
           <Button
             variant="ghost"
@@ -856,8 +783,10 @@ export function SoftphoneWidget({
           </Button>
         </div>
       ) : null}
-      <button
+      <Button
         type="button"
+        variant="unstyled"
+        size="none"
         className={`${styles.chromeTrigger}${showLabel ? ` ${styles.chromeTriggerLabeled}` : ''}${pulseActive ? ` ${styles.chromeTriggerRinging}` : ''}${open ? ` ${styles.chromeTriggerOpen}` : ''}`}
         aria-label={t('callcenter.softphone.panelTitle')}
         aria-expanded={open}
@@ -886,7 +815,7 @@ export function SoftphoneWidget({
             <CallQualityIndicator quality={phone.quality} />
           </span>
         ) : null}
-      </button>
+      </Button>
       {conferenceSheet}
     </div>
   );

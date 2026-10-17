@@ -7,6 +7,14 @@
   }
 }
 
+.callWrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  > :last-child { flex: 1; min-width: 0; }
+}
+
 .dragging {
   opacity: 0.4;
 }

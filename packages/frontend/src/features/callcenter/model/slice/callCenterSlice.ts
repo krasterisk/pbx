@@ -7,6 +7,7 @@ import type {
   ICall,
   ICcSnapshot,
   IChatMessagePayload,
+  IMonitorSession,
 } from '../types/callCenterSchema';
 
 const initialState: CallCenterState = {
@@ -18,6 +19,9 @@ const initialState: CallCenterState = {
   chatUnreadByChannel: {},
   chatOpen: false,
   pendingOutboundDial: null,
+  monitorSession: null,
+  lastEventAt: null,
+  disconnectedSince: null,
 };
 
 export const callCenterSlice = createSlice({
@@ -26,6 +30,8 @@ export const callCenterSlice = createSlice({
   reducers: {
     // ─── Full snapshot (on SSE connect) ────────────────────
     setSnapshot(state, action: PayloadAction<ICcSnapshot>) {
+      state.lastEventAt = Date.now();
+      state.disconnectedSince = null;
       // Nest restart / AMI preload can briefly emit the operator with queues: []
       // while sessionStorage / prior bindIdentity still knows the shift queues -
       // wiping them empties QueuesTab + hides self in CoworkersTab.
@@ -37,6 +43,7 @@ export const callCenterSlice = createSlice({
       state.agents = action.payload.agents;
       state.queues = action.payload.queues;
       state.calls = action.payload.calls;
+      state.monitorSession = action.payload.monitorSession ?? null;
 
       if (prevQueues && state.myAgentInterface) {
         const idx = state.agents.findIndex((a) => a.interface === state.myAgentInterface);
@@ -48,6 +55,17 @@ export const callCenterSlice = createSlice({
 
     setConnected(state, action: PayloadAction<boolean>) {
       state.connected = action.payload;
+      if (action.payload) {
+        state.lastEventAt = Date.now();
+        state.disconnectedSince = null;
+      } else if (!state.disconnectedSince) {
+        state.disconnectedSince = Date.now();
+      }
+    },
+
+    touchSseHeartbeat(state) {
+      state.lastEventAt = Date.now();
+      state.disconnectedSince = null;
     },
 
     setMyAgentInterface(state, action: PayloadAction<string | null>) {
@@ -62,6 +80,8 @@ export const callCenterSlice = createSlice({
       peerNumber?: string | null;
       dialTarget?: string | null;
     }>) {
+      state.lastEventAt = Date.now();
+      state.disconnectedSince = null;
       const data = action.payload;
       if (data.removed) {
         state.agents = state.agents.filter(a => a.interface !== data.interface);
@@ -165,6 +185,8 @@ export const callCenterSlice = createSlice({
 
     // ─── Queue updates ────────────────────────────────────
     updateQueue(state, action: PayloadAction<IQueueStats>) {
+      state.lastEventAt = Date.now();
+      state.disconnectedSince = null;
       const data = action.payload;
       const idx = state.queues.findIndex(q => q.name === data.name);
       if (idx >= 0) {
@@ -176,6 +198,8 @@ export const callCenterSlice = createSlice({
 
     // ─── Call updates ─────────────────────────────────────
     addCall(state, action: PayloadAction<ICall>) {
+      state.lastEventAt = Date.now();
+      state.disconnectedSince = null;
       const idx = state.calls.findIndex(c => c.uniqueid === action.payload.uniqueid);
       if (idx < 0) {
         state.calls.push(action.payload);
@@ -183,6 +207,8 @@ export const callCenterSlice = createSlice({
     },
 
     updateCall(state, action: PayloadAction<Partial<ICall> & { uniqueid: string }>) {
+      state.lastEventAt = Date.now();
+      state.disconnectedSince = null;
       const idx = state.calls.findIndex(c => c.uniqueid === action.payload.uniqueid);
       if (idx >= 0) {
         state.calls[idx] = { ...state.calls[idx], ...action.payload };
@@ -193,6 +219,8 @@ export const callCenterSlice = createSlice({
     },
 
     removeCall(state, action: PayloadAction<string>) {
+      state.lastEventAt = Date.now();
+      state.disconnectedSince = null;
       state.calls = state.calls.filter(c => c.uniqueid !== action.payload);
     },
 
@@ -218,12 +246,17 @@ export const callCenterSlice = createSlice({
     clearOutboundDial(state) {
       state.pendingOutboundDial = null;
     },
+
+    setMonitorSession(state, action: PayloadAction<IMonitorSession | null>) {
+      state.monitorSession = action.payload;
+    },
   },
 });
 
 export const {
   setSnapshot,
   setConnected,
+  touchSseHeartbeat,
   setMyAgentInterface,
   updateAgent,
   updateQueue,
@@ -235,6 +268,7 @@ export const {
   setChatOpen,
   requestOutboundDial,
   clearOutboundDial,
+  setMonitorSession,
 } = callCenterSlice.actions;
 
 export default callCenterSlice.reducer;

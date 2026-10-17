@@ -94,6 +94,11 @@ export class SupervisorSpyDto {
   mode?: 'spy' | 'whisper' | 'barge';
 }
 
+export class SupervisorSpyModeDto {
+  @IsEnum(['spy', 'whisper', 'barge'])
+  mode: 'spy' | 'whisper' | 'barge';
+}
+
 export class SupervisorForceActionDto {
   @IsString()
   @MaxLength(64)

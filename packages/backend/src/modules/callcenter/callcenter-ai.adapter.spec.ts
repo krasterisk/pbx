@@ -80,21 +80,18 @@ describe('CallCenterAiAdapter', () => {
       expect(stateService.getAllQueues).toHaveBeenCalledWith(99);
     });
 
-    it('cc_force_pause_agent passes vpbxUserUid from parameter; different uid → different tenant', async () => {
-      await getTool('cc_force_pause_agent').handler(
-        { agent_interface: 'PJSIP/e101_1', reason: 'break', confirm: true },
-        42,
-      );
-      expect(ccService.supervisorForcePause).toHaveBeenCalledWith('PJSIP/e101_1', 'break', 42);
-
-      await getTool('cc_force_pause_agent').handler(
-        { agent_interface: 'PJSIP/e101_1', reason: 'break', confirm: true },
-        77,
-      );
-      expect(ccService.supervisorForcePause).toHaveBeenCalledWith('PJSIP/e101_1', 'break', 77);
+    it('force-pause proposes without writing, then applies to the authenticated tenant', async () => {
+      const tool = getTool('cc_force_pause_agent');
+      for (const tenant of [42, 77]) {
+        const caller = { userUid: 58, role: 1, threadUid: 1 };
+        const proposal = await tool.handler({ agent_interface: 'PJSIP/e101_1', reason: 'break' }, tenant, caller) as any;
+        expect(ccService.supervisorForcePause).toHaveBeenCalledTimes(tenant === 42 ? 0 : 1);
+        await tool.mutation!.apply(proposal.applyPayload.args, { ...caller, vpbxUserUid: tenant, isAdmin: true });
+        expect(ccService.supervisorForcePause).toHaveBeenLastCalledWith('PJSIP/e101_1', 'break', tenant);
+      }
+      await expect(tool.handler({ agent_interface: 'PJSIP/e101_1' }, 42, { userUid: 2, role: 2, threadUid: 1 })).rejects.toThrow();
     });
   });
-
   describe('buildSummary', () => {
     it('returns compact KPI text, not full call dump', async () => {
       stateService.getAllQueues.mockReturnValue([

@@ -2,6 +2,7 @@ import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 import { AUTODIAL_DIAL_MODES } from "@krasterisk/shared";
 import {
   Button,
@@ -47,6 +48,7 @@ import { CampaignScheduleTab } from "./CampaignScheduleTab";
 import { CampaignScenarioTab } from "./CampaignScenarioTab";
 import { CampaignDncTab } from "./CampaignDncTab";
 import cls from "./CampaignFormModal.module.scss";
+import { CampaignCreationWizard } from './CampaignCreationWizard';
 
 type TabId =
   | "general"
@@ -81,6 +83,7 @@ const ERROR_TAB: Record<string, TabId> = {
 export const CampaignFormModal = memo(() => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const isOpen = useAppSelector(selectAutodialCampaignModalOpen);
   const mode = useAppSelector(selectAutodialCampaignModalMode);
   const uid = useAppSelector(selectAutodialSelectedCampaignUid);
@@ -101,6 +104,7 @@ export const CampaignFormModal = memo(() => {
   const [showErrors, setShowErrors] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const hydratedSession = useRef<string | null>(null);
+  const baseline = useRef('');
 
   useEffect(() => {
     if (!isOpen) {
@@ -113,7 +117,7 @@ export const CampaignFormModal = memo(() => {
     setShowErrors(false);
     setApiError(null);
     if (uid === null) {
-      setDraft(emptyCampaignDraft());
+      const initial = emptyCampaignDraft(); setDraft(initial); baseline.current = JSON.stringify(initial);
       hydratedSession.current = session;
     } else if (campaign) {
       const next = campaignToDraft(campaign);
@@ -125,6 +129,7 @@ export const CampaignFormModal = memo(() => {
             }
           : next,
       );
+      baseline.current = JSON.stringify(mode === 'copy' ? { ...next, name: t('autodial.form.copySuffix', { name: next.name }) } : next);
       hydratedSession.current = session;
     }
   }, [isOpen, uid, campaign, mode, t]);
@@ -133,9 +138,12 @@ export const CampaignFormModal = memo(() => {
   const isBlocked = hasCampaignErrors(errors);
   const isSaving = isCreating || isUpdating;
 
-  const close = () => dispatch(autodialPageActions.closeCampaignModal());
+  const close = (force = false) => {
+    if (!force && JSON.stringify(draft) !== baseline.current && !window.confirm(t('autodial.workspace.discard'))) return;
+    dispatch(autodialPageActions.closeCampaignModal());
+  };
 
-  const onSave = async () => {
+  const onSave = async (openStart = false) => {
     if (isBlocked) {
       setShowErrors(true);
       const firstErrorKey = Object.keys(errors)[0];
@@ -154,9 +162,10 @@ export const CampaignFormModal = memo(() => {
           },
         }).unwrap();
       } else {
-        await createCampaign(payload).unwrap();
+        const created = await createCampaign(payload).unwrap();
+        if (created?.uid) navigate(`/autodial/campaigns/${created.uid}${openStart ? '?start=1' : ''}`);
       }
-      close();
+      close(true);
     } catch (error) {
       setApiError(t(autodialErrorKey(error, "autodial.form.saveFailed")));
     }
@@ -184,7 +193,8 @@ export const CampaignFormModal = memo(() => {
           <HStack justify="center" align="center" className={cls.body}>
             <Loader2 size={24} className={cls.spinner} />
           </HStack>
-        ) : (
+        ) : mode !== 'edit' ? <CampaignCreationWizard key={`${mode}:${uid ?? 'new'}:${isOpen}`} draft={draft} onChange={setDraft}
+          onSave={onSave} onClose={() => close()} saving={isSaving} apiError={apiError} /> : (
           <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as TabId)}
@@ -266,7 +276,7 @@ export const CampaignFormModal = memo(() => {
           </Tabs>
         )}
 
-        <DialogFooter
+        {mode === 'edit' && <DialogFooter
           className={cls.footer}
           data-testid="autodial-campaign-form-footer"
         >
@@ -279,7 +289,7 @@ export const CampaignFormModal = memo(() => {
               wrap="wrap"
               className={cls.footerActions}
             >
-              <Button variant="outline" onClick={close}>
+              <Button variant="outline" onClick={() => close()}>
                 {t("common.cancel")}
               </Button>
               <Button disabled={isSaving} onClick={() => void onSave()}>
@@ -290,7 +300,7 @@ export const CampaignFormModal = memo(() => {
               </Button>
             </HStack>
           </VStack>
-        </DialogFooter>
+        </DialogFooter>}
       </FormDialogContent>
     </Dialog>
   );

@@ -47,6 +47,9 @@ export class AgentIntentClassifierService {
     const bump = (name: string, weight: number) => {
       scores.set(name, (scores.get(name) ?? 0) + weight);
     };
+    if (/обзвон|кампани|диалер|dialer|autodial|дозвон|должник|стоп.?лист|баз[аы] клиент/i.test(message)) bump('autodial', 12);
+    if (/импорт.*клиент|пол[яе].*баз|сопостав.*колон|схем.*баз/i.test(message)) bump('autodial-bases', 10);
+    if (/230.?фз|152.?фз|персональн.*данн|должник.*(?:5|пять).*раз|частот.*звон/i.test(message)) bump('autodial-compliance', 14);
     if (/параметр|расширенн.*настрой|настройк.*систем|конфигурац/i.test(message)) bump('platform-configuration', 8);
 
     // Preserve the requested business action before incidental mentions of
@@ -196,6 +199,7 @@ export class AgentIntentClassifierService {
   }
 
   private goalToSkill(goal: string): string | null {
+    if (/autodial|dialer|campaign/.test(goal)) return 'autodial';
     if (goal.includes('ivr')) return 'ivrs';
     if (goal.includes('trunk')) return 'trunks';
     if (goal.includes('endpoint')) return 'endpoints';

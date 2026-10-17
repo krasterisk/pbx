@@ -93,13 +93,14 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     reason: 'Standalone AI access-token login and tenant admission; not a PBX agent tool surface.',
   },
   autodial: { kind: 'covered', capability: 'configure' },
+  'autodial-integration': { kind: 'infrastructure', reason: 'Scoped CRM/MCP credentials and admission; autodial tools remain in the autodial adapter. Keys cannot confirm or launch calls.' },
   'call-groups': { kind: 'covered', capability: 'configure' },
   'callback-requests': {
     kind: 'excluded',
     reason:
       'Callback queue is driven by the AMI scanner and call-center UI; live queue mutation has no confirmable agent diff this phase.',
   },
-  callcenter: { kind: 'covered', capability: 'operation' },
+  callcenter: { kind: 'covered', capability: 'configure' },
   'cloud-admin': {
     kind: 'excluded',
     reason:

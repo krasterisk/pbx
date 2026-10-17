@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import {
   setSnapshot,
@@ -9,6 +9,7 @@ import {
   updateCall,
   removeCall,
 } from '../model/slice/callCenterSlice';
+import { DEFAULT_KPI_THRESHOLDS, resolveKpiThresholds, type KpiThresholds } from './kpiThresholds';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -22,6 +23,8 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 export function useWallboardSSE(token: string | null, enabled = true) {
   const dispatch = useDispatch();
   const esRef = useRef<EventSource | null>(null);
+  // Tenant tone thresholds pushed by the server; defaults until the first 'thresholds' event.
+  const [thresholds, setThresholds] = useState<KpiThresholds>({ ...DEFAULT_KPI_THRESHOLDS });
 
   const connect = useCallback(() => {
     if (!enabled || !token) {
@@ -112,6 +115,12 @@ export function useWallboardSSE(token: string | null, enabled = true) {
       } catch { /* ignore */ }
     });
 
+    es.addEventListener('thresholds', (e: MessageEvent) => {
+      try {
+        setThresholds(resolveKpiThresholds(JSON.parse(e.data)));
+      } catch { /* ignore */ }
+    });
+
     es.addEventListener('heartbeat', () => {
       // noop - keeps SSE alive through proxies
     });
@@ -136,5 +145,5 @@ export function useWallboardSSE(token: string | null, enabled = true) {
     connect();
   }, [connect]);
 
-  return { reconnect };
+  return { reconnect, thresholds };
 }

@@ -32,6 +32,7 @@ export interface CallControlBarProps {
   disabled?: boolean;
   /** SIP desk-phone mode: Hold is client-side only - keep the button visible but inactive. */
   holdDisabled?: boolean;
+  muteDisabled?: boolean;
   onMuteToggle: () => void;
   onHoldToggle: () => void;
   onHangup: () => void;
@@ -45,10 +46,12 @@ export interface CallControlBarProps {
    * (see uniqueid) - these fire in addition, e.g. for host-side toast/analytics. */
   onParkClick?: () => void;
   /** Add-to-conference opens the transfer-directory in "add" mode (ships in 09-12) - host-provided
-   * until then; the button degrades to a no-op without it. */
+   * until then; the button is hidden without it. */
   onConferenceClick?: () => void;
   onWarmTransferClick?: () => void;
   onZombieResetClick?: () => void;
+  /** Hotkey labels (e.g. "Alt+M") appended to the tooltips of the primary buttons (U2.4). */
+  hotkeyHints?: Partial<Record<'mute' | 'hold' | 'transfer' | 'hangup', string>>;
   className?: string;
 }
 
@@ -60,6 +63,7 @@ export function CallControlBar({
   isHeld,
   disabled = false,
   holdDisabled = false,
+  muteDisabled = false,
   onMuteToggle,
   onHoldToggle,
   onHangup,
@@ -67,9 +71,10 @@ export function CallControlBar({
   uniqueid,
   isZombie = false,
   onParkClick = noop,
-  onConferenceClick = noop,
+  onConferenceClick,
   onWarmTransferClick = noop,
   onZombieResetClick = noop,
+  hotkeyHints,
   className,
 }: CallControlBarProps) {
   const { t } = useTranslation();
@@ -130,6 +135,11 @@ export function CallControlBar({
     onZombieResetClick();
   };
 
+  const hotkeyLabel = (text: string, key: string): string => {
+    const hk = hotkeyHints?.[key as keyof typeof hotkeyHints];
+    return hk ? `${text} (${hk})` : text;
+  };
+
   const renderButton = (
     key: string,
     icon: ReactNode,
@@ -154,7 +164,7 @@ export function CallControlBar({
       </Button>
     );
     return (
-      <Tooltip key={key} content={opts?.hint || label}>
+      <Tooltip key={key} content={hotkeyLabel(opts?.hint || label, key)}>
         {/* Disabled buttons don't fire pointer events - wrap so the hint still shows. */}
         {isBtnDisabled ? <span className="inline-flex">{button}</span> : button}
       </Tooltip>
@@ -176,8 +186,11 @@ export function CallControlBar({
         isMuted ? t('callcenter.controlBar.unmute', 'Unmute') : t('callcenter.controlBar.mute', 'Mute'),
         onMuteToggle,
         {
-          active: isMuted,
-          hint: t('callcenter.controlBar.muteHint', 'Mute or unmute your microphone'),
+          active: isMuted && !muteDisabled,
+          disabled: muteDisabled,
+          hint: muteDisabled
+            ? t('callcenter.controlBar.muteUseDeviceHint', 'Use Mute on your SIP phone')
+            : t('callcenter.controlBar.muteHint', 'Mute or unmute your microphone'),
         },
       )}
       {showPrimary && renderButton(
@@ -216,7 +229,7 @@ export function CallControlBar({
               hint: t('callcenter.controlBar.parkHint', 'Park the call so another agent can pick it up'),
             },
           )}
-          {variant === 'full' && renderButton(
+          {variant === 'full' && onConferenceClick && renderButton(
             'conference',
             <Users className="w-4 h-4" />,
             t('callcenter.controlBar.conference', 'Add to conference'),

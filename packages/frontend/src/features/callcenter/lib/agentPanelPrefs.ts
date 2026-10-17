@@ -1,130 +1,93 @@
 /**
- * Operator ARM layout prefs (visibility, order, collapse, KPI mode).
- * localStorage - per-browser UX preference, same pattern as panel chips.
+ * Per-browser operator presentation: KPI period, table/cards and optional desktop tabs.
+ * Panel order is fixed (`DEFAULT_PANEL_ORDER`), collapse is gone and panel visibility lives in
+ * the server-side personal settings (`ui_visibility`, with admin `locks`). Stale `order` /
+ * `collapsed` / `visibility` values left in localStorage by older builds are ignored and
+ * removed on first read.
  */
 const STORAGE_KEY = 'cc.agent.panelPrefs.v2';
-/** Legacy keys - migrated on first read. */
-const LEGACY_PREFS_KEY = 'cc.agent.panelPrefs.v1';
-const LEGACY_VISIBILITY_KEY = 'cc.agent.panelVisibility.v1';
+/** Legacy keys - removed on first read. */
+const LEGACY_KEYS = ['cc.agent.panelPrefs.v1', 'cc.agent.panelVisibility.v1'];
 
 export type CcPanelKey = 'coworkers' | 'queues' | 'waiting' | 'history';
+/** `both` is no longer offered in the UI; a stored `both` is read as `shift`. */
 export type KpiDisplayMode = 'day' | 'shift' | 'both';
-export type CcCollapsiblePanel = 'waiting' | 'history';
+export type AgentPanelView = 'table' | 'cards';
 
-export const DEFAULT_PANEL_ORDER: CcPanelKey[] = ['coworkers', 'queues', 'waiting', 'history'];
-
-export type CcPanelVisibility = Partial<Record<CcPanelKey, boolean>>;
-export type CcPanelCollapsed = Partial<Record<CcCollapsiblePanel, boolean>>;
+/** Fixed workspace panel order. */
+export const DEFAULT_PANEL_ORDER: readonly CcPanelKey[] = ['coworkers', 'queues', 'waiting', 'history'];
 
 export interface AgentPanelPrefs {
-  visibility: CcPanelVisibility;
-  order: CcPanelKey[];
-  collapsed: CcPanelCollapsed;
   /** Default: this shift (same counters as Coworkers). */
   kpiDisplay: KpiDisplayMode;
+  desktopTabs: boolean;
+  coworkersView: AgentPanelView;
+  queuesView: AgentPanelView;
 }
-
-const PANEL_KEYS: CcPanelKey[] = ['coworkers', 'queues', 'waiting', 'history'];
 
 export const PANEL_PREFS_EVENT = 'cc:panel-prefs';
 
-function normalizeOrder(raw: unknown): CcPanelKey[] {
-  const seen = new Set<CcPanelKey>();
-  const out: CcPanelKey[] = [];
-  if (Array.isArray(raw)) {
-    for (const item of raw) {
-      if (PANEL_KEYS.includes(item as CcPanelKey) && !seen.has(item as CcPanelKey)) {
-        seen.add(item as CcPanelKey);
-        out.push(item as CcPanelKey);
-      }
-    }
-  }
-  for (const key of DEFAULT_PANEL_ORDER) {
-    if (!seen.has(key)) out.push(key);
-  }
-  return out;
-}
-
 function normalizeKpi(raw: unknown): KpiDisplayMode {
-  if (raw === 'day' || raw === 'shift' || raw === 'both') return raw;
+  if (raw === 'day') return 'day';
   return 'shift';
 }
 
-function readRaw(): Partial<AgentPanelPrefs> {
+function readRaw(): { parsed: Record<string, unknown> | null; hadLegacy: boolean } {
   try {
+    let hadLegacy = false;
+    for (const key of LEGACY_KEYS) {
+      if (localStorage.getItem(key) !== null) {
+        hadLegacy = true;
+        localStorage.removeItem(key);
+      }
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as unknown;
-      if (parsed && typeof parsed === 'object') return parsed as Partial<AgentPanelPrefs>;
-    }
-    // Migrate v1 prefs - reset kpi to shift so status bar matches Coworkers
-    const legacyPrefs = localStorage.getItem(LEGACY_PREFS_KEY);
-    if (legacyPrefs) {
-      const parsed = JSON.parse(legacyPrefs) as unknown;
       if (parsed && typeof parsed === 'object') {
-        const prev = parsed as Partial<AgentPanelPrefs>;
-        return { ...prev, kpiDisplay: 'shift' };
+        return { parsed: parsed as Record<string, unknown>, hadLegacy };
       }
     }
-    // One-time migrate legacy visibility map
-    const legacy = localStorage.getItem(LEGACY_VISIBILITY_KEY);
-    if (legacy) {
-      const parsed = JSON.parse(legacy) as unknown;
-      if (parsed && typeof parsed === 'object') {
-        return { visibility: parsed as CcPanelVisibility };
-      }
-    }
-  } catch { /* ignore */ }
-  return {};
+    return { parsed: null, hadLegacy };
+  } catch {
+    return { parsed: null, hadLegacy: false };
+  }
+}
+
+function write(prefs: AgentPanelPrefs): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+  } catch { /* private mode / quota */ }
 }
 
 export function loadAgentPanelPrefs(): AgentPanelPrefs {
-  const raw = readRaw();
-  const visibility: CcPanelVisibility = {};
-  if (raw.visibility && typeof raw.visibility === 'object') {
-    for (const key of PANEL_KEYS) {
-      const v = (raw.visibility as Record<string, unknown>)[key];
-      if (typeof v === 'boolean') visibility[key] = v;
-    }
-  }
-  const collapsed: CcPanelCollapsed = {};
-  if (raw.collapsed && typeof raw.collapsed === 'object') {
-    for (const key of ['waiting', 'history'] as const) {
-      const v = (raw.collapsed as Record<string, unknown>)[key];
-      if (typeof v === 'boolean') collapsed[key] = v;
-    }
-  }
-  return {
-    visibility,
-    order: normalizeOrder(raw.order),
-    collapsed,
-    kpiDisplay: normalizeKpi(raw.kpiDisplay),
+  const { parsed } = readRaw();
+  const prefs: AgentPanelPrefs = {
+    kpiDisplay: normalizeKpi(parsed?.kpiDisplay),
+    desktopTabs: parsed?.desktopTabs === true,
+    coworkersView: parsed?.coworkersView === 'table' ? 'table' : 'cards',
+    queuesView: parsed?.queuesView === 'table' ? 'table' : 'cards',
   };
+  if (parsed && ('order' in parsed || 'collapsed' in parsed || 'visibility' in parsed || parsed.kpiDisplay === 'both')) {
+    write(prefs); // drop stale keys once
+  }
+  return prefs;
 }
 
 export function saveAgentPanelPrefs(patch: Partial<AgentPanelPrefs>): AgentPanelPrefs {
   const prev = loadAgentPanelPrefs();
   const next: AgentPanelPrefs = {
-    visibility: { ...prev.visibility, ...(patch.visibility ?? {}) },
-    order: patch.order ? normalizeOrder(patch.order) : prev.order,
-    collapsed: { ...prev.collapsed, ...(patch.collapsed ?? {}) },
+    ...prev,
     kpiDisplay: patch.kpiDisplay !== undefined ? normalizeKpi(patch.kpiDisplay) : prev.kpiDisplay,
+    desktopTabs: patch.desktopTabs ?? prev.desktopTabs,
+    coworkersView: patch.coworkersView ?? prev.coworkersView,
+    queuesView: patch.queuesView ?? prev.queuesView,
   };
+  write(next);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     window.dispatchEvent(new Event(PANEL_PREFS_EVENT));
-  } catch { /* private mode / quota */ }
+  } catch { /* ignore */ }
   return next;
-}
-
-/** @deprecated use loadAgentPanelPrefs().visibility */
-export function loadPanelVisibility(): CcPanelVisibility {
-  return loadAgentPanelPrefs().visibility;
-}
-
-/** @deprecated use saveAgentPanelPrefs({ visibility }) */
-export function savePanelVisibility(visibility: CcPanelVisibility): void {
-  saveAgentPanelPrefs({ visibility });
 }
 
 /**

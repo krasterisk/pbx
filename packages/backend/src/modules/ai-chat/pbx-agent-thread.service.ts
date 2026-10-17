@@ -69,6 +69,13 @@ export class PbxAgentThreadService {
     });
   }
 
+  /** Support history stays remote; this only makes the owned local thread discoverable. */
+  async touchHelpdeskThread(threadUid: number, tenantUid: number, userUid: number): Promise<void> {
+    const thread = await this.getThread(threadUid, tenantUid, userUid);
+    await this.threadModel.update({ ...(thread.title ? {} : { title: 'Техническая поддержка' }), last_message_at: new Date(), updated_at: new Date() },
+      { where: { uid: threadUid, vpbx_user_uid: tenantUid, user_uid: userUid, status: 'active' } });
+  }
+
   async listThreads(vpbxUserUid: number, userUid: number): Promise<AgentThread[]> {
     return this.threadModel.findAll({
       where: { vpbx_user_uid: vpbxUserUid, user_uid: userUid },

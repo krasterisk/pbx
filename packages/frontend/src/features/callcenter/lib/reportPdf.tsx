@@ -1,18 +1,26 @@
 import React from 'react';
 import {
-  Document, Page, Text, View, StyleSheet, pdf,
+  Document, Page, Text, View, StyleSheet, pdf, Font,
 } from '@react-pdf/renderer';
-import { PDF_COLORS, PDF_FONTS } from '@/shared/lib/pdf/pdfTheme';
+import { PDF_COLORS } from '@/shared/lib/pdf/pdfTheme';
 import type { ReportColumn } from '@/shared/api/endpoints/callCenterReportsApi';
 
 /** T-07-18-01: client PDF DoS mitigation - cap rows rendered into the document. */
 export const REPORT_PDF_MAX_ROWS = 2000;
+
+// Local font assets keep Cyrillic reports readable, including without a CDN.
+const REPORT_FONT = 'CcReportNotoSans';
+Font.register({ family: REPORT_FONT, fonts: [
+  { src: `${import.meta.env.BASE_URL}fonts/noto-sans/NotoSans-Regular.ttf`, fontWeight: 400 },
+  { src: `${import.meta.env.BASE_URL}fonts/noto-sans/NotoSans-Bold.ttf`, fontWeight: 700 },
+] });
 
 export interface GenerateReportPdfParams {
   title: string;
   columns: ReportColumn[];
   rows: Record<string, unknown>[];
   meta?: {
+    timezone?: string;
     dateFrom?: string;
     dateTo?: string;
     queueName?: string;
@@ -22,7 +30,7 @@ export interface GenerateReportPdfParams {
 
 const s = StyleSheet.create({
   page: {
-    fontFamily: PDF_FONTS.regular,
+    fontFamily: REPORT_FONT,
     fontSize: 9,
     color: PDF_COLORS.text,
     padding: '32pt 36pt',
@@ -36,7 +44,7 @@ const s = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    fontFamily: PDF_FONTS.bold,
+    fontWeight: 700,
     color: PDF_COLORS.text,
     marginBottom: 4,
   },
@@ -49,7 +57,6 @@ const s = StyleSheet.create({
     fontSize: 8,
     color: PDF_COLORS.muted,
     marginBottom: 10,
-    fontStyle: 'italic',
   },
   tableHeader: {
     flexDirection: 'row',
@@ -75,7 +82,7 @@ const s = StyleSheet.create({
   },
   cellHeader: {
     fontSize: 8,
-    fontFamily: PDF_FONTS.bold,
+    fontWeight: 700,
     color: PDF_COLORS.primary,
     flexGrow: 1,
     flexBasis: 0,
@@ -113,6 +120,7 @@ function ReportPdfDocument({
   totalRows,
 }: GenerateReportPdfParams & { truncated: boolean; totalRows: number }) {
   const metaParts: string[] = [];
+  if (meta?.timezone) metaParts.push(meta.timezone);
   if (meta?.dateFrom || meta?.dateTo) {
     metaParts.push(`${meta.dateFrom ?? '…'} - ${meta.dateTo ?? '…'}`);
   }

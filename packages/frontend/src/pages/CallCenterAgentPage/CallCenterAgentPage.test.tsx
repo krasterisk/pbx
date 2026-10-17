@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
@@ -13,14 +13,16 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const useIsMobileMock = vi.fn((_bp?: number) => false);
-const { phoneDisconnect, phoneEnsureConnected } = vi.hoisted(() => ({
+const { restoreMe, restoreConfig } = vi.hoisted(() => ({ restoreMe: vi.fn(() => ({ unwrap: async () => ({ active: false }) })), restoreConfig: { data: undefined as undefined | { wssUrl: string } } }));
+const { phoneDisconnect, phoneEnsureConnected, agentState } = vi.hoisted(() => ({
   phoneDisconnect: vi.fn(),
   phoneEnsureConnected: vi.fn(),
+  agentState: { agent: null as null | Record<string, unknown>, iface: null as null | string },
 }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback || key,
+    t: (key: string, fallback?: string) => (typeof fallback === 'string' ? fallback : key),
   }),
 }));
 
@@ -59,6 +61,18 @@ vi.mock('@/features/callcenter/lib/useWebRTCPhone', () => ({
   }),
 }));
 
+vi.mock('@/features/callcenter/lib/useSipPhoneAmi', () => ({
+  useSipPhoneAmi: () => ({
+    status: 'idle',
+    isMuted: false,
+    isHeld: false,
+    mute: vi.fn(),
+    unmute: vi.fn(),
+    hangup: vi.fn(),
+    transfer: vi.fn(),
+  }),
+}));
+
 vi.mock('@/features/callcenter/lib/useCallCardPopup', () => ({
   useCallCardPopup: () => ({
     open: false,
@@ -72,15 +86,15 @@ vi.mock('@/features/callcenter/lib/useCallCardPopup', () => ({
 }));
 
 vi.mock('@/features/callcenter/ui/PauseReasonModal/PauseReasonModal', () => ({
-  PauseReasonModal: () => null,
+  PauseReasonModal: () => <div data-testid="pause-modal-stub" />,
 }));
 
 vi.mock('@/features/callcenter/ui/ClientCard/ClientCard', () => ({
   ClientCard: () => <div data-testid="client-card" />,
 }));
 
-vi.mock('@/features/callcenter/ui/CallCardPopup', () => ({
-  CallCardPopup: () => null,
+vi.mock('@/features/callcenter/ui/CallCardForm', () => ({
+  CallCardForm: () => null,
 }));
 
 vi.mock('@/features/callcenter/ui/MissedCallsPanel/MissedCallsPanel', () => ({
@@ -99,12 +113,24 @@ vi.mock('@/features/callcenter/ui/ChatPanel/ChatPanel', () => ({
   ChatPanelHost: () => null,
 }));
 
-vi.mock('@/features/callcenter/ui/WrapupBar/WrapupBar', () => ({
-  WrapupBar: () => null,
+vi.mock('@/features/callcenter/ui/WrapupPanel', () => ({
+  WrapupPanel: () => <div data-testid="wrapup-panel-stub" />,
 }));
 
-vi.mock('@/features/callcenter/ui/ShiftLoginModal/ShiftLoginModal', () => ({
-  ShiftLoginModal: () => null,
+vi.mock('@/features/callcenter/ui/AgentStartScreen', () => ({
+  AgentStartScreen: () => <div data-testid="start-screen-stub" />,
+}));
+
+vi.mock('@/features/callcenter/ui/AgentTransferDialog', () => ({
+  AgentTransferDialog: () => null,
+}));
+
+vi.mock('@/features/callcenter/ui/HotkeysHelp', () => ({
+  HotkeysHelp: () => null,
+}));
+
+vi.mock('@/features/callcenter/ui/AgentPersonalSettings', () => ({
+  AgentPersonalSettings: () => null,
 }));
 
 vi.mock('@/features/callcenter/ui/CallQualityIndicator/CallQualityIndicator', () => ({
@@ -143,23 +169,6 @@ vi.mock('@/features/callcenter/ui/CallHistoryPanel/CallHistoryPanel', () => ({
   CallHistoryPanel: () => <div data-testid="call-history-panel-stub" />,
 }));
 
-vi.mock('@/features/callcenter/ui/SortableAgentPanel/SortableAgentPanel', () => ({
-  SortableAgentPanel: ({
-    children,
-    title,
-    id,
-  }: {
-    children: React.ReactNode;
-    title?: string;
-    id?: string;
-  }) => (
-    <div data-testid={`cc-panel-${id || 'x'}`}>
-      <h2>{title}</h2>
-      {children}
-    </div>
-  ),
-}));
-
 vi.mock('@/features/callcenter/ui/DragTransfer/DragTransfer', () => ({
   DragTransferProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   DraggableCall: ({ children, className }: { children: React.ReactNode; className?: string; uniqueid?: string }) => (
@@ -182,6 +191,7 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
   useAgentHoldMutation: () => [vi.fn()],
   useAgentUnholdMutation: () => [vi.fn()],
   useAgentTransferMutation: () => [vi.fn()],
+  useAgentWrapupDoneMutation: () => [vi.fn()],
   useClickToCallMutation: () => [vi.fn()],
   useSendDtmfMutation: () => [vi.fn()],
   useGetMyRegistrationStateQuery: () => ({ data: { online: true } }),
@@ -189,21 +199,25 @@ vi.mock('@/shared/api/endpoints/callCenterApi', () => ({
   useGetMyOperatorSettingsQuery: () => ({ data: undefined }),
   useGetMyUiCustomizationQuery: () => ({ data: undefined }),
   useGetMyNotificationsQuery: () => ({ data: undefined }),
-  useGetWebrtcConfigQuery: () => ({ data: undefined }),
-  useLazyGetAgentMeQuery: () => [vi.fn(() => ({ unwrap: async () => ({ active: false }) }))],
+  useGetTenantSettingsQuery: () => ({ data: undefined }),
+  useGetWebrtcConfigQuery: () => restoreConfig,
+  useLazyGetAgentMeQuery: () => [restoreMe],
+  useGetLastShiftQuery: () => ({ data: { found: false } }),
+  useSaveWrapupNoteMutation: () => [vi.fn(() => ({ unwrap: async () => ({ saved: true }) }))],
 }));
 
 const EMPTY: never[] = [];
-const CURRENT_USER = { id: 1, name: 'Agent' };
+const CURRENT_USER = { id: 1, name: 'Agent', uniqueid: undefined as number | undefined };
 
 vi.mock('@/features/callcenter/model/selectors/callCenterSelectors', () => ({
-  selectMyAgent: () => null,
-  selectMyAgentInterface: () => null,
+  selectMyAgent: () => agentState.agent,
+  selectMyAgentInterface: () => agentState.iface,
   selectCcCalls: () => EMPTY,
   selectCcAgents: () => EMPTY,
   selectCcQueues: () => EMPTY,
   selectCcConnected: () => true,
   selectWaitingCalls: () => EMPTY,
+  selectTotalWaiting: () => 2,
   selectQueueMonitorCalls: () => EMPTY,
   selectPendingOutboundDial: () => null,
 }));
@@ -231,26 +245,123 @@ const store = configureStore({
   },
 });
 
-describe('CallCenterAgentPage hybrid orchestrator (D-04/D-07)', () => {
+const READY_AGENT = {
+  interface: 'PJSIP/e101_0',
+  name: 'Agent',
+  status: 'READY',
+  queues: ['sales'],
+};
+
+const WRAPUP_AGENT = { ...READY_AGENT, status: 'WRAPUP', currentCall: 'u1' };
+
+const IN_CALL_AGENT = {
+  ...READY_AGENT,
+  status: 'IN_CALL',
+  currentCall: 'u1',
+  peerNumber: '+380501112233',
+};
+
+const renderPage = () => render(
+  <Provider store={store}>
+    <CallCenterAgentPage />
+  </Provider>,
+);
+
+describe('CallCenterAgentPage workspace (U2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     phoneDisconnect.mockClear();
     phoneEnsureConnected.mockClear();
     useIsMobileMock.mockReturnValue(false);
+    agentState.agent = null;
+    agentState.iface = null;
+    CURRENT_USER.uniqueid = undefined;
+    restoreConfig.data = undefined;
+    restoreMe.mockImplementation(() => ({ unwrap: async () => ({ active: false }) }));
   });
 
-  it('renders side-by-side panels on wide screens', () => {
-    useIsMobileMock.mockReturnValue(false);
-    render(
-      <Provider store={store}>
-        <CallCenterAgentPage />
-      </Provider>,
-    );
+  it('outside a shift shows only the start screen: no panels, no status bar', () => {
+    renderPage();
     expect(screen.getByTestId('cc-agent-desktop')).toBeInTheDocument();
+    expect(screen.getByTestId('start-screen-stub')).toBeInTheDocument();
+    expect(screen.queryByTestId('coworkers-tab-stub')).toBeNull();
+    expect(screen.queryByTestId('queues-tab-stub')).toBeNull();
+    expect(screen.queryByTestId('agent-status-bar-stub')).toBeNull();
+  });
+
+  it('retries an interrupted shift lookup when WebRTC configuration arrives', async () => {
+    CURRENT_USER.uniqueid = 58;
+    let finish!: (value: { active: false }) => void;
+    restoreMe.mockImplementationOnce(() => ({ unwrap: () => new Promise(resolve => { finish = resolve; }) }));
+    const page = renderPage();
+    expect(restoreMe).toHaveBeenCalledTimes(1);
+    restoreConfig.data = { wssUrl: 'wss://test' };
+    await act(async () => page.rerender(<Provider store={store}><CallCenterAgentPage /></Provider>));
+    expect(restoreMe).toHaveBeenCalledTimes(2);
+    await act(async () => finish({ active: false }));
+  });
+
+  it('between calls renders fixed panels side by side on wide screens', () => {
+    agentState.agent = READY_AGENT;
+    agentState.iface = READY_AGENT.interface;
+    renderPage();
+    expect(screen.queryByTestId('start-screen-stub')).toBeNull();
+    expect(screen.getByTestId('agent-status-bar-stub')).toBeInTheDocument();
     expect(screen.getByTestId('coworkers-tab-stub')).toBeInTheDocument();
     expect(screen.getByTestId('queues-tab-stub')).toBeInTheDocument();
     expect(screen.getByTestId('waiting-tab-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('call-history-panel-stub')).toBeInTheDocument();
     expect(useIsMobileMock).toHaveBeenCalledWith(768);
+  });
+
+  it('has no drag handles or panel reorder / collapse controls', () => {
+    agentState.agent = READY_AGENT;
+    agentState.iface = READY_AGENT.interface;
+    renderPage();
+    expect(screen.queryByLabelText(/Reorder/i)).toBeNull();
+    expect(screen.queryByLabelText(/Collapse/i)).toBeNull();
+  });
+
+  it('during a call shows the client card and folds the panels into a rail', () => {
+    agentState.agent = IN_CALL_AGENT;
+    agentState.iface = IN_CALL_AGENT.interface;
+    renderPage();
+    expect(screen.getByTestId('cc-agent-call-layout')).toBeInTheDocument();
+    expect(screen.getByTestId('client-card')).toBeInTheDocument();
+    expect(screen.getByTestId('cc-agent-rail')).toBeInTheDocument();
+    expect(screen.queryByTestId('coworkers-tab-stub')).toBeNull();
+    expect(screen.getByTestId('cc-rail-waiting')).toHaveAccessibleName(/2/);
+  });
+
+  it('opens a panel from the rail', () => {
+    agentState.agent = IN_CALL_AGENT;
+    agentState.iface = IN_CALL_AGENT.interface;
+    renderPage();
+    fireEvent.click(screen.getByTestId('cc-rail-coworkers'));
+    expect(screen.getByTestId('coworkers-tab-stub')).toBeInTheDocument();
+  });
+
+  it('shows the wrap-up panel in the call layout after the call', () => {
+    agentState.agent = WRAPUP_AGENT;
+    agentState.iface = WRAPUP_AGENT.interface;
+    renderPage();
+    expect(screen.getByTestId('cc-agent-call-layout')).toBeInTheDocument();
+    expect(screen.getByTestId('wrapup-panel-stub')).toBeInTheDocument();
+  });
+
+  it('Alt+P opens the pause reason dialog while on shift', () => {
+    agentState.agent = READY_AGENT;
+    agentState.iface = READY_AGENT.interface;
+    renderPage();
+    expect(screen.queryByTestId('pause-modal-stub')).toBeNull();
+    fireEvent.keyDown(window, { code: 'KeyP', altKey: true });
+    expect(screen.getByTestId('pause-modal-stub')).toBeInTheDocument();
+  });
+
+  it('hotkeys do nothing outside a shift', () => {
+    renderPage();
+    fireEvent.keyDown(window, { code: 'KeyP', altKey: true });
+    expect(screen.queryByTestId('pause-modal-stub')).toBeNull();
   });
 
   it('binds softphone park to disconnect and ensureConnected(true)', async () => {
@@ -260,11 +371,7 @@ describe('CallCenterAgentPage hybrid orchestrator (D-04/D-07)', () => {
     expect(source).toMatch(/phone\.disconnect/);
     expect(source).toMatch(/ensureConnected\(true\)/);
 
-    render(
-      <Provider store={store}>
-        <CallCenterAgentPage />
-      </Provider>,
-    );
+    renderPage();
     phoneDisconnect.mockClear();
     phoneEnsureConnected.mockClear();
     await unregisterLiveSoftphone();
@@ -274,20 +381,15 @@ describe('CallCenterAgentPage hybrid orchestrator (D-04/D-07)', () => {
   });
 
   it('renders the shared Tabs component on phone with Waiting selected by default (D-07)', () => {
+    agentState.agent = READY_AGENT;
+    agentState.iface = READY_AGENT.interface;
     useIsMobileMock.mockReturnValue(true);
-    render(
-      <Provider store={store}>
-        <CallCenterAgentPage />
-      </Provider>,
-    );
+    renderPage();
     expect(screen.getByTestId('cc-agent-phone')).toBeInTheDocument();
 
     const coworkersTab = screen.getByRole('tab', { name: /Coworkers/i });
     const queuesTab = screen.getByRole('tab', { name: /Queues/i });
     const waitingTab = screen.getByRole('tab', { name: /Waiting/i });
-    expect(coworkersTab).toBeInTheDocument();
-    expect(queuesTab).toBeInTheDocument();
-    expect(waitingTab).toBeInTheDocument();
 
     expect(waitingTab).toHaveAttribute('aria-selected', 'true');
     expect(coworkersTab).toHaveAttribute('aria-selected', 'false');

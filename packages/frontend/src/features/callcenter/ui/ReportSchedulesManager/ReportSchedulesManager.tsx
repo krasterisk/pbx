@@ -4,6 +4,7 @@ import {
   useCreateReportScheduleMutation,
   useDeleteReportScheduleMutation,
   useGetReportSchedulesQuery,
+  useGetReportSchedulePreviewQuery,
   useRunReportScheduleNowMutation,
   useUpdateReportScheduleMutation,
   type CcReportId,
@@ -28,6 +29,7 @@ import {
   ModalBody,
   ModalSection,
   ModalToggle,
+  MultiSelect,
   Select,
   Skeleton,
   Switch,
@@ -43,6 +45,11 @@ import { Play } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
+import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
+import { useGetSupervisorAccessScopeQuery } from '@/shared/api/endpoints/callCenterApi';
+import { OperatorPicker } from '../OperatorPicker';
+import { queueDisplayName } from '../../lib/displayLabels';
+import { reportSupportsAgent, reportSupportsQueue } from '../../lib/reportCatalog';
 import styles from "./ReportSchedulesManager.module.scss";
 
 const PERIOD_PRESETS: ReportSchedulePeriodPreset[] = [
@@ -112,6 +119,15 @@ export function ReportSchedulesManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ReportSchedule | null>(null);
   const [form, setForm] = useState<ReportSchedulePayload>(EMPTY_FORM);
+  const { data: queueList = [] } = useGetQueuesQuery(undefined, { skip: !dialogOpen });
+  const { data: scope } = useGetSupervisorAccessScopeQuery(undefined, { skip: !dialogOpen });
+  const operators = scope?.candidates ?? [];
+  const preview = useGetReportSchedulePreviewQuery({
+    enabled: true, name: 'preview', report_id: 'queue-summary', format: 'xlsx', period_preset: 'yesterday', integration_uid: 0,
+    frequency: form.frequency, hour: form.hour, minute: form.minute,
+    day_of_week: form.day_of_week, day_of_month: form.day_of_month,
+  }, { skip: !dialogOpen });
+  const channel = integrations.find((item) => item.uid === form.integration_uid)?.channel;
   const [deleteTarget, setDeleteTarget] = useState<ReportSchedule[] | null>(
     null,
   );
@@ -174,8 +190,8 @@ export function ReportSchedulesManager() {
       subject_template: form.subject_template?.trim() || null,
       message_template: form.message_template?.trim() || null,
       filters: {
-        queueName: form.filters?.queueName?.trim() || undefined,
-        agentInterface: form.filters?.agentInterface?.trim() || undefined,
+        queueName: reportSupportsQueue(form.report_id) ? form.filters?.queueName?.trim() || undefined : undefined,
+        agentInterface: reportSupportsAgent(form.report_id) ? form.filters?.agentInterface?.trim() || undefined : undefined,
       },
       day_of_week: form.frequency === "weekly" ? (form.day_of_week ?? 1) : null,
       day_of_month:
@@ -478,7 +494,7 @@ export function ReportSchedulesManager() {
                 </div>
               </div>
             </ModalSection>
-            <ModalSection title={t("modal.sections.timing")}>
+            <ModalSection title={t("callcenter.settings.reportSchedules.timing")}>
               <div className={styles.formGrid}>
                 <div className={styles.field}>
                   <Label htmlFor="rs-freq">
@@ -584,39 +600,27 @@ export function ReportSchedulesManager() {
             </ModalSection>
             <ModalSection title={t("modal.sections.filters")}>
               <div className={styles.formGrid}>
-                <div className={styles.field}>
+                {reportSupportsQueue(form.report_id) && <div className={styles.field}>
                   <Label htmlFor="rs-queue">
                     {t("callcenter.settings.reportSchedules.fieldQueue")}
                   </Label>
-                  <Input
-                    id="rs-queue"
-                    value={form.filters?.queueName ?? ""}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        filters: { ...f.filters, queueName: e.target.value },
-                      }))
-                    }
+                  <MultiSelect
+                    placeholder={t('callcenter.reports.filters.queueAll')} ariaLabel={t('callcenter.settings.reportSchedules.fieldQueue')}
+                    searchable
+                    value={(form.filters?.queueName || '').split(',').filter(Boolean)}
+                    onChange={(values) => setForm((f) => ({ ...f, filters: { ...f.filters, queueName: values.join(',') } }))}
+                    options={queueList.map((q) => ({ value: q.name, label: queueDisplayName(q.name, queueList.map((x) => ({ name: x.name, displayName: x.display_name || x.name, exten: x.exten }))) }))}
                   />
-                </div>
-                <div className={styles.field}>
+                </div>}
+                {reportSupportsAgent(form.report_id) && <div className={styles.field}>
                   <Label htmlFor="rs-agent">
                     {t("callcenter.settings.reportSchedules.fieldAgent")}
                   </Label>
-                  <Input
-                    id="rs-agent"
-                    value={form.filters?.agentInterface ?? ""}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        filters: {
-                          ...f.filters,
-                          agentInterface: e.target.value,
-                        },
-                      }))
-                    }
+                  <OperatorPicker id="rs-agent"
+                    operators={operators} value={String(operators.find((o) => o.interface === form.filters?.agentInterface)?.userId ?? '')}
+                    onChange={(id) => setForm((f) => ({ ...f, filters: { ...f.filters, agentInterface: operators.find((o) => String(o.userId) === id)?.interface || '' } }))}
                   />
-                </div>
+                </div>}
               </div>
             </ModalSection>
             <ModalSection title={t("modal.sections.delivery")}>
@@ -659,7 +663,7 @@ export function ReportSchedulesManager() {
                     }
                   />
                 </div>
-                <div className={`${styles.field} ${styles.fieldWide}`}>
+                {channel === 'email' && <div className={`${styles.field} ${styles.fieldWide}`}>
                   <Label htmlFor="rs-subject">
                     {t("callcenter.settings.reportSchedules.fieldSubject")}
                   </Label>
@@ -674,7 +678,7 @@ export function ReportSchedulesManager() {
                     }
                     placeholder="{{report}} / {{period}}"
                   />
-                </div>
+                </div>}
                 <div className={`${styles.field} ${styles.fieldWide}`}>
                   <Label htmlFor="rs-message">
                     {t("callcenter.settings.reportSchedules.fieldMessage")}
@@ -695,6 +699,7 @@ export function ReportSchedulesManager() {
             </ModalSection>
           </ModalBody>
 
+          <Text role="status" variant="muted">{preview.data ? `${t('callcenter.settings.reportSchedules.colNext')}: ${new Date(preview.data.nextRunAt).toLocaleString(undefined, { timeZone: preview.data.timezone })} (${preview.data.timezone})` : preview.isError ? t('callcenter.settings.loadError') : t('common.loading')}</Text>
           <DialogFooter>
             <Button
               type="button"

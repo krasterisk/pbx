@@ -1,8 +1,12 @@
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { PhoneIncoming, Phone, Users } from 'lucide-react';
-import { Text, Tooltip } from '@/shared/ui';
+import { PhoneIncoming, Phone, PhoneForwarded, Users } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { Button, Text, Tooltip, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/ui';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import type { AgentPanelView } from '../../lib/agentPanelPrefs';
+import { CcMetricLabel } from '../CcMetricLabel/CcMetricLabel';
 import { useWarmTransferToQueueMutation } from '@/shared/api/endpoints/callCenterApi';
 import { selectMyAgent, selectCcQueues } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import { queueDisplayName } from '@/features/callcenter/lib/displayLabels';
@@ -11,13 +15,8 @@ import styles from './QueuesTab.module.scss';
 interface QueuesTabProps {
   /** uniqueid of the operator's own active call - enables warm-transfer-to-queue. */
   activeCallUniqueid?: string | null;
-}
-
-/** all free = success; none = danger; partial = warning */
-function freeLevelClass(available: number, total: number): string {
-  if (available <= 0) return styles.badgeDanger;
-  if (total > 0 && available >= total) return styles.badgeOk;
-  return styles.badgeWarning;
+  currentQueue?: string;
+  view?: AgentPanelView;
 }
 
 function freeTextClass(available: number, total: number): string {
@@ -30,8 +29,9 @@ function freeTextClass(available: number, total: number): string {
  * Queues tab - live occupancy + today queue answered/abandoned (D-31/D-32).
  * Totals are never Asterisk lifetime Completed counters.
  */
-export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
+export function QueuesTab({ activeCallUniqueid, currentQueue, view = 'cards' }: QueuesTabProps) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile(768);
   const myAgent = useSelector(selectMyAgent);
   const allQueues = useSelector(selectCcQueues);
   const [warmTransferToQueue] = useWarmTransferToQueueMutation();
@@ -43,7 +43,7 @@ export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
     try {
       await warmTransferToQueue({ uniqueid: activeCallUniqueid, queue: queueName }).unwrap();
     } catch (err: any) {
-      console.warn('Warm transfer to queue failed:', err?.data?.message || err?.message);
+      toast.error(t('callcenter.transfer.failed', 'Transfer failed'));
     }
   };
 
@@ -62,7 +62,6 @@ export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
       /** Queue-wide since midnight (not personal, not Asterisk lifetime). */
       dayAnswered: queue?.calls.answered ?? 0,
       dayAbandoned: queue?.calls.abandoned ?? 0,
-      badgeClass: freeLevelClass(available, total),
       freeClass: freeTextClass(available, total),
     };
   }), [myQueues, allQueues]);
@@ -83,23 +82,52 @@ export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
     );
   }
 
+  const transferButton = (row: typeof rows[number]) => activeCallUniqueid && row.queueName !== currentQueue ? (
+    <Button size="sm" variant="outline" className={styles.transferAction}
+      onClick={() => void handleWarmTransfer(row.queueName)}
+      aria-label={t('callcenter.transfer.toNumber', 'Transfer to {{number}}', { number: row.label })}>
+      <PhoneForwarded className="w-4 h-4" aria-hidden="true" />
+      {t('callcenter.transfer.title', 'Transfer Call')}
+    </Button>
+  ) : null;
+
+  if (view === 'table' && !isMobile) return <div className={styles.wrap} data-testid="queues-tab">
+    <Table surface={false} showSearch={false} showExport={false}>
+      <TableHeader><TableRow>
+        <TableHead>{t('callcenter.tabs.queues', 'Queues')}</TableHead>
+        <TableHead>{t('callcenter.supervisor.kpi.now', 'Now')}</TableHead>
+        <TableHead>{t('callcenter.kpi.modeDay', 'Day')}</TableHead>
+        <TableHead><CcMetricLabel metric="sla">SLA</CcMetricLabel></TableHead>
+        {activeCallUniqueid && <TableHead>{t('common.actions', 'Actions')}</TableHead>}
+      </TableRow></TableHeader>
+      <TableBody>{rows.map((row) => <TableRow key={row.queueName}>
+        <TableCell>{row.label}</TableCell>
+        <TableCell>
+          <div className={styles.tableMetrics}>
+            <span>{row.waiting} {t('callcenter.queuesTab.waiting', 'waiting')}</span>
+            <span>{row.talking} {t('callcenter.queuesTab.talking', 'talking')}</span>
+            <span className={row.freeClass}>{row.available} {t('callcenter.queuesTab.free', 'free')}</span>
+          </div>
+        </TableCell>
+        <TableCell><div className={styles.tableMetrics}>
+          <span>{t('callcenter.queuesTab.answered', 'Answered')}: {row.dayAnswered}</span>
+          <span>{t('callcenter.queuesTab.missed', 'Missed')}: {row.dayAbandoned}</span>
+        </div></TableCell>
+        <TableCell>{row.sla}%</TableCell>
+        {activeCallUniqueid && <TableCell>{transferButton(row)}</TableCell>}
+      </TableRow>)}</TableBody>
+    </Table>
+  </div>;
+
   return (
     <div className={styles.wrap} data-testid="queues-tab">
-      <div className={styles.badgeGrid}>
+      <div className={styles.badgeGrid} role="list">
         {rows.map((row) => {
-          const clickable = Boolean(activeCallUniqueid);
           return (
-            <button
-              type="button"
+            <div
+              role="listitem"
               key={row.queueName}
-              className={`${styles.badge} ${row.badgeClass}${clickable ? ` ${styles.badgeClickable}` : ''}`}
-              disabled={!clickable}
-              onClick={() => void handleWarmTransfer(row.queueName)}
-              title={
-                clickable
-                  ? t('callcenter.queuesTab.transferHereHint', 'Transfer active call to this queue')
-                  : undefined
-              }
+              className={styles.badge}
             >
               <Text as="h3" className={styles.name}>{row.label}</Text>
               <div className={styles.kpiGrid}>
@@ -122,7 +150,7 @@ export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
                   </span>
                 </Tooltip>
                 <Tooltip content={t('callcenter.queuesTab.hintSla', 'Service level within threshold')}>
-                  <span>{t('callcenter.queuesTab.sla', 'SLA')} {row.sla}%</span>
+                  <span><CcMetricLabel metric="sla">{t('callcenter.queuesTab.sla', 'SLA')}</CcMetricLabel> {row.sla}%</span>
                 </Tooltip>
               </div>
               <div className={styles.totalsRow} data-testid="queues-tab-day-totals">
@@ -137,7 +165,8 @@ export function QueuesTab({ activeCallUniqueid }: QueuesTabProps) {
                   </span>
                 </Tooltip>
               </div>
-            </button>
+              {transferButton(row)}
+            </div>
           );
         })}
       </div>

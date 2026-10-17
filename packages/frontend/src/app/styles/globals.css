@@ -166,7 +166,7 @@ body {
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
-  --color-primary: #6366f1;
+  --color-primary: #484bc4;
   --color-primary-foreground: #ffffff;
   --color-primary-hover: #818cf8;
   --color-button-primary: var(--color-primary);
@@ -174,8 +174,8 @@ body {
   --color-button-primary-foreground: var(--color-primary-foreground);
   --color-button-primary-border: transparent;
   --color-ring: #6366f1;
-  --color-success: #22c55e;
-  --color-destructive: #ef4444;
+  --color-success: #116b32;
+  --color-destructive: #c92a2a;
   --color-destructive-foreground: #fafafa;
   --color-info: #3b82f6;
   --color-background: #ffffff;
@@ -187,7 +187,7 @@ body {
   --color-secondary: #f4f4f5;
   --color-secondary-foreground: #52525b;
   --color-muted: #f4f4f5;
-  --color-muted-foreground: #71717a;
+  --color-muted-foreground: #62626c;
   --color-accent: #f4f4f5;
   --color-accent-foreground: #09090b;
   --color-border: #e4e4e7;

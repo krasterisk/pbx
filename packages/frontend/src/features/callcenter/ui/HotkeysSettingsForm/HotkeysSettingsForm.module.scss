@@ -1,0 +1,34 @@
+.wrap {
+  max-width: 720px;
+}
+
+.title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.row {
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+.label {
+  flex: 1 1 200px;
+}
+
+.input {
+  flex: 0 0 160px;
+  max-width: 160px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  cursor: pointer;
+}
+
+.error {
+  flex: 1 0 100%;
+  color: var(--color-destructive);
+  font-size: 0.8rem;
+}
+
+.recordHint {
+  font-size: 0.75rem;
+}

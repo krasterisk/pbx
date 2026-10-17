@@ -73,6 +73,7 @@ describe('AuthLogin', () => {
   it('places branding inside the card and omits the organization hint', () => {
     renderLogin();
     expect(within(screen.getByRole('region', { name: 'auth.title' })).getByText('AI PBX Krasterisk')).toBeInTheDocument();
+    expect(screen.getByTestId('app-version')).toHaveTextContent(/^v4\.\d+\.\d+\.\d+$/);
     expect(screen.queryByText('auth.companyLoginHint')).not.toBeInTheDocument();
     expect(within(screen.getByRole('banner')).getAllByRole('button')).toHaveLength(2);
   });

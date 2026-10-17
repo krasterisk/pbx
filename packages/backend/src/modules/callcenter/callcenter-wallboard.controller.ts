@@ -11,15 +11,26 @@ import {
   MessageEvent, Logger,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { Observable, map, merge, interval, startWith } from 'rxjs';
+import { Observable, map, merge, interval, startWith, timer, switchMap, from, catchError, EMPTY } from 'rxjs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DisplayTokenGuard } from './guards/display-token.guard';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterWallboardService } from './callcenter-wallboard.service';
+import { CallCenterSettingsService } from './callcenter-settings.service';
 import { CreateDisplayTokenDto, UpdateAlertConfigDto } from './dto/wallboard.dto';
 import { assertSupervisor } from './callcenter-rbac.util';
 
 const SSE_HEARTBEAT_MS = 15_000;
+/** Thresholds are re-sent so a TV picks up a supervisor's change without a reload. */
+const SSE_THRESHOLDS_REFRESH_MS = 5 * 60_000;
+
+/** Visual (non-secret) thresholds only: no alert targets, integrations or tokens. */
+const WALLBOARD_THRESHOLD_KEYS = [
+  'sla_critical_pct',
+  'max_wait_sec',
+  'abandon_rate_pct',
+  'agents_available_min',
+] as const;
 
 @Controller('callcenter/wallboard')
 export class CallCenterWallboardController {
@@ -28,6 +39,7 @@ export class CallCenterWallboardController {
   constructor(
     private readonly stateService: CallCenterStateService,
     private readonly wallboardService: CallCenterWallboardService,
+    private readonly settingsService: CallCenterSettingsService,
   ) {}
 
   /**
@@ -55,6 +67,24 @@ export class CallCenterWallboardController {
       })),
     );
 
+    // Tenant KPI thresholds for tone colours: same source as the supervisor screen and alerts.
+    const thresholds$ = timer(0, SSE_THRESHOLDS_REFRESH_MS).pipe(
+      switchMap(() =>
+        from(this.settingsService.getTenantSettings(userUid)).pipe(
+          map((settings) => {
+            const raw = (settings.alert_thresholds ?? {}) as Record<string, number>;
+            const visual: Record<string, number> = {};
+            for (const key of WALLBOARD_THRESHOLD_KEYS) {
+              if (typeof raw[key] === 'number') visual[key] = raw[key];
+            }
+            return { data: JSON.stringify(visual), type: 'thresholds', id: undefined as any };
+          }),
+          // A settings read failure must not drop the TV stream: it keeps its defaults.
+          catchError(() => EMPTY),
+        ),
+      ),
+    );
+
     const heartbeat$ = interval(SSE_HEARTBEAT_MS).pipe(
       map(() => ({
         data: '',
@@ -63,7 +93,7 @@ export class CallCenterWallboardController {
       })),
     );
 
-    return merge(ccEvents$, heartbeat$);
+    return merge(ccEvents$, thresholds$, heartbeat$);
   }
 
   @UseGuards(JwtAuthGuard)

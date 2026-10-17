@@ -13,6 +13,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { randomUUID } from 'node:crypto';
 import { AmiService } from '../ami/ami.service';
 import { CallCenterStateService } from './callcenter-state.service';
 import { CallCenterAmiService } from './callcenter-ami.service';
@@ -36,7 +37,7 @@ import { CallCenterShiftRestoreService } from './callcenter-shift-restore.servic
 import { ConferenceEphemeralService } from '../conferences/conference-ephemeral.service';
 import { User } from '../users/user.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
-import { companionIdOf, isWebrtcCompanion, primaryIdOf, extractExtension, interfaceToExtension } from '../endpoints/endpoint-ids.util';
+import { buildSipId, companionIdOf, isWebrtcCompanion, primaryIdOf, extractExtension, interfaceToExtension } from '../endpoints/endpoint-ids.util';
 import { Op, fn, col, literal } from 'sequelize';
 import { CallCenterPresenceService } from './callcenter-presence.service';
 import { Queue } from '../queues/queue.model';
@@ -46,8 +47,28 @@ import { CallGroupMember } from '../call-groups/call-group-member.model';
 import { DEFAULT_OPERATOR_SETTINGS } from './callcenter-settings.service';
 import { DEFAULT_SHIFT_POLICY, type ShiftCloseReason, type SoftphoneMode } from './models/shift-policy.types';
 
+/**
+ * Journal = cc_queue_calls rows + agent ring-no-answer offers (cc_agent_offers),
+ * newest first, capped at `limit`.
+ */
+export function mergeJournalOffers<T extends { enterTime: unknown }, O extends { enterTime: Date }>(
+  rows: T[],
+  offers: O[],
+  limit: number,
+): Array<T | O> {
+  if (offers.length === 0) return rows;
+  const ts = (x: { enterTime: unknown }) => {
+    const r = x as { enterTime?: unknown; answerTime?: unknown; endTime?: unknown };
+    const v = r.enterTime ?? r.answerTime ?? r.endTime;
+    return v instanceof Date ? v.getTime() : v ? new Date(v as string).getTime() : 0;
+  };
+  return [...rows, ...offers].sort((a, b) => ts(b) - ts(a)).slice(0, limit);
+}
+
 @Injectable()
 export class CallCenterService {
+  /** Fail closed for shared-lot calls whose tenant cannot be established after a restart. */
+  private readonly parkedCallTenants = new Map<string, { tenant: number; createdAt: number }>();
   private readonly logger = new Logger(CallCenterService.name);
 
   /** Maps userId → active session uid */
@@ -489,10 +510,17 @@ export class CallCenterService {
 
     const settings = await this.settingsService.getOperatorSettings(stateUid, userId);
 
+    const endpointId = agentInterface.replace(/^(PJSIP|SIP)\//, '');
+    let phoneOnline = false;
+    try {
+      phoneOnline = (await this.amiService.isPjsipEndpointReachable(endpointId)) === true;
+    } catch { /* An unconfirmed phone cannot be advertised as available. */ }
+
     // Update in-memory state (per-operator wrap-up timers loaded once at login)
     this.stateService.setAgent(stateUid, agentInterface, {
       status: 'READY',
       statusOrigin: 'login',
+      phoneOnline,
       name: displayName,
       queues,
       loginTime: new Date(),
@@ -729,9 +757,13 @@ export class CallCenterService {
           await this.amiService.hangup(hangChannel);
         } catch (err: any) {
           this.logger.warn(`Hangup failed for ${hangChannel}: ${err.message}`);
+          // The caller may already have left parking, while the operator's device
+          // still has a callback leg. A stale queue binding must not hide that leg.
+          if (await this.hangupChannelsForInterface(agentInterface) > 0) return { success: true };
+          throw new BadRequestException('Unable to hang up the active channel');
         }
+        return { success: true };
       }
-      return { success: true };
     }
 
     // Outbound / personal SIP (no queue currentCall) — hang live channel(s), then clear state.
@@ -742,13 +774,25 @@ export class CallCenterService {
       || agent.status === 'CONSULT'
       || agent.dialTarget
       || agent.peerNumber
+      || agent.currentCall
     ) {
-      await this.hangupChannelsForInterface(agentInterface);
+      const hungUp = await this.hangupChannelsForInterface(agentInterface);
+      if (hungUp === 0) throw new BadRequestException('No active call to hangup');
+      // Complete the same journal/history path as a device-side BYE before discarding
+      // the pending outbound state. AMI Hangup may arrive after its action response.
+      if (agent.currentCall && !this.stateService.getCall(agent.currentCall)) {
+        this.stateService.setAgent(agent.userUid, agentInterface, { currentCall: undefined });
+      }
+      this.ccAmiService.handleAgentHangup({ channel: agentInterface });
+      const completed = this.stateService.getAgent(agent.userUid, agentInterface);
+      if (completed && !['IN_CALL', 'DIALING', 'RINGING', 'CONSULT'].includes(completed.status)
+        && !completed.dialTarget) return { success: true };
       this.ccAmiService.clearNonQueueDialAttempt(agent.userUid, agentInterface);
       this.stateService.setAgent(agent.userUid, agentInterface, {
         status: 'READY',
         dialTarget: undefined,
         peerNumber: '',
+        currentCall: undefined,
       });
       this.metricsService.recordAgentStatus(agent.userUid, agentInterface, 'READY');
       return { success: true };
@@ -758,8 +802,9 @@ export class CallCenterService {
   }
 
   /** Hang every live CoreShowChannels row belonging to this PJSIP interface (+ twin). */
-  private async hangupChannelsForInterface(agentInterface: string): Promise<void> {
-    if (!this.amiService.isConnected()) return;
+  private async hangupChannelsForInterface(agentInterface: string): Promise<number> {
+    if (!this.amiService.isConnected()) return 0;
+    let hungUp = 0;
     try {
       const { events } = await this.amiService.getActiveChannels();
       const prefixes = this.agentChannelPrefixes(agentInterface);
@@ -768,6 +813,7 @@ export class CallCenterService {
         if (!prefixes.some((p) => ch === p || ch.startsWith(`${p}-`))) continue;
         try {
           await this.amiService.hangup(ch);
+          hungUp += 1;
         } catch (err: any) {
           this.logger.warn(`Hangup channel ${ch} failed: ${err?.message || err}`);
         }
@@ -775,6 +821,7 @@ export class CallCenterService {
     } catch (err: any) {
       this.logger.warn(`hangupChannelsForInterface failed: ${err?.message || err}`);
     }
+    return hungUp;
   }
 
   private agentChannelPrefixes(agentInterface: string): string[] {
@@ -909,6 +956,29 @@ export class CallCenterService {
       callsMade: agent.callsMade ?? 0,
       statusSince: agent.statusSince,
       queuesDetached: Boolean(agent.queuesDetached),
+    };
+  }
+
+  /** The operator's previous closed shift — shown on the start screen before the next login. */
+  async getLastShift(jwtUserUid: number, userId: number) {
+    const userUid = this.resolveTenant(jwtUserUid, userId);
+    const session = await this.sessionModel.findOne({
+      where: {
+        user_id: userId,
+        user_uid: userUid,
+        logout_time: { [Op.ne]: null },
+      },
+      order: [['logout_time', 'DESC']],
+    });
+    if (!session) return { found: false as const };
+    return {
+      found: true as const,
+      loginTime: session.login_time,
+      logoutTime: session.logout_time,
+      totalCalls: session.total_calls ?? 0,
+      totalTalkSec: session.total_talk_time ?? 0,
+      totalPauseSec: session.total_pause_time ?? 0,
+      queues: (session.queues_snapshot ?? []) as string[],
     };
   }
 
@@ -1097,6 +1167,10 @@ export class CallCenterService {
 
   async agentTransfer(dto: TransferDto, userUid: number, userId: number) {
     userUid = this.resolveTenant(userUid, userId);
+    if (dto.type === 'attended') {
+      // No AMI consultation is performed here. Never report a fictitious transfer.
+      throw new BadRequestException('Consultation requires WebRTC or the transfer key on your SIP phone');
+    }
     if (!this.amiService.isConnected()) {
       throw new BadRequestException('AMI not connected');
     }
@@ -1200,32 +1274,112 @@ export class CallCenterService {
       throw new BadRequestException('Agent is not on a call');
     }
 
-    // ChanSpy via AMI Originate
-    // mode: spy = 'q' (quiet), whisper = 'w', barge = 'B'
-    const spyOptions = mode === 'spy' ? 'q' : mode === 'whisper' ? 'w' : 'B';
+    // ChanSpy via AMI Originate (U1.5: include 'd' option for DTMF 4/5/6 live mode switching)
+    // mode: spy = 'qd' (quiet), whisper = 'wd', barge = 'Bd'
+    const spyOptions = mode === 'spy' ? 'qd' : mode === 'whisper' ? 'wd' : 'Bd';
 
-    // Get supervisor's SIP interface
+    // Get supervisor's SIP interface (prefer online shift interface if supervisor is logged in via WebRTC)
     const supervisor = await this.userModel.findOne({ where: { uniqueid: supervisorId, vpbx_user_uid: userUid } });
     if (!supervisor) throw new NotFoundException('Supervisor not found');
 
-    // Build the ChanSpy channel — supervisor's device rings and connects to spy
-    const supervisorExten = supervisor.getDataValue('extension') || supervisor.getDataValue('login');
-    const spyChannel = `PJSIP/${supervisorExten}`;
+    const onlineSupAgent = this.stateService
+      .getAllAgents(userUid)
+      .find((a) => a.userId === supervisorId && a.status !== 'OFFLINE' && a.interface);
+    const supervisorExten = supervisor.getDataValue('exten');
+    if (!onlineSupAgent?.interface && !supervisorExten) {
+      throw new BadRequestException('Select a phone by starting a shift before monitoring');
+    }
+    const spyChannel = onlineSupAgent?.interface || `PJSIP/${buildSipId(userUid, String(supervisorExten))}`;
+    if (!onlineSupAgent?.interface) {
+      const rows = await this.endpointModel.findAll({ where: { id: buildSipId(userUid, String(supervisorExten)), tenantid: String(userUid) }, attributes: ['id'] });
+      if (!rows.some(row => `PJSIP/${row.id}` === spyChannel)) throw new BadRequestException('Supervisor phone is unavailable');
+    }
+    const sessionId = `spy_${userUid}_${supervisorId}_${Date.now()}`;
 
+    if (this.stateService.getMonitorSession(userUid, supervisorId)) {
+      throw new ConflictException('Stop the active monitor session before starting another');
+    }
+    this.stateService.startMonitorSession({
+      id: sessionId, userUid, supervisorId, supervisorChannelPrefix: spyChannel,
+      agentInterface, agentName: agent.name || agentInterface, mode, startedAt: new Date(),
+    });
     try {
-      const { context } = await this.resolveAgentRedirectTarget(userUid, spyChannel);
-      await this.amiService.originate(
-        spyChannel,
-        `Spy on ${agent.name}`,
-        context,
-        `ChanSpy(${agentInterface},${spyOptions})`,
-      );
+      await this.amiService.action({
+        action: 'Originate', channel: spyChannel, callerid: `Spy on ${agent.name}`,
+        application: 'ChanSpy', data: `${agentInterface},${spyOptions}`, async: 'true',
+        variable: `CC_SPY_SESSION=${sessionId}`,
+      });
     } catch (err: any) {
+      this.stateService.endMonitorSession(userUid, supervisorId);
       throw new BadRequestException(`Spy failed: ${err.message}`);
     }
 
     this.logger.log(`Supervisor ${supervisorId} started ${mode} on ${agentInterface}`);
-    return { success: true, mode };
+    return {
+      success: true,
+      mode,
+      sessionId,
+      agentInterface,
+      agentName: agent.name || agentInterface,
+    };
+  }
+
+  private async resolveMonitorSessionLiveChannel(
+    userUid: number,
+    supervisorId: number,
+  ): Promise<{ session: NonNullable<ReturnType<CallCenterStateService['getMonitorSession']>>; channel?: string }> {
+    const session = this.stateService.getMonitorSession(userUid, supervisorId);
+    if (!session) {
+      throw new NotFoundException('Active monitor session not found');
+    }
+    if (session.channel) {
+      return { session, channel: session.channel };
+    }
+    if (this.amiService.isConnected()) {
+      try {
+        const { events } = await this.amiService.getActiveChannels();
+        const prefixes = this.agentChannelPrefixes(session.supervisorChannelPrefix);
+        for (const evt of events) {
+          const ch = String(evt.channel || '');
+          if (String(evt.application || '').toLowerCase() === 'chanspy' && prefixes.some((p) => ch === p || ch.startsWith(`${p}-`))) {
+            session.channel = ch;
+            return { session, channel: ch };
+          }
+        }
+      } catch {
+        /* ignore channel scan error */
+      }
+    }
+    return { session, channel: session.channel };
+  }
+
+  async supervisorSpyStop(userUid: number, supervisorId: number) {
+    const { session, channel } = await this.resolveMonitorSessionLiveChannel(userUid, supervisorId);
+    if (channel) {
+      try {
+        await this.amiService.hangup(channel);
+      } catch (err: any) {
+        throw new BadRequestException(`Spy stop failed: ${err?.message || err}`);
+      }
+    } else {
+      throw new BadRequestException('Monitor channel is still connecting; retry shortly');
+    }
+    this.stateService.endMonitorSession(userUid, supervisorId);
+    return { success: true, sessionId: session.id };
+  }
+
+  async supervisorSpyMode(mode: 'spy' | 'whisper' | 'barge', userUid: number, supervisorId: number) {
+    const { session, channel } = await this.resolveMonitorSessionLiveChannel(userUid, supervisorId);
+    if (!channel || !session.connected) throw new BadRequestException('Wait for the monitor audio connection');
+    const digit = mode === 'spy' ? '4' : mode === 'whisper' ? '5' : '6';
+    const targetChannel = channel || session.supervisorChannelPrefix;
+    try {
+      await this.amiService.playDtmf(targetChannel, digit, true);
+    } catch (err: any) {
+      throw new BadRequestException(`Spy mode switch failed: ${err.message}`);
+    }
+    this.stateService.updateMonitorSessionMode(userUid, supervisorId, mode, channel);
+    return { success: true, sessionId: session.id, mode, digit };
   }
 
   // ─── Peer Actions (D-21…D-25) ───────────────────────────
@@ -1288,13 +1442,11 @@ export class CallCenterService {
     const spyOptions = mode === 'listen' ? 'q' : mode === 'whisper' ? 'w' : 'B';
 
     try {
-      const { context } = await this.resolveAgentRedirectTarget(userUid, requesterAgent.interface);
-      await this.amiService.originate(
-        requesterAgent.interface,
-        `Peer spy on ${targetAgent.name}`,
-        context,
-        `ChanSpy(${targetInterface},${spyOptions})`,
-      );
+      await this.amiService.action({
+        action: 'Originate', channel: requesterAgent.interface,
+        callerid: `Peer spy on ${targetAgent.name}`, application: 'ChanSpy',
+        data: `${targetInterface},${spyOptions}`, async: 'true',
+      });
     } catch (err: any) {
       throw new BadRequestException(`Spy failed: ${err.message}`);
     }
@@ -1731,15 +1883,20 @@ export class CallCenterService {
 
     let res: any;
     try {
-      res = await this.amiService.park(call.callerChannel);
+      this.parkedCallTenants.set(call.callerChannel, { tenant: userUid, createdAt: Date.now() });
+      res = call.agentChannel
+        ? await this.amiService.park(call.callerChannel, undefined, call.agentChannel)
+        : await this.amiService.park(call.callerChannel);
     } catch (err: any) {
+      this.parkedCallTenants.delete(call.callerChannel);
       throw new BadRequestException(`Park failed: ${err.message}`);
     }
 
     this.stateService.setCall(uniqueid, { status: 'HOLD' });
     this.logger.log(`Parked call ${uniqueid} (${call.callerChannel}) by ${agentInterface}`);
 
-    const parkingSpace: string | null = res?.exten || res?.parkinglot || null;
+    const parked = await this.getParkedCalls(userUid, userId);
+    const parkingSpace: string | null = parked.find(item => item.channel === call.callerChannel)?.parkingSpace || res?.parkingspace || res?.exten || null;
     // Delta-driven refresh for every operator's ParkedCallsIndicator (D-45, 09-10).
     this.stateService.emitEvent('parkedCallsUpdate', userUid, { parkingSpace, action: 'parked' });
 
@@ -1762,9 +1919,11 @@ export class CallCenterService {
     const agentInterface = await this.resolveAgentInterface(userUid, userId);
     if (!agentInterface) throw new NotFoundException('Agent not logged in');
 
-    if (!parkingSpace || !parkingSpace.trim()) {
+    if (!/^\d+$/.test(parkingSpace ?? '')) {
       throw new BadRequestException('Parking space is required');
     }
+    const parked = (await this.getParkedCalls(userUid, userId)).find(item => item.parkingSpace === parkingSpace);
+    if (!parked) throw new NotFoundException('Parked call not found in this call center');
 
     try {
       await this.amiService.originate(
@@ -1802,14 +1961,21 @@ export class CallCenterService {
       return [];
     }
 
-    return events.map((evt) => ({
-      // [ASSUMED] field names — verify on live Asterisk (09-VALIDATION), same
-      // caveat as parkCall's response-field assumption above.
-      parkingSpace: evt?.exten || evt?.parkinglot || '',
-      callerIdNum: evt?.calleridnum || evt?.callerid || '',
-      callerIdName: evt?.calleridname || '',
-      channel: evt?.channel || undefined,
-      timeoutSec: evt?.timeout != null ? Number(evt.timeout) : undefined,
+    const activeChannels = new Set(events.map(evt => evt.parkeechannel || evt.channel));
+    for (const [channel, owner] of this.parkedCallTenants) {
+      if (!activeChannels.has(channel) && Date.now() - owner.createdAt > 5 * 60_000) this.parkedCallTenants.delete(channel);
+    }
+    const calls = this.stateService.getAllCalls(userUid);
+    return events.filter(evt => {
+      const channel = evt.parkeechannel || evt.channel;
+      const owned = this.parkedCallTenants.get(channel)?.tenant === userUid || calls.some(call => call.callerChannel === channel || call.uniqueid === evt.parkeeuniqueid);
+      return owned && /^\d+$/.test(String(evt.parkingspace || evt.exten || ''));
+    }).map(evt => ({
+      parkingSpace: String(evt.parkingspace || evt.exten),
+      callerIdNum: evt.parkeecalleridnum || evt.calleridnum || evt.callerid || '',
+      callerIdName: evt.parkeecalleridname || evt.calleridname || '',
+      channel: evt.parkeechannel || evt.channel || undefined,
+      timeoutSec: evt.parkingtimeout != null ? Number(evt.parkingtimeout) : evt.timeout != null ? Number(evt.timeout) : undefined,
     }));
   }
 
@@ -1843,12 +2009,23 @@ export class CallCenterService {
       throw new BadRequestException('Conference target is required');
     }
 
+    const extension = interfaceToExtension(target.trim());
+    if (!/^[\w+*#-]+$/.test(extension)) throw new BadRequestException('Invalid conference target');
+    const targetId = buildSipId(userUid, extension);
+    const endpoints = await this.endpointModel.findAll({ where: { id: targetId, tenantid: String(userUid) }, attributes: ['id'] });
+    if (!endpoints.some(endpoint => endpoint.id === targetId)) throw new ForbiddenException('Conference target not allowed');
+    const inventory = await this.amiService.getActiveChannels();
+    const active = new Set(inventory.events.map(event => String(event.channel || '')));
+    if (!inventory.complete || !active.has(call.callerChannel) || !active.has(call.agentChannel)) {
+      throw new BadRequestException('Call channels are no longer active; refresh and retry');
+    }
+
     const { contextName } = await this.conferenceEphemeralService.ensureRoomForCall(
       uniqueid,
       userUid,
       userId,
     );
-    const exten = target.replace(/^PJSIP\//, '').replace(/^SIP\//, '');
+    const exten = targetId;
 
     try {
       await this.amiService.action({
@@ -1862,6 +2039,7 @@ export class CallCenterService {
         extraexten: 's',
         extrapriority: '1',
       });
+      this.stateService.setCall(uniqueid, { conference: true });
       await this.amiService.originate(
         `PJSIP/${exten}`,
         `Conference ${contextName}`,
@@ -2093,6 +2271,8 @@ export class CallCenterService {
     this.stateService.setAgent(stateUid, agentInterface, {
       status: 'DIALING',
       dialTarget,
+      currentCall: undefined,
+      statusOrigin: 'call',
     });
     this.metricsService.recordAgentStatus(stateUid, agentInterface, 'DIALING');
 
@@ -2506,6 +2686,10 @@ export class CallCenterService {
     try {
       const reachable = await this.amiService.isPjsipEndpointReachable(endpointId);
       if (reachable !== null) {
+        const agent = this.stateService.getAgent(userUid, agentInterface);
+        if (agent && !isWebrtcCompanion(sipId)) {
+          this.stateService.setAgent(userUid, agentInterface, { phoneOnline: reachable });
+        }
         this.presenceService.handleDeviceStateChange({
           device: `PJSIP/${endpointId}`,
           state: reachable ? 'NOT_INUSE' : 'UNAVAILABLE',
@@ -2588,8 +2772,8 @@ export class CallCenterService {
   // ─── Pick Call ──────────────────────────────────────────
   //
   // Pick Call: agent manually grabs a waiting caller from a queue.
-  // AMI Redirect of the caller channel to the agent's dialplan extension
-  // (endpoint context + numeric exten), bypassing queue strategy.
+  // Ring the actual shift endpoint and bridge it to the waiting caller.
+  // An extension's outbound context can route that number elsewhere.
 
   async agentPickCall(uniqueid: string, userUid: number, userId: number) {
     userUid = this.resolveTenant(userUid, userId);
@@ -2598,7 +2782,7 @@ export class CallCenterService {
 
     const agent = this.stateService.getAgent(userUid, agentInterface);
     if (!agent) throw new NotFoundException('Agent state not found');
-    if (agent.status !== 'READY') {
+    if (agent.status !== 'READY' || agent.phoneOnline === false) {
       throw new BadRequestException(`Agent must be READY to pick a call (current: ${agent.status})`);
     }
 
@@ -2612,8 +2796,11 @@ export class CallCenterService {
     if (call.userUid !== userUid) {
       throw new BadRequestException('Call belongs to another tenant');
     }
-    if (call.status !== 'WAITING' && call.status !== 'RINGING') {
-      throw new BadRequestException(`Call is not pickable (status: ${call.status})`);
+    if (!agent.queues.includes(call.queue)) {
+      throw new ForbiddenException('Call is not in an operator queue');
+    }
+    if (call.pickup || call.agent || (call.status !== 'WAITING' && call.status !== 'RINGING')) {
+      throw new ConflictException(`Call is not pickable (status: ${call.status})`);
     }
 
     const callerChannel = call.callerChannel;
@@ -2623,28 +2810,37 @@ export class CallCenterService {
       );
     }
 
-    const { exten: agentExten, context } = await this.resolveAgentRedirectTarget(
-      userUid,
-      agentInterface,
-    );
-
+    // All asynchronous checks are finished. Reserve both call and operator in
+    // one synchronous turn so concurrent requests cannot create another leg.
+    const liveAgent = this.stateService.getAgent(userUid, agentInterface);
+    const liveCall = this.stateService.getCall(uniqueid);
+    if (liveAgent?.status !== 'READY' || liveCall !== call || liveCall.pickup) {
+      throw new ConflictException('Call or operator is already busy');
+    }
+    const actionId = `cc-pickup-${randomUUID()}`;
+    const channelId = randomUUID();
+    const claimed = this.stateService.setCall(uniqueid, { status: 'RINGING', agent: agentInterface, pickup: { actionId, channelId } });
+    this.stateService.setAgent(userUid, agentInterface, {
+      status: 'RINGING', statusOrigin: 'call', currentCall: uniqueid, peerNumber: call.callerIdNum,
+      pickupFailed: false,
+    });
     try {
       await this.amiService.action({
-        action: 'Redirect',
-        channel: callerChannel,
-        context,
-        exten: agentExten,
-        priority: '1',
+        action: 'Originate', actionid: actionId, channelid: channelId,
+        channel: agentInterface, application: 'Bridge', data: `${callerChannel},x`,
+        callerid: call.callerIdNum || 'Unknown', timeout: '30000', async: 'true',
+        variable: `${CallCenterAmiService.PICKUP_METADATA_VARIABLE}=${CallCenterAmiService.pickupMetadata(claimed, userId)}`,
       });
     } catch (err: any) {
+      this.ccAmiService.handlePickupOriginateResponse({ actionid: actionId, response: 'Failure' });
       throw new BadRequestException(`Pick call failed: ${err.message}`);
     }
 
     this.logger.log(
-      `Agent ${agentInterface} picked call ${uniqueid} from queue ${call.queue} → ${context},${agentExten}`,
+      `Agent ${agentInterface} is picking call ${uniqueid} from queue ${call.queue}`,
     );
 
-    return { success: true, uniqueid, target: agentExten, context };
+    return { success: true, uniqueid, target: interfaceToExtension(agentInterface) };
   }
 
   // ─── Missed Calls ──────────────────────────────────────
@@ -2890,6 +3086,12 @@ export class CallCenterService {
       order: [['created_at', 'DESC']],
       limit: 200,
     });
+    const offerRows = await this.metricsService.listAgentOfferJournalRows(
+      userUid,
+      [operatorUserId],
+      since,
+      200,
+    );
 
     // Enrich missed rows with the operator who later handled the callback.
     const missedUniqueids = rows
@@ -2942,7 +3144,7 @@ export class CallCenterService {
       }
     }
 
-    return rows.map((r) => {
+    const mapped = rows.map((r) => {
       const uniqueid = r.getDataValue('call_uniqueid') as string;
       const handler = handledBy.get(uniqueid);
       return {
@@ -2964,6 +3166,7 @@ export class CallCenterService {
         talkTime: r.getDataValue('talk_time'),
       };
     });
+    return mergeJournalOffers(mapped, offerRows, 200);
   }
 
   // ─── Supervisor access scope / watchlist / multi-agent history ──
@@ -3052,6 +3255,12 @@ export class CallCenterService {
       order: [['created_at', 'DESC']],
       limit: 500,
     });
+    const offerRows = await this.metricsService.listAgentOfferJournalRows(
+      userUid,
+      operatorIds,
+      since,
+      500,
+    );
 
     const missedUniqueids = rows
       .filter((r) => {
@@ -3103,7 +3312,7 @@ export class CallCenterService {
       }
     }
 
-    return rows.map((r) => {
+    const mapped = rows.map((r) => {
       const uniqueid = r.getDataValue('call_uniqueid') as string;
       const handler = handledBy.get(uniqueid);
       return {
@@ -3126,6 +3335,7 @@ export class CallCenterService {
         agentUserId: r.getDataValue('agent_user_uid'),
       };
     });
+    return mergeJournalOffers(mapped, offerRows, 500);
   }
 
   private startOfToday(): Date {
@@ -3203,7 +3413,7 @@ export class CallCenterService {
       attributes: ['id', 'department'],
     });
     const endpoints = endpointRows
-      .filter((ep) => !isWebrtcCompanion(ep.id))
+      .filter((ep) => !isWebrtcCompanion(ep.id) && !ep.id.startsWith('t_'))
       .map((ep) => {
         const extension = extractExtension(ep.id);
         const agent = agentByExtension.get(extension);
@@ -3254,7 +3464,7 @@ export class CallCenterService {
     const groups = groupRows.map((g) => {
       const uid = g.getDataValue('uid') as number;
       const extensions = membersByGroup.get(uid) || [];
-      const freeOperators = extensions.filter((ext) => agentByExtension.get(ext)?.status === 'READY').length;
+      const freeOperators = extensions.filter((ext) => agentByExtension.get(ext)?.status === 'READY' && agentByExtension.get(ext)?.phoneOnline !== false).length;
       return {
         type: 'group' as const,
         id: String(uid),

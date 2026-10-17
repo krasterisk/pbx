@@ -84,11 +84,17 @@ export class McpToolsService implements OnApplicationBootstrap {
         this.logger.log(`AI adapter domains: ${domains.join(', ') || '(none)'}`);
     }
 
-    getToolsList(_vpbxUserUid: number): Array<{ name: string; description: string; inputSchema: any }> {
+    getToolsList(_vpbxUserUid: number) {
         return Array.from(this.toolRegistry.entries()).map(([name, def]) => ({
             name,
             description: def.description,
             inputSchema: def.jsonSchema,
+            annotations: {
+                readOnlyHint: !def.mutation && !def.proposes && !def.destructive && /^(get|list|describe|find|suggest|read)_/.test(name),
+                destructiveHint: def.destructive,
+                idempotentHint: !def.mutation && !def.proposes && !def.destructive && /^(get|list|describe|find|suggest|read)_/.test(name),
+                openWorldHint: !name.includes('_autodial_'),
+            },
         }));
     }
 
@@ -188,6 +194,7 @@ export class McpToolsService implements OnApplicationBootstrap {
                 userUid: ctx.userUid,
                 role: ctx.role,
                 isAdmin: ctx.role === UserLevel.ADMIN,
+                threadUid: ctx.threadUid,
             });
             this.logToolCall(name, tool, args, ctx.vpbxUserUid, 'success');
             if (isToolRefusal(proposed) || isToolSkip(proposed)) {

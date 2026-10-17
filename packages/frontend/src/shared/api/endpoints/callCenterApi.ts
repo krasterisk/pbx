@@ -1,4 +1,4 @@
-import type { ICallbackPolicy } from '@krasterisk/shared';
+import type { AgentHotkeyMap, ICallbackPolicy } from '@krasterisk/shared';
 import { rtkApi } from '../rtkApi';
 import type { IPauseReason, ICcSnapshot, IAgentDetail } from '@/features/callcenter/model/types/callCenterSchema';
 import type { ICardTemplate, ICardData } from '@/features/callcenter/model/types/callCard';
@@ -104,6 +104,8 @@ export interface IShiftPolicy {
 
 export interface ICcSettings {
   default_sla_threshold: number;
+  /** Abandon within this many seconds is a "short abandon" excluded from rate denominators (0 = off). */
+  short_abandon_sec?: number;
   /** D-04: softphone Journal last-N depth (tenant setting, default 50). */
   journal_depth?: number;
   alert_thresholds: Record<string, number> | null;
@@ -114,6 +116,10 @@ export interface ICcSettings {
   autopause_rules?: AutoPauseRule[] | null;
   shift_policy?: IShiftPolicy | null;
   callback_policy?: ICallbackPolicy | null;
+  /** cc-ux U5.6: tenant override of the agent hotkeys (partial; null = built-in set). */
+  agent_hotkeys?: Record<string, string> | null;
+  /** Server-resolved effective map (defaults + valid override). Read-only. */
+  agent_hotkeys_effective?: AgentHotkeyMap;
 }
 
 /** Softphone shared contact book row (Phase 10 D-11…D-15). */
@@ -429,6 +435,19 @@ const callCenterApi = rtkApi.injectEndpoints({
       providesTags: ['AgentKpi'],
     }),
 
+    getLastShift: build.query<{
+      found: boolean;
+      loginTime?: string;
+      logoutTime?: string;
+      totalCalls?: number;
+      totalTalkSec?: number;
+      totalPauseSec?: number;
+      queues?: string[];
+    }, void>({
+      query: () => '/callcenter/agent/last-shift',
+      providesTags: ['AgentKpi'],
+    }),
+
     /** Same shape, batched per-queue (D-31/D-32) - Queues tab (09-08). */
     getAgentQueuesStats: build.query<IAgentQueuesKpi, void>({
       query: () => '/callcenter/agent/queues-kpi',
@@ -610,9 +629,11 @@ const callCenterApi = rtkApi.injectEndpoints({
     // ─── Agent Actions ────────────────────────────────────
     agentLogin: build.mutation<{ success: boolean; sessionId: number }, { interface: string; queues?: string[] }>({
       query: (body) => ({ url: '/callcenter/agent/login', method: 'POST', body }),
+      invalidatesTags: ['AgentKpi'],
     }),
     agentLogout: build.mutation<{ success: boolean }, void>({
       query: () => ({ url: '/callcenter/agent/logout', method: 'POST' }),
+      invalidatesTags: ['AgentKpi'],
     }),
     agentRejoinQueues: build.mutation<{ success: boolean; queues: string[] }, void>({
       query: () => ({ url: '/callcenter/agent/rejoin-queues', method: 'POST' }),
@@ -823,8 +844,20 @@ const callCenterApi = rtkApi.injectEndpoints({
     }),
 
     // ─── Supervisor Actions ───────────────────────────────
-    supervisorSpy: build.mutation<{ success: boolean }, { agentInterface: string; mode?: 'spy' | 'whisper' | 'barge' }>({
+    supervisorSpy: build.mutation<
+      { success: boolean; mode?: 'spy' | 'whisper' | 'barge'; sessionId?: string; agentInterface?: string; agentName?: string },
+      { agentInterface: string; mode?: 'spy' | 'whisper' | 'barge' }
+    >({
       query: (body) => ({ url: '/callcenter/supervisor/spy', method: 'POST', body }),
+    }),
+    supervisorSpyStop: build.mutation<{ success: boolean; sessionId?: string }, void>({
+      query: () => ({ url: '/callcenter/supervisor/spy/stop', method: 'POST' }),
+    }),
+    supervisorSpyMode: build.mutation<
+      { success: boolean; sessionId?: string; mode: 'spy' | 'whisper' | 'barge'; digit: string },
+      { mode: 'spy' | 'whisper' | 'barge' }
+    >({
+      query: (body) => ({ url: '/callcenter/supervisor/spy/mode', method: 'POST', body }),
     }),
     supervisorForcePause: build.mutation<{ success: boolean }, { agentInterface: string; reason?: string }>({
       query: (body) => ({ url: '/callcenter/supervisor/force-pause', method: 'POST', body }),
@@ -1021,6 +1054,10 @@ const callCenterApi = rtkApi.injectEndpoints({
       query: () => '/callcenter/card-templates',
       providesTags: ['CardTemplates'],
     }),
+    getCardFieldChoices: build.query<import('@krasterisk/shared').CardChoice[], { templateId: number; fieldKey: string }>({
+      query: ({ templateId, fieldKey }) => `/callcenter/card-templates/${templateId}/fields/${encodeURIComponent(fieldKey)}/choices`,
+      providesTags: ['CardTemplates', 'DialplanDirectories'],
+    }),
     getCardTemplate: build.query<ICardTemplate, number>({
       query: (id) => `/callcenter/card-templates/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'CardTemplates', id }],
@@ -1059,6 +1096,13 @@ const callCenterApi = rtkApi.injectEndpoints({
       field_values: Record<string, unknown>;
     }>({
       query: (body) => ({ url: '/callcenter/cards', method: 'POST', body }),
+      invalidatesTags: ['Cards'],
+    }),
+    saveWrapupNote: build.mutation<
+      { saved: boolean; reason?: 'empty' | 'no_template'; cardId?: number; fieldKey?: string },
+      { call_uniqueid: string; note: string; queue_name?: string; caller_id?: string }
+    >({
+      query: (body) => ({ url: '/callcenter/cards/wrapup-note', method: 'POST', body }),
       invalidatesTags: ['Cards'],
     }),
     updateCard: build.mutation<ICardData, { id: number; data: Partial<ICardData> }>({
@@ -1103,6 +1147,7 @@ export const {
   useGetAgentMeQuery,
   useLazyGetAgentMeQuery,
   useGetAgentKpiQuery,
+  useGetLastShiftQuery,
   useGetAgentQueuesStatsQuery,
   useGetEffectivePermissionsQuery,
   useGetPermissionsMatrixQuery,
@@ -1146,6 +1191,8 @@ export const {
   useClientLookupQuery,
   useLazyClientLookupQuery,
   useSupervisorSpyMutation,
+  useSupervisorSpyStopMutation,
+  useSupervisorSpyModeMutation,
   useSupervisorForcePauseMutation,
   useSupervisorForceUnpauseMutation,
   useSupervisorReconcileQueuesMutation,
@@ -1183,13 +1230,16 @@ export const {
   useSendChatMessageMutation,
   useCreateChatChannelMutation,
   useGetCardTemplatesQuery,
+  useGetCardFieldChoicesQuery,
   useGetCardTemplateQuery,
   useCreateCardTemplateMutation,
   useUpdateCardTemplateMutation,
   useDeleteCardTemplateMutation,
   useGetCardsQuery,
+  useGetCardByCallQuery,
   useLazyGetCardByCallQuery,
   useSaveCardMutation,
+  useSaveWrapupNoteMutation,
   useUpdateCardMutation,
   useCreateDisplayTokenMutation,
   useListDisplayTokensQuery,

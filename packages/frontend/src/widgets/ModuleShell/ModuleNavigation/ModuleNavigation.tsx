@@ -51,13 +51,14 @@ export function ModuleNavigation({ rows, level, compact = false, onNavigate, tes
           {modules.filter((row) => (row.licenseStatus === 'active') === available).map((row) => {
             const Icon = row.pages[0]?.icon ?? LayoutGrid;
             if (!available) {
-              const label = t(row.labelKey) + ' - ' + t(row.licenseStatus === 'locked' ? 'hub.notConnected' : 'license.disabled');
-              const link = <NavItem key={row.code} to={moduleHubPath(row.code)} className={cls.row + ' ' + cls.unavailable} aria-label={label} title={compact ? undefined : t(row.labelKey)}
+              const statusLabel = isLoading ? t('common.loading') : isError ? t('common.statusUnavailable', 'Status unavailable') : t(row.licenseStatus === 'locked' ? 'hub.notConnected' : 'license.disabled');
+              const label = t(row.labelKey) + ' - ' + statusLabel;
+              const link = <NavItem key={row.code} to={moduleHubPath(row.code)} className={cls.row + ' ' + cls.unavailable} aria-label={compact ? label : undefined} title={compact ? undefined : t(row.labelKey)}
               data-testid={testIdPrefix + '-' + row.code} onClick={closeAfterNavigation}>
               <Icon key="icon" size={18} aria-hidden />
               <Flex key="label" direction='column' align='start' className={cls.label}>
                 <Text key="name" as='span' className={cls.sectionLabel}>{t(row.labelKey)}</Text>
-                <Text key="status" as='span' className={cls.status}>{t(row.licenseStatus === 'locked' ? 'hub.notConnected' : 'license.disabled')}</Text>
+                <Text key="status" as='span' className={cls.status}>{statusLabel}</Text>
               </Flex>
               </NavItem>;
               return compact ? <Tooltip key={row.code} content={label} side="right">{link}</Tooltip> : link;

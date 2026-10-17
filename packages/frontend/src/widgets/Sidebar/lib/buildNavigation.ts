@@ -56,6 +56,11 @@ function buildCallCenterBlock(t: TFunction, level: UserLevel | undefined): Sideb
   if (level === UserLevel.SUPERVISOR || level === UserLevel.ADMIN) {
     entries.push(
       {
+        name: t('nav.ccDashboard'),
+        path: '/callcenter/dashboard',
+        icon: LayoutDashboard,
+      },
+      {
         name: t('nav.supervisor'),
         path: '/callcenter/supervisor',
         icon: Monitor,

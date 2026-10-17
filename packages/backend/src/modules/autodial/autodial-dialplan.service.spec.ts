@@ -3,8 +3,25 @@ import type { DialplanApplyService } from '../ami/dialplan-apply.service';
 import type { AmiService } from '../ami/ami.service';
 import type { PromptsService } from '../prompts/prompts.service';
 import type { AcCampaign } from './models/ac-campaign.model';
+import { DialplanApplyService as RealDialplanApplyService } from '../ami/dialplan-apply.service';
+import { generateAutodialFinalizeContext, generateAutodialCampaignDialplan, withMachineTail } from './autodial-dialplan.util';
 
 describe('AutodialDialplanService.applyCampaign', () => {
+  it('serializes both callback applications as separate AMI Append values', async () => {
+    const action = jest.fn().mockResolvedValue({ response: 'Success' });
+    const writer = new RealDialplanApplyService({ action, command: jest.fn() } as never);
+    const amd = { enabled: true, on_machine: 'hangup' as const };
+    await writer.applyCategories('isolated-test.conf', [
+      generateAutodialFinalizeContext(42),
+      withMachineTail(generateAutodialCampaignDialplan({ uid: 7, name: 'T', amd, queue_names: [], scenario_actions: [] }, 42), amd, 42),
+    ], { reload: false });
+    const values = action.mock.calls.flatMap(([request]) => Object.entries(request)
+      .filter(([key]) => key.startsWith('Value-')).map(([, value]) => String(value)));
+    expect(values.filter((value) => value.includes('CURL('))).toHaveLength(2);
+    expect(values.every((value) => !/[\r\n]/.test(value))).toBe(true);
+    expect(values.some((value) => value.includes('internal/autodial/attempt-machine'))).toBe(true);
+    expect(values.some((value) => value.includes('internal/autodial/attempt-result'))).toBe(true);
+  });
   it('writes a per-tenant finalize context and drops the legacy shared category', async () => {
     const applyCategories = jest.fn().mockResolvedValue({ success: true, linesApplied: 8 });
     const deleteCategories = jest.fn().mockResolvedValue({ success: true });

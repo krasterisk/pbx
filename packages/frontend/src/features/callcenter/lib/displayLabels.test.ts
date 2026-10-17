@@ -4,6 +4,7 @@ import {
   agentLabelWithExt,
   queueDisplayName,
   callerDisplayLabel,
+  callerDisplayName,
   isRawAgentName,
   operatorChoiceLabel,
   agentStatusLabel,
@@ -17,6 +18,13 @@ import {
 import type { AgentStatus } from '../model/types/callCenterSchema';
 
 const identityT = (key: string, fallback?: string) => fallback ?? key;
+it('replaces PBX unknown caller placeholders with the actual number or empty name', () => {
+  expect(callerDisplayName('<unknown>')).toBe('');
+  expect(callerDisplayName('Anonymous')).toBe('');
+  expect(callerDisplayLabel('204', '<unknown>')).toBe('204');
+  expect(callerDisplayLabel('<unknown>', '<unknown>')).toBe('-');
+  expect(callerDisplayLabel('204', 'Иван')).toBe('Иван (204)');
+});
 
 describe('displayLabels', () => {
   it('detects raw PJSIP names', () => {

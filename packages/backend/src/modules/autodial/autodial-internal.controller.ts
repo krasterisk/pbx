@@ -23,6 +23,7 @@ interface AttemptResultBody {
   queue?: string;
   agent?: string;
   dtmf?: string;
+  business_outcome?: string;
   uniqueid?: string;
   linkedid?: string;
 }
@@ -77,6 +78,7 @@ export class AutodialInternalController {
         linkedid: nonEmpty(body.linkedid),
         scenarioResult: {
           dtmf: nonEmpty(body.dtmf),
+          ...(body.business_outcome && /^[a-z][a-z0-9_]{0,63}$/.test(body.business_outcome) ? { business_outcome: body.business_outcome } : {}),
           cdr_disposition: nonEmpty(body.disposition),
           duration: parseNonNegativeInt(body.duration),
         },

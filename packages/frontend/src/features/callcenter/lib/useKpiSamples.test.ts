@@ -32,4 +32,15 @@ describe('useKpiSamples', () => {
     expect(sameKpiSnapshot(base, { ...base })).toBe(true);
     expect(sameKpiSnapshot(base, { ...base, sla: 80 })).toBe(false);
   });
+
+  it('records totalAgents as its own series, independent from freeAgents', () => {
+    const { result, rerender } = renderHook(
+      ({ kpis }) => useKpiSamples(kpis),
+      { initialProps: { kpis: { ...base, totalAgents: 10 } } },
+    );
+    rerender({ kpis: { ...base, totalAgents: 12 } });
+    expect(result.current.map((s) => s.totalAgents)).toEqual([10, 12]);
+    expect(result.current.map((s) => s.freeAgents)).toEqual([3, 3]);
+    expect(sameKpiSnapshot({ ...base, totalAgents: 10 }, { ...base, totalAgents: 12 })).toBe(false);
+  });
 });

@@ -1,3 +1,4 @@
+import { helpdeskChatRu, helpdeskChatEn } from './locales/helpdeskChat';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
@@ -10,8 +11,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      ru: { translation: { ...ru, trunks: { ...ru.trunks, ...trunkRegistrationRu } } },
-      en: { translation: { ...en, trunks: { ...en.trunks, ...trunkRegistrationEn } } },
+      ru: { translation: { ...ru, helpdeskChat: helpdeskChatRu, trunks: { ...ru.trunks, ...trunkRegistrationRu } } },
+      en: { translation: { ...en, helpdeskChat: helpdeskChatEn, trunks: { ...en.trunks, ...trunkRegistrationEn } } },
     },
     fallbackLng: 'ru',
     interpolation: {

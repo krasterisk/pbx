@@ -10,6 +10,7 @@ export interface AutodialLiveChannel {
   trunkId: string;
   startedAt: number;
   answeredAt: number | null;
+  contactUid?: number; customerName?: string; stepId?: string; stepType?: string;
 }
 
 export interface AutodialCampaignRuntime {
@@ -28,6 +29,7 @@ export interface AutodialCampaignRuntime {
 
 /** Mirror of AutodialSseEvent from the backend state service. */
 export type AutodialSseEvent =
+  | { type: 'channel_step'; channel: AutodialLiveChannel }
   | { type: 'snapshot'; campaigns: AutodialCampaignRuntime[]; channels: AutodialLiveChannel[] }
   | { type: 'channel_started'; channel: AutodialLiveChannel }
   | { type: 'channel_answered'; channelId: string; campaignUid: number }
@@ -87,6 +89,8 @@ export function reduceAutodialEvent(
   event: AutodialSseEvent,
 ): AutodialLiveState {
   switch (event.type) {
+    case 'channel_step':
+      return { ...state, channels: state.channels.map((channel) => channel.channelId === event.channel.channelId ? event.channel : channel) };
     case 'snapshot':
       return {
         runtimes: Object.fromEntries(

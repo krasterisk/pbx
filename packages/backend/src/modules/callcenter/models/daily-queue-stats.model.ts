@@ -48,6 +48,35 @@ export class CcDailyQueueStats extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare total_talk_sec: number;
 
+  /**
+   * Version 2 (cc-analytics): `answered_calls` = handled (answered + transferred), `abandoned_calls`
+   * excludes short abandons, and additive sums are stored. Version 1 rows predate the metrics dictionary.
+   */
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
+  declare transferred_calls: number;
+
+  /** Abandons within the tenant short-abandon window; excluded from the offered denominator. */
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
+  declare short_abandoned_calls: number;
+
+  /** Per-queue SLA threshold (sec) that `sla_met_calls` was computed with. */
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 20 })
+  declare sla_threshold_sec: number;
+
+  /** Σ wait of handled calls (ASA numerator). */
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
+  declare total_wait_sec: number;
+
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
+  declare total_hold_sec: number;
+
+  /** Σ wrapup of handled calls (AHT numerator together with total_talk_sec). */
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
+  declare total_wrapup_sec: number;
+
+  @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 1 })
+  declare rollup_version: number;
+
   @Column({ type: DataType.DATE, allowNull: false, defaultValue: DataType.NOW })
   declare created_at: Date;
 

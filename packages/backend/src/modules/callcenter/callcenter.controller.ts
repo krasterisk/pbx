@@ -20,7 +20,7 @@ import { CallCenterService } from './callcenter.service';
 import { CallCenterMetricsService } from './callcenter-metrics.service';
 import {
   AgentLoginDto, AgentPauseDto, AgentUnpauseDto, AgentHangupDto,
-  TransferDto, SupervisorSpyDto, SupervisorForceActionDto,
+  TransferDto, SupervisorSpyDto, SupervisorSpyModeDto, SupervisorForceActionDto,
   SupervisorQueueActionDto, SupervisorQueuePenaltyDto, SupervisorForceLogoutDto,
   SupervisorRedirectCallDto, SupervisorHangupCallDto, SupervisorWatchedAgentsDto,
   SupervisorStartShiftDto,
@@ -70,6 +70,12 @@ export class CallCenterController {
   @Get('agent/me')
   agentMe(@Req() req: Request & { user: any }) {
     return this.ccService.getAgentMe(req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  /** Previous closed shift (calls, talk, pause) for the start screen. */
+  @Get('agent/last-shift')
+  getLastShift(@Req() req: Request & { user: any }) {
+    return this.ccService.getLastShift(req.user.vpbx_user_uid, req.user.sub);
   }
 
   /** Own dual shift/day answered·made·missed KPI counters (D-11/D-12) — status bar. */
@@ -339,6 +345,18 @@ export class CallCenterController {
       req.user.vpbx_user_uid,
       req.user.sub,
     );
+  }
+
+  @Post('supervisor/spy/stop')
+  supervisorSpyStop(@Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.supervisorSpyStop(req.user.vpbx_user_uid, req.user.sub);
+  }
+
+  @Post('supervisor/spy/mode')
+  supervisorSpyMode(@Body() dto: SupervisorSpyModeDto, @Req() req: Request & { user: any }) {
+    assertSupervisor(req.user);
+    return this.ccService.supervisorSpyMode(dto.mode, req.user.vpbx_user_uid, req.user.sub);
   }
 
   @Post('supervisor/force-pause')

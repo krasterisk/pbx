@@ -20,6 +20,7 @@ import {
   dialFailureFromSipStatus,
   type DialFailure,
 } from './dialFailure';
+import { transferResult, type ConsultationState } from './consultation';
 
 export type { DialFailure, DialFailureKind } from './dialFailure';
 
@@ -72,6 +73,12 @@ function getSdh(session: Session | null): SessionDescriptionHandlerLike | null {
 
 function getPeerConnection(session: Session | null): RTCPeerConnection | undefined {
   return getSdh(session)?.peerConnection;
+}
+
+async function endConsult(session: Session | null): Promise<void> {
+  if (!session) return;
+  if (session.state === SessionState.Established) await session.bye();
+  else if (session instanceof Inviter && session.state !== SessionState.Terminated) await session.cancel();
 }
 
 /** Rough MOS from WebRTC stats → 0–4 bar level. */
@@ -130,11 +137,14 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
   const [isMuted, setIsMuted] = useState(false);
   const [quality, setQuality] = useState<CallQuality>(EMPTY_QUALITY);
   const [lastDialFailure, setLastDialFailure] = useState<DialFailure | null>(null);
+  const [consultation, setConsultation] = useState<ConsultationState | null>(null);
+  const [consultationError, setConsultationError] = useState<string | null>(null);
 
   const uaRef = useRef<UserAgent | null>(null);
   const registererRef = useRef<Registerer | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const consultRef = useRef<Session | null>(null);
+  const consultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** True while operator expects an active softphone (until intentional disconnect). */
   const wantConnectedRef = useRef(false);
@@ -206,6 +216,7 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
           }
         });
         const total = packetsReceived + packetsLost;
+        if (total === 0) return; // No media sample yet: do not manufacture a quality score.
         const lossPct = total > 0 ? (packetsLost / total) * 100 : 0;
         setQuality(qualityFromStats(jitter, rtt, lossPct));
       } catch {
@@ -253,8 +264,13 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
 
   const cleanupCall = useCallback(() => {
     stopQualityPolling();
-    sessionRef.current = null;
+    if (consultTimerRef.current) clearTimeout(consultTimerRef.current);
+    const consult = consultRef.current;
     consultRef.current = null;
+    void endConsult(consult).catch(() => undefined);
+    setConsultation(null);
+    setConsultationError(null);
+    sessionRef.current = null;
     setCallInfo(null);
     setIsHeld(false);
     setIsMuted(false);
@@ -287,18 +303,18 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       ? { deviceId: { exact: micId } }
       : true;
 
-    // Show in-call controls immediately - session.accept() can block 5–10s on ICE (mobile WebView).
-    setStatus('in-call');
-
     try {
       await session.accept({
         sessionDescriptionHandlerOptions: {
           constraints: { audio: audioConstraint, video: false },
         },
       });
+      if (sessionRef.current !== session || session.state !== SessionState.Established) return;
+      setStatus('in-call');
       await setupRemoteAudio(session);
       startQualityPolling(session);
     } catch (err) {
+      if (sessionRef.current !== session || session.state === SessionState.Terminated) return;
       setStatus('ringing');
       throw err;
     }
@@ -583,7 +599,12 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
       /* ignore */
     }
     sessionRef.current = null;
+    const consult = consultRef.current;
     consultRef.current = null;
+    if (consultTimerRef.current) clearTimeout(consultTimerRef.current);
+    await endConsult(consult).catch(() => undefined);
+    setConsultation(null);
+    setConsultationError(null);
 
     try {
       await registererRef.current?.unregister().catch(() => undefined);
@@ -840,10 +861,10 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     const session = sessionRef.current;
     if (!session || session.state !== SessionState.Established) return;
     const sdh = getSdh(session);
-    if (sdh?.sendDtmf) {
-      sdh.sendDtmf(digit);
-      return;
-    }
+    // insertDTMF replaces the pending buffer. Preserve digits typed faster
+    // than the RTP tone duration instead of silently dropping the middle key.
+    const pending = getPeerConnection(session)?.getSenders().find(sender => sender.track?.kind === 'audio')?.dtmf?.toneBuffer ?? '';
+    if (sdh?.sendDtmf?.(`${pending}${digit}`)) return;
     // Fallback: SIP INFO DTMF relay
     await session.info({
       requestOptions: {
@@ -869,56 +890,120 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     if (!targetUri) {
       throw new Error('Invalid transfer target');
     }
-    try {
-      await session.refer(targetUri, {
-        requestDelegate: {
-          onReject: (response) => {
-            const reason = response.message.reasonPhrase || response.message.statusCode || 'rejected';
-            throw new Error(String(reason));
-          },
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Transfer timed out')), 20_000);
+      const finish = (error?: string) => { clearTimeout(timer); error ? reject(new Error(error)) : resolve(); };
+      void session.refer(targetUri, {
+        requestDelegate: { onReject: (response) => finish(String(response.message.reasonPhrase || 'Transfer rejected')) },
+        onNotify: (notification) => {
+          void notification.accept();
+          const result = transferResult(notification.request.body || '');
+          if (result !== 'pending') finish(result === 'failure' ? 'Transfer rejected' : undefined);
         },
-      });
-    } catch (err: any) {
-      throw new Error(err?.message || 'Blind transfer failed', { cause: err });
+      }).catch(() => finish('Transfer failed'));
+    });
+    if (session.state === SessionState.Established) await session.bye().catch(() => undefined);
+    cleanupCall();
+  }, [cleanupCall]);
+
+  const cancelConsultation = useCallback(async () => {
+    const consult = consultRef.current;
+    consultRef.current = null;
+    if (consultTimerRef.current) clearTimeout(consultTimerRef.current);
+    setConsultation(null);
+    await endConsult(consult).catch(() => undefined);
+    const original = sessionRef.current;
+    if (original?.state === SessionState.Established) {
+      await original.invite({ sessionDescriptionHandlerModifiers: [] });
+      setIsHeld(false);
+      await setupRemoteAudio(original);
+      startQualityPolling(original);
     }
-  }, []);
+  }, [setupRemoteAudio, startQualityPolling]);
 
   const attendedTransfer = useCallback(async (target: string) => {
     const original = sessionRef.current;
     const ua = uaRef.current;
-    const domain = optionsRef.current.sipDomain;
-    if (!original || !ua || original.state !== SessionState.Established) return;
-
+    if (!original || !ua || original.state !== SessionState.Established || consultRef.current) {
+      throw new Error('No active call or consultation already in progress');
+    }
     const targetUri = UserAgent.makeURI(
-      target.includes('@') ? `sip:${target}` : `sip:${target}@${domain}`,
+      target.includes('@') ? `sip:${target}` : `sip:${target}@${optionsRef.current.sipDomain}`,
     );
-    if (!targetUri) return;
-
+    if (!targetUri) throw new Error('Invalid transfer target');
+    setConsultationError(null);
+    await hold();
     const micId = optionsRef.current.micDeviceId;
-    const audioConstraint: boolean | MediaTrackConstraints = micId
-      ? { deviceId: { exact: micId } }
-      : true;
-
     const consult = new Inviter(ua, targetUri, {
       sessionDescriptionHandlerOptions: {
-        constraints: { audio: audioConstraint, video: false },
+        constraints: { audio: micId ? { deviceId: { exact: micId } } : true, video: false },
       },
     });
     consultRef.current = consult;
-    attachSessionListeners(consult);
-
-    await new Promise<void>((resolve, reject) => {
-      consult.stateChange.addListener((state: SessionState) => {
-        if (state === SessionState.Established) resolve();
-        if (state === SessionState.Terminated) reject(new Error('Consultation ended'));
-      });
-      void consult.invite().catch(reject);
+    setConsultation({ target, phase: 'dialing' });
+    let answered = false;
+    let rejectCode: number | undefined;
+    const fail = async (reason: string) => {
+      if (consultRef.current !== consult) return;
+      setConsultationError(reason);
+      await cancelConsultation().catch(() => setConsultationError('resumeFailed'));
+    };
+    consult.stateChange.addListener((state: SessionState) => {
+      if (consultRef.current !== consult) return;
+      if (state === SessionState.Established) {
+        answered = true;
+        if (consultTimerRef.current) clearTimeout(consultTimerRef.current);
+        setConsultation({ target, phase: 'connected' });
+        void setupRemoteAudio(consult);
+        startQualityPolling(consult);
+      } else if (state === SessionState.Terminated) {
+        // SIP.js may emit Terminated before the request delegate receives the final response.
+        void Promise.resolve().then(() => fail(answered ? 'ended' : rejectCode === 486 || rejectCode === 600 ? 'busy' : 'unavailable'));
+      }
     });
+    consultTimerRef.current = setTimeout(() => { void fail('timeout'); }, 30_000);
+    try {
+      await consult.invite({ requestDelegate: { onReject: (response) => { rejectCode = response.message.statusCode; } } });
+    } catch {
+      await fail('unavailable');
+    }
+    // Answering the consultation never transfers the client: the operator decides explicitly.
+  }, [hold, cancelConsultation, setupRemoteAudio, startQualityPolling]);
 
-    // REFER-with-Replaces via referring the consultation session
-    await original.refer(consult);
-    consultRef.current = null;
-  }, [attachSessionListeners]);
+  const completeConsultation = useCallback(async () => {
+    const original = sessionRef.current;
+    const consult = consultRef.current;
+    if (!original || !consult || consult.state !== SessionState.Established) return;
+    setConsultation((value) => value ? { ...value, phase: 'transferring' } : null);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('timeout')), 20_000);
+        const finish = (error?: string) => { clearTimeout(timer); error ? reject(new Error(error)) : resolve(); };
+        void original.refer(consult, {
+          requestDelegate: { onReject: () => finish('rejected') },
+          onNotify: (notification) => {
+            void notification.accept();
+            const result = transferResult(notification.request.body || '');
+            if (result !== 'pending') finish(result === 'failure' ? 'rejected' : undefined);
+          },
+        }).catch(() => finish('rejected'));
+      });
+      consultRef.current = null;
+      await endConsult(consult).catch(() => undefined);
+      if (original.state === SessionState.Established) await original.bye().catch(() => undefined);
+      cleanupCall();
+    } catch (error) {
+      if (sessionRef.current === original) {
+        setConsultationError(error instanceof Error ? error.message : 'rejected');
+        if (consult.state === SessionState.Established) {
+          setConsultation((value) => value ? { ...value, phase: 'connected' } : null);
+        } else {
+          await cancelConsultation();
+        }
+      }
+      throw error;
+    }
+  }, [cancelConsultation, cleanupCall]);
 
   // Re-apply sink when speaker changes mid-call
   useEffect(() => {
@@ -1009,6 +1094,10 @@ export function useWebRTCPhone(options: UseWebRTCPhoneOptions) {
     sendDtmf,
     blindTransfer,
     attendedTransfer,
+    consultation,
+    consultationError,
+    cancelConsultation,
+    completeConsultation,
     switchMicrophone,
     switchSpeaker,
   };

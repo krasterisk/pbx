@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { AutodialBasesController } from './autodial-bases.controller';
 import { AutodialBasesService } from './autodial-bases.service';
 import { AutodialImportService } from './autodial-import.service';
+import { AutodialSchemaService } from './autodial-schema.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
 
@@ -20,10 +21,12 @@ describe('Autodial bases HTTP contract', () => {
       providers: [
         { provide: AutodialBasesService, useValue: service },
         { provide: AutodialImportService, useValue: {} },
+        { provide: AutodialSchemaService, useValue: {} },
       ],
     }).overrideGuard(JwtAuthGuard).useValue({
       canActivate(context: ExecutionContext) {
-        context.switchToHttp().getRequest().user = { vpbx_user_uid: 71 };
+        const request = context.switchToHttp().getRequest();
+        request.user = { vpbx_user_uid: 71, level: Number(request.headers['x-test-level'] ?? 1) };
         return true;
       },
     }).overrideGuard(ModuleAccessGuard).useValue({ canActivate: () => true }).compile();
@@ -60,5 +63,14 @@ describe('Autodial bases HTTP contract', () => {
       body: JSON.stringify({ values: [], phones: [{ uid: -1, raw: '123' }] }),
     });
     expect(response.status).toBe(400);
+  });
+  it('enforces the read-only boundary over HTTP before dispatching a mutation', async () => {
+    const before = service.updateContact.mock.calls.length;
+    const response = await fetch(url + '/autodial/bases/1/contacts/61', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-test-level': '5' },
+      body: JSON.stringify({ comment: 'forbidden' }),
+    });
+    expect(response.status).toBe(403);
+    expect(service.updateContact.mock.calls).toHaveLength(before);
   });
 });

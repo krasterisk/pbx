@@ -11,7 +11,7 @@ const MISSING_PROFILE = {
 };
 
 describe('ConfbridgeStaticProfileService', () => {
-  let amiService: { action: jest.Mock; command: jest.Mock };
+  let amiService: { action: jest.Mock; command: jest.Mock; waitUntilConnected: jest.Mock };
   let dialplanApplyService: { applyCategories: jest.Mock };
   let service: ConfbridgeStaticProfileService;
   const savedCodecs = [...CONFERENCE_PLATFORM_CODECS];
@@ -20,6 +20,7 @@ describe('ConfbridgeStaticProfileService', () => {
     CONFERENCE_PLATFORM_CODECS.splice(0, CONFERENCE_PLATFORM_CODECS.length, ...savedCodecs);
     amiService = {
       action: jest.fn(),
+      waitUntilConnected: jest.fn().mockResolvedValue(undefined),
       command: jest.fn().mockImplementation((cmd: string) => {
         if (String(cmd).includes('confbridge show profile')) {
           return Promise.resolve(MISSING_PROFILE);
@@ -178,5 +179,42 @@ describe('ConfbridgeStaticProfileService', () => {
     await expect(service.onApplicationBootstrap()).rejects.toThrow();
     expect(dialplanApplyService.applyCategories).not.toHaveBeenCalled();
     expect(amiService.command).not.toHaveBeenCalled();
+    expect(amiService.waitUntilConnected).not.toHaveBeenCalled();
+  });
+
+  it('waits for AMI before GetConfig / provision', async () => {
+    let resolveAmi!: () => void;
+    amiService.waitUntilConnected.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveAmi = resolve;
+      }),
+    );
+    amiService.action.mockResolvedValue({ response: 'Success' });
+    let showCalls = 0;
+    amiService.command.mockImplementation((cmd: string) => {
+      if (String(cmd).includes('confbridge show profile')) {
+        showCalls += 1;
+        return Promise.resolve(showCalls === 1 ? MISSING_PROFILE : LOADED_PROFILE);
+      }
+      return Promise.resolve({ response: 'Success' });
+    });
+
+    const boot = service.onApplicationBootstrap();
+    await Promise.resolve();
+    expect(amiService.action).not.toHaveBeenCalled();
+    resolveAmi();
+    await boot;
+
+    expect(amiService.waitUntilConnected).toHaveBeenCalled();
+    expect(dialplanApplyService.applyCategories).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips provision when AMI never becomes ready', async () => {
+    amiService.waitUntilConnected.mockRejectedValue(new Error('AMI not connected within 30000ms'));
+
+    await expect(service.onApplicationBootstrap()).resolves.toBeUndefined();
+
+    expect(amiService.action).not.toHaveBeenCalled();
+    expect(dialplanApplyService.applyCategories).not.toHaveBeenCalled();
   });
 });

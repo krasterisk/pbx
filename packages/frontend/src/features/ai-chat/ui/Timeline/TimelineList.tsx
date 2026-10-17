@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { autodialUiActionPath } from '@krasterisk/shared';
+import { useAppDispatch } from '@/shared/hooks/useAppStore';
+import { aiChatActions } from '../../model/slice/aiChatSlice';
 import { Loader } from 'lucide-react';
-import { Text } from '@/shared/ui';
+import { Button, Text } from '@/shared/ui';
 import { Flex, HStack, VStack } from '@/shared/ui/Stack';
 import type {
     AgentTimelineItem,
@@ -92,6 +96,10 @@ export const TimelineList = ({
                         return <AssistantBubble key={item.id} item={item} />;
                     case 'step':
                         return <StepRow key={item.id} item={item} />;
+                    case 'action':
+                        return readOnly ? null : <Button key={item.id} variant="outline" asChild><Link to={autodialUiActionPath(item.action)}>
+                          {t(`autodial.workspace.uiActions.${item.action.action}`)}
+                        </Link></Button>;
                     case 'proposal': {
                         const card = cards[item.id];
                         if (liveConfirm?.sourceId === item.id) return null;
@@ -165,9 +173,17 @@ function ProposalItem({
     onCardSettled?: (status: string) => void;
 }) {
     const nodeRef = useRef<HTMLDivElement>(null);
+    const dispatch = useAppDispatch();
+    const { t } = useTranslation();
     const cardBind = {
         readOnly,
-        onSettled: (settled: { status: string }) => onCardSettled?.(settled.status),
+        onAskAgain: () => dispatch(aiChatActions.openWithSeed(t('autodial.workspace.reviseProposal'))),
+        onSettled: (settled: { status: string; entityType?: string }) => {
+            // A single CC setting is complete once the server confirms it.
+            // A generic "continue" can revive an unrelated older PBX brief.
+            if (settled.status === 'applied' && settled.entityType === 'callcenter_config' && card?.card === 'single') return;
+            onCardSettled?.(settled.status);
+        },
     };
 
     useEffect(() => {

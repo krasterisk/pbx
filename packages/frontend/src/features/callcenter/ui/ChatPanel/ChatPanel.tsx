@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { MessageSquare, X, ChevronLeft, Users, Megaphone } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
+import { Button, Checkbox, Input, Label, Text } from '@/shared/ui';
 import { selectCurrentUser } from '@/entities/User';
 import type { RootState } from '@/app/store/store';
 import {
@@ -43,8 +43,10 @@ interface ChatToggleProps {
 export function ChatPanelToggle({ onClick, unreadTotal, active, showLabel = false }: ChatToggleProps) {
   const { t } = useTranslation();
   return (
-    <button
+    <Button
       type="button"
+      variant="unstyled"
+      size="none"
       className={`${styles.toggleBtn}${showLabel ? ` ${styles.toggleBtnLabeled}` : ''}${active ? ` ${styles.toggleBtnActive}` : ''}`}
       onClick={onClick}
       title={t('callcenter.chat.title')}
@@ -57,7 +59,7 @@ export function ChatPanelToggle({ onClick, unreadTotal, active, showLabel = fals
           {unreadTotal > 99 ? '99+' : unreadTotal}
         </span>
       )}
-    </button>
+    </Button>
   );
 }
 
@@ -166,18 +168,18 @@ export function ChatPanel({ open, onClose }: PanelProps) {
     <aside className={styles.panel} aria-label={t('callcenter.chat.title')}>
       <div className={styles.header}>
         <Text className={styles.title}>{t('callcenter.chat.title')}</Text>
-        <button type="button" className={styles.closeBtn} onClick={handleClose} aria-label={t('common.close', 'Close')}>
+        <Button type="button" variant="unstyled" size="none" className={styles.closeBtn} onClick={handleClose} aria-label={t('common.close', 'Close')}>
           <X className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
 
       <div className={styles.body}>
         {selected ? (
           <>
             <div className={styles.backRow}>
-              <button type="button" className={styles.backBtn} onClick={() => setSelected(null)}>
+              <Button type="button" variant="unstyled" size="none" className={styles.backBtn} onClick={() => setSelected(null)}>
                 <ChevronLeft className="w-4 h-4" />
-              </button>
+              </Button>
               <Text className="text-sm font-medium truncate">{channelLabel(selected)}</Text>
             </div>
             <ChatThread
@@ -190,9 +192,11 @@ export function ChatPanel({ open, onClose }: PanelProps) {
           <>
             <div className={styles.list}>
               {sortedChannels.map(ch => (
-                <button
+                <Button
                   key={ch.channel_key}
                   type="button"
+                  variant="unstyled"
+                  size="none"
                   className={styles.channelRow}
                   onClick={() => { setSelected(ch); handleOpen(); }}
                 >
@@ -204,20 +208,22 @@ export function ChatPanel({ open, onClose }: PanelProps) {
                   {(unreadByChannel[ch.channel_key] ?? 0) > 0 && (
                     <span className={styles.unreadBadge}>{unreadByChannel[ch.channel_key]}</span>
                   )}
-                </button>
+                </Button>
               ))}
 
               {showContacts && (
                 <div className={styles.contactPick}>
                   {contacts.filter(c => c.id !== myId).map(c => (
-                    <button
+                    <Button
                       key={c.id}
                       type="button"
+                      variant="unstyled"
+                      size="none"
                       className={styles.channelRow}
                       onClick={() => startDirect(c.id)}
                     >
                       <span className={styles.channelName}>{c.name}</span>
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -233,22 +239,26 @@ export function ChatPanel({ open, onClose }: PanelProps) {
 
               {canBroadcast && (
                 <div className={styles.broadcastRow}>
-                  <button
+                  <Button
                     type="button"
+                    variant="unstyled"
+                    size="none"
                     className={styles.broadcastBtn}
                     onClick={() => void sendBroadcast('broadcast_all')}
                   >
                     {t('callcenter.chat.broadcastAll')}
-                  </button>
+                  </Button>
                   {queues.slice(0, 3).map(q => (
-                    <button
+                    <Button
                       key={q.name}
                       type="button"
+                      variant="unstyled"
+                      size="none"
                       className={styles.broadcastBtn}
                       onClick={() => void sendBroadcast('broadcast_queue', q.name)}
                     >
                       {t('callcenter.chat.broadcastQueue', { queue: q.displayName || q.name })}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -256,7 +266,7 @@ export function ChatPanel({ open, onClose }: PanelProps) {
 
             {showNewGroup && (
               <div className={styles.newGroupForm}>
-                <input
+                <Input
                   className={styles.input}
                   value={groupName}
                   onChange={e => setGroupName(e.target.value)}
@@ -264,9 +274,8 @@ export function ChatPanel({ open, onClose }: PanelProps) {
                 />
                 <div className={styles.contactPick}>
                   {contacts.filter(c => c.id !== myId).map(c => (
-                    <label key={c.id} className={styles.contactLabel}>
-                      <input
-                        type="checkbox"
+                    <Label key={c.id} className={styles.contactLabel}>
+                      <Checkbox
                         checked={groupMembers.includes(c.id)}
                         onChange={e => {
                           setGroupMembers(prev =>
@@ -275,7 +284,7 @@ export function ChatPanel({ open, onClose }: PanelProps) {
                         }}
                       />
                       {c.name}
-                    </label>
+                    </Label>
                   ))}
                 </div>
                 <Button size="sm" onClick={() => void submitNewGroup()} disabled={!groupName.trim()}>

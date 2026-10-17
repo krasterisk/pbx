@@ -63,7 +63,7 @@
 
 .pill_success {
   background: color-mix(in srgb, var(--color-success) 12%, transparent);
-  color: var(--color-success);
+  color: color-mix(in srgb, var(--color-success) 50%, var(--color-foreground));
   border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
 
   .pillDot { background: var(--color-success); }
@@ -71,7 +71,7 @@
 
 .pill_warning {
   background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-  color: var(--color-warning);
+  color: color-mix(in srgb, var(--color-warning) 50%, var(--color-foreground));
   border-color: color-mix(in srgb, var(--color-warning) 25%, transparent);
 
   .pillDot { background: var(--color-warning); animation: none; }
@@ -79,7 +79,7 @@
 
 .pill_destructive {
   background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
-  color: var(--color-destructive);
+  color: color-mix(in srgb, var(--color-destructive) 50%, var(--color-foreground));
   border-color: color-mix(in srgb, var(--color-destructive) 25%, transparent);
 
   .pillDot { background: var(--color-destructive); }
@@ -87,7 +87,7 @@
 
 .pill_info {
   background: color-mix(in srgb, var(--color-info) 12%, transparent);
-  color: var(--color-info);
+  color: color-mix(in srgb, var(--color-info) 50%, var(--color-foreground));
   border-color: color-mix(in srgb, var(--color-info) 25%, transparent);
 
   .pillDot { background: var(--color-info); animation: none; }
@@ -121,7 +121,7 @@
 .activeCallTag {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-destructive);
+  color: color-mix(in srgb, var(--color-destructive) 50%, var(--color-foreground));
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
@@ -255,3 +255,25 @@
   flex-wrap: wrap;
 }
 
+
+.timerWarn {
+  color: var(--color-warning, #b45309);
+  font-weight: 600;
+}
+
+.timerOver {
+  color: var(--color-destructive, #dc2626);
+  font-weight: 600;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

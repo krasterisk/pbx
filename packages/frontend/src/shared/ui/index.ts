@@ -8,6 +8,7 @@ export { Switch } from './Switch';
 export { Card, CardHeader, CardTitle, CardContent, CardFooter } from './Card';
 export { Label } from './Label/Label';
 export { Text } from './Text/Text';
+export { AppVersionLabel } from './AppVersion/AppVersion';
 export { Select } from './Select/Select';
 export { Checkbox } from './Checkbox/Checkbox';
 export * from './Dialog';

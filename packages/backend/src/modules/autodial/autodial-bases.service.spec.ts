@@ -21,7 +21,7 @@ function setup() {
   const bases = { findOne: jest.fn().mockResolvedValue(base), findByPk: jest.fn().mockResolvedValue(base) };
   const fields = { findAll: jest.fn().mockResolvedValue(base.fields), create: jest.fn(), destroy: jest.fn() };
   const contacts = { findOne: jest.fn().mockResolvedValue(contact), findByPk: jest.fn().mockResolvedValue(contact), count: jest.fn().mockResolvedValue(1), findAndCountAll: jest.fn().mockResolvedValue({ rows: [contact], count: 1 }), destroy: jest.fn() };
-  const phones = { destroy: jest.fn(), create: jest.fn(), bulkCreate: jest.fn() };
+  const phones = { findOne: jest.fn().mockResolvedValue(null), destroy: jest.fn(), create: jest.fn(), bulkCreate: jest.fn() };
   const tasks = { count: jest.fn().mockResolvedValue(0) };
   const campaigns = { count: jest.fn().mockResolvedValue(0) };
   const profiles = { count: jest.fn().mockResolvedValue(0) };
@@ -33,6 +33,22 @@ function setup() {
 }
 
 describe('AutodialBasesService data identity', () => {
+  it('rejects an existing normalized phone under the phone policy before writing', async () => {
+    const s = setup();
+    Object.assign(s.base, { dedup_policy: 'phone' });
+    s.phones.findOne.mockResolvedValue(s.phone);
+    await expect(s.service.createContact(7, 1, { values: { name: 'Bob' }, phones: [{ raw: '1-2-3' }] }))
+      .rejects.toMatchObject({ response: { code: 'AC_DUPLICATE_PHONE' } });
+    expect(s.phones.findOne).toHaveBeenCalledWith(expect.objectContaining({ transaction: s.transaction }));
+    expect(s.phones.bulkCreate).not.toHaveBeenCalled();
+  });
+  it('enforces external ID policy on updates before changing the contact', async () => {
+    const s = setup();
+    Object.assign(s.base, { dedup_policy: 'external_id' });
+    await expect(s.service.updateContact(7, 1, 61, { external_id: 'old' }))
+      .rejects.toMatchObject({ response: { code: 'AC_DUPLICATE_EXTERNAL_ID' } });
+    expect(s.contact.update).not.toHaveBeenCalled();
+  });
   it('returns the actual items contract and counts distinct contacts', async () => {
     const s = setup();
     const page = await s.service.listContacts(7, 1, { page: 3, pageSize: 25 });

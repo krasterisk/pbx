@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Body, Req, HttpCode, HttpStatus,
-  UseGuards,
+  UseGuards, Res,
 } from '@nestjs/common';
 import {
   ApiTags, ApiOperation, ApiResponse, ApiBadRequestResponse,
@@ -10,11 +10,13 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto, ActivationDto, RefreshDto, LogoutDto } from './dto/auth.dto';
 import { AuthTokenResponse, MessageResponse } from './dto/auth-response.dto';
+import type { Response } from 'express';
+import { InteractiveSessionService } from './interactive-session.service';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService, private readonly interactive: InteractiveSessionService) {}
 
   // ─── Login ──────────────────────────────────────────────────────────────────
   @Post('login')
@@ -24,12 +26,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Вход в систему', description: 'Возвращает пару JWT-токенов и данные пользователя' })
   @ApiResponse({ status: 200, type: AuthTokenResponse })
   @ApiUnauthorizedResponse({ description: 'Неверный логин или пароль' })
-  async login(@Body() dto: LoginDto, @Req() req: any): Promise<AuthTokenResponse> {
+  async login(@Body() dto: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: Response): Promise<AuthTokenResponse> {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
       ?? req.socket?.remoteAddress
       ?? '';
     const ua = req.headers['user-agent'] ?? '';
-    return this.authService.login(dto.login, dto.password, ip, ua);
+    const result = await this.authService.login(dto.login, dto.password, ip, ua);
+    this.interactive.issue(res, result, req);
+    return result;
   }
 
   // ─── Public auth policy ──────────────────────────────────────────────────────
@@ -76,12 +80,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Обновление access-токена через refresh-токен' })
   @ApiResponse({ status: 200, type: AuthTokenResponse })
   @ApiUnauthorizedResponse({ description: 'Refresh token недействителен или истёк' })
-  async refresh(@Body() dto: RefreshDto, @Req() req: any): Promise<AuthTokenResponse> {
+  async refresh(@Body() dto: RefreshDto, @Req() req: any, @Res({ passthrough: true }) res: Response): Promise<AuthTokenResponse> {
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
       ?? req.socket?.remoteAddress
       ?? '';
     const ua = req.headers['user-agent'] ?? '';
-    return this.authService.refresh(dto.refreshToken, ip, ua);
+    const result = await this.authService.refresh(dto.refreshToken, ip, ua);
+    this.interactive.rotate(req, res, dto.refreshToken, result);
+    return result;
   }
 
   // ─── Logout ──────────────────────────────────────────────────────────────────
@@ -89,7 +95,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Выход — инвалидация сессии' })
   @ApiResponse({ status: 200, description: '{ success: true }' })
-  async logout(@Body() dto: LogoutDto): Promise<{ success: boolean }> {
-    return this.authService.logout(dto.refreshToken);
+  async logout(@Body() dto: LogoutDto, @Res({ passthrough: true }) res: Response): Promise<{ success: boolean }> {
+    const result = await this.authService.logout(dto.refreshToken);
+    this.interactive.clear(res);
+    return result;
   }
 }

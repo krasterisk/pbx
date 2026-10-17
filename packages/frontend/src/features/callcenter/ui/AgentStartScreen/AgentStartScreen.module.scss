@@ -1,0 +1,29 @@
+.screen {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+.title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.lastShift {
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+.lastShiftTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}

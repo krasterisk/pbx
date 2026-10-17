@@ -14,9 +14,12 @@ export type AgentStatus =
   | 'OUTBOUND_WORK';
 
 export interface IAgent {
+  directCallUniqueid?: string;
   interface: string;
   name: string;
   status: AgentStatus;
+  phoneOnline?: boolean;
+  pickupFailed?: boolean;
   pauseReason?: string | null;
   currentCall?: string;
   queues: string[];
@@ -61,7 +64,11 @@ export interface IQueueStats {
   talking: number;
   agents: { total: number; available: number; paused: number; busy: number };
   sla: number;
-  calls: { answered: number; abandoned: number; total: number };
+  /**
+   * answered = handled (answered + transferred); abandoned excludes short abandons;
+   * total = offered. SLA / answer / abandon denominators are total - shortAbandoned.
+   */
+  calls: { answered: number; abandoned: number; total: number; shortAbandoned?: number };
   avgWait: number;
   avgTalk: number;
   userUid: number;
@@ -94,6 +101,7 @@ export interface ICall {
 // ─── Snapshot ─────────────────────────────────────────────
 
 export interface ICcSnapshot {
+  monitorSession?: IMonitorSession | null;
   agents: IAgent[];
   queues: IQueueStats[];
   calls: ICall[];
@@ -112,6 +120,15 @@ export interface IPauseReason {
 
 // ─── Redux State ──────────────────────────────────────────
 
+export interface IMonitorSession {
+  connected?: boolean;
+  sessionId: string;
+  agentInterface: string;
+  agentName: string;
+  mode: 'spy' | 'whisper' | 'barge';
+  startedAt: string;
+}
+
 export interface CallCenterState {
   agents: IAgent[];
   queues: IQueueStats[];
@@ -122,6 +139,12 @@ export interface CallCenterState {
   chatOpen: boolean;
   /** WebRTC softphone: number to dial once registered (click-to-call / history). */
   pendingOutboundDial: string | null;
+  /** Active supervisor monitor session (U1.5). */
+  monitorSession?: IMonitorSession | null;
+  /** Epoch ms of last received SSE event/open (U0.4). */
+  lastEventAt?: number | null;
+  /** Epoch ms when SSE became disconnected (U0.4). */
+  disconnectedSince?: number | null;
 }
 
 export interface IChatMessagePayload {
@@ -177,6 +200,7 @@ export interface ICcKpiSample {
   waiting: number;
   talking: number;
   freeAgents: number;
+  totalAgents?: number;
   sla: number;
   avgWait: number;
   abandoned: number;

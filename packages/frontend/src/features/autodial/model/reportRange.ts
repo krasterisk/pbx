@@ -18,6 +18,14 @@ export function isoDaysAgo(days: number): string {
   date.setDate(date.getDate() - days);
   return isoDate(date);
 }
+export function previousReportPeriod(from: string, to: string): { from: string; to: string } | undefined {
+  const start = Date.parse(`${from}T00:00:00Z`), end = Date.parse(`${to}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || !Number.isFinite(start) || !Number.isFinite(end)
+    || new Date(start).toISOString().slice(0, 10) !== from || new Date(end).toISOString().slice(0, 10) !== to
+    || end < start || end - start > 365 * 86400000) return undefined;
+  const days = Math.round((end - start) / 86400000) + 1;
+  return { from: new Date(start - days * 86400000).toISOString().slice(0, 10), to: new Date(start - 86400000).toISOString().slice(0, 10) };
+}
 
 export interface DispositionSlice {
   disposition: AutodialDisposition;

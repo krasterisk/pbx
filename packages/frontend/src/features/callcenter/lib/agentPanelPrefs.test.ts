@@ -2,54 +2,58 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   loadAgentPanelPrefs,
   saveAgentPanelPrefs,
-  loadPanelVisibility,
-  savePanelVisibility,
   DEFAULT_PANEL_ORDER,
 } from './agentPanelPrefs';
 
-describe('agentPanelPrefs', () => {
+const KEY = 'cc.agent.panelPrefs.v2';
+
+describe('agentPanelPrefs (U2.8)', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it('defaults kpi to shift and full panel order', () => {
-    const prefs = loadAgentPanelPrefs();
-    expect(prefs.kpiDisplay).toBe('shift');
-    expect(prefs.order).toEqual(DEFAULT_PANEL_ORDER);
-    expect(prefs.collapsed).toEqual({});
+  it('defaults kpi to shift and has a fixed panel order', () => {
+    expect(loadAgentPanelPrefs()).toEqual({ kpiDisplay: 'shift', desktopTabs: false, coworkersView: 'cards', queuesView: 'cards' });
+    expect(DEFAULT_PANEL_ORDER).toEqual(['coworkers', 'queues', 'waiting', 'history']);
   });
 
-  it('migrates v1 prefs and resets kpi to shift', () => {
+  it('persists the kpi period', () => {
+    saveAgentPanelPrefs({ kpiDisplay: 'day' });
+    expect(loadAgentPanelPrefs().kpiDisplay).toBe('day');
+  });
+
+  it('retains each panel view and desktop tabs when another personal preference changes', () => {
+    saveAgentPanelPrefs({ desktopTabs: true, coworkersView: 'table' });
+    saveAgentPanelPrefs({ queuesView: 'table' });
+    saveAgentPanelPrefs({ kpiDisplay: 'day' });
+    expect(loadAgentPanelPrefs()).toEqual({ kpiDisplay: 'day', desktopTabs: true, coworkersView: 'table', queuesView: 'table' });
+  });
+
+  it('reads the retired "both" mode as shift', () => {
+    localStorage.setItem(KEY, JSON.stringify({ kpiDisplay: 'both' }));
+    expect(loadAgentPanelPrefs().kpiDisplay).toBe('shift');
+  });
+
+  it('ignores and removes a stale order / collapsed / visibility from localStorage', () => {
     localStorage.setItem(
-      'cc.agent.panelPrefs.v1',
-      JSON.stringify({ kpiDisplay: 'day', visibility: { queues: false } }),
+      KEY,
+      JSON.stringify({
+        kpiDisplay: 'day',
+        order: ['history', 'waiting', 'queues', 'coworkers'],
+        collapsed: { waiting: true },
+        visibility: { coworkers: false },
+      }),
     );
     const prefs = loadAgentPanelPrefs();
-    expect(prefs.kpiDisplay).toBe('shift');
-    expect(prefs.visibility.queues).toBe(false);
+    expect(prefs).toEqual({ kpiDisplay: 'day', desktopTabs: false, coworkersView: 'cards', queuesView: 'cards' });
+    expect(JSON.parse(localStorage.getItem(KEY) as string)).toEqual({ kpiDisplay: 'day', desktopTabs: false, coworkersView: 'cards', queuesView: 'cards' });
   });
 
-  it('persists kpi, order, collapse and visibility', () => {
-    saveAgentPanelPrefs({
-      kpiDisplay: 'both',
-      order: ['history', 'waiting', 'queues', 'coworkers'],
-      collapsed: { waiting: true },
-      visibility: { coworkers: false },
-    });
-    const prefs = loadAgentPanelPrefs();
-    expect(prefs.kpiDisplay).toBe('both');
-    expect(prefs.order[0]).toBe('history');
-    expect(prefs.collapsed.waiting).toBe(true);
-    expect(prefs.visibility.coworkers).toBe(false);
-  });
-
-  it('migrates legacy visibility key', () => {
+  it('removes legacy v1 keys', () => {
+    localStorage.setItem('cc.agent.panelPrefs.v1', JSON.stringify({ kpiDisplay: 'day' }));
     localStorage.setItem('cc.agent.panelVisibility.v1', JSON.stringify({ queues: false }));
-    expect(loadPanelVisibility()).toEqual({ queues: false });
-  });
-
-  it('keeps legacy savePanelVisibility API', () => {
-    savePanelVisibility({ history: false });
-    expect(loadAgentPanelPrefs().visibility.history).toBe(false);
+    loadAgentPanelPrefs();
+    expect(localStorage.getItem('cc.agent.panelPrefs.v1')).toBeNull();
+    expect(localStorage.getItem('cc.agent.panelVisibility.v1')).toBeNull();
   });
 });

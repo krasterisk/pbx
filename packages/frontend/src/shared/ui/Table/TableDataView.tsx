@@ -25,6 +25,7 @@ import cls from "./Table.module.scss";
 import {
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -79,6 +80,8 @@ export interface DataTableProps<TData> {
   csvEnclosure?: string;
   /** Render slot above the table (header area) - receives the table instance */
   renderHeader?: (table: Table<TData>) => React.ReactNode;
+  /** A `<tfoot>` row (totals). Pass a `TableRow`. */
+  footer?: React.ReactNode;
   /** Custom row className based on row data */
   getRowClassName?: (row: TData) => string;
   /** Aria-label for the header “select page” checkbox */
@@ -310,6 +313,7 @@ function DataTableInner<TData>(
     csvDelimiter = ";",
     csvEnclosure = '"',
     renderHeader,
+    footer,
     getRowClassName,
     selectAllAriaLabel,
     selectRowAriaLabel,
@@ -625,6 +629,7 @@ function DataTableInner<TData>(
             })
           )}
         </TableBody>
+        {footer ? <TableFooter>{footer}</TableFooter> : null}
       </UITable>
 
       {/* Pagination */}

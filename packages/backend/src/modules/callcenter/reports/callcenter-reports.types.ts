@@ -19,14 +19,39 @@ export function isCcReportId(value: string): value is CcReportId {
   return (CC_REPORT_IDS as readonly string[]).includes(value);
 }
 
+export type ReportColumnType =
+  | 'count'
+  | 'percent'
+  | 'duration'
+  | 'agent'
+  | 'queue'
+  | 'datetime'
+  | 'boolean'
+  | 'text';
+
+/** How the totals row of a column is built: sum, mean / rate weighted by `weightKey`, or the maximum. */
+export type ReportColumnTotal = 'sum' | 'weighted' | 'max';
+
 export interface ReportColumn {
   key: string;
+  /** English title: CSV / XLSX / PDF and the fallback of `labelKey`. */
   header: string;
+  /** What the value is - the UI formats by it (cc-ux U3.3). */
+  type?: ReportColumnType;
+  /** i18n key of the UI title. */
+  labelKey?: string;
+  total?: ReportColumnTotal;
+  weightKey?: string;
+  weightMinusKey?: string;
 }
 
 // Default `any` so runReport can return heterogeneous row shapes without variance fights.
 export interface ReportResult<T = any> {
   reportId: CcReportId;
+  timezone?: string;
+  generatedAt?: string;
+  periodStart?: string;
+  periodEnd?: string;
   columns: ReportColumn[];
   rows: T[];
   total?: number;
@@ -38,8 +63,13 @@ export interface ReportResult<T = any> {
 export interface QueueSummaryRow {
   queueName: string;
   totalCalls: number;
+  /** Handled = answered + transferred. */
   answeredCalls: number;
+  /** Lost calls beyond the short-abandon window. */
   abandonedCalls: number;
+  /** Abandons within `short_abandon_sec`; excluded from SLA/answer/abandon denominators. */
+  shortAbandonedCalls: number;
+  transferredCalls: number;
   slaPct: number;
   asrPct: number;
   asaSec: number;

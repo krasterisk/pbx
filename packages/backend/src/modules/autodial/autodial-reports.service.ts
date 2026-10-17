@@ -1,9 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { autodialSqlDate } from './autodial-sql-time.util';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, QueryTypes } from 'sequelize';
 import { InjectConnection } from '@nestjs/sequelize';
 import type { Sequelize } from 'sequelize-typescript';
 import type { AutodialDisposition, IAutodialCampaignLiveStats } from '@krasterisk/shared';
+import { shiftDateKey, zonedDayWindow, zonedDateKey, type IAutodialDailyStats } from '@krasterisk/shared';
+import { CallCenterMetricsConfigService } from '../callcenter/callcenter-metrics-config.service';
 import { AcAttempt } from './models/ac-attempt.model';
 import { AcCampaign } from './models/ac-campaign.model';
 import { AcTask } from './models/ac-task.model';
@@ -12,13 +15,14 @@ import { AcDailyCampaignStats } from './models/ac-daily-campaign-stats.model';
 import { AutodialStateService } from './autodial-state.service';
 import { computeAutodialKpi, type AutodialKpi } from './autodial-metrics.util';
 import { buildReportCsv } from '../callcenter/reports/exporters/csv-exporter';
-import { buildReportXlsx } from '../callcenter/reports/exporters/xlsx-exporter';
+import { buildAutodialXlsx } from './autodial-report-export.util';
 import type { ReportColumn } from '../callcenter/reports/callcenter-reports.types';
 
 export interface AutodialReportRange {
   from: string;
   to: string;
   campaignUids?: number[];
+  attemptUids?: number[];
 }
 
 export interface AutodialSummaryRow {
@@ -38,6 +42,7 @@ export interface AutodialSummaryRow {
 }
 
 export interface AutodialDetailRow {
+  uniqueid?: string | null;
   attempt_uid: number;
   campaign_uid: number;
   task_uid: number;
@@ -54,6 +59,7 @@ export interface AutodialDetailRow {
   queue_name: string | null;
   agent_interface: string | null;
   amd_result: string | null;
+  scenario_result: Record<string, unknown> | null;
 }
 
 const SUMMARY_COLUMNS: ReportColumn[] = [
@@ -89,6 +95,7 @@ const DETAIL_COLUMNS: ReportColumn[] = [
   { key: 'queue_name', header: 'Очередь' },
   { key: 'agent_interface', header: 'Оператор' },
   { key: 'amd_result', header: 'AMD' },
+  { key: 'scenario_result', header: 'Результат сценария' },
 ];
 
 const DETAIL_ROW_LIMIT = 50_000;
@@ -111,6 +118,7 @@ export class AutodialReportsService {
     private readonly dailyModel: typeof AcDailyCampaignStats,
     @InjectConnection() private readonly sequelize: Sequelize,
     private readonly state: AutodialStateService,
+    @Optional() private readonly metricsConfig?: CallCenterMetricsConfigService,
   ) {}
 
   /** Live monitor payload: durable task counts plus in-memory channel counts. */
@@ -120,6 +128,21 @@ export class AutodialReportsService {
       attributes: ['uid', 'status'],
     });
     if (!campaigns.length) return [];
+    const timezone = await this.reportingTimezone(userUid);
+    const today = zonedDayWindow(zonedDateKey(new Date(), timezone), timezone);
+    const totals = await this.attemptModel.findAll({
+      attributes: ['campaign_uid',
+        [this.sequelize.fn('COUNT', this.sequelize.col('uid')), 'dials'],
+        [this.sequelize.literal('SUM(CASE WHEN answered_at IS NOT NULL THEN 1 ELSE 0 END)'), 'answered'],
+        [this.sequelize.literal("SUM(CASE WHEN disposition = 'success' THEN 1 ELSE 0 END)"), 'success']],
+      where: { user_uid: userUid, started_at: { [Op.gte]: today.from, [Op.lt]: today.to } },
+      group: ['campaign_uid'], raw: true,
+    }) as unknown as Array<{ campaign_uid: number; dials: number; answered: number; success: number }>;
+    const todayByCampaign = new Map(totals.map((row) => [Number(row.campaign_uid), row]));
+    const recent = await this.attemptModel.findAll({ attributes: ['campaign_uid', [this.sequelize.fn('COUNT', this.sequelize.col('uid')), 'dials']],
+      where: { user_uid: userUid, started_at: { [Op.gte]: new Date(Date.now() - 900000), [Op.lte]: new Date() } }, group: ['campaign_uid'], raw: true,
+    }) as unknown as Array<{ campaign_uid: number; dials: number }>;
+    const recentDials = new Map(recent.map((row) => [Number(row.campaign_uid), num(row.dials)]));
 
     const taskCounts = await this.taskStatusCounts(
       userUid,
@@ -128,6 +151,10 @@ export class AutodialReportsService {
 
     return campaigns.map((campaign) => {
       const runtime = this.state.ensureRuntime(userUid, campaign.uid);
+      runtime.status = campaign.status;
+      const durable = todayByCampaign.get(campaign.uid);
+      const dials = num(durable?.dials);
+      const answered = num(durable?.answered);
       const counts = taskCounts.get(campaign.uid) ?? { total: 0, pending: 0, done: 0 };
       return {
         campaign_uid: campaign.uid,
@@ -135,14 +162,16 @@ export class AutodialReportsService {
         active_channels: this.state.activeChannels(campaign.uid),
         reserved: runtime.reserved,
         capacity: runtime.capacity,
-        dials_today: runtime.dials,
-        answered_today: runtime.answered,
-        success_today: runtime.success,
-        contact_rate: runtime.dials ? Math.round((runtime.answered / runtime.dials) * 1000) / 10 : 0,
-        asr: runtime.dials ? Math.round((runtime.answered / runtime.dials) * 1000) / 10 : 0,
+        dials_today: dials,
+        answered_today: answered,
+        success_today: num(durable?.success),
+        contact_rate: dials ? Math.round((answered / dials) * 1000) / 10 : 0,
+        asr: dials ? Math.round((answered / dials) * 1000) / 10 : 0,
         tasks_pending: counts.pending,
         tasks_done: counts.done,
         tasks_total: counts.total,
+        eta_seconds: campaign.status === 'running' && runtime.capacity > 0 && (recentDials.get(campaign.uid) ?? 0) > 0
+          ? Math.ceil(counts.pending * 900 / recentDials.get(campaign.uid)!) : null,
       };
     });
   }
@@ -150,34 +179,39 @@ export class AutodialReportsService {
   async summary(userUid: number, range: AutodialReportRange): Promise<AutodialSummaryRow[]> {
     const campaigns = await this.campaignsFor(userUid, range.campaignUids);
     if (!campaigns.size) return [];
+    const window = await this.reportWindow(userUid, range);
+    const activeSeconds = this.sequelize.getDialect() === 'postgres'
+      ? 'EXTRACT(EPOCH FROM (MAX(COALESCE(a.ended_at, a.started_at)) - MIN(a.started_at)))'
+      : 'TIMESTAMPDIFF(SECOND, MIN(a.started_at), MAX(COALESCE(a.ended_at, a.started_at)))';
 
     const rows = (await this.sequelize.query(
-      `SELECT campaign_uid,
+      `SELECT a.campaign_uid,
               COUNT(*)                                                    AS dials,
-              SUM(answered_at IS NOT NULL)                                AS answered,
-              SUM(disposition = 'success')                                AS success,
-              SUM(disposition = 'answered_short')                         AS short_calls,
-              SUM(disposition = 'no_answer')                              AS no_answer,
-              SUM(disposition = 'busy')                                   AS busy,
-              SUM(disposition IN ('amd_machine','voicemail'))              AS amd,
-              SUM(disposition IN ('failed','congestion','invalid_number')) AS failed,
+              SUM(CASE WHEN a.answered_at IS NOT NULL THEN 1 ELSE 0 END) AS answered,
+              SUM(CASE WHEN a.disposition = 'success' THEN 1 ELSE 0 END) AS success,
+              SUM(CASE WHEN a.disposition = 'answered_short' THEN 1 ELSE 0 END) AS short_calls,
+              SUM(CASE WHEN a.disposition = 'no_answer' THEN 1 ELSE 0 END) AS no_answer,
+              SUM(CASE WHEN a.disposition = 'busy' THEN 1 ELSE 0 END) AS busy,
+              SUM(CASE WHEN a.disposition IN ('amd_machine','voicemail') THEN 1 ELSE 0 END) AS amd,
+              SUM(CASE WHEN a.disposition IN ('failed','congestion','invalid_number') THEN 1 ELSE 0 END) AS failed,
               COALESCE(SUM(talk_sec), 0)                                  AS talk_sec_sum,
               COALESCE(SUM(billsec), 0)                                   AS billsec_sum,
-              COUNT(DISTINCT CASE WHEN answered_at IS NOT NULL THEN task_uid END) AS reached,
-              COUNT(DISTINCT task_uid)                                    AS attempted,
-              TIMESTAMPDIFF(SECOND, MIN(started_at), MAX(COALESCE(ended_at, started_at))) AS active_sec
-         FROM ac_attempts
-        WHERE vpbx_user_uid = :userUid
-          AND campaign_uid IN (:campaignUids)
-          AND started_at >= :from
-          AND started_at < :to
-        GROUP BY campaign_uid`,
+              COUNT(DISTINCT CASE WHEN a.answered_at IS NOT NULL THEN t.contact_uid END) AS reached,
+              COUNT(DISTINCT t.contact_uid) AS attempted,
+              ${activeSeconds} AS active_sec
+         FROM ac_attempts a
+         JOIN ac_tasks t ON t.uid = a.task_uid AND t.vpbx_user_uid = a.vpbx_user_uid
+        WHERE a.vpbx_user_uid = :userUid
+          AND a.campaign_uid IN (:campaignUids)
+          AND a.started_at >= :from
+          AND a.started_at < :to
+        GROUP BY a.campaign_uid`,
       {
         replacements: {
           userUid,
           campaignUids: [...campaigns.keys()],
-          from: range.from,
-          to: this.exclusiveEnd(range.to),
+          from: autodialSqlDate(window.from, this.sequelize),
+          to: autodialSqlDate(window.to, this.sequelize),
         },
         type: QueryTypes.SELECT,
       },
@@ -222,35 +256,53 @@ export class AutodialReportsService {
     });
   }
 
-  /** Daily series for the charts, served from the rollup table. */
+  /** Tenant calendar buckets, including today and days missed by the nightly job. */
   async daily(
     userUid: number,
     range: AutodialReportRange,
-  ): Promise<AcDailyCampaignStats[]> {
-    const where: Record<string, unknown> = {
-      user_uid: userUid,
-      day: { [Op.gte]: range.from, [Op.lte]: range.to },
-    };
-    if (range.campaignUids?.length) {
-      where.campaign_uid = { [Op.in]: range.campaignUids };
+  ): Promise<IAutodialDailyStats[]> {
+    const timezone = await this.reportingTimezone(userUid);
+    const window = await this.reportWindow(userUid, range);
+    const replacements: Record<string, string | number | number[] | Date> = { userUid, from: autodialSqlDate(window.from, this.sequelize), to: autodialSqlDate(window.to, this.sequelize) };
+    const clauses: string[] = [];
+    for (let day = range.from, index = 0; day <= range.to; day = shiftDateKey(day, 1), index++) {
+      const bounds = zonedDayWindow(day, timezone);
+      replacements[`start${index}`] = autodialSqlDate(bounds.from, this.sequelize);
+      replacements[`end${index}`] = autodialSqlDate(bounds.to, this.sequelize);
+      replacements[`day${index}`] = day;
+      clauses.push(`WHEN started_at >= :start${index} AND started_at < :end${index} THEN :day${index}`);
     }
-    return this.dailyModel.findAll({
-      where,
-      order: [
-        ['day', 'ASC'],
-        ['campaign_uid', 'ASC'],
-      ],
+    if (range.campaignUids?.length) replacements.campaignUids = range.campaignUids;
+    const rows = await this.sequelize.query<Record<string, string | number>>(`
+      SELECT campaign_uid, CASE ${clauses.join(' ')} END AS day,
+        COUNT(*) AS dials,
+        SUM(CASE WHEN answered_at IS NOT NULL THEN 1 ELSE 0 END) AS answered,
+        SUM(CASE WHEN disposition = 'success' THEN 1 ELSE 0 END) AS success,
+        SUM(CASE WHEN disposition = 'answered_short' THEN 1 ELSE 0 END) AS short,
+        SUM(CASE WHEN disposition = 'no_answer' THEN 1 ELSE 0 END) AS no_answer,
+        SUM(CASE WHEN disposition = 'busy' THEN 1 ELSE 0 END) AS busy,
+        SUM(CASE WHEN disposition IN ('amd_machine','voicemail') THEN 1 ELSE 0 END) AS amd,
+        SUM(CASE WHEN disposition IN ('failed','congestion','invalid_number') THEN 1 ELSE 0 END) AS failed,
+        COALESCE(SUM(talk_sec), 0) AS talk_sec_sum, COALESCE(SUM(billsec), 0) AS billsec_sum
+      FROM ac_attempts WHERE vpbx_user_uid = :userUid AND started_at >= :from AND started_at < :to
+      ${range.campaignUids?.length ? 'AND campaign_uid IN (:campaignUids)' : ''}
+      GROUP BY campaign_uid, day ORDER BY day, campaign_uid`, {
+      replacements, type: QueryTypes.SELECT,
     });
+    return rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) =>
+      [key, key === 'day' ? String(value) : num(value)])) as unknown as IAutodialDailyStats);
   }
 
   async detail(userUid: number, range: AutodialReportRange): Promise<AutodialDetailRow[]> {
+    const window = await this.reportWindow(userUid, range);
     const where: Record<string, unknown> = {
       user_uid: userUid,
-      started_at: { [Op.gte]: range.from, [Op.lt]: this.exclusiveEnd(range.to) },
+      started_at: { [Op.gte]: window.from, [Op.lt]: window.to },
     };
     if (range.campaignUids?.length) {
       where.campaign_uid = { [Op.in]: range.campaignUids };
     }
+    if (range.attemptUids) where.uid = { [Op.in]: range.attemptUids };
     const rows = await this.attemptModel.findAll({
       where,
       order: [['uid', 'DESC']],
@@ -273,6 +325,8 @@ export class AutodialReportsService {
       queue_name: r.queue_name,
       agent_interface: r.agent_interface,
       amd_result: r.amd_result,
+      scenario_result: r.scenario_result,
+      uniqueid: r.uniqueid,
     }));
   }
 
@@ -288,7 +342,7 @@ export class AutodialReportsService {
       ...r.kpi,
       kpi: undefined,
     }));
-    return this.export('autodial-summary', SUMMARY_COLUMNS, rows, format);
+    return this.export('autodial-summary', SUMMARY_COLUMNS, rows, format, { tenant: userUid, ...range, timezone: await this.reportingTimezone(userUid) });
   }
 
   async exportDetail(
@@ -302,6 +356,7 @@ export class AutodialReportsService {
       DETAIL_COLUMNS,
       rows as unknown as Array<Record<string, unknown>>,
       format,
+      { tenant: userUid, ...range, timezone: await this.reportingTimezone(userUid) },
     );
   }
 
@@ -310,10 +365,11 @@ export class AutodialReportsService {
     columns: ReportColumn[],
     rows: Array<Record<string, unknown>>,
     format: 'csv' | 'xlsx',
+    metadata: { tenant: number; from: string; to: string; timezone: string },
   ): Promise<{ body: string | Buffer; contentType: string; filename: string }> {
     if (format === 'xlsx') {
       return {
-        body: await buildReportXlsx(name, columns, rows),
+        body: await buildAutodialXlsx(name, columns, rows, metadata),
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         filename: `${name}.xlsx`,
       };
@@ -386,9 +442,22 @@ export class AutodialReportsService {
     return out;
   }
 
-  /** Callers pass an inclusive date; SQL wants an exclusive upper bound. */
-  private exclusiveEnd(to: string): string {
-    return /^\d{4}-\d{2}-\d{2}$/.test(to) ? `${to} 23:59:59` : to;
+  async reportingTimezone(userUid: number): Promise<string> {
+    return (await this.metricsConfig?.getTenantConfig(userUid))?.timezone ?? 'UTC';
+  }
+
+  async reportWindow(userUid: number, range: AutodialReportRange): Promise<{ from: Date; to: Date }> {
+    for (const key of [range.from, range.to]) {
+      const parsed = new Date(`${key}T00:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || !Number.isFinite(parsed.getTime())
+        || parsed.toISOString().slice(0, 10) !== key) {
+        throw new BadRequestException({ code: 'AC_REPORT_RANGE', message: 'Invalid calendar date' });
+      }
+    }
+    const span = (Date.parse(range.to) - Date.parse(range.from)) / 86_400_000;
+    if (span < 0 || span > 365) throw new BadRequestException({ code: 'AC_REPORT_RANGE', message: 'Select up to 366 calendar days' });
+    const timezone = await this.reportingTimezone(userUid);
+    return { from: zonedDayWindow(range.from, timezone).from, to: zonedDayWindow(range.to, timezone).to };
   }
 }
 

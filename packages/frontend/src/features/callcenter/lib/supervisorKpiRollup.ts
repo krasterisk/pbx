@@ -18,11 +18,14 @@ export interface SupervisorLiveKpis {
 export interface SupervisorPeriodKpis {
   answered: number;
   abandoned: number;
-  /** Weighted SLA %; 0 when no offered calls in the period. */
+  /** Weighted SLA % (1 decimal, like reports); 0 when no effective offered calls in the period. */
   sla: number;
   /** Weighted ASA seconds; 0 when no answered calls. */
   avgWait: number;
+  /** Offered including short abandons. */
   offered: number;
+  /** Offered minus short abandons: the SLA / abandon-rate denominator. 0 means "no data", not "bad". */
+  effectiveOffered: number;
 }
 
 export interface SupervisorKpiRollup {
@@ -38,38 +41,45 @@ export interface SupervisorKpiPeriodMeta {
 }
 
 export function rollupSupervisorLiveKpis(
-  agents: Pick<IAgent, 'status'>[],
+  agents: Pick<IAgent, 'status' | 'phoneOnline'>[],
   queues: Pick<IQueueStats, 'waiting' | 'talking'>[],
 ): SupervisorLiveKpis {
   return {
     waiting: queues.reduce((s, q) => s + (q.waiting || 0), 0),
     talking: queues.reduce((s, q) => s + (q.talking || 0), 0),
-    freeAgents: agents.filter((a) => a.status === 'READY').length,
+    freeAgents: agents.filter((a) => a.status === 'READY' && a.phoneOnline !== false).length,
     totalAgents: agents.length,
   };
 }
 
 /**
- * Weight SLA by offered (calls.total) and ASA by answered.
- * Queues with 0 offered are excluded from SLA; 0 answered excluded from ASA.
+ * Combine per-queue figures with the SAME dictionary the reports use:
+ * - SLA is weighted by effective offered = total - shortAbandoned (the SLA denominator);
+ * - ASA is weighted by handled (answered).
+ * Queues with no effective offered calls drop out of SLA; no handled calls drop out of ASA.
+ * Never a plain average of queue SLAs (an idle queue would drag the total down).
  */
 export function rollupSupervisorPeriodKpis(
   queues: Array<Pick<IQueueStats, 'sla' | 'avgWait' | 'calls'>>,
 ): SupervisorPeriodKpis {
   let offered = 0;
+  let effectiveOffered = 0;
   let answered = 0;
   let abandoned = 0;
   let slaWeighted = 0;
   let waitWeighted = 0;
 
   for (const q of queues) {
-    const o = Math.max(0, q.calls?.total ?? 0);
+    const total = Math.max(0, q.calls?.total ?? 0);
+    const short = Math.max(0, q.calls?.shortAbandoned ?? 0);
+    const o = Math.max(0, total - short);
     const a = Math.max(0, q.calls?.answered ?? 0);
     const lost = Math.max(0, q.calls?.abandoned ?? 0);
-    offered += o;
+    offered += total;
     answered += a;
     abandoned += lost;
     if (o > 0) slaWeighted += (q.sla || 0) * o;
+    effectiveOffered += o;
     if (a > 0) waitWeighted += (q.avgWait || 0) * a;
   }
 
@@ -77,13 +87,14 @@ export function rollupSupervisorPeriodKpis(
     answered,
     abandoned,
     offered,
-    sla: offered > 0 ? Math.round(slaWeighted / offered) : 0,
+    effectiveOffered,
+    sla: effectiveOffered > 0 ? Math.round((slaWeighted / effectiveOffered) * 10) / 10 : 0,
     avgWait: answered > 0 ? Math.round(waitWeighted / answered) : 0,
   };
 }
 
 export function rollupSupervisorKpis(
-  agents: Pick<IAgent, 'status'>[],
+  agents: Pick<IAgent, 'status' | 'phoneOnline'>[],
   queues: IQueueStats[],
 ): SupervisorKpiRollup {
   return {

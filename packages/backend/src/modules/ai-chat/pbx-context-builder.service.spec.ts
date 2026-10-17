@@ -54,6 +54,14 @@ function makeBuilder(overrides: {
 }
 
 describe('PbxContextBuilderService', () => {
+    it('includes the bounded autodial provider snapshot and supports its domain filter', async () => {
+        const { builder, registry } = makeBuilder();
+        const snapshot = jest.fn().mockResolvedValue({ count: 1, sample: ['4: Test (stopped, agentless, pending=2)'] });
+        registry.getStateProviders.mockReturnValue([{ domain: 'autodial', buildSummary: async () => '1 campaign', buildSnapshot: snapshot }] as never);
+        const state = await builder.buildState(111);
+        expect(snapshot).toHaveBeenCalledWith(111);
+        expect(builder.toCompactSnapshot(state, 'autodial')).toEqual({ autodial: { count: 1, sample: ['4: Test (stopped, agentless, pending=2)'] } });
+    });
     it('puts the skill catalog in the prompt and never inlines a skill body', async () => {
         const { builder, skills } = makeBuilder();
         const state = await builder.buildState(111);

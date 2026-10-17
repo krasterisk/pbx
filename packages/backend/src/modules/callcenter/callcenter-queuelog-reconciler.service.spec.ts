@@ -11,8 +11,8 @@ describe('CallCenterQueueLogReconcilerService', () => {
 
   const yesterday = (() => {
     const d = new Date();
-    d.setDate(d.getDate() - 1);
-    d.setHours(12, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - 1);
+    d.setUTCHours(12, 0, 0, 0);
     return d;
   })();
 
@@ -57,6 +57,7 @@ describe('CallCenterQueueLogReconcilerService', () => {
       { source: 'realtime', readEntries, isAvailable: async () => true } as any,
       { findOne, bulkCreate } as any,
       { recomputeDay } as any,
+      { getTenantConfig: jest.fn().mockResolvedValue({ timezone: 'UTC', shortAbandonSec: 5, defaultSlaSec: 20 }) } as any,
     );
   });
 
@@ -79,6 +80,9 @@ describe('CallCenterQueueLogReconcilerService', () => {
         talk_time: 60,
       }),
     );
+    // Backfilled rows belong to the day the call ended, not the day they were reconciled.
+    expect(rows[0].created_at).toBeInstanceOf(Date);
+    expect(Math.abs(rows[0].created_at.getTime() - (yesterday.getTime() + 90_000))).toBeLessThan(1000);
     expect(bulkCreate.mock.calls[0][1]).toEqual(
       expect.objectContaining({ ignoreDuplicates: true }),
     );
@@ -170,7 +174,8 @@ describe('CallCenterQueueLogReconcilerService', () => {
     expect(recomputeDay).toHaveBeenCalled();
     const [dayArg, uidArg] = recomputeDay.mock.calls[0];
     expect(uidArg).toBe(3);
-    expect(dayArg instanceof Date).toBe(true);
+    // Tenant-local date key (not a server-local Date) so the rollup day matches reports.
+    expect(dayArg).toBe(yesterday.toISOString().slice(0, 10));
   });
 
   it('skips reader when already running', async () => {

@@ -105,7 +105,8 @@
 }
 .table .cell[data-primary="true"] {
   font-weight: 600;
-  color: var(--color-primary);
+  /* Primary alone is 4.46:1 on a light card. Mix with the foreground so both themes clear 4.5:1. */
+  color: color-mix(in srgb, var(--color-primary) 55%, var(--color-foreground));
 }
 .footer {
   background: var(--color-muted);
