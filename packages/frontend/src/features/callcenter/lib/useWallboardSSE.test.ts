@@ -53,6 +53,7 @@ describe('useWallboardSSE thresholds', () => {
       });
     });
     expect(result.current.thresholds).toEqual({
+      ...DEFAULT_KPI_THRESHOLDS,
       slaCriticalPct: 85,
       maxWaitSec: 45,
       abandonRatePct: 8,
