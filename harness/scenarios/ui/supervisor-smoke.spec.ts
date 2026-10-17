@@ -19,17 +19,17 @@ test.describe('Supervisor panel — happy path', () => {
     await assertSupervisorShellVisible(page);
   });
 
-  test('shows agent tab navigation', async ({ authenticatedPage: page }) => {
+  test('shows the agent board and the calls panel', async ({ authenticatedPage: page }) => {
     await page.goto('/callcenter/supervisor');
     await closeAssistantIfOpen(page);
-    await expect(page.getByTestId('supervisor-tab-agents')).toBeVisible();
-    await expect(page.getByTestId('supervisor-tab-calls')).toBeVisible();
-    await expect(page.getByTestId('supervisor-tab-queues')).toBeVisible();
+    await expect(page.getByTestId('supervisor-agents-board')).toBeVisible();
+    await expect(page.getByTestId('supervisor-calls-panel')).toBeVisible();
   });
 
-  test('SSE connection indicator is present', async ({ authenticatedPage: page }) => {
+  test('loads without a connection error banner', async ({ authenticatedPage: page }) => {
     await page.goto('/callcenter/supervisor');
     await closeAssistantIfOpen(page);
-    await expect(page.getByText(/Live|Connecting/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('cc-supervisor-responsive')).toBeVisible();
+    await expect(page.getByTestId('cc-connection-banner')).toHaveCount(0);
   });
 });

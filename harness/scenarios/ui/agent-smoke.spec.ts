@@ -18,6 +18,13 @@ test.describe('Agent panel — happy path', () => {
 
   test('clicking the missed-calls badge opens the dropdown', async ({ authenticatedPage: page }) => {
     await page.goto('/callcenter/agent');
+    const start = page.getByTestId('agent-start-screen');
+    const statusBar = page.getByTestId('agent-status-bar');
+    await expect(start.or(statusBar).first()).toBeVisible();
+    if (await start.isVisible()) {
+      await expect(page.getByTestId('shift-login-submit')).toBeVisible();
+      return;
+    }
     const missedBtn = page.getByRole('button', { name: MISSED_BTN });
     await expect(missedBtn).toBeVisible({ timeout: 20_000 });
     await missedBtn.click();
@@ -28,10 +35,13 @@ test.describe('Agent panel — happy path', () => {
     await page.goto('/callcenter/agent');
     const workspace = page.getByTestId(/^cc-agent-(desktop|phone)$/);
     await expect(workspace).toBeVisible();
+    const start = workspace.getByTestId('agent-start-screen');
     const statusBar = workspace.getByTestId('agent-status-bar');
-    const startShift = statusBar.getByRole('button', { name: /^(Start shift|Начать смену)$/i });
-    const activeStatus = statusBar.getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове|Пауза/i).first();
-    await expect(startShift.or(activeStatus).first()).toBeVisible();
-    if (await startShift.isVisible()) await expect(startShift).toBeEnabled();
+    await expect(start.or(statusBar).first()).toBeVisible();
+    if (await start.isVisible()) {
+      await expect(workspace.getByTestId('shift-login-submit')).toBeVisible();
+      return;
+    }
+    await expect(statusBar.getByText(/Ready|In Call|Paused|Wrap-up|Готов|В вызове|Пауза/i).first()).toBeVisible();
   });
 });

@@ -60,10 +60,10 @@ for (const lang of ['ru', 'en'] as const) {
     const modal = page.getByTestId('autodial-campaign-form-modal');
     await expect(modal).toBeVisible();
 
-    const tabs = modal.getByRole('tab');
-    await expect(tabs).toHaveCount(7);
+    const steps = modal.getByRole('navigation').getByRole('button');
+    await expect(steps).toHaveCount(7);
     for (let index = 0; index < 7; index += 1) {
-      await tabs.nth(index).click();
+      await steps.nth(index).click();
       const overflow = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
@@ -102,10 +102,10 @@ for (const lang of ['ru', 'en'] as const) {
     expect(metrics.scrollWidth, 'document overflow at 200%')
       .toBeLessThanOrEqual(metrics.clientWidth + 1);
     await expect(modal).toBeVisible();
-    const tabs = modal.getByRole('tab');
-    await expect(tabs).toHaveCount(7);
+    const steps = modal.getByRole('navigation').getByRole('button');
+    await expect(steps).toHaveCount(7);
     for (let index = 0; index < 7; index += 1) {
-      await tabs.nth(index).click({ force: true });
+      await steps.nth(index).click({ force: true });
       const overflow = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
