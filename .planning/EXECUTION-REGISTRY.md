@@ -51,8 +51,6 @@
 
 | autodial-ux-audit | [EXECUTION](autodial-ux-audit/EXECUTION.md) | [REPORT §6](autodial-ux-audit/REPORT.md), /root codex-direct; U0–U7/UA1–UA4 implementation/assigned acceptance complete; backend4403/frontend2332/lint, browser, real-model8 and model-plan→preflight→internal TTS call PASS; own cleanup PASS; not released; boundaries in VERIFICATION |
 
-| cc-operator-report | [EXECUTION](cc-operator-report/EXECUTION.md) | [PLAN](cc-operator-report/PLAN.md), codex-direct, plan v1.0 ready (research + code review F1–F21, stages 0–5, live tests L0–L9 / gates G0–G4); OD1–OD10 accepted (recommended variants); implementation not assigned |
-
 | ai-robots-studio | [EXECUTION](ai-robots-studio/EXECUTION.md) | [PLAN](ai-robots-studio/PLAN.md), [REPORT](ai-robots-studio/REPORT.md), codex-direct, plan v1.0 ready (аудит F1–F21, этапы S0–S9, живые тесты L1–L10, гейты G1–G5); OD1–OD10 ждут владельца (OD1 — отношение к ai-products AI-VOICE-PARITY); implementation not assigned |
 
 | module-marketplace | [EXECUTION](module-marketplace/EXECUTION.md) | [PLAN](module-marketplace/PLAN.md), codex-direct, plan v1.1 ready: навигация, маркетплейс и активация модулей (находки F1–F13, этапы S0–S4); OD1–OD8 приняты (OD2: в навигации только активные модули, заменяет mobile-navigation N9 решение 6); остальной контракт mobile-navigation N5–N21 сохранён; implementation not assigned |
