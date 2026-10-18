@@ -119,3 +119,29 @@ Current authorized provider68 resolved the model gate; historical key probing wa
 
 Acceptance is closed for the assigned REPORT scope with the explicit boundaries above. Release/deployment and restoration of
 the existing Yandex64 provider configuration are not claimed by this implementation acceptance.
+
+## Explicit release assignment — completed 2026-10-18
+
+The subsequent user-authorized deployment supersedes the earlier no-release boundary for this assignment only.
+Version4.7.1.1/source427a5059724f3884e131da4b7bfa09c772f5a2aa is released at https://ipbx.krasterisk.ru/v4/.
+Authoritative provenance, commands/results, backup, first failed call and corrective fix: [RELEASE](RELEASE.md).
+
+| Gate | Result |
+|---|---|
+| Versioned source push | PASS, origin/main verified; neighboring0048 dependency explicitly approved,0049 excluded |
+| Lint/backend/frontend/build/version | PASS, final quality39097726685; shared180/backend4409/frontend2339 |
+| E2E/harness/Linux package | PASS,39097726717/39097726726/39097730853 |
+| Real MySQL/PostgreSQL contracts | PASS,39096997739; backend/schema unchanged in final frontend-only correction |
+| Strict production schema readiness | PASS,0048 checksum preserved; no production DDL |
+| Deployed normal login→real AI→explicit apply | PASS, DeepSeek68/workflow63; new base/campaign5 |
+| Deployed UI preflight/client audio preview | PASS, all sixready; synthetic name/15240.50RUB; audio7.864s |
+| Deployed internal SIP speech call | PASS,3d539cf9; actual runtime text/returned prompt/receiving recording; normal cause16 |
+| Receiving audio | PASS,7.86s,125804bytes,correlation0.999901 with synthesized PCM; no manual-listening/ASR claim |
+| Final backend continuity | PASS,2092 compiled files byte-identical to real-call-accepted17d6b143 |
+| Final UI label/public health | PASS, translated delete/count; public legacy/v4/health200,exactSHA,loopbackAPI |
+| Disposable cleanup | PASS, users367/368,sessions,base/campaign/contact,provider69,SIP/dialplan/prompt/tunnel removed |
+| Original campaign states | PASS,equal baseline;0test campaigntasks/attempts,0activecalls |
+
+Speech used the actual deployed custom HTTP/SAPI provider. Existing Yandex64 authentication remains unverified and was not
+repaired; that earlier configuration limitation does not become a passing provider-auth claim. Coordinator self-verification,
+no independent reviewer. Private recordings/captures/credentials are not published. No assigned release gate remains pending.

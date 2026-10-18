@@ -15,6 +15,11 @@
 
 Shared table design/search/export assignment: [EXECUTION](table-ui-standardization/EXECUTION.md), [PLAN](table-ui-standardization/PLAN.md), codex-direct /root, current revision 2026-10-13-r6 (one shared selection toolbar, no duplicate selection banners). Existing endpoint design is the UI baseline; adjacent completed initiatives remain unchanged.
 
+Autodial UX/CRM/AI: [REPORT](autodial-ux-audit/REPORT.md), [EXECUTION](autodial-ux-audit/EXECUTION.md),
+[VERIFICATION](autodial-ux-audit/VERIFICATION.md), [RELEASE](autodial-ux-audit/RELEASE.md). /root, codex-direct.
+Released4.7.1.1 on ipbx/v4, source427a5059; deployed password-login AI apply/preflight/internal customer-data speech PASS.
+CI/receiving-call recording/cleanup evidence in RELEASE; existing Yandex64 auth remains unverified.
+
 | Путь | Содержание |
 |------|------------|
 | `package.json` (root) | Workspaces, npm scripts (`test`, `lint`, `dev:*`) |

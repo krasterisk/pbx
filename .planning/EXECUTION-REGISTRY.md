@@ -49,7 +49,7 @@
 
 | cc-ux | [EXECUTION](cc-ux/EXECUTION.md) | [PLAN](cc-ux/PLAN.md), /root codex-direct (продолжение cc-analytics, тот же координатор), реализация U0–U6 по явному поручению пользователя |
 
-| autodial-ux-audit | [EXECUTION](autodial-ux-audit/EXECUTION.md) | [REPORT §6](autodial-ux-audit/REPORT.md), /root codex-direct; U0–U7/UA1–UA4 implementation/assigned acceptance complete; backend4403/frontend2332/lint, browser, real-model8 and model-plan→preflight→internal TTS call PASS; own cleanup PASS; not released; boundaries in VERIFICATION |
+| autodial-ux-audit | [EXECUTION](autodial-ux-audit/EXECUTION.md) | [REPORT §6](autodial-ux-audit/REPORT.md), [RELEASE](autodial-ux-audit/RELEASE.md), /root codex-direct; U0–U7/UA1–UA4 complete; released4.7.1.1/source427a5059; full CI, deployed AI apply/preflight/internal customer speech and cleanup PASS; boundaries in VERIFICATION |
 
 | ai-robots-studio | [EXECUTION](ai-robots-studio/EXECUTION.md) | [PLAN](ai-robots-studio/PLAN.md), [REPORT](ai-robots-studio/REPORT.md), codex-direct, plan v1.0 ready (аудит F1–F21, этапы S0–S9, живые тесты L1–L10, гейты G1–G5); OD1–OD10 ждут владельца (OD1 — отношение к ai-products AI-VOICE-PARITY); implementation not assigned |
 

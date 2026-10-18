@@ -320,3 +320,50 @@ copies in the private clean export are inspection/test preparation only, not an 
 No deployed-app test call, application activation or nginx switch yet. Test principal367/provider69/endpoint/own loopback file and
 TTS session37741/tunnel22361 are prepared, not cleaned; remove after acceptance or cancellation. Credentials remain in private
 tracking file; do not output them. Preserve all existing dirty work. No independent reviewer, agent or production DDL added.
+
+### 2026-10-18 — dependency approved, deployment resumed
+
+User explicitly approved SQL0048 (both engines), manifest and runner test; committed/pushed12ff823868909b2b934854f74a96680263eb6d27.
+Working manifest acquired neighbor0049 while waiting: excluded by staging the inspected48-only manifest blob;49 is not applied on
+the stand. Both48 database CI contracts PASS39095947372. Runtime source unchanged from passing a4d593bd; new Linux bundle
+39095950576 PASS with artifact12123514989, ZIPsha81ecfba31299cc7f0c8de2359be4d296c2aa9341914ddb1973a77f99e0c4e18a.
+CRLF SQL bytes deliberately preserved under -text attributes to match already-applied checksum73111adb…; do not whitespace-fix.
+Fresh private pre-activation backup: /var/backups/krasterisk-autodial-4.7.1.1-pre-activation; gzip SHA54e4e324c2f2244c4992cb268dab8601c21b1121ef8fd485333bbb36b7d41f3d.
+Existing TTS server PID271060 and original reverse tunnel remain valid; duplicate starts failed EADDRINUSE/forwarding without
+altering them. Actual server→HTTP/SAPI health PASS200/WAV40828bytes. Next: verify/extract new package, strict readiness and
+activate with512MiB heap/768MiB service memory ceiling, then actual deployed browser acceptance and owned cleanup.
+
+### Deployed acceptance and corrective release — 2026-10-18
+
+12ff8238 activated at /v4/ with strict schema0048 readiness and healthok/version4.7.1.1. Password login as disposable367
+passed. Real DeepSeek68 workflow63/thread157 explicitly applied through browser; created base5/campaign5 draft. Synthetic
+contact18 has name Тестовый клиент, amount15240.50 RUB. Actual UI preflight all six checksready; preview audio7.864s, readyState4,
+no media error. Campaign has zero tasks/attempts; preexisting campaign statuses match baseline.
+First actual UI internal test9e256ca2 connected/ended normally and cleanup_done1 but speech FAILED: no TTS request and shortWAV.
+Investigation identified production HTTP400: type-only DTO imports emit Function metadata, strict global ValidationPipe rejects
+all form fields. Fixed as17d6b1438d52498ccbf9a9866624bcf37d924677, pushed/remote verified. New actual-HTTP regression +controller
+PASS2suites7tests; backend rebuild/compiled DTO metadata and targeted lint PASS. Reputable CI bundle39097001857 pending.
+Configured a new private DIALPLAN_API_KEY because prior copied config had an empty quoted value; no auth bypass. Backend restart
+is deferred until fixed package. Pending next: finish verified17d bundle, atomic upgrade with health/SHA/rollback, repeat UI test,
+require actual synthesized speech/playback recording, clean exact own fixtures and write final release evidence. No completion claim.
+
+### Final release handoff — 2026-10-18 11:50 +07
+
+Mode/owner unchanged: /root,codex-direct; REPORT §6 implementation and RELEASE R1–R6 complete. Released4.7.1.1, source
+427a5059724f3884e131da4b7bfa09c772f5a2aa, origin verified. Final quality39097726685 (lint/version/shared180/backend4409/
+frontend2339/build), E2E39097726717,harness39097726726,Linux bundle39097730853 PASS. Real MySQL/PG39096997739 PASS;
+final frontend-only change leaves backend/schema/dependencies unchanged. Corrective strict-HTTP tests7 and toolbar13 PASS.
+Approved0048 only published;49 and foreign application edits remain excluded and untouched. No production DDL.
+
+Actual deployed browser AI workflow63 explicitly applied to base5/campaign5; contact18 synthetic. Preflightallready,
+preview7.864s, successful internal call3d539cf9 returned a TTS prompt and normal hangup. Receiving SIP recording7.86s,
+correlation0.999901,recordingSHAe14307c2…; ended/cleanup_done1. First failed speech call retained and superseded by17d DTO fix.
+Final427 hosthealth/version/SHA/schema/loopbackAPI and legacy/v4 public200 PASS;2092 backend files byte-identical to accepted17d.
+Actual final UI label/count verified. Source/recording boundaries and complete provenance in RELEASE/VERIFICATION.
+
+Own users367/368,sessions,base/campaign/contact,provider69,endpoint/AOR,dialplan/prompt,TTS/AMI observer/reverse tunnel and
+download-staging directories removed. Audit/workflow retained, own thread archived; original campaigns match baseline,
+0test tasks/attempts,0activecalls. Recording retained privately in Documents/Codex; tracking password discarded. Backups and
+prior release tree retained for rollback. No active own writer, fixture or pending gate. No reset/stash/foreign commit or agents.
+Next action: no further implementation/deployment work required for this assignment; docs-only acceptance push is finalization.
+Existing Yandex64 credentials/config remain a separate unverified limitation; do not retry the rejected historical-key probe.
