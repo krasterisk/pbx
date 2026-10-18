@@ -122,7 +122,6 @@ export const BasesList = memo(() => {
             selectionRowIds={(bases ?? []).map((base) => String(base.uid))}
             onDeleteSelected={() => setBulkOpen(true)}
             deleteDisabled={isBulkDeleting}
-            deleteLabel={t("autodial.bases.deleteSelected")}
           />
         </HStack>
       </CardHeader>
