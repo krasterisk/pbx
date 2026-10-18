@@ -171,7 +171,11 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(port);
+  if (process.env.BACKEND_HOST) {
+    await app.listen(port, process.env.BACKEND_HOST);
+  } else {
+    await app.listen(port);
+  }
   console.log(
     `🚀 Krasterisk v4 Backend running on port ${port} (pid=${process.pid})`,
   );
