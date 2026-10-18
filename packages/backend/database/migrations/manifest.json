@@ -191,6 +191,10 @@
         {
           "id": "0047-callcenter-operator-rollup.sql",
           "artifact": "0047-callcenter-operator-rollup.sql"
+        },
+        {
+          "id": "0048-ai-robot-studio.sql",
+          "artifact": "0048-ai-robot-studio.sql"
         }
       ],
       "profiles": {
@@ -294,6 +298,10 @@
           {
             "id": "0029-sa-insights-cache.sql",
             "artifact": "0029-sa-insights-cache.sql"
+          },
+          {
+            "id": "0048-ai-robot-studio.sql",
+            "artifact": "0048-ai-robot-studio.sql"
           }
         ],
         "robot-api": [
@@ -396,6 +404,10 @@
           {
             "id": "0029-sa-insights-cache.sql",
             "artifact": "0029-sa-insights-cache.sql"
+          },
+          {
+            "id": "0048-ai-robot-studio.sql",
+            "artifact": "0048-ai-robot-studio.sql"
           }
         ]
       }
@@ -590,6 +602,10 @@
         {
           "id": "0047-callcenter-operator-rollup.sql",
           "artifact": "postgres/0047-callcenter-operator-rollup.sql"
+        },
+        {
+          "id": "0048-ai-robot-studio.sql",
+          "artifact": "postgres/0048-ai-robot-studio.sql"
         }
       ],
       "profiles": {
@@ -693,6 +709,10 @@
           {
             "id": "0029-sa-insights-cache.sql",
             "artifact": "postgres/0029-sa-insights-cache.sql"
+          },
+          {
+            "id": "0048-ai-robot-studio.sql",
+            "artifact": "postgres/0048-ai-robot-studio.sql"
           }
         ],
         "robot-api": [
@@ -795,6 +815,10 @@
           {
             "id": "0029-sa-insights-cache.sql",
             "artifact": "postgres/0029-sa-insights-cache.sql"
+          },
+          {
+            "id": "0048-ai-robot-studio.sql",
+            "artifact": "postgres/0048-ai-robot-studio.sql"
           }
         ]
       }
