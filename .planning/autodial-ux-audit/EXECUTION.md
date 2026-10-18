@@ -1,6 +1,6 @@
 # Autodial UX audit — execution
 
-Coordinator: `/root`, this Codex chat. Mode: `codex-direct`. Status: implementation/assigned acceptance complete; not released.
+Coordinator: `/root`, this Codex chat. Mode: `codex-direct`. Status: implementation/isolated acceptance complete; deployment assignment active.
 User assignment 2026-10-16: implement REPORT completely, including live checks and call runs.
 Canonical plan: [REPORT.md](REPORT.md), §6, revision r1 with the clarifications below.
 Baseline: main / 0ebd6ba9a1d3ad0458cabbd6e6bc270f705f9294. Existing foreign dirty changes are preserved.
@@ -279,3 +279,44 @@ not a certificate signature; handler replacement is not OS restart; browser fixt
   no commit/reset/stash of the foreign dirty baseline. Single coordinator remains /root; no handoff to another workflow.
 - Next action: no implementation gate remains in this assignment. Any release or repair of preexisting Yandex64 configuration is
   separate work; do not resurrect the superseded invalid-global-provider credentials blocker or historical key probe.
+
+## Deployment assignment 2026-10-18
+
+User explicitly authorizes versioned commit/push to GitHub, deployment to ipbx.krasterisk.ru and actual deployed UI AI campaign
+creation→apply→preflight→internal customer-data TTS call. Sole coordinator remains /root, codex-direct; current plan [RELEASE](RELEASE.md).
+Baseline now main5da23135, source autodial already included by230acec8; unrelated dirty robot/CDR/marketplace/callcenter changes excluded.
+User separately authorized a disposable test account and internal loopback endpoint. No permission to publish neighboring0048 yet;
+async confirmation pending because the stand already applied it and strict readiness requires the matching catalog.
+
+Release commits96519d1f (4.7.1.1/basepath/docs), b5617622 (loopback bind setting), f3fb621f (Linux bundle workflow) published to main.
+Source isolation C:/Users/Professional/Documents/Codex/autodial-release-4.7.1.1; no reset/stash/foreign commit.
+96519d1f quality/harness/E2E/real MySQL+PG CI PASS. Local lint PASS126+104warnings; backend456suites4406tests PASS27skips;
+shared/backend/frontend build PASS, backend bind rebuild PASS; version3testsPASS. SQL candidate0048 runner57PASS.
+Local frontend duplicate intentionally stopped during batch36 after the full frontend gate passed in CI; never report it as full local PASS.
+No frontend source changed from96519d1f throughf3fb621f. CI/latest bundle still pending.
+
+Host legacy PHP root and stopped v4 checkout preserved; new app planned under /v4/. Private backup verified at
+/var/backups/krasterisk-autodial-4.7.1.1 (DB gzip SHA5de3af9e…, configs/old app,600/700). No production DDL requested: current48
+already applied, checksum73111adbf0adb82ff464ec2c065373064f2ad3ea3e5c83689260c06d91424fb3. Current key/config copied privately;
+no historical-key access. Own remote npm installer PID3733587 killed after memory/swap pressure; use CI Linux bundle instead.
+Bundle workflow39093437092 builds f3fb621f. No backend activation/nginx switch has occurred.
+
+Disposable principal367 (login uxa_release_20261018), endpoint e00991418_0, provider69 (custom HTTP/SAPI) created by source services.
+Private credentials/tracking at Documents/Codex/autodial-release-4.7.1.1-private.json; never publish. Own dialplan file
+uxa-release-20261018.conf adds only00991418 to existing loopback context, records own call; no call originated yet.
+Local TTS session37741 and SSH reverse tunnel22361 at127.0.0.1:15012 remain active for acceptance; cleanup required after test.
+Next: receive explicit0048 decision; consume bundle/CI; publish only approved dependency, strict readiness and activate prepared
+release-activate.py against exact SHA/artifact; actual browser password login/AI card apply/preflight/test call; cleanup and acceptance.
+
+### Prepared-package handoff
+
+Current release source a4d593bd, version4.7.1.1, pushed/verified. Corrected Linux bundle39093685895 PASS, artifact12123463561,
+local Documents/Codex/autodial-linux-a4d593bd/krasterisk-linux.tgz and remote /var/lib/krasterisk-v4/bundle-12123463561/krasterisk-linux.tgz.
+Both ZIP/tar digests checked on both machines (full values in RELEASE). First bundle failure superseded, no application defect.
+Aborted installer/own partial stage removed. Do not reuse old staging; unpack verified final bundle into fresh staging when authorized.
+96519d1f full CI shared180/backend4406/frontend425files2339 PASS. Latest a4 quality still pending; latest harness/E2E/bundle PASS.
+Foreign0048 remains uncommitted/unpublished pending explicit answer; runtime requires it because DB is already48. Candidate SQL
+copies in the private clean export are inspection/test preparation only, not an approved release. Other AI Robots changes excluded.
+No deployed-app test call, application activation or nginx switch yet. Test principal367/provider69/endpoint/own loopback file and
+TTS session37741/tunnel22361 are prepared, not cleaned; remove after acceptance or cancellation. Credentials remain in private
+tracking file; do not output them. Preserve all existing dirty work. No independent reviewer, agent or production DDL added.
