@@ -11,7 +11,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { DialplanBridgeService } from './dialplan-bridge.service';
 import { timingSafeApiKeyEqual } from './dialplan-api-key';
-import type {
+import {
   HttpRequestDialplanDto,
   SendmailPeerDialplanDto,
   SetclidDialplanDto,
