@@ -20,8 +20,11 @@ jobs:
       - run: npm run build -w @krasterisk/shared
       - run: npm run build -w @krasterisk/backend
       - run: npm run build -w @krasterisk/frontend -- --base=/v4/
-      - name: Install only runtime dependencies
-        run: npm ci --omit=dev --workspace=@krasterisk/backend --workspace=@krasterisk/shared --include-workspace-root --no-audit --no-fund
+      - name: Keep only runtime dependencies
+        # Native install hooks already ran in npm ci; shared/prepare must not rebuild after dev types are removed.
+        run: npm prune --omit=dev --ignore-scripts --workspace=@krasterisk/backend --workspace=@krasterisk/shared --include-workspace-root --no-audit --no-fund
+      - name: Verify runtime packages
+        run: node -e "require('bcrypt').hashSync('synthetic-runtime-probe',4); require('mysql2'); require('@krasterisk/shared')"
       - name: Package exact revision
         run: |
           printf '%s\n' "$GITHUB_SHA" > RELEASE_SHA
