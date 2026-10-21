@@ -49,3 +49,14 @@ Status: **released / live-verified**. S1–S4 complete. No required release gate
 - Raw local evidence: C:/Users/Professional/Documents/Codex/Artifacts/krasterisk_v4/runs/release-4.7.2.0/20261021 (build/test/CI/native/staging/deploy/postflight logs, archive, publication manifest). Current generated tsbuildinfo and excluded unrelated/private local files remain outside publication.
 
 Next action: none for this release. Future work starts from released source/schema and current registry, without executing adjacent plans implicitly.
+
+## Version correction — current bounded assignment r2
+
+2026-10-21, /root codex-direct. User explicitly requested4.7.1.2 after correcting the mistakenly selected4.7.2.0. This is a build-number correction, not a rollback of application changes.
+
+- VC1 in_progress: canonical version:set4.7.1.2; owned paths root/workspace manifests, lock metadata and shared/src/app-version.ts. Dependency graph and application implementation preserved.
+- VC2 pending: version/identity targeted checks, commit/push main and applicable CI.
+- VC3 pending: derive Linux backend from the currently verified e0d0a038 image, overlay only corrected metadata, rebuild shared; rebuild frontend from published source using the same installed dependencies. No fresh npm install needed.
+- VC4 pending: verify unchanged clean schema0055 and0active channels, switch app containers, authenticated/external checks. Previous source/image e0d0a038 is the rollback baseline; no schema update required.
+- Evidence: ARTIFACTS_ROOT/runs/release-version-correction/20261021-4712.
+- Historical acceptance above remains evidence for the previous version label. Correction is not released until VC4 completes.
