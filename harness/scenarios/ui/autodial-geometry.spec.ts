@@ -49,7 +49,7 @@ for (const lang of ['ru', 'en'] as const) {
     });
   }
 
-  test(`campaign tabs at effective 360px viewport ${lang}`, async ({ authenticatedPage: page }) => {
+  test(`campaign wizard steps at effective 360px viewport ${lang}`, async ({ authenticatedPage: page }) => {
     await page.setViewportSize({ width: 360, height: 900 });
     await page.addInitScript((language) => localStorage.setItem('i18nextLng', language), lang);
     await page.goto('/autodial');
@@ -61,9 +61,10 @@ for (const lang of ['ru', 'en'] as const) {
     await expect(modal).toBeVisible();
 
     const steps = modal.getByRole('navigation').getByRole('button');
-    await expect(steps).toHaveCount(7);
-    for (let index = 0; index < 7; index += 1) {
+    await expect(steps).toHaveCount(5);
+    for (let index = 0; index < 5; index += 1) {
       await steps.nth(index).click();
+      await expect(steps.nth(index)).toHaveAttribute('aria-current', 'step');
       const overflow = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
@@ -103,9 +104,10 @@ for (const lang of ['ru', 'en'] as const) {
       .toBeLessThanOrEqual(metrics.clientWidth + 1);
     await expect(modal).toBeVisible();
     const steps = modal.getByRole('navigation').getByRole('button');
-    await expect(steps).toHaveCount(7);
-    for (let index = 0; index < 7; index += 1) {
+    await expect(steps).toHaveCount(5);
+    for (let index = 0; index < 5; index += 1) {
       await steps.nth(index).click({ force: true });
+      await expect(steps.nth(index)).toHaveAttribute('aria-current', 'step');
       const overflow = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,

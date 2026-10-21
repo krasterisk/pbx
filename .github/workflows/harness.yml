@@ -13,6 +13,7 @@ on:
 # Avoid the optional CUDA/NuGet download (no GPU on these runners).
 env:
   ONNXRUNTIME_NODE_INSTALL: 'skip'
+  ARTIFACTS_ROOT: ${{ runner.temp }}/krasterisk-artifacts
 
 jobs:
   harness:
@@ -114,6 +115,7 @@ jobs:
         with:
           name: harness-reports
           path: |
-            harness/playwright-report
-            harness/reports
+            ${{ runner.temp }}/krasterisk-artifacts/legacy/harness/playwright-report
+            ${{ runner.temp }}/krasterisk-artifacts/legacy/harness/reports
+            ${{ runner.temp }}/krasterisk-artifacts/legacy/harness/test-results
           retention-days: 14
