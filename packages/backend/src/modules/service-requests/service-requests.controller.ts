@@ -95,6 +95,11 @@ export class ServiceRequestsController {
   /** PUT /service-requests/:id — обновить обращение */
   @Put(':id')
   async update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+    // Сохраняем подтверждение последнего ручного сохранения. Для заявок,
+    // созданных роботом, это отличает проверенную оператором запись от
+    // первоначального автоматического определения лицевого счёта.
+    body.operator_id = req.user.uid || req.user.id;
+    body.operator_name = req.user.name || req.user.username || '';
     return this.service.update(req.user.vpbx_user_uid, parseInt(id, 10), body);
   }
 

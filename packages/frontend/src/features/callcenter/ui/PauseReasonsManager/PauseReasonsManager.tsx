@@ -7,6 +7,7 @@ import {
   useUpdatePauseReasonMutation,
 } from "@/shared/api/endpoints/callCenterApi";
 import { useAppSelector } from "@/shared/hooks/useAppStore";
+import { buildBulkDeletePreview } from "@/shared/lib/tableSelection/bulkDeletePreview";
 import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
 import {
   Button,
@@ -15,6 +16,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
   FormDialogContent,
   Input,
   Label,
@@ -108,9 +110,9 @@ export function PauseReasonsManager() {
   if (isLoading) {
     return (
       <div className={styles.skeletonWrap}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="2.5rem" width="100%" />
+        <Skeleton height="6rem" width="100%" />
       </div>
     );
   }
@@ -205,20 +207,11 @@ export function PauseReasonsManager() {
     <div className={styles.wrap}>
       <div className={styles.header}>
         <div className={styles.headerRow}>
-          <Text className={styles.title}>
-            {t("callcenter.settings.pauseReasons.title", "Причины пауз")}
-          </Text>
           <Button type="button" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1.5" />
+            <Plus size={16} />
             {t("callcenter.settings.pauseReasons.add", "Добавить причину")}
           </Button>
         </div>
-        <Text className={styles.hint}>
-          {t(
-            "callcenter.settings.pauseReasons.hint",
-            "Каталог причин паузы для операторов. Длительность в минутах (0 = без лимита).",
-          )}
-        </Text>
       </div>
 
       {sorted.length === 0 ? (
@@ -278,14 +271,15 @@ export function PauseReasonsManager() {
                   />
                   <TableCell>{row.name}</TableCell>
                   <TableCell>
-                    <span
+                    <Flex
+                      as="span"
                       className={styles.swatch}
                       style={{ backgroundColor: row.color || DEFAULT_COLOR }}
-                      title={row.color}
+                      aria-hidden
                     />
-                    <span className={styles.tabular}>
+                    <Text as="span" className={styles.tabular}>
                       {row.color || DEFAULT_COLOR}
-                    </span>
+                    </Text>
                   </TableCell>
                   <TableCell className={styles.tabular}>
                     {formatDuration(row.max_duration)}
@@ -431,7 +425,7 @@ export function PauseReasonsManager() {
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {t(
@@ -441,10 +435,23 @@ export function PauseReasonsManager() {
             </DialogTitle>
           </DialogHeader>
           <Text>
-            {t("callcenter.pauseReasons.confirmDelete", {
-              name: deleteTarget?.map((row) => row.name).join(", ") ?? "",
-              defaultValue: `Удалить причины паузы «${deleteTarget?.map((row) => row.name).join(", ") ?? ""}»?`,
-            })}
+            {(() => {
+              const preview = buildBulkDeletePreview({
+                labels: (deleteTarget ?? []).map((row) => row.name),
+                allMatching: false,
+                hasFilter: false,
+                filteredTotal: deleteTarget?.length ?? 0,
+              });
+              return preview.mode === "truncated"
+                ? t("common.confirmBulkDeleteBodyMore", {
+                    labels: preview.previewLabels.join(", "),
+                    remaining: preview.remaining,
+                  })
+                : t("callcenter.pauseReasons.confirmDelete", {
+                    name: preview.previewLabels.join(", "),
+                    defaultValue: `Удалить причины паузы «${preview.previewLabels.join(", ")}»?`,
+                  });
+            })()}
           </Text>
           <DialogFooter>
             <Button

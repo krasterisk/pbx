@@ -1,0 +1,6 @@
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 1rem; }
+.kpiCard { padding: 0; }
+.kpi { display: flex; flex-direction: column; gap: 0.375rem; padding: 1rem; min-width: 0; }
+.value { font-size: 1.75rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.issues { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; }
+@media(max-width: 640px) { .kpis { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; } .kpi { flex-direction: row; align-items: center; justify-content: space-between; } }

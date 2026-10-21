@@ -22,9 +22,10 @@ describe('ModuleNavigation single-page sections', () => {
     render(<MemoryRouter initialEntries={['/only']}><ModuleNavigation rows={[{...single, pages: [...single.pages, {...other, minLevels: [UserLevel.ADMIN]}]}]} level={UserLevel.OPERATOR} testIdPrefix='menu' includeHub={false} /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'nav.only' })).toHaveAttribute('href', '/only');expect(screen.queryByRole('button')).toBeNull();expect(screen.queryByText('page.other')).toBeNull();
   });
-  it('retains the Hub destination for an unavailable one-page section', () => {
-    render(<MemoryRouter><ModuleNavigation rows={[{...single, licenseStatus: 'locked'}]} testIdPrefix='menu' includeHub={false} /></MemoryRouter>);
-    expect(screen.getByTestId('menu-single')).toHaveAttribute('href', '/modules?module=single');expect(screen.queryByTestId('menu-page-single-only')).toBeNull();
+  it('hides modules that are not active', () => {
+    render(<MemoryRouter><ModuleNavigation rows={[{...single, licenseStatus: 'locked'}, {...single, code: 'off', licenseStatus: 'disabled'}]} testIdPrefix='menu' includeHub={false} /></MemoryRouter>);
+    expect(screen.queryByTestId('menu-single')).toBeNull();
+    expect(screen.queryByTestId('menu-off')).toBeNull();
   });
   it('keeps a real multi-page section expandable', () => {
     render(<MemoryRouter initialEntries={['/only']}><ModuleNavigation rows={[{...single, pages: [...single.pages, other]}]} testIdPrefix='menu' includeHub={false} /></MemoryRouter>);

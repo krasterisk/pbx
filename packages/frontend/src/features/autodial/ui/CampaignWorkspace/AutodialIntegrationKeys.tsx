@@ -1,3 +1,4 @@
+import { useAutodialConfirmation } from '../AutodialConfirmation/useAutodialConfirmation';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Label, MultiSelect, Text } from '@/shared/ui';
@@ -9,14 +10,16 @@ import { useGetAutodialIntegrationKeysQuery, useCreateAutodialIntegrationKeyMuta
 const scopes = ['autodial:read', 'autodial:contacts:write', 'autodial:imports:write', 'autodial:dnc:write', 'autodial:proposals:write', 'autodial:webhooks:write'];
 export function AutodialIntegrationKeys() {
   const { t, i18n } = useTranslation(), level = useAppSelector(selectUserLevel), allowed = [0, 1].includes(Number(level));
+  const { confirm, confirmationDialog } = useAutodialConfirmation();
   const { currentData, isError } = useGetAutodialIntegrationKeysQuery(undefined, { skip: !allowed });
   const [create, result] = useCreateAutodialIntegrationKeyMutation(), [revoke, revoking] = useRevokeAutodialIntegrationKeyMutation();
   const [label, setLabel] = useState(''), [selected, setSelected] = useState(['autodial:read']);
   const [expiry, setExpiry] = useState(() => new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10)), [failed, setFailed] = useState(false);
   const reset = result.reset;
   useEffect(() => () => reset(), [reset]);
-  if (!allowed) return null;
+  if (!allowed) return <Text variant="muted">{t('autodial.workspace.apiAdminHint')}</Text>;
   return <VStack gap="8" max>
+    {confirmationDialog}
     <Text>{t('autodial.workspace.apiKeysTitle')}</Text><Text variant="muted">{t('autodial.workspace.apiKeysHint')}</Text>
     <Label htmlFor="autodial-api-key-label">{t('autodial.workspace.apiKeyLabel')}</Label>
     <Input id="autodial-api-key-label" value={label} maxLength={120} onChange={(event) => setLabel(event.target.value)} />
@@ -33,7 +36,7 @@ export function AutodialIntegrationKeys() {
     {(currentData ?? []).map((key) => <HStack key={key.uid} gap="8" wrap="wrap" justify="between" max>
       <VStack gap="4"><Text>{key.label}</Text><Text variant="muted">{key.scopes.map((scope) => t(`autodial.workspace.apiScopes.${scope}`, { nsSeparator: false })).join(', ')} · {new Date(key.expires_at).toLocaleString(i18n.language)}</Text></VStack>
       <Button variant="ghost" disabled={!!key.revoked_at || revoking.isLoading} onClick={async () => {
-        if (!window.confirm(t('autodial.workspace.apiKeyRevokeConfirm', { label: key.label }))) return;
+        if (!(await confirm(t('autodial.workspace.apiKeyRevokeConfirm', { label: key.label })))) return;
         setFailed(false); try { await revoke(key.uid).unwrap(); } catch { setFailed(true); }
       }}>{t(key.revoked_at ? 'autodial.workspace.apiKeyRevoked' : 'autodial.workspace.apiKeyRevoke')}</Button>
     </HStack>)}

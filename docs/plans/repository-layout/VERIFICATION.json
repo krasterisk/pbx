@@ -1,0 +1,185 @@
+{
+  "status": "implemented / targeted-tests-passed / local-filesystem-verified",
+  "errors": [],
+  "moved_files": 959,
+  "documentation": 947,
+  "tools": 5,
+  "fixtures": 7,
+  "planning_tracked_before": 1378,
+  "planning_tracked_after": 0,
+  "tracked_relocated_original_blobs": 903,
+  "index_product_baseline_unchanged": true,
+  "local_regular_files_preserved": 1884,
+  "legacy_aliases_preserved": 2467,
+  "fixture_bytes_preserved": 7,
+  "ignore_lines_before": 1148,
+  "ignore_lines_after": 62,
+  "verification_note": "Initial full-packages diff guard included the two authorized README relinks; corrected verification compares every non-Markdown product diff block and all original Git index blobs. No code was reverted or hidden.",
+  "evidence": "C:\\Users\\Professional\\Documents\\DevArtifacts\\krasterisk_v4\\migration\\repository-layout-20261021",
+  "root_checks": {
+    "lint": {
+      "log": "lint.log",
+      "started_utc": "2026-10-21T06:31:10.5490516Z",
+      "finished_utc": "2026-10-21T06:32:35.5474362Z",
+      "exit_code": 0
+    },
+    "test:backend": {
+      "log": "test-backend.log",
+      "started_utc": "2026-10-21T06:32:35.5729991Z",
+      "finished_utc": "2026-10-21T06:34:43.9543238Z",
+      "exit_code": 0
+    },
+    "test:frontend": {
+      "log": "test-frontend.log",
+      "started_utc": "2026-10-21T06:34:43.9577727Z",
+      "finished_utc": "2026-10-21T07:13:16.361Z",
+      "exit_code": 1,
+      "initial_attempt_exit": -1,
+      "resumed": true,
+      "preserved_initial_blocks": 1,
+      "ledger": "frontend-resume-ledger.json",
+      "totals": {
+        "passedFiles": 481,
+        "failedFiles": 1,
+        "skippedFiles": 0,
+        "passedTests": 2630,
+        "failedTests": 8,
+        "skippedTests": 0
+      },
+      "max_workers_requested": 4,
+      "file_parallelism": false
+    }
+  },
+  "backend_summary": [
+    "Test Suites: 1 skipped, 507 passed, 507 of 508 total",
+    "Tests:       27 skipped, 4980 passed, 5007 total",
+    "Time:        126.395 s, estimated 193 s"
+  ],
+  "lint_warnings": 224,
+  "frontend": {
+    "passedFiles": 481,
+    "failedFiles": 1,
+    "skippedFiles": 0,
+    "passedTests": 2630,
+    "failedTests": 8,
+    "skippedTests": 0,
+    "failed_test_files": [
+      "src/features/callcenter/lib/useWebRTCPhone.consultation.test.tsx"
+    ],
+    "source_files": 482,
+    "source_hashes_unchanged": true,
+    "execution": "First completed chunk preserved; unfinished chunks resumed with maxWorkers4, same forks/config including Windows fileParallelism=false; exact same482 sorted files, unchanged source hashes."
+  },
+  "targeted": {
+    "errors": [],
+    "checked_existing_markdown_links": 1371,
+    "new_broken_links": [],
+    "canonical_paths_ignored": [],
+    "future_planning_ignored": true,
+    "tracked_planning": 0,
+    "csv_generator_equals_promoted_fixtures": {
+      "debtors-cp1251.csv": true,
+      "debtors-utf8.csv": true
+    },
+    "openapi_metadata_paths": 12,
+    "docs_harness_tests": {
+      "passed": 28,
+      "failed": 0
+    },
+    "artifact_tests_with_python": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "sip_parser_tests": {
+      "passed": 12,
+      "failed": 0
+    },
+    "syntax_checks": 37,
+    "diff_check_exit": 0,
+    "network_db_llm_sip_scenarios_executed": false
+  },
+  "preexisting_missing_markdown_links": [
+    {
+      "document": "docs/plans/initiatives/ai-products/AI-02-D1-VERIFICATION.md",
+      "old": ".planning/initiatives/AI-02-PLAN.md",
+      "new": ".planning/initiatives/AI-02-PLAN.md"
+    },
+    {
+      "document": "docs/plans/initiatives/ai-products/evidence/pending-gates/RELEASE-CHECKS.md",
+      "old": ".planning/initiatives/ai-products/evidence/PRODUCT-RUNTIME-FLIP.md",
+      "new": ".planning/initiatives/ai-products/evidence/PRODUCT-RUNTIME-FLIP.md"
+    },
+    {
+      "document": "docs/plans/initiatives/ai-products/evidence/pending-gates/REMOTE-MATRIX.md",
+      "old": ".planning/initiatives/ai-products/evidence/AI-05-PLAN.md",
+      "new": ".planning/initiatives/ai-products/evidence/AI-05-PLAN.md"
+    },
+    {
+      "document": "docs/plans/initiatives/ai-products/evidence/pending-gates/REMOTE-MATRIX.md",
+      "old": ".planning/initiatives/ai-products/evidence/AI-11-11A-UAT.md",
+      "new": ".planning/initiatives/ai-products/evidence/AI-11-11A-UAT.md"
+    },
+    {
+      "document": "docs/plans/initiatives/ai-products/evidence/pending-gates/REMOTE-MATRIX.md",
+      "old": ".planning/initiatives/ai-products/evidence/evidence/int-rt-tool6/REMOTE-MATRIX.md",
+      "new": ".planning/initiatives/ai-products/evidence/evidence/int-rt-tool6/REMOTE-MATRIX.md"
+    },
+    {
+      "document": "docs/plans/initiatives/ai-products/evidence/pending-gates/REMOTE-MATRIX.md",
+      "old": ".planning/initiatives/ai-products/evidence/evidence/i4/REMOTE-MATRIX.md",
+      "new": ".planning/initiatives/ai-products/evidence/evidence/i4/REMOTE-MATRIX.md"
+    },
+    {
+      "document": "docs/archive/gsd/phases/18-polnyy-refaktoring-rechevoy-analitiki/18-UI-SPEC.md",
+      "old": ".planning/phases/18-polnyy-refaktoring-rechevoy-analitiki/packages/frontend/.idea/ARCHITECTURE.md",
+      "new": ".planning/phases/18-polnyy-refaktoring-rechevoy-analitiki/packages/frontend/.idea/ARCHITECTURE.md"
+    }
+  ],
+  "local_only_historical_links": 366,
+  "csv_git_byte_preservation": {
+    "appointments.csv": true,
+    "debtors-cp1251.csv": true,
+    "debtors-utf8.csv": true,
+    "ui-import-11.csv": true,
+    "ui-import-12.csv": true,
+    "ui-import.csv": true
+  },
+  "commit_created": false,
+  "push_deploy_live_actions": false,
+  "independent_review": false,
+  "planning_original_index_entries_removed": 1378,
+  "new_promoted_files_left_for_review": 56,
+  "product_source_changed_by_migration": false,
+  "coordination_agreed": [
+    "CDR отчёт",
+    "Autodial",
+    "Добавить AI-роботов и аналитику",
+    "Заявка от Росттех"
+  ],
+  "remaining_structural_tasks": [],
+  "git_performance": {
+    "git_status_milliseconds": 321,
+    "git_processes_after": 0,
+    "tracked_planning": 0
+  },
+  "initial_apply_files": 1008,
+  "final_changed_paths": 1012,
+  "product_code_working_diff_unchanged_at_apply": true,
+  "tracked_product_diff_otherwise_unchanged": true,
+  "external_product_changes_during_validation": [
+    {
+      "path": "packages/backend/src/modules/service-requests/service-requests.controller.ts",
+      "sha256": "20597f67c9e31927851f7330cf64fef9983cbfbcb880e2253bd7bfcaa727b750",
+      "owner_thread": "01a1540a-4f2e-7623-8581-ab8a46d04b6a",
+      "owner_title": "Заявка от Росттех",
+      "owner_confirmation": "Это моя локальная правка для подтверждения ручного сохранения заявки. Для неё выполнены сборка backend и тесты обработчика; production ещё не менялся.",
+      "owner_reported_checks": [
+        "backend build PASS",
+        "handler tests PASS (previous owner summary:27 scenarios)"
+      ],
+      "migration_action": "Preserved without changes/staging/commit; external independent product scope",
+      "root_gate_freshness": "Our lint13:32/backend13:34 preceded this change at13:56; those gates apply to the structural migration baseline, not a new claim for this later controller delta."
+    }
+  ]
+}

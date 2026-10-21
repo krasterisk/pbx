@@ -213,6 +213,15 @@ describe('DialplanAppsEditor', () => {
     expect(screen.getByText(/шаг ниже не выполнится/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /добавить действие/i })).not.toBeDisabled();
   });
+  it('does not mark a named conditional branch after hangup as unreachable', () => {
+    render(<Harness onChange={vi.fn()} actions={[
+      step('a', 'goto', { params: { label_name: 'confirmed', condition: { source: 'variable', variable: 'ANSWER' } } }),
+      step('b', 'hangup'), step('c', 'label', { params: { label_name: 'confirmed' } }),
+      step('d', 'text2speech'), step('e', 'hangup'),
+    ]} />);
+    expect(screen.queryByText(/шаги? ниже не выполн/i)).not.toBeInTheDocument();
+    expect(document.querySelector('[data-unreachable="true"]')).toBeNull();
+  });
 
   it('does not use DragOverlay (Radix dialog translate breaks overlay position)', () => {
     const src = readFileSync(join(specDir, 'DialplanAppsEditor.tsx'), 'utf8');

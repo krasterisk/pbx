@@ -58,6 +58,8 @@ export class PurchaseModuleService {
             statusCode: HttpStatus.PAYMENT_REQUIRED,
             code: 'INSUFFICIENT_BALANCE',
             message: 'Insufficient balance to purchase module',
+            availableKopecks: available,
+            neededKopecks: needed,
           },
           HttpStatus.PAYMENT_REQUIRED,
         );

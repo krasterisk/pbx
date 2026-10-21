@@ -1,0 +1,2 @@
+# Synthetic import fixtures preserve encoding, BOM and exact line endings.
+tests/fixtures/autodial/*.csv -text

@@ -1,9 +1,12 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
+import { buildCallFact, CALL_FACTS_VERSION } from '../calls/call-record';
+import { artifactsForCall, enrichCallNames, loadCallEnrichment } from '../calls/call-enrichment';
 import { DashboardReadStore } from './dashboard-read-store.service';
 import { classifyDashboardCall, DASHBOARD_SEMANTICS_VERSION, DashboardEvidence, DashboardLeg, DashboardTechnicalApplication, endpointExtension, tenantFromChannel, parseDashboardTimestamp, dashboardCallKey } from './dashboard-classifier';
 import { tenantLegFilter } from '../reports/cdr/cdr.utils';
+import { celTimestampExpression } from '../calls/cel-timestamp';
 
 interface DashboardCompletionSnapshot { updatedAt: number; calls: Map<number, Set<string>> }
 interface DashboardPersistedProof { call_key: string; kind: string | null; value: string | null; origin: string }
@@ -60,10 +63,20 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
       if (this.tables.has('voice_robot_cdr')) await this.ingestEvidence('voice_robot_cdr', 'uid', 'started_at');
       if (this.tables.has('voice_robot_logs')) await this.ingestEvidence('voice_robot_logs', 'uid', 'timestamp');
       if (this.tables.has('ai_voice_events')) await this.ingestVoiceEvents();
+      if (this.tables.has('call_facts')) {
+        if (this.tables.has('voicemail_messages')) await this.ingestEvidence('voicemail_messages', 'uid', 'created_at');
+        if (this.tables.has('sa_analysis_runs') && this.tables.has('sa_recording_relations')) await this.ingestAnalysisResults();
+      }
       await this.replaySemantics();
+      if (this.tables.has('call_dimensions')) await this.replayCallFacts();
       // Fast bootstrap continuations must not repeatedly replay the same active inventory.
       if (Date.now() - this.lastPendingReplay >= 5000) await this.replayPending();
       const sources = [`cdr:${this.store.nodeId}`, `semantics:v${DASHBOARD_SEMANTICS_VERSION}:${this.store.nodeId}`, ...['cel', 'voice_robot_cdr', 'voice_robot_logs', 'ai_voice_events'].filter((table) => this.tables?.has(table)).map((table) => `${table}:${this.store.nodeId}`)];
+      if (this.tables.has('call_facts')) {
+        if (this.tables.has('call_dimensions')) sources.push(`call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}`);
+        if (this.tables.has('voicemail_messages')) sources.push(`voicemail_messages:${this.store.nodeId}`);
+        if (this.tables.has('sa_analysis_runs') && this.tables.has('sa_recording_relations')) sources.push(`call-analysis:${this.store.nodeId}`);
+      }
       const checkpoints = await this.store.select<{ source_key: string; bootstrap_complete: number; initialized_from: number }>('SELECT source_key,bootstrap_complete,initialized_from FROM dashboard_checkpoints WHERE source_key IN (:sources)', { sources });
       const ready = checkpoints.length === sources.length && checkpoints.every((cp) => Number(cp.bootstrap_complete) === 1);
       await this.store.saveCheckpoint(`projection:${this.store.nodeId}`, Date.now(), Math.min(...checkpoints.map((cp) => Number(cp.initialized_from)), Date.now() - 31 * 86400000), ready, undefined, this.owner);
@@ -89,8 +102,12 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
   }
   private async ingestCdr(): Promise<void> {
     const source = `cdr:${this.store.nodeId}`;
-    const cp = await this.store.checkpoint(source);
-    const from = Number(cp?.initialized_from) || Date.now() - 31 * 86400000;
+    let cp = await this.store.checkpoint(source);
+    // The call journal extends the SAME projection to the full CDR archive.
+    // A pre-upgrade 31-day checkpoint must restart once, not silently skip old calls.
+    const fullHistory = this.tables?.has('call_facts') === true;
+    if (fullHistory && cp && Number(cp.initialized_from) > 0) cp = null;
+    const from = fullHistory ? 0 : Number(cp?.initialized_from) || Date.now() - 31 * 86400000;
     let cursor = Number(cp?.cursor_value) || 0;
     let span = cp?.cursor_key || '';
     if (!cp) {
@@ -138,6 +155,28 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
     }
     const last = rows[rows.length - 1];
     await this.store.saveCheckpoint(source, last ? parseDashboardTimestamp(last.created_at, 'UTC') : cursor, from, rows.length < this.batchSize, last?.id || cursorKey, this.owner);
+  }
+
+  private async ingestAnalysisResults(): Promise<void> {
+    const source = `call-analysis:${this.store.nodeId}`;
+    const cp = await this.store.checkpoint(source);
+    const at = Number(cp?.cursor_value) || 0;
+    const rows = await this.store.select<{ id: string; recording_id: string; vpbx_user_uid: number; updated_at: string }>(
+      'SELECT id,recording_id,vpbx_user_uid,updated_at FROM sa_analysis_runs WHERE updated_at > :at OR (updated_at=:at AND id > :id) ORDER BY updated_at,id LIMIT :limit',
+      { at: `${this.sqlDate(at)}.${String(at % 1000).padStart(3, '0')}`, id: cp?.cursor_key || '', limit: this.batchSize });
+    this.catchup ||= rows.length === this.batchSize;
+    if (rows.length) {
+      const relations = await this.store.select<{ source_id: string; linkedid: string | null; vpbx_user_uid: number }>(
+        "SELECT DISTINCT r.source_id,r.linkedid,r.vpbx_user_uid FROM sa_recording_relations r JOIN sa_analysis_runs a ON a.recording_id=r.recording_id AND a.vpbx_user_uid=r.vpbx_user_uid WHERE a.id IN (:ids) AND r.source_kind='cdr' AND r.node_id=:nodeId", { ids: rows.map((row) => row.id), nodeId: this.store.nodeId });
+      const ids = [...new Set(relations.flatMap((row) => [row.source_id, row.linkedid]).filter(Boolean))];
+      if (ids.length) {
+        const legs = await this.store.select<DashboardLeg>('SELECT * FROM cdr WHERE uniqueid IN (:ids) OR linkedid IN (:ids) ORDER BY id LIMIT 10001', { ids });
+        if (legs.length > 10000) throw new Error('Analysis correlation batch exceeds projection budget');
+        await this.reproject(legs);
+      }
+    }
+    const last = rows[rows.length - 1];
+    await this.store.saveCheckpoint(source, last ? parseDashboardTimestamp(last.updated_at, 'UTC') : at, 0, rows.length < this.batchSize, last?.id || cp?.cursor_key || '', this.owner);
   }
 
   private async readCompletionSnapshot(): Promise<DashboardCompletionSnapshot | null> {
@@ -199,6 +238,20 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
     this.catchup ||= !complete;
   }
 
+  private async replayCallFacts(): Promise<void> {
+    const source = `call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}`;
+    const cp = await this.store.checkpoint(source);
+    if (Number(cp?.bootstrap_complete) === 1) return;
+    const cursor = cp?.cursor_key || '';
+    const rows = await this.store.select<{ call_key: string; tenant: number; linkedid: string }>(
+      'SELECT call_key,tenant,linkedid FROM dashboard_calls WHERE node_id=:node AND call_key > :cursor ORDER BY call_key LIMIT :limit',
+      { node: this.store.nodeId, cursor, limit: this.batchSize });
+    await this.reproject(rows.map(row => ({ uniqueid: row.linkedid, linkedid: row.linkedid, vpbx_user_uid: Number(row.tenant) })));
+    const complete = rows.length < this.batchSize;
+    await this.store.saveCheckpoint(source, CALL_FACTS_VERSION, 0, complete, rows.at(-1)?.call_key || cursor, this.owner);
+    this.catchup ||= !complete;
+  }
+
   async reproject(rows: DashboardLeg[]): Promise<void> {
     const groups = new Map<number, Set<string>>();
     for (const row of rows) {
@@ -241,6 +294,7 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
           if (row.kind === 'answer') { proof.human ||= row.value === 'v3:human'; proof.ai ||= row.value === 'v3:ai'; }
           persisted.set(row.call_key, proof);
         }
+        const enrichment = this.tables?.has('call_facts') ? await loadCallEnrichment(this.store, this.tables, tenant, legs, this.store.nodeId) : null;
         for (const callLegs of logical.values()) {
           if (callLegs.some((leg) => !Number.isFinite(parseDashboardTimestamp(leg.calldate, this.cdrTimezone)))) {
             const badSource = `cdrInvalid:${this.store.nodeId}`;
@@ -270,7 +324,13 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
           else if (previousThrough >= latestEnd) { evidence.complete = true; evidence.completeThrough = previousThrough; }
           else if (evidence.complete) evidence.completeThrough = Math.max(latestEnd, evidence.completeThrough || 0);
           else if (snapshot && snapshot.updatedAt >= latestEnd) { evidence.complete = true; evidence.completeThrough = snapshot.updatedAt; }
-          await this.store.putCall(classifyDashboardCall(tenant, this.store.nodeId, callLegs, evidence, this.cdrTimezone), this.owner);
+          const classified = classifyDashboardCall(tenant, this.store.nodeId, callLegs, evidence, this.cdrTimezone);
+          if (enrichment) {
+            const fact = buildCallFact(classified, callLegs, evidence, this.cdrTimezone, enrichment.events, artifactsForCall(callLegs, enrichment));
+            enrichCallNames(fact, enrichment);
+            classified.fingerprint = createHash('sha256').update(classified.fingerprint + JSON.stringify(fact)).digest('hex');
+            await this.store.putCall(classified, this.owner, fact);
+          } else await this.store.putCall(classified, this.owner);
           if (++writes % 25 === 0 && !await this.store.renewLease(`projection:${this.store.nodeId}`, this.owner, 120000)) throw new Error('Projection ownership lost');
         }
       }
@@ -282,7 +342,7 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
     if (!ids.length) return result;
     const add = (id: string, proof: DashboardEvidence) => { const combined = result.get(id) || {}; mergeEvidence(combined, proof); result.set(id, combined); };
     if (this.tables?.has('cel')) {
-      const events = await this.store.select<Record<string, any>>("SELECT uniqueid,linkedid,eventtype,channame,eventtime,context,appname,appdata,peer,extra FROM cel WHERE (linkedid IN (:ids) OR uniqueid IN (:ids)) AND eventtype IN ('ANSWER','BRIDGE_ENTER','LINKEDID_END','APP_START','APP_END','STREAM_BEGIN','STREAM_END') ORDER BY id LIMIT 100001", { ids });
+      const events = await this.store.select<Record<string, any>>(`SELECT uniqueid,linkedid,eventtype,channame,${await celTimestampExpression(this.store)} AS eventtime,context,appname,appdata,peer,extra FROM cel WHERE (linkedid IN (:ids) OR uniqueid IN (:ids)) AND eventtype IN ('ANSWER','BRIDGE_ENTER','LINKEDID_END','APP_START','APP_END','STREAM_BEGIN','STREAM_END') ORDER BY id LIMIT 100001`, { ids });
       if (events.length > 100000) throw new Error('CEL evidence exceeds projection budget');
       const byUniqueid = new Map<string, Set<string>>(); const byChannel = new Map<string, Set<string>>();
       const destinations = new Map<string, Set<string>>();

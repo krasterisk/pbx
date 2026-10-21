@@ -24,6 +24,7 @@ vi.mock('@/shared/hooks/useIsMobile', () => ({
 }));
 
 vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
+  useGetMyBalanceQuery: () => ({ data: { balance_rub: 10000, credit_limit_kopecks: 0 } }),
   usePurchaseModuleMutation: () => [
     (...args: unknown[]) => {
       purchaseModule(...args);
@@ -38,6 +39,9 @@ vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
     },
     { isLoading: false },
   ],
+}));
+vi.mock('@/shared/api/endpoints/integrationsApi', () => ({
+  useSetProductActivationMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({}) })), { isLoading: false }],
 }));
 
 function renderSheet(open = true, extra: { checkoutKind?: 'hub-module' | 'ai-sku'; moduleCode?: string } = {}) {
@@ -61,15 +65,11 @@ describe('CheckoutSheet (005-B)', () => {
     unwrap.mockResolvedValue({ success: true });
   });
 
-  it('has three explicit steps: plan → confirm → success', async () => {
+  it('connects in one step and then offers to open the module', async () => {
     renderSheet();
-    expect(screen.getByTestId('checkout-sheet')).toHaveAttribute('data-step', 'plan');
+    expect(screen.getByTestId('checkout-sheet')).toHaveAttribute('data-step', 'review');
     expect(screen.getByTestId('checkout-step-plan')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('checkout-continue'));
-    expect(screen.getByTestId('checkout-sheet')).toHaveAttribute('data-step', 'confirm');
-    expect(screen.getByTestId('checkout-step-confirm')).toBeInTheDocument();
-    expect(screen.getByText('marketplace.confirmPurchase')).toBeInTheDocument();
+    expect(screen.getByText('marketplace.balanceNow')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('checkout-confirm'));
     await waitFor(() => {
@@ -84,7 +84,6 @@ describe('CheckoutSheet (005-B)', () => {
   it('surfaces insufficient balance error with deposit hint', async () => {
     unwrap.mockRejectedValue({ status: 402, data: { code: 'INSUFFICIENT_BALANCE' } });
     renderSheet();
-    fireEvent.click(screen.getByTestId('checkout-continue'));
     fireEvent.click(screen.getByTestId('checkout-confirm'));
     await waitFor(() => {
       expect(screen.getByTestId('checkout-error')).toBeInTheDocument();
@@ -94,7 +93,6 @@ describe('CheckoutSheet (005-B)', () => {
 
   it('purchases a published AI SKU instead of the Hub module offer', async () => {
     renderSheet(true, { checkoutKind: 'ai-sku', moduleCode: 'speech_analytics' });
-    fireEvent.click(screen.getByTestId('checkout-continue'));
     fireEvent.click(screen.getByTestId('checkout-confirm'));
     await waitFor(() => {
       expect(purchaseAiSku).toHaveBeenCalledWith({ skuCode: 'speech_analytics' });

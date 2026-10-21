@@ -63,7 +63,9 @@ export class AutodialMonitorService implements OnModuleInit, OnModuleDestroy {
           ({ user_uid: agent.userId, name: agent.name || agent.interface, status: agent.status, queues: agent.queues.filter((name) => queues.has(name)) })),
         alerts: [
           ...(row.apply_error ? [{ code: 'apply_error' as const, severity: 'error' as const }] : []),
-          ...(row.status === 'running' && diagnosis.reasons.length && diagnosis.active_channels === 0 ? [{ code: 'idle' as const, severity: 'warning' as const }] : []),
+          ...(row.status === 'running' && diagnosis.schedule_open && diagnosis.active_channels === 0
+            && diagnosis.reasons.some((reason) => ['no_ready_agents', 'capacity_no_providers', 'capacity_stale_apply'].includes(reason.code))
+            ? [{ code: 'idle' as const, severity: 'warning' as const }] : []),
           ...(abandon > threshold ? [{ code: 'abandon' as const, severity: 'error' as const, value: abandon, threshold }] : []),
         ] };
     })));

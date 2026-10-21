@@ -12,13 +12,12 @@ import { campaignWindowOpen } from './autodial-schedule.util';
  * Moves campaigns in and out of `running` according to their calendar, and
  * marks a campaign `completed` once no dialable task is left.
  *
- * Only campaigns the calendar itself paused are auto-resumed: a manual pause
- * sticks until an operator resumes it.
+ * Calendar waits use the persisted scheduled state. A manual pause sticks
+ * until an operator resumes it, including after a process restart.
  */
 @Injectable()
 export class AutodialSchedulerService {
   private readonly logger = new Logger(AutodialSchedulerService.name);
-  private readonly calendarPaused = new Set<number>();
 
   constructor(
     @InjectModel(AcCampaign) private readonly campaignModel: typeof AcCampaign,
@@ -48,20 +47,12 @@ export class AutodialSchedulerService {
       const open = campaignWindowOpen(rows, now);
 
       if (campaign.status === 'running' && !open) {
-        await campaign.update({ status: 'paused' });
-        this.calendarPaused.add(campaign.uid);
-        this.logger.log(`Campaign ${campaign.uid} paused — outside its dialing window`);
+        if (await this.transition(campaign, 'running', 'scheduled')) this.logger.log(`Campaign ${campaign.uid} waiting — outside its dialing window`);
         continue;
       }
 
-      if (campaign.status !== 'running' && open) {
-        const autoResumable =
-          campaign.status === 'scheduled' || this.calendarPaused.has(campaign.uid);
-        if (autoResumable) {
-          await campaign.update({ status: 'running' });
-          this.calendarPaused.delete(campaign.uid);
-          this.logger.log(`Campaign ${campaign.uid} resumed — inside its dialing window`);
-        }
+      if (campaign.status === 'scheduled' && open) {
+        if (await this.transition(campaign, 'scheduled', 'running')) this.logger.log(`Campaign ${campaign.uid} resumed — inside its dialing window`);
         continue;
       }
 
@@ -85,9 +76,15 @@ export class AutodialSchedulerService {
       where: { campaign_uid: campaign.uid, user_uid: campaign.user_uid },
     });
     if (total === 0) return;
-    await campaign.update({ status: 'completed' });
-    this.calendarPaused.delete(campaign.uid);
-    this.logger.log(`Campaign ${campaign.uid} completed — no tasks left`);
+    if (await this.transition(campaign, 'running', 'completed')) this.logger.log(`Campaign ${campaign.uid} completed — no tasks left`);
+  }
+
+  /** A user pause/stop or configuration edit after the read wins over this tick. */
+  private async transition(campaign: AcCampaign, from: string, to: string): Promise<boolean> {
+    const [changed] = await this.campaignModel.update({ status: to }, {
+      where: { uid: campaign.uid, user_uid: campaign.user_uid, status: from, revision: campaign.revision },
+    });
+    return changed > 0;
   }
 
   private async schedulesByCampaign(

@@ -1,3 +1,4 @@
+const manualOutput = (name) => require('../../../tools/artifacts/paths.cjs').outputPath('runs', 'manual', process.env.HARNESS_RUN_ID || 'legacy', name);
 /**
  * Live UAT for speech analytics (D-50 / REQ-SA-UAT).
  *
@@ -22,7 +23,7 @@ const mysql = require('mysql2/promise');
 
 const ROOT = path.resolve(__dirname, '../../..');
 const API = process.env.HARNESS_API_URL || 'http://127.0.0.1:5010';
-const EVIDENCE = path.join(ROOT, '.planning/evidence/speech-analytics-uat-live.json');
+const EVIDENCE = manualOutput('speech-analytics-uat-live.json');
 const DEFAULT_SAMPLES = process.platform === 'win32'
   ? 'Z:\\temp\\speech-analytics-samples'
   : '/z/temp/speech-analytics-samples';

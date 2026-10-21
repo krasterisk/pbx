@@ -23,6 +23,7 @@ describe('autodial campaign start/stop safety', () => {
     service['queueModel'] = {
       findAll: jest.fn().mockResolvedValue([]),
     } as unknown as AutodialCampaignsService['queueModel'];
+    service['scheduleModel'] = { findAll: jest.fn().mockResolvedValue([]) } as never;
     return service;
   };
 
@@ -37,6 +38,19 @@ describe('autodial campaign start/stop safety', () => {
     expect(service['generateTasks']).not.toHaveBeenCalled();
     expect(row.update).toHaveBeenCalledWith({ apply_error: 'AC_DIALPLAN_APPLY_FAILED' });
     expect(row.update).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'running' }));
+  });
+  it('does not start another tour for a campaign already waiting for its calendar', async () => {
+    const row = campaign(); row.status = 'scheduled'; const service = serviceWith(row, true);
+    await expect(service.start(7, 11)).rejects.toMatchObject({ response: { code: 'AC_CAMPAIGN_ACTIVE' } });
+    expect(service['dialplanService'].applyCampaign).not.toHaveBeenCalled();
+  });
+  it('resumes a manually paused campaign into calendar waiting when all windows are disabled', async () => {
+    const row = campaign(), service = serviceWith(row, true);
+    service['scheduleModel'] = { findAll: jest.fn().mockResolvedValue([{ enabled: false }]) } as never;
+    service['recordEvent'] = jest.fn().mockResolvedValue(undefined);
+    jest.spyOn(service, 'findOne').mockResolvedValue(row as never);
+    await service.resume(7, 11);
+    expect(row.update).toHaveBeenCalledWith({ status: 'scheduled' });
   });
 
   it('keeps a paused campaign paused if apply fails during resume', async () => {

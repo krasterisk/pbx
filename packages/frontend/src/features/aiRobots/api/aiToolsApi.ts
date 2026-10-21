@@ -15,9 +15,15 @@ const aiToolsApi = rtkApi.injectEndpoints({
       query: () => '/ai-knowledge',
       providesTags: [{ type: 'AiVoice', id: 'KB' }],
     }),
-    createKnowledgeBase: builder.mutation<unknown, { name: string }>({
+    createKnowledgeBase: builder.mutation<{ id: string }, { name: string }>({
       query: (body) => ({ url: '/ai-knowledge', method: 'POST', body }),
       invalidatesTags: [{ type: 'AiVoice', id: 'KB' }],
+    }),
+    addKnowledgeText: builder.mutation<unknown, { id: string; title: string; text: string }>({
+      query: ({ id, ...body }) => ({ url: `/ai-knowledge/${id}/text`, method: 'POST', body }),
+    }),
+    queryKnowledge: builder.mutation<Array<{ id: string; excerpt: string }>, { baseIds: string[]; query: string }>({
+      query: (body) => ({ url: '/ai-knowledge/query', method: 'POST', body }),
     }),
   }),
 });
@@ -27,4 +33,6 @@ export const {
   useCreateAiToolMutation,
   useGetKnowledgeBasesQuery,
   useCreateKnowledgeBaseMutation,
+  useAddKnowledgeTextMutation,
+  useQueryKnowledgeMutation,
 } = aiToolsApi;

@@ -5,7 +5,9 @@ import { AiRobotsKnowledgePage } from './AiRobotsKnowledgePage';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/features/aiRobots/api/aiToolsApi', () => ({
   useGetKnowledgeBasesQuery: () => ({ data: [] }),
-  useCreateKnowledgeBaseMutation: () => [vi.fn()],
+  useCreateKnowledgeBaseMutation: () => [vi.fn(), { isLoading: false }],
+  useAddKnowledgeTextMutation: () => [vi.fn()],
+  useQueryKnowledgeMutation: () => [vi.fn(), { data: [] }],
 }));
 
 describe('AiRobotsKnowledgePage', () => {

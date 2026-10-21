@@ -72,8 +72,8 @@ export function HotkeysSettingsForm() {
   if (isLoading) {
     return (
       <VStack gap="8" max data-testid="hotkeys-settings-form">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="10rem" width="100%" />
       </VStack>
     );
   }
@@ -90,10 +90,6 @@ export function HotkeysSettingsForm() {
 
   return (
     <VStack gap="12" max className={styles.wrap} data-testid="hotkeys-settings-form">
-      <Text className={styles.title}>{t('callcenter.settings.hotkeys.title', 'Agent hotkeys')}</Text>
-      <Text variant="muted">
-        {t('callcenter.settings.hotkeys.hint', 'One set for all operators. Works in the agent workspace, including the Russian keyboard layout.')}
-      </Text>
       {!canEdit && (
         <Text variant="muted">
           {t('callcenter.settings.hotkeys.readOnly', 'Only supervisors and admins can edit')}
@@ -171,6 +167,7 @@ export function HotkeysSettingsForm() {
       </Text>
 
       <FormSaveBar
+        placement="footer"
         dirty={dirty}
         saving={isSaving}
         saveDisabled={issues.size > 0}

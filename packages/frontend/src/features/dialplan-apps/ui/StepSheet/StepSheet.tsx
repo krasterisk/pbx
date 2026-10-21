@@ -28,7 +28,7 @@ import { AppCollapsibleSection } from '../AppCollapsibleSection/AppCollapsibleSe
 import { useSchemaRefs } from '../../model/useSchemaRefs';
 import { normalizePlaybackParams } from '../../model/schemas/playback';
 import { normalizeToTrunkParams } from '../../model/schemas/totrunk';
-import type { FieldSchema, OptionsSource } from '../../model/schema.types';
+import type { FieldSchema, OptionsSource, SchemaCatalogRef } from '../../model/schema.types';
 import type { DialplanHost } from '../../model/types';
 import { autodialEditorPatch, autodialEditorSchema, autodialEditorValues } from '../../model/autodialSchema';
 import styles from './StepSheet.module.scss';
@@ -53,12 +53,14 @@ export interface StepSheetProps {
   initialSection?: StepSheetSection;
   allowedTypes?: readonly ActionType[];
   returnFocusRef?: RefObject<HTMLElement | null>;
+  fallbackFocusRef?: RefObject<HTMLElement | null>;
   optionsSlot?: ReactNode;
   conditionsSlot?: ReactNode;
   /** Route extensions for live dial-number preview. */
   previewPatterns?: string[];
   autodialFields?: Array<{ value: string; label: string }>;
   host?: DialplanHost;
+  ttsCatalog?: SchemaCatalogRef;
 }
 
 export function isQueueTargetComplete(action: IRouteAction | null | undefined): boolean {
@@ -86,11 +88,13 @@ export function StepSheet({
   initialSection,
   allowedTypes,
   returnFocusRef,
+  fallbackFocusRef,
   optionsSlot,
   conditionsSlot,
   previewPatterns,
   autodialFields,
   host,
+  ttsCatalog,
 }: StepSheetProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile(768);
@@ -101,6 +105,7 @@ export function StepSheet({
   const [optionsOpen, setOptionsOpen] = useState(initialSection === 'options');
   const [conditionsOpen, setConditionsOpen] = useState(initialSection === 'conditions');
   const bodyRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const focusContext = useRef({ open: false, stepId, type: action?.type });
   const config = action?.type ? dialplanAppsRegistry[action.type] : undefined;
   const schema = useMemo(() => host === 'autodial'
@@ -118,7 +123,11 @@ export function StepSheet({
     }
     return Array.from(new Set(sources));
   }, [schema]);
-  const schemaRefs = useSchemaRefs(catalogSources);
+  const schemaRefs = useSchemaRefs(catalogSources, ttsCatalog);
+  const refreshSpeechCatalog = ttsCatalog?.onRetry;
+  useEffect(() => {
+    if (open && catalogSources.includes('tts-engines')) refreshSpeechCatalog?.();
+  }, [open, stepId, catalogSources, refreshSpeechCatalog]);
   const mergedFieldErrors = useMemo(() => {
     const client = clientStepFieldErrors(action);
     const mapped = Object.fromEntries(
@@ -206,9 +215,6 @@ export function StepSheet({
       if (!ok) return;
     }
     onOpenChange(next);
-    if (!next) {
-      returnFocusRef?.current?.focus();
-    }
   };
 
   const { primary: primaryRaw, params: paramsRaw } = splitSchemaFields(schema);
@@ -287,6 +293,24 @@ export function StepSheet({
       <SheetContent
         side={side}
         className={`${styles.panel} ${side === 'bottom' ? styles.panelBottom : ''}`}
+        onOpenAutoFocus={(event) => {
+          const active = document.activeElement;
+          if (active instanceof HTMLElement && active !== document.body && !(event.target as HTMLElement).contains(active)) {
+            openerRef.current = active;
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          // Radix must finish closing before focus leaves its modal trap.
+          for (const target of [returnFocusRef?.current, openerRef.current, fallbackFocusRef?.current]) {
+            if (!target?.isConnected || target.matches(':disabled') || target.closest('[inert]')) continue;
+            target.focus();
+            if (document.activeElement === target) {
+              event.preventDefault();
+              break;
+            }
+          }
+          openerRef.current = null;
+        }}
       >
         <SheetHeader>
           <SheetTitle>

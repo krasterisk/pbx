@@ -30,7 +30,7 @@ test('tls remains unsupported without certification; certified lab unlocks draft
 
 test('pending-gates matrix documents PASS host ODBC; TLS lab signalling named separately', () => {
   const matrix = fs.readFileSync(
-    path.join(__dirname, '../../.planning/initiatives/ai-products/evidence/pending-gates/REMOTE-MATRIX.md'),
+    path.join(__dirname, '../../docs/plans/initiatives/ai-products/evidence/pending-gates/REMOTE-MATRIX.md'),
     'utf8',
   );
   assert.match(matrix, /Host unixODBC[\s\S]*?\*\*PASS\*\*/);
@@ -39,7 +39,7 @@ test('pending-gates matrix documents PASS host ODBC; TLS lab signalling named se
   assert.match(matrix, /liveMcp[\s\S]*?\*\*BLOCKED\*\*/);
   assert.match(matrix, /Live Adaptive DSN secrets not read/);
   const followup = fs.readFileSync(
-    path.join(__dirname, '../../.planning/initiatives/ai-products/evidence/followup-fe-tls-pilot/REMOTE-MATRIX.md'),
+    path.join(__dirname, '../../docs/plans/initiatives/ai-products/evidence/followup-fe-tls-pilot/REMOTE-MATRIX.md'),
     'utf8',
   );
   assert.match(followup, /Lab TLS signalling[\s\S]*?\*\*PASS\*\*/);

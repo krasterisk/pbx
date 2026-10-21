@@ -42,6 +42,26 @@ beforeEach(() => {
 });
 
 describe('ImportWizard contracts', () => {
+  it('preserves explicit transforms in validation and saved profiles', async () => {
+    render(<ImportWizard baseUid={1} />); await upload();
+    fireEvent.change(screen.getByLabelText('autodial.workspace.columnTransform'), { target: { value: 'trim' } });
+    fireEvent.change(screen.getByLabelText('autodial.import.saveProfileAs'), { target: { value: 'Trim profile' } });
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      column_map: [expect.objectContaining({ transform: 'trim' })],
+    }) })));
+    await commit();
+    expect(mocks.validate).toHaveBeenCalledWith(expect.objectContaining({ column_map: [expect.objectContaining({ transform: 'trim' })] }));
+  });
+  it('shows a field-specific reason instead of the generic row_invalid or raw exception', async () => {
+    mocks.validate.mockImplementation(() => ({ unwrap: () => Promise.resolve({ total_rows: 1, valid: 0, skipped: 1,
+      ready: false, errors: [], warnings: [], rejected_rows: [{ row: 2, code: 'row_invalid', message: 'AC_INVALID_PHONE', field: '__phone' }] }) }));
+    render(<ImportWizard baseUid={1} />); await upload();
+    fireEvent.click(screen.getByRole('button', { name: 'autodial.workspace.validateImport' }));
+    expect(await screen.findByText(/autodial.import.special.__phone: autodial.workspace.importErrors.phone/)).toBeInTheDocument();
+    expect(screen.queryByText(/AC_INVALID_PHONE/)).not.toBeInTheDocument();
+    expect(mocks.run).not.toHaveBeenCalled();
+  });
   it('sends parsing settings to preview and revision/index mapping to commit', async () => {
     render(<ImportWizard baseUid={1} />);
     fireEvent.change(screen.getByLabelText('autodial.import.delimiter'), { target: { value: ',' } });
@@ -88,12 +108,12 @@ describe('ImportWizard contracts', () => {
   });
   it('does not change contacts when validation is not ready', async () => {
     mocks.validate.mockImplementation(() => ({ unwrap: () => Promise.resolve({ total_rows: 1, valid: 0, skipped: 1,
-      ready: false, errors: [], warnings: [], rejected_rows: [{ row: 2, message: 'no_phone' }] }) }));
+      ready: false, errors: [], warnings: [], rejected_rows: [{ row: 2, code: 'no_phone', message: 'no_phone' }] }) }));
     render(<ImportWizard baseUid={1} />); await upload();
     expect(screen.queryByRole('button', { name: 'autodial.import.run' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'autodial.workspace.validateImport' }));
     expect(await screen.findByRole('button', { name: 'autodial.import.run' })).toBeDisabled();
     expect(mocks.run).not.toHaveBeenCalled();
-    expect(screen.getByText(/no_phone/)).toBeInTheDocument();
+    expect(screen.getByText(/autodial.workspace.importErrors.phone/)).toBeInTheDocument();
   });
 });

@@ -25,6 +25,7 @@ import {
   parseJsonObject,
   scoringMetrics,
   type AnalysisScore,
+  type AnalysisMetricRow,
 } from './analysis-prompt';
 import type { DiarizedSegment, ScoreResult, SttResult } from './run-analysis';
 
@@ -32,11 +33,6 @@ const STT_TIMEOUT_MS = 120_000;
 const SCORE_TIMEOUT_MS = 90_000;
 const sttLog = new Logger('SpeechAnalyticsStt');
 const scoreLog = new Logger('SpeechAnalyticsScore');
-
-function responseSnippet(data: unknown): string {
-  const raw = typeof data === 'string' ? data : JSON.stringify(data ?? '');
-  return raw.replace(/\s+/g, ' ').slice(0, 400);
-}
 
 function whisperTranscriptionUrl(endpoint: string): string {
   const base = endpoint.replace(/\/$/, '');
@@ -55,10 +51,9 @@ function whisperTranscriptionUrl(endpoint: string): string {
 function describeSttFailure(error: unknown, method: string, url: string, detail: string): Error {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 'none';
-    const body = responseSnippet(error.response?.data);
     const code = error.code ? ` code=${error.code}` : '';
     const detailMessage = error.message ? ` message=${error.message}` : '';
-    return new Error(`${method} ${url} ${detail} status=${status}${code}${detailMessage} body=${body}`);
+    return new Error(`${method} ${url} ${detail} status=${status}${code}${detailMessage}`);
   }
   const message = error instanceof Error ? error.message : String(error);
   return new Error(`${method} ${url} ${detail} ${message}`);
@@ -125,12 +120,12 @@ export async function scoreProviderTranscript(input: {
   }
   const message = response.data?.choices?.[0]?.message;
   const raw = completionText(message);
-  scoreLog.log(`Score completion chars=${raw.length} sample=${raw.replace(/\s+/g, ' ').slice(0, 400)}`);
+  scoreLog.log(`Score completion chars=${raw.length}`);
   if (!raw.trim()) {
     const finish = response.data?.choices?.[0]?.finish_reason ?? 'n/a';
     const keys = message && typeof message === 'object' ? Object.keys(message).join(',') : 'none';
     throw new Error(
-      `POST ${url} model=${model} status=${response.status} finish=${finish} messageKeys=${keys} empty completion body=${responseSnippet(response.data)}`,
+      `POST ${url} model=${model} status=${response.status} finish=${finish} messageKeys=${keys} empty completion`,
     );
   }
   const parsed = parseAnalysisResponse(raw, config);
@@ -146,12 +141,30 @@ export async function scoreProviderTranscript(input: {
   });
   const tokens = Number(response.data?.usage?.total_tokens);
   const firstTokens = Number.isFinite(tokens) ? tokens : 0;
+  const metrics = analysisToMetricRows(parsed, parsed.assessments, resolveProjectInsights(config));
+  validateAssessmentQuotes(metrics, transcript, new Set(scoringMetrics(config).map(metric => metric.id)));
   return {
-    metrics: analysisToMetricRows(parsed, parsed.assessments, resolveProjectInsights(config)),
+    metrics,
     summary: parsed.summary,
     providerTokens: firstTokens + repairTokens,
     modelId: model || input.modelId,
   };
+}
+
+/** New explicitly assessed rows must cite the immutable source; legacy rows retain compatibility. */
+export function validateAssessmentQuotes(rows: AnalysisMetricRow[], transcript: string, freshMetricIds: ReadonlySet<string> = new Set()): void {
+  const normalize = (text: string) => text.normalize('NFKC').replace(/\s+/gu, ' ').trim();
+  const source = normalize(transcript);
+  for (const row of rows) {
+    // Compatibility parsing is also used for historical rows. A fresh model
+    // response must nevertheless have an explicit, source-supported status.
+    if (!row.status && freshMetricIds.has(row.id)) row.status = 'assessed';
+    if (row.status !== 'assessed') continue;
+    if (row.value == null || !row.quote.trim() || !source.includes(normalize(row.quote))) {
+      row.status = 'insufficient_evidence';
+      row.value = null;
+    }
+  }
 }
 
 async function fillMissingMetricValues(input: {
@@ -164,7 +177,7 @@ async function fillMissingMetricValues(input: {
   config: SaProjectConfigV1;
   parsed: AnalysisScore;
 }): Promise<number> {
-  const missing = input.parsed.metrics.filter((row) => row.value == null);
+  const missing = input.parsed.metrics.filter((row) => row.value == null && (!row.status || row.status === 'assessed'));
   if (missing.length === 0) return 0;
   const specs = scoringMetrics(input.config)
     .filter((metric) => missing.some((row) => row.id === metric.id))
@@ -225,7 +238,7 @@ async function fillMissingMetricValues(input: {
   }
   const types = new Map(scoringMetrics(input.config).map((metric) => [metric.id, metric.type]));
   for (const metric of input.parsed.metrics) {
-    if (metric.value != null) continue;
+    if (metric.value != null || (metric.status && metric.status !== 'assessed')) continue;
     const next = coerceMetricValue(byId.get(metric.id) ?? body[metric.id], types.get(metric.id) ?? 'number');
     if (next != null) metric.value = next;
   }
@@ -346,7 +359,7 @@ async function labelSpeakerChunk(input: {
   const roles = readSpeakerRoles(parseJsonObject(raw), input.segments.length);
   if (!roles) {
     scoreLog.warn(
-      `Speaker labels unmatched lines=${input.segments.length} sample=${raw.replace(/\s+/g, ' ').slice(0, 240)}`,
+      `Speaker labels unmatched lines=${input.segments.length} responseChars=${raw.length}`,
     );
   }
   return roles;

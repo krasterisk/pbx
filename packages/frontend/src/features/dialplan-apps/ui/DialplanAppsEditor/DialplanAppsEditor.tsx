@@ -43,7 +43,7 @@ import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { copyStep } from '../../model/clipboard';
 import { createActionId } from '../../model/actionIds';
 import { useSchemaRefs } from '../../model/useSchemaRefs';
-import type { OptionsSource } from '../../model/schema.types';
+import type { OptionsSource, SchemaCatalogRef } from '../../model/schema.types';
 import { ChainLabelsProvider, collectChainLabelNames } from '../../model/chainLabels';
 import {
   editorReducer,
@@ -57,6 +57,7 @@ import { StepRow, type StepSection } from '../StepRow/StepRow';
 import { StepSheet } from '../StepSheet/StepSheet';
 import { allowedTypesForHost } from '../../model/hostTypes';
 import { localizeStepError } from '../../model/stepErrors';
+import { reachableStepIndices } from '../../model/reachableSteps';
 import type { MappedStepErrors } from '../../model/stepErrors';
 import { UnknownActionCard } from '../UnknownActionCard/UnknownActionCard';
 import { ApplyTemplateDialog } from '@/features/route-templates/ui/ApplyTemplateDialog';
@@ -86,6 +87,7 @@ export interface DialplanAppsEditorProps {
   slots?: ITemplateSlot[];
   /** Contact-list fields offered as ValueSource when host is autodial. */
   autodialFields?: Array<{ value: string; label: string }>;
+  ttsCatalog?: SchemaCatalogRef;
 }
 
 export function restrictToVerticalAxisLocal({
@@ -185,6 +187,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   showTemplateActions = false,
   slots = [],
   autodialFields,
+  ttsCatalog,
 }: DialplanAppsEditorProps) {
   const { t, i18n } = useTranslation();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -200,6 +203,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
   const [applyOpen, setApplyOpen] = useState(false);
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const undoTimer = useRef<number | null>(null);
+  const addActionButtonRef = useRef<HTMLButtonElement | null>(null);
   const templateActionsEnabled = showTemplateActions && host === 'route' && !readOnly;
 
   const resolvedAllowed = allowedTypes ?? typesForHost(host);
@@ -215,10 +219,13 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
     }
     return [...sources];
   }, [actions]);
-  const rowRefs = useSchemaRefs(summarySources);
+  const rowRefs = useSchemaRefs(summarySources, ttsCatalog);
   const atLimit = maxSteps != null && actions.length >= maxSteps;
   const terminalIndex = firstAlwaysTerminalIndex(actions);
-  const unreachableCount = terminalIndex >= 0 ? Math.max(0, actions.length - terminalIndex - 1) : 0;
+  const reachable = reachableStepIndices(actions);
+  const unreachableIndices = new Set(actions.flatMap((action, index) =>
+    terminalIndex >= 0 && index > terminalIndex && action.enabled !== false && !reachable.has(index) ? [index] : []));
+  const unreachableCount = unreachableIndices.size;
   const menuIndex = firstMenuPlaybackIndex(actions);
   const maybeSkipCount = menuIndex >= 0 ? Math.max(0, actions.length - menuIndex - 1) : 0;
 
@@ -337,16 +344,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
                   : t('routes.chain.unreachable.title_other', 'Шаги ниже не выполнятся')}
               </Text>
               <Text variant="muted">
-                {(unreachableCount === 1
-                  ? t(
-                      'routes.chain.unreachable.body_one',
-                      'Действие {{index}} завершает цепочку. Перенесите его вниз или удалите действие после него',
-                    )
-                  : t(
-                      'routes.chain.unreachable.body_other',
-                      'Действие {{index}} завершает цепочку. Перенесите его вниз или удалите действия после него',
-                    )
-                ).replace('{{index}}', String(terminalIndex + 1))}
+                {t('routes.chain.unreachable.graphBody', 'От начала цепочки нет пути к отмеченным шагам. Проверьте переходы и завершающие действия.')}
               </Text>
             </VStack>
           </Flex>
@@ -395,7 +393,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
             </Text>
             {!readOnly ? (
               <VStack gap="8" align="center">
-                <Button type="button" onClick={addAction}>
+                <Button ref={addActionButtonRef} type="button" onClick={addAction}>
                   {addLabel}
                 </Button>
                 {templateActionsEnabled && <DropdownMenu>
@@ -430,7 +428,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
                       density={density}
                       readOnly={readOnly}
                       slots={slots}
-                      unreachable={terminalIndex >= 0 && idx > terminalIndex}
+                      unreachable={unreachableIndices.has(idx)}
                       allowedTypes={resolvedAllowed}
                       onOpenStep={(id, section) => {
                         setSelectedStepId(id);
@@ -526,6 +524,7 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
                 variant="outline"
                 size="sm"
                 onClick={addAction}
+                ref={addActionButtonRef}
                 disabled={atLimit}
                 aria-label={addLabel}
               >
@@ -586,6 +585,8 @@ export const DialplanAppsEditor = memo(function DialplanAppsEditor({
             stepIndex={selectedIndex}
             previewPatterns={previewPatterns}
             autodialFields={autodialFields}
+            ttsCatalog={ttsCatalog}
+            fallbackFocusRef={addActionButtonRef}
             onOpenChange={(next) => {
               if (!next) setSelectedStepId(null);
             }}

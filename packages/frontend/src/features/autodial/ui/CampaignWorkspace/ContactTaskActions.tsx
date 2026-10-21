@@ -1,3 +1,4 @@
+import { useAutodialDialogFocus } from '../AutodialConfirmation/useAutodialDialogFocus';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { IAutodialCampaignContact } from '@krasterisk/shared';
@@ -8,6 +9,7 @@ import { autodialErrorKey } from '../../lib/mutationError';
 
 export function ContactTaskActions({ uid, contact }: { uid: number; contact: IAutodialCampaignContact }) {
   const { t } = useTranslation();
+  const dialogFocus = useAutodialDialogFocus();
   const [dialog, setDialog] = useState<'reschedule' | 'exclude' | 'dnc' | null>(null);
   const [time, setTime] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function ContactTaskActions({ uid, contact }: { uid: number; contact: IAu
       <Button size="sm" variant="outline" disabled={active || !contact.tasks?.length || contact.tasks.some((task) => task.status !== 'pending')} onClick={() => { setDialog('reschedule'); setError(null); }}>{t('autodial.workspace.reschedule')}</Button>
       <Button size="sm" variant="outline" onClick={() => { setDialog('dnc'); setError(null); }}>{t('autodial.workspace.addDnc')}</Button>
     </HStack>
-    <Dialog open={Boolean(dialog)} onOpenChange={(open) => !open && !pending && setDialog(null)}><DialogContent aria-describedby={undefined}>
+    <Dialog open={Boolean(dialog)} onOpenChange={(open) => !open && !pending && setDialog(null)}><DialogContent {...dialogFocus} aria-describedby={undefined}>
       <DialogHeader><DialogTitle>{t(`autodial.workspace.${dialog ?? 'exclude'}`)}</DialogTitle></DialogHeader>
       <VStack gap="12" max><Text>{contact.phones.map((phone) => phone.normalized).join(', ')}</Text>
         <Text>{t(`autodial.workspace.confirm_${dialog ?? 'exclude'}`)}</Text>

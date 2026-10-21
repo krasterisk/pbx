@@ -14,7 +14,7 @@ import {
   AiVoiceEvent, AiVoiceSession, AiVoiceTicket, AiVoiceTurn,
 } from './ai-voice.models';
 import {
-  DEFAULT_RUNTIME_POLICY, DomainError, consumeTicket, issueTicket, snapshotDigest,
+  DEFAULT_RUNTIME_POLICY, DomainError, consumeTicket, issueTicket,   snapshotDigest, requireTicketSecret,
   type AgentSnapshot, type RuntimePolicy,
 } from './voice-engine';
 import { executeVoiceTool } from './call-control';
@@ -39,7 +39,7 @@ export class AiVoiceService {
   ) {}
 
   private ticketSecret(): string {
-    return process.env.AI_VOICE_TICKET_SECRET || 'ai-voice-ticket-dev';
+    return requireTicketSecret(process.env.AI_VOICE_TICKET_SECRET);
   }
 
   private userId(context: TenantContext): number {
@@ -300,6 +300,7 @@ export class AiVoiceService {
       ariApp: process.env.ARI_AI_VOICE_APP_NAME || 'krasterisk_ai_voice',
       tools: ['end_call', 'transfer', 'get_session_context'],
       previewMic: 'opt-in',
+      ticketSecretConfigured: (process.env.AI_VOICE_TICKET_SECRET ?? '').trim().length >= 16,
     };
   }
 

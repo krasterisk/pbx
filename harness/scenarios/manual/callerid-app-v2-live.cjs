@@ -1,4 +1,6 @@
 'use strict';
+const manualOutput = (name) => require('../../../tools/artifacts/paths.cjs').outputPath('runs', 'manual', process.env.HARNESS_RUN_ID || 'legacy', name);
+
 // Explicit opt-in, isolated tenant, real HTTP controllers + DB + remote AMI.
 // Does not boot workers, create trunks, or place any PSTN/SIP-provider call.
 if (!process.argv.includes('--run-live')) throw new Error('Use --run-live for the authorized Asterisk lab');
@@ -437,7 +439,7 @@ async function cleanup() {
   catch (error) { evidence.pass = false; evidence.error = error.message; console.error(error.stack); process.exitCode = 1; }
   finally {
     try { await cleanup(); } catch (error) { evidence.cleanupError = error.message; process.exitCode = 1; }
-    const output = path.resolve(__dirname, process.argv.includes('--directory-step-only')?'../../../.planning/artifacts/directory-steps-live.json':process.argv.includes('--mapping-only')?'../../../.planning/artifacts/callerid-app-v2-mapping-live.json':'../../../.planning/artifacts/callerid-app-v2-live.json');
+    const output = manualOutput(process.argv.includes('--directory-step-only') ? 'directory-steps-live.json' : process.argv.includes('--mapping-only') ? 'callerid-app-v2-mapping-live.json' : 'callerid-app-v2-live.json');
     fs.mkdirSync(path.dirname(output), { recursive: true });
     evidence.sip_invites=sipEvents;
     fs.writeFileSync(output, JSON.stringify(evidence, null, 2));

@@ -2,6 +2,44 @@ import { applyIndustryTemplate, defaultSaProjectConfig } from '@krasterisk/share
 import { analysisToMetricRows, buildAnalysisPrompt, parseAnalysisResponse, PROMPT_VERSION, scoringMetrics } from './analysis-prompt';
 
 describe('analysis prompt', () => {
+  it('keeps inapplicable metrics and unsupported customer satisfaction null instead of manufacturing a score', () => {
+    const config = defaultSaProjectConfig();
+    const parsed = parseAnalysisResponse(JSON.stringify({
+      summary: 'Нет возражений; клиент подтвердил понимание, но не благодарил.',
+      objection_handling: 100, csat: 5,
+      assessments: {
+        objection_handling: { status: 'not_applicable', rationale: 'Возражений не было.' },
+        csat: { status: 'insufficient_evidence', rationale: 'Понимание не равно удовлетворённости.' },
+      },
+    }), config);
+    const rows = analysisToMetricRows(parsed, parsed.assessments);
+    expect(rows.find(row => row.id === 'objection_handling')).toMatchObject({value:null,status:'not_applicable'});
+    expect(rows.find(row => row.id === 'csat')).toMatchObject({value:null,status:'insufficient_evidence'});
+    expect(buildAnalysisPrompt(config,'[customer] Всё поняла.')).toContain('A phrase assigned to the customer does NOT count as an operator behavior');
+  });
+  it('preserves evidence returned with a nested top-level score and prefers explicit assessments', () => {
+    const response = {
+      summary: 'Проверка сохранения объяснения',
+      greeting_quality: { value: 100, rationale: 'Оператор назвал имя.', quote: 'оператор [PERSON_2]' },
+    };
+    const config = defaultSaProjectConfig();
+    const parsed = parseAnalysisResponse(JSON.stringify(response), config);
+    expect(analysisToMetricRows(parsed, parsed.assessments).find((row) => row.id === 'greeting_quality'))
+      .toMatchObject({ value: 100, rationale: 'Оператор назвал имя.', quote: 'оператор [PERSON_2]' });
+    const withAssessment = parseAnalysisResponse(JSON.stringify({ ...response,
+      assessments: { greeting_quality: { rationale: 'Основное объяснение', quote: 'Добрый день' } },
+    }), config);
+    expect(withAssessment.metrics.find((row) => row.id === 'greeting_quality'))
+      .toMatchObject({ value: 100, rationale: 'Основное объяснение', quote: 'Добрый день' });
+  });
+  it('keeps employee introduction facts when the real name has been anonymized, without forcing a score',()=>{
+    const transcript='Сотрудник: Добрый день, оператор [PERSON_1].';
+    const prompt=buildAnalysisPrompt(defaultSaProjectConfig(),transcript);
+    expect(prompt).toContain(transcript);
+    expect(prompt).toContain('HAS introduced their name');
+    expect(prompt).toContain('score the remaining greeting checklist normally');
+    expect(prompt).toContain('rationale must agree with the transcript');
+  });
   it('fills the draft from an industry template and keeps the builtin rubric', () => {
     const config = applyIndustryTemplate('real_estate');
     expect(config.systemPrompt).toContain('недвижимости');
@@ -11,7 +49,7 @@ describe('analysis prompt', () => {
     expect(prompt).toContain('Greeting/ID:');
     expect(prompt).toContain('property_match');
     expect(prompt).toContain('недвижимости');
-    expect(PROMPT_VERSION).toBe('2026-09-22.1');
+    expect(PROMPT_VERSION).toBe('2026-10-20.2');
   });
 
   it('drops unknown topic ids', () => {

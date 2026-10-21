@@ -19,7 +19,7 @@ describe('Autodial live monitor', () => {
     const { service, db, cc } = fixture(); const [first, second] = await Promise.all([service.health(71), service.health(71)]);
     expect(first).toEqual(second); expect(db.query).toHaveBeenCalledTimes(1); expect(cc.getAllAgents).toHaveBeenCalledWith(71);
     expect(first.campaigns[0].agents).toHaveLength(1); expect(first.campaigns[0].trend).toHaveLength(15);
-    expect(first.campaigns[0].alerts.map((item) => item.code)).toEqual(['apply_error', 'idle', 'abandon']);
+    expect(first.campaigns[0].alerts.map((item) => item.code)).toEqual(['apply_error', 'abandon']);
     expect((await service.health(72)).campaigns).toEqual([]);
   });
   it('accepts step events only for an existing attempt in the same tenant', () => {

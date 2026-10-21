@@ -1,9 +1,11 @@
+import { useAutodialConfirmation } from '../AutodialConfirmation/useAutodialConfirmation';
+import { useAutodialDialogFocus } from '../AutodialConfirmation/useAutodialDialogFocus';
 import { Switch, TagInput } from '@/shared/ui';
 import { ModalBody } from '@/shared/ui';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Loader2, Plus, Trash2 } from 'lucide-react';
 import {
   AUTODIAL_DEDUP_POLICIES,
   AUTODIAL_PHONE_NORMALIZATIONS,
@@ -42,14 +44,19 @@ import {
 } from '../../model/baseDraft';
 import cls from './BaseFormModal.module.scss';
 import { autodialErrorKey } from '../../lib/mutationError';
+import { useCreateCommand, uncertainAutodialSave } from '../../model/useCreateCommand';
+import { CreateCommandStatus } from '../CreateCommandStatus/CreateCommandStatus';
 
-export const BaseFormModal = memo(() => {
+export const BaseFormModal = memo(({ onSaved, initialFieldUid }: { onSaved?: (uid: number) => void; initialFieldUid?: number } = {}) => {
   const { t } = useTranslation();
+  const { confirm, confirmationDialog } = useAutodialConfirmation();
+  const dialogFocus = useAutodialDialogFocus();
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector(selectAutodialBaseModalOpen);
   const mode = useAppSelector(selectAutodialBaseModalMode);
   const activeUid = useAppSelector(selectAutodialSelectedBaseUid);
   const editUid = mode === 'edit' ? activeUid : null;
+  const command = useCreateCommand<AutodialBaseDraft, ReturnType<typeof baseDraftToPayload>>('base', `${mode}:${editUid ?? 'new'}`);
 
   const { currentData: base, isFetching, isError, refetch } = useGetAutodialBaseQuery(editUid as number, {
     skip: !isOpen || editUid === null,
@@ -58,7 +65,7 @@ export const BaseFormModal = memo(() => {
   const [updateBase, { isLoading: isUpdating }] = useUpdateAutodialBaseMutation();
   const { currentData: usage } = useGetAutodialFieldUsageQuery(editUid ?? 0, { skip: !isOpen || editUid === null });
   const [previewSchema, { isLoading: isPreviewing }] = usePreviewAutodialSchemaMutation();
-  const [migration, setMigration] = useState<{ request: AutodialSchemaMigrationRequest; preview: IAutodialSchemaPreview } | null>(null);
+  const [migration, setMigration] = useState<{ request: AutodialSchemaMigrationRequest; preview: IAutodialSchemaPreview; opener: HTMLButtonElement } | null>(null);
   const [defaults, setDefaults] = useState<Record<string, string>>({});
   const [omitOptional, setOmitOptional] = useState(false);
   const baseline = useRef('');
@@ -67,25 +74,32 @@ export const BaseFormModal = memo(() => {
   const [showErrors, setShowErrors] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [hydratedKey, setHydratedKey] = useState<string | null>(null);
-  const sessionKey = String(editUid ?? 'new');
+  const [expandedField, setExpandedField] = useState<number | null>(null);
+  const [technical, setTechnical] = useState(false);
+  const [template, setTemplate] = useState<AutodialBaseTemplate | ''>('');
+  const sessionKey = `${editUid ?? 'new'}:${command.pending?.id ?? ''}`;
 
   useEffect(() => {
     if (!isOpen) { setHydratedKey(null); return; }
     if (hydratedKey === sessionKey || (editUid !== null && !base)) return;
     setShowErrors(false);
     setApiError(null);
-    const initial = editUid !== null && base ? baseToDraft(base) : emptyBaseDraft();
+    const initial = editUid !== null && base ? baseToDraft(base) : command.pending?.draft ?? emptyBaseDraft();
     setDraft(initial); baseline.current = JSON.stringify(initial); setDefaults({}); setOmitOptional(false); setMigration(null);
+    const initialIndex = initialFieldUid === undefined ? -1 : initial.fields.findIndex((field) => field.uid === initialFieldUid);
+    setExpandedField(initialIndex >= 0 ? initialIndex : null); setTechnical(false);
+    setTemplate('');
     setHydratedKey(sessionKey);
-  }, [isOpen, editUid, base, sessionKey, hydratedKey]);
+  }, [isOpen, editUid, base, sessionKey, hydratedKey, initialFieldUid, command.pending?.draft]);
 
   const errors = useMemo(() => validateBaseDraft(draft), [draft]);
   const visibleErrors = showErrors ? errors : {};
-  const isSaving = isCreating || isUpdating || isPreviewing;
+  const isSaving = isCreating || isUpdating || isPreviewing || command.busy;
   const isReady = hydratedKey === sessionKey && !isError;
 
-  const close = () => {
-    if ((JSON.stringify(draft) !== baseline.current || omitOptional || Object.values(defaults).some(Boolean)) && !window.confirm(t('autodial.workspace.discard'))) return;
+  const close = async () => {
+    if (command.pending && !(await confirm(t('autodial.workspace.commandCloseHint')))) return;
+    if ((JSON.stringify(draft) !== baseline.current || omitOptional || Object.values(defaults).some(Boolean)) && !(await confirm(t('autodial.workspace.discard')))) return;
     dispatch(autodialPageActions.closeBaseModal());
   };
 
@@ -99,12 +113,15 @@ export const BaseFormModal = memo(() => {
     const next = [...draft.fields];
     [next[index], next[target]] = [next[target], next[index]];
     setFields(next);
+    setExpandedField(target); setTechnical(false);
   };
 
   const onSave = async () => {
     if (!isReady || isSaving) return;
     if (hasBaseErrors(errors)) {
       setShowErrors(true);
+      const first = Object.keys(errors.fieldKeys ?? {}).map(Number)[0];
+      if (first !== undefined) { setExpandedField(first); setTechnical(true); }
       return;
     }
     setApiError(null);
@@ -112,19 +129,23 @@ export const BaseFormModal = memo(() => {
     try {
       if (editUid !== null) {
         await updateBase({ uid: editUid, data: payload }).unwrap();
+        onSaved?.(editUid);
       } else {
-        const created = await createBase(payload).unwrap();
+        const created = await command.run(draft, payload, (body, id) => createBase({ ...body, ui_command_id: id }).unwrap());
         dispatch(autodialPageActions.selectBase(created.uid));
+        onSaved?.(created.uid);
       }
       dispatch(autodialPageActions.closeBaseModal());
     } catch (error) {
-      setApiError(t(autodialErrorKey(error, 'autodial.bases.saveFailed')));
+      setApiError(uncertainAutodialSave(error) ? editUid === null ? null : t('autodial.workspace.updateUncertain')
+        : t(autodialErrorKey(error, 'autodial.bases.saveFailed')));
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && close()}>
-      <FormDialogContent size="large" className={cls.dialog} data-testid="autodial-base-form-modal" aria-describedby={undefined}>
+      {confirmationDialog}
+      <FormDialogContent {...dialogFocus} size="large" className={cls.dialog} data-testid="autodial-base-form-modal" aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>
             {editUid !== null ? t('autodial.bases.editTitle') : t('autodial.bases.createTitle')}
@@ -146,12 +167,15 @@ export const BaseFormModal = memo(() => {
             data-viewport="360,768,1440"
             data-overflow="y"
           >
+            <fieldset disabled={Boolean(command.pending)} className={cls.formFields}>
             {editUid === null && <VStack gap="4" align="stretch">
               <Label htmlFor="autodial-base-template">{t('autodial.workspace.baseTemplate')}</Label>
-              <Select id="autodial-base-template" value="" onChange={(event) => {
-                const template = event.target.value as AutodialBaseTemplate;
-                if (template && (JSON.stringify(draft.fields) === JSON.stringify(emptyBaseDraft().fields) || window.confirm(t('autodial.workspace.replaceTemplateFields'))))
-                  setDraft({ ...draft, fields: baseTemplateFields(template) });
+              <Select id="autodial-base-template" value={template} onChange={async (event) => {
+                const selectedTemplate = event.target.value as AutodialBaseTemplate;
+                if (selectedTemplate && (JSON.stringify(draft.fields) === JSON.stringify(emptyBaseDraft().fields) || await confirm(t('autodial.workspace.replaceTemplateFields')))) {
+                  setDraft({ ...draft, fields: baseTemplateFields(selectedTemplate) });
+                  setTemplate(selectedTemplate); setExpandedField(null); setTechnical(false);
+                }
               }}><option value="">{t('autodial.workspace.chooseTemplate')}</option>
                 {(['collection', 'appointment', 'survey'] as const).map((key) => <option key={key} value={key}>{t(`autodial.workspace.templates.${key}`)}</option>)}
               </Select>
@@ -231,8 +255,23 @@ export const BaseFormModal = memo(() => {
 
               {draft.fields.map((field, index) => (
                 <div key={field.uid ?? `new-${index}`} className={cls.fieldRow}>
+                  <Button variant="ghost" className={cls.fieldToggle} aria-expanded={expandedField === index}
+                    aria-controls={`autodial-field-body-${index}`} onClick={() => {
+                      setExpandedField(expandedField === index ? null : index); setTechnical(false);
+                    }}>
+                    {expandedField === index ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    <VStack gap="2" align="start">
+                      <Text as="span">{field.label || field.key || t('autodial.workspace.newField')}</Text>
+                      <Text as="span" variant="muted">{t(`autodial.bases.fieldTypeLabel.${field.type}`)}{field.required ? ` · ${t('autodial.bases.required')}` : ''}</Text>
+                    </VStack>
+                  </Button>
+                  {expandedField === index && <VStack id={`autodial-field-body-${index}`} gap="12" max align="stretch" className={cls.fieldBody}>
+                  <Button variant="link" className={cls.technicalToggle} aria-expanded={technical}
+                    aria-controls={`autodial-field-key-row-${index} autodial-field-var-row-${index}`} onClick={() => setTechnical(!technical)}>
+                    {t('autodial.workspace.fieldTechnical')}
+                  </Button>
                   <div className={cls.fieldGrid}>
-                    <VStack align="stretch" gap="4">
+                    {technical && <VStack id={`autodial-field-key-row-${index}`} align="stretch" gap="4">
                       <Label htmlFor={`autodial-field-key-${index}`}>
                         {t('autodial.bases.fieldKey')}
                       </Label>
@@ -253,7 +292,7 @@ export const BaseFormModal = memo(() => {
                           {t(`autodial.bases.fieldKeyError.${visibleErrors.fieldKeys[index]}`)}
                         </Text>
                       )}
-                    </VStack>
+                    </VStack>}
 
                     <VStack align="stretch" gap="4">
                       <Label htmlFor={`autodial-field-label-${index}`}>
@@ -291,7 +330,7 @@ export const BaseFormModal = memo(() => {
                       </Select>
                     </VStack>
 
-                    <VStack align="stretch" gap="4">
+                    {technical && <VStack id={`autodial-field-var-row-${index}`} align="stretch" gap="4">
                       <Label htmlFor={`autodial-field-var-${index}`}>
                         {t('autodial.bases.varName')}
                       </Label>
@@ -300,7 +339,7 @@ export const BaseFormModal = memo(() => {
                         value={field.var_name}
                         onChange={(e) => updateField(index, { ...field, var_name: e.target.value })}
                       />
-                    </VStack>
+                    </VStack>}
 
                     <HStack gap="12" align="center" className={cls.flags}>
                       <HStack gap="4" align="center">
@@ -386,6 +425,7 @@ export const BaseFormModal = memo(() => {
                       />
                     </VStack>
                   )}
+                  </VStack>}
                 </div>
               ))}
 
@@ -398,33 +438,41 @@ export const BaseFormModal = memo(() => {
               <HStack gap="8">
                 <Button
                   variant="outline"
-                  onClick={() => setFields([...draft.fields, blankFieldDraft(draft.fields.length)])}
+                  onClick={() => { setFields([...draft.fields, blankFieldDraft(draft.fields.length)]); setExpandedField(draft.fields.length); setTechnical(false); }}
                 >
                   <Plus size={16} />
                   {t('autodial.bases.addField')}
                 </Button>
               </HStack>
             </VStack>
+            </fieldset>
           </ModalBody>
         )}
 
         <DialogFooter className={cls.footer} data-testid="autodial-base-form-footer">
           <VStack gap="8" max align="end">
-            {apiError && <Text className={cls.error}>{apiError}</Text>}
+            <CreateCommandStatus pending={Boolean(command.pending)} busy={command.busy} slow={command.slow} onCheck={() => {
+              void command.check().then((saved) => {
+                if (saved) { dispatch(autodialPageActions.selectBase(saved)); onSaved?.(saved); dispatch(autodialPageActions.closeBaseModal()); }
+                else setApiError(t('autodial.workspace.commandStillUnknown'));
+              }).catch(() => setApiError(t('autodial.workspace.commandCheckFailed')));
+            }} />
+            {apiError && <Text role="alert" className={cls.error}>{apiError}</Text>}
             {editUid !== null && <HStack gap="8" align="center"><Switch id="schema-archive-optional" checked={omitOptional} onCheckedChange={setOmitOptional} />
               <Label htmlFor="schema-archive-optional">{t('autodial.workspace.archiveInvalidOptional')}</Label></HStack>}
             <HStack gap="8" justify="end" max wrap="wrap" className={cls.footerActions}>
               <Button variant="outline" disabled={isSaving} onClick={close}>
                 {t('common.cancel')}
               </Button>
-              {editUid !== null && <Button variant="outline" disabled={isSaving || !isReady} onClick={async () => {
+              {editUid !== null && <Button variant="outline" disabled={isSaving || !isReady} onClick={async (event) => {
+                const opener = event.currentTarget;
                 if (hasBaseErrors(errors)) { setShowErrors(true); return; }
                 setApiError(null);
                 const request: AutodialSchemaMigrationRequest = { expected_revision: draft.revision ?? 0,
                   fields: baseDraftToPayload(draft).fields, invalid_optional_policy: omitOptional ? 'archive_omit' : 'reject',
                   defaults: Object.fromEntries(Object.entries(defaults).filter(([key, value]) => value !== '' && draft.fields.some((field) => field.key === key))),
                 };
-                try { const preview = await previewSchema({ uid: editUid, data: request }).unwrap(); setMigration({ request, preview }); }
+                try { const preview = await previewSchema({ uid: editUid, data: request }).unwrap(); setMigration({ request, preview, opener }); }
                 catch (cause) { setApiError(t(autodialErrorKey(cause, 'autodial.bases.saveFailed'))); }
               }}>{t('autodial.workspace.schemaPreview')}</Button>}
               <Button disabled={isSaving || !isReady} onClick={() => void onSave()}>
@@ -434,8 +482,8 @@ export const BaseFormModal = memo(() => {
             </HStack>
           </VStack>
         </DialogFooter>
-        {editUid !== null && migration && <SchemaMigrationDialog uid={editUid} request={migration.request} preview={migration.preview}
-          onClose={() => setMigration(null)} onApplied={() => { setMigration(null); dispatch(autodialPageActions.closeBaseModal()); }} />}
+        {editUid !== null && migration && <SchemaMigrationDialog uid={editUid} request={migration.request} preview={migration.preview} returnFocusTo={migration.opener}
+          onClose={() => setMigration(null)} onApplied={() => { setMigration(null); onSaved?.(editUid); dispatch(autodialPageActions.closeBaseModal()); }} />}
       </FormDialogContent>
     </Dialog>
   );

@@ -56,6 +56,16 @@ function makeMonoWav(samples: number[], sampleRate = 8000): Buffer {
 }
 
 describe('channel-diarize (D-23, D-24)', () => {
+  it('keeps a final sub-50ms segment inside the verified audio boundary', () => {
+    const left=makeMonoWav(Array.from({length:8000},()=>1000));
+    const right=makeMonoWav(Array.from({length:8000},()=>100));
+    const turns=labelSegmentsByChannelEnergy([{start:.992,end:1,text:'Конец.'}],left,right);
+    expect(turns).toEqual([{speaker:'operator',start:.992,end:1,text:'Конец.'}]);
+  });
+  it('preserves a valid zero-duration source segment without inventing 50ms', () => {
+    const wav=makeMonoWav(Array.from({length:8000},()=>1000));
+    expect(labelSegmentsByChannelEnergy([{start:0,end:0,text:'Да.'}],wav,wav)[0].end).toBe(0);
+  });
   it('locks route and upload channel maps (D-24)', () => {
     expect(ROUTE_CHANNEL_MAP).toEqual({ left: 'customer', right: 'operator' });
     expect(UPLOAD_CHANNEL_MAP).toEqual({ left: 'operator', right: 'customer' });

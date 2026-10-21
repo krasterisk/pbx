@@ -21,6 +21,7 @@ import { VoiceRobotDataList } from '../data-list.model';
 import { IVoiceRobotBotAction, ISlotDefinition } from '../interfaces/bot-action.types';
 import { DataListSearchService } from './data-list-search.service';
 import { abortTtsPipeline, createSerialQueue, isTtsPipelineAborted } from './tts-pipeline-abort';
+import { assertEgressUrl } from '../../ai-tool-connectivity/egress-guard';
 import { randomUUID } from 'crypto';
 
 /** Caller info passed from StasisStart event */
@@ -95,6 +96,15 @@ export class VoiceRobotSession {
 
   // Cleanup guard
   private cleanedUp = false;
+  private sttRetryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private scheduleSttRetry(delayMs: number): void {
+    if (this.sttRetryTimer) clearTimeout(this.sttRetryTimer);
+    this.sttRetryTimer = setTimeout(() => {
+      this.sttRetryTimer = null;
+      if (!this.cleanedUp) this.initStreamingStt();
+    }, delayMs);
+  }
 
   // ─── CDR tracking ─────────────────────────────────────
   private readonly sessionId = randomUUID();
@@ -246,9 +256,11 @@ export class VoiceRobotSession {
 
       // 1. Answer channel
       await this.ariClient.answerChannel(this.channelId);
+      if (this.cleanedUp) return;
 
       // 2. Create mixing bridge
       this.bridge = await this.ariClient.createBridge('mixing');
+      if (this.cleanedUp) return;
       this.logger.log(`Bridge created: ${this.bridge.id}`);
 
       // 3. Add primary channel to bridge
@@ -293,6 +305,7 @@ export class VoiceRobotSession {
 
     } catch (e: any) {
       this.logger.error(`Failed to start session: ${e.message}`, e.stack);
+      if (!this.cleanedUp) await this.ariClient.hangupChannel(this.channelId).catch(() => undefined);
       this.cleanup();
     }
   }
@@ -372,8 +385,11 @@ export class VoiceRobotSession {
         if (this.sttStream) {
           this.sttStream.write(pcm);
         }
-        // Still accumulate for fallback (if stream dies mid-session)
+        // Still accumulate for fallback (if stream dies mid-session). Cap at ~2 MB.
         this.sttBuffer.push(pcm);
+        let buffered = 0;
+        for (const chunk of this.sttBuffer) buffered += chunk.length;
+        while (buffered > 2_000_000 && this.sttBuffer.length) buffered -= this.sttBuffer.shift()!.length;
       });
 
       // No audio-float32 handler — VAD completely bypassed
@@ -485,9 +501,7 @@ export class VoiceRobotSession {
         this.logger.error(`[STT/stream] Error: ${err.message}`);
         this.sttStream = null;
         // Auto-recreate after error (keep always-on)
-        if (!this.cleanedUp) {
-          setTimeout(() => this.initStreamingStt(), 200);
-        }
+        if (!this.cleanedUp) this.scheduleSttRetry(200);
       });
 
       currentStream.events.on('end', () => {
@@ -495,9 +509,7 @@ export class VoiceRobotSession {
         this.logger.debug('[STT/stream] Stream ended — recreating');
         this.sttStream = null;
         // Auto-recreate so we're always listening
-        if (!this.cleanedUp) {
-          setTimeout(() => this.initStreamingStt(), 50);
-        }
+        if (!this.cleanedUp) this.scheduleSttRetry(50);
       });
 
       this.logger.log(`[STT/stream] Streaming STT initialized (engine: ${this.sttEngine.type})`);
@@ -724,10 +736,10 @@ export class VoiceRobotSession {
     this.logger.log(`[STT] Step ${this.stepCount}/${this.maxSteps}: Sending ${totalPcm.length} bytes to STT...`);
 
     const startTime = Date.now();
-    const sttResult = await this.sttService.transcribe(
-      totalPcm,
-      this.robotConfig.language || 'ru-RU',
-    );
+    const language = this.robotConfig.language || 'ru-RU';
+    const sttResult = this.sttEngine
+      ? await this.sttProviderFactory.transcribe(this.sttEngine, totalPcm, language)
+      : await this.sttService.transcribe(totalPcm, language);
     const sttDurationMs = Date.now() - startTime;
 
     if (sttResult.text) {
@@ -1190,6 +1202,7 @@ export class VoiceRobotSession {
     }
 
     try {
+      await assertEgressUrl(url);
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -1804,7 +1817,7 @@ export class VoiceRobotSession {
       }
     } else if (response.type === 'prompt' && response.value) {
       try {
-        await this.ariClient.playMedia(this.channelId, `sound:${response.value}`);
+        await this.ariClient.playMedia(this.channelId, String(response.value).replace(/^sound:/, ''));
       } catch (e: any) {
         this.logger.warn(`[Prompt] Failed to play "${response.value}": ${e.message}`);
       }
@@ -1822,16 +1835,18 @@ export class VoiceRobotSession {
    * Best for: dynamic webhook responses, interpolated templates.
    */
   private async speakStreaming(text: string): Promise<void> {
+    const pendingPlayback: Array<Promise<void>> = [];
     await this.ttsFactory.synthesize(
       this.ttsEngine!,
       text,
       (pcm16: Buffer) => {
         if (isTtsPipelineAborted(this.pipelineAbort)) return;
         const alaw = this.audioService.encodePcm16ToAlaw(pcm16);
-        this.streamAudio.streamAudio(this.channelId, alaw);
+        pendingPlayback.push(this.streamAudio.streamAudio(this.channelId, alaw));
       },
       this.pipelineAbort?.signal,
     );
+    await Promise.all(pendingPlayback);
   }
 
   /**
@@ -2251,6 +2266,7 @@ export class VoiceRobotSession {
     this.writeCdr().catch((e) => this.logger.error(`CDR write failed: ${e.message}`));
 
     // Cancel timers
+    if (this.sttRetryTimer) clearTimeout(this.sttRetryTimer);
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
     if (this.maxDurationTimer) clearTimeout(this.maxDurationTimer);
     this.clearInactivityTimer();

@@ -16,9 +16,10 @@ import { buildAutodialChannelId, parseAutodialChannelId } from './autodial-phone
 import { autodialCampaignContextName } from './autodial-dialplan.util';
 import { selectAutodialTrunkLegs, type AutodialDialTarget } from './autodial-trunk.util';
 import { autodialContactVariables } from './autodial-contact-variables.util';
+import { autodialConversationSnapshot } from './autodial-test-snapshot.util';
 import {
   dispositionFromAnsweredCall,
-  dispositionFromHangupCause,
+  dispositionFromUnansweredChannel,
 } from './autodial-disposition.util';
 import { subscriberHoursAllowForSchedules } from './autodial-schedule.util';
 
@@ -140,6 +141,8 @@ export class AutodialOriginatorService {
       channelId,
       trunkId: first.trunkId,
       callerId,
+      scenarioSnapshot: { ...autodialConversationSnapshot(campaign.revision, campaign.scenario_actions ?? [], variables, false, campaign.business_goal ?? 'custom', campaign.user_uid),
+        dialled_phone: phone.normalized, dial_timeout_sec: campaign.dial_timeout_sec },
     };
     const dncGate = async (): Promise<'ok' | 'dnc'> =>
       (await this.dnc.isBlocked(campaign.user_uid, phone.normalized, {
@@ -219,6 +222,7 @@ export class AutodialOriginatorService {
         number: input.number,
         trunkId: target.trunkId,
         startedAt: Date.now(),
+        dialTimeoutSec: input.campaign.dial_timeout_sec,
         answeredAt: null,
         contactUid: input.task.contact_uid,
         customerName: typeof input.contactValues.name === 'string' ? input.contactValues.name.slice(0, 255) : undefined,
@@ -301,7 +305,10 @@ export class AutodialOriginatorService {
       : persisted?.answered_at ?? null;
     const billsec = answeredAt ? Math.round((Date.now() - answeredAt.getTime()) / 1000) : 0;
 
-    let disposition = dispositionFromHangupCause(cause);
+    const elapsedMs = live ? Date.now() - live.startedAt : undefined;
+    let disposition = dispositionFromUnansweredChannel({ cause, state: event.channel?.state,
+      elapsedMs, dialTimeoutSec: live?.dialTimeoutSec });
+    const ringingTimeout = !answeredAt && cause === 0 && disposition === 'no_answer';
     if (answeredAt) {
       const campaignUid = live?.campaignUid ?? persisted?.campaign_uid;
       const campaign = campaignUid != null
@@ -321,6 +328,10 @@ export class AutodialOriginatorService {
       hangupCause: event.cause_txt ?? String(cause),
       billsec,
       answeredAt,
+      ...(ringingTimeout ? { scenarioResult: { unanswered_evidence: {
+        source: 'ari_ringing_dial_timeout', cause, cause_text: event.cause_txt ?? null,
+        channel_state: event.channel?.state, elapsed_ms: elapsedMs, dial_timeout_sec: live?.dialTimeoutSec,
+      } } } : {}),
     });
     this.state.removeChannel(channelId, finalizedDisposition ?? disposition);
   }

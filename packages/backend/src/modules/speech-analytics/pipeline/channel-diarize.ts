@@ -249,9 +249,13 @@ export function labelSegmentsByChannelEnergy(
     const text = String(seg.text || '').trim();
     if (!text) continue;
     const start = Number(seg.start) || 0;
-    const end = Math.max(Number(seg.end) || start + 0.05, start + 0.05);
-    const leftRms = pcm16MonoRms(leftWav, start, end);
-    const rightRms = pcm16MonoRms(rightWav, start, end);
+    const sourceEnd = Number(seg.end);
+    const end = Number.isFinite(sourceEnd) ? Math.max(sourceEnd, start) : start;
+    // A short energy sampling window must not extend the persisted source time,
+    // especially for the final STT segment already clipped to the audio length.
+    const energyEnd = Math.max(end, start + 0.05);
+    const leftRms = pcm16MonoRms(leftWav, start, energyEnd);
+    const rightRms = pcm16MonoRms(rightWav, start, energyEnd);
 
     let side: StereoSide;
     if (leftRms <= 0 && rightRms <= 0) {

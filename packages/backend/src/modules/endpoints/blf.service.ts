@@ -4,6 +4,15 @@ import { PsEndpoint } from './ps-endpoint.model';
 import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { blfContext, blfSettings, buildBlfHints } from './blf-policy';
 
+/** AMI rejects with a plain object, so Error detection alone prints `[object Object]`. */
+export function describeFailure(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return String(error);
+}
+
 /** Owns only krasterisk/routes/blf_{tenant}.conf; contexts contain no call routing. */
 @Injectable()
 export class BlfService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -36,7 +45,7 @@ export class BlfService implements OnApplicationBootstrap, OnModuleDestroy {
       for (const tenant of this.applied.keys()) tenants.add(tenant);
       for (const tenant of tenants) if (Number.isSafeInteger(tenant) && tenant >= 0) await this.sync(tenant);
     } catch (e) {
-      this.logger.warn(`BLF reconciliation pending: ${e instanceof Error ? e.message : String(e)}`);
+      this.logger.warn(`BLF reconciliation pending: ${describeFailure(e)}`);
     } finally { this.reconciling = false; }
   }
 
@@ -70,7 +79,7 @@ export class BlfService implements OnApplicationBootstrap, OnModuleDestroy {
       }
       return true;
     } catch (e) {
-      this.logger.warn(`BLF tenant ${tenant} apply pending: ${e instanceof Error ? e.message : String(e)}`);
+      this.logger.warn(`BLF tenant ${tenant} apply pending: ${describeFailure(e)}`);
       return false;
     }
   }

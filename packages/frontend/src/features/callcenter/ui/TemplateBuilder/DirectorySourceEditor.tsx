@@ -1,7 +1,10 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { isCardDirectorySource, type CardFieldOptions, type CardDirectorySource } from '@krasterisk/shared';
 import { useGetDirectoriesQuery } from '@/shared/api/endpoints/directoryApi';
 import { Button, Select, Label, Text, TagInput, VStack } from '@/shared/ui';
+import styles from './DirectorySourceEditor.module.scss';
 
 export function DirectorySourceEditor({ value, onChange }: { value?: CardFieldOptions | null; onChange: (value: CardFieldOptions) => void }) {
   const { t } = useTranslation();
@@ -20,6 +23,7 @@ function DirectoryColumns({ source, onChange }: { source: CardDirectorySource; o
   const { t } = useTranslation();
   const { data = [], isLoading, isError, refetch } = useGetDirectoriesQuery();
   const directory = data.find(item => item.uid === source.directoryUid);
+  const [columnsOpen, setColumnsOpen] = useState(false);
   return <VStack gap="8">
     <Select aria-label={t('callcenter.cards.builder.directory')} value={source.directoryUid || ''} disabled={isLoading} onChange={e => {
       const selected = data.find(item => item.uid === Number(e.target.value));
@@ -30,17 +34,22 @@ function DirectoryColumns({ source, onChange }: { source: CardDirectorySource; o
       <option value="">{t('callcenter.cards.builder.chooseDirectory')}</option>
       {data.map(item => <option key={item.uid} value={item.uid}>{item.name}</option>)}
     </Select>
-    <details><summary>{t('callcenter.cards.builder.directoryColumns')}</summary><VStack gap="8">
-    {(['valueFieldUid', 'labelFieldUid'] as const).map(key => <VStack gap="4" key={key}>
-      <Label>{t(`callcenter.cards.builder.${key}`)}</Label>
-      <Select aria-label={t(`callcenter.cards.builder.${key}`)} value={source[key] || ''} disabled={!directory} onChange={e => onChange({ ...source, [key]: Number(e.target.value) })}>
-        <option value="">{t('callcenter.cards.builder.chooseColumn')}</option>
-        {(directory?.fields ?? []).map(field => <option key={field.uid} value={field.uid}>{field.label}</option>)}
-      </Select>
-    </VStack>)}
-    </VStack></details>
+    <Button type="button" variant="ghost" size="sm" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((open) => !open)}>
+      {t('callcenter.cards.builder.directoryColumns')}
+    </Button>
+    {columnsOpen ? (
+      <VStack gap="8">
+        {(['valueFieldUid', 'labelFieldUid'] as const).map(key => <VStack gap="4" key={key}>
+          <Label>{t(`callcenter.cards.builder.${key}`)}</Label>
+          <Select aria-label={t(`callcenter.cards.builder.${key}`)} value={source[key] || ''} disabled={!directory} onChange={e => onChange({ ...source, [key]: Number(e.target.value) })}>
+            <option value="">{t('callcenter.cards.builder.chooseColumn')}</option>
+            {(directory?.fields ?? []).map(field => <option key={field.uid} value={field.uid}>{field.label}</option>)}
+          </Select>
+        </VStack>)}
+      </VStack>
+    ) : null}
     <Text variant="muted">{t('callcenter.cards.builder.directoryHelp')}</Text>
-    <a href="/directories" target="_blank" rel="noreferrer">{t('callcenter.cards.builder.manageDirectories')}</a>
+    <Link to="/directories" target="_blank" rel="noreferrer" className={styles.link}>{t('callcenter.cards.builder.manageDirectories')}</Link>
     {isError ? <Button type="button" onClick={() => void refetch()}>{t('callcenter.cards.builder.directoryLoadError')} · {t('common.retry')}</Button> : null}
   </VStack>;
 }

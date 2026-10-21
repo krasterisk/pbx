@@ -9,14 +9,16 @@ import {
 import { AmiService } from '../ami/ami.service';
 import { AriConnectionService } from '../ari/ari-connection.service';
 import { PromptsService } from '../prompts/prompts.service';
-import { AutodialCampaignsService, toAutodialTrunkPool } from './autodial-campaigns.service';
-import type { CreateAutodialCampaignDto } from './dto/autodial-campaign.dto';
+import { AutodialCampaignsService, assertAutodialSchedules, toAutodialTrunkPool } from './autodial-campaigns.service';
+import type { CreateAutodialCampaignDto, AutodialSchedulePreviewDto } from './dto/autodial-campaign.dto';
 import { AutodialDiagnosisService } from './autodial-diagnosis.service';
 import { AutodialDialplanService } from './autodial-dialplan.service';
 import { autodialSqlDate } from './autodial-sql-time.util';
 import { defaultAutodialAmd, defaultAutodialCidPolicy, normalizeAutodialPacing, normalizeAutodialRetry, queueNamesFromPacing } from './autodial-campaign.defaults';
-import { campaignWindowOpen } from './autodial-schedule.util';
+import { campaignWindowOpen, subscriberHoursAllowForSchedules } from './autodial-schedule.util';
+import { nextAutodialWindow } from './autodial-next-window.util';
 import { AiProvidersService } from '../ai-connectivity/ai-providers.service';
+import { autodialTtsCapability } from './autodial-tts-capability.util';
 
 @Injectable()
 export class AutodialPreflightService {
@@ -32,11 +34,12 @@ export class AutodialPreflightService {
   ) {}
 
   async capabilities(userUid: number) {
-    const [engines, queues, robots] = await Promise.all([
+    const [engines, queues, robots, llms] = await Promise.all([
       Promise.all([this.providers.findAll(userUid, 'tts'), this.providers.findGlobal('tts')])
-        .then((groups) => groups.flat().filter((row) => row.enabled).map((row) => ({ uid: row.uid, name: row.name, is_global: row.is_global }))),
-      this.db.query<{ name: string }>('SELECT name FROM queue_table WHERE vpbx_user_uid = :userUid', { replacements: { userUid }, type: QueryTypes.SELECT }),
+        .then((groups) => groups.flat().filter((row) => row.enabled).map(autodialTtsCapability)),
+      this.db.query<{ name: string; display_name: string | null }>('SELECT name, display_name FROM queue_table WHERE vpbx_user_uid = :userUid', { replacements: { userUid }, type: QueryTypes.SELECT }),
       this.db.query<{ uid: number; name: string }>('SELECT uid, name FROM voice_robots WHERE user_uid = :userUid', { replacements: { userUid }, type: QueryTypes.SELECT }),
+      Promise.all([this.providers.findAll(userUid, 'llm'), this.providers.findGlobal('llm')]).then((groups) => groups.flat().filter((row) => row.enabled)),
     ]);
     return { version: AUTODIAL_CONTRACT_VERSION, modes: AUTODIAL_DIAL_MODES, actions: AUTODIAL_SUPPORTED_ACTIONS,
       scenario_schema: autodialScenarioJsonSchema(), field_types: AUTODIAL_FIELD_TYPES, dispositions: AUTODIAL_DISPOSITIONS,
@@ -44,7 +47,17 @@ export class AutodialPreflightService {
       speech_variables: { suffixes: ['_SAY_MONEY', '_SAY_DATE', '_SAY_NUMBER', '_SAY_DIGITS'], locale: 'ru-RU',
         usage: '{AC_DEBT_SAY_MONEY}; derived from the same customer field, money uses field currency; missing or invalid values remain absent' },
       business_outcomes: 'collect_input.params.outcomeMap maps exact DTMF values to business outcome slugs in scenario_result.business_outcome; separate from technical disposition',
-      limits: { scenario_steps: 100, report_days: 366 }, tts_engines: engines, queues, voice_robots: robots };
+      limits: { scenario_steps: 100, report_days: 366 }, ai: { configured: llms.length > 0, validation: 'configuration_only' }, tts_engines: engines, queues, voice_robots: robots };
+  }
+
+  previewSchedule(input: AutodialSchedulePreviewDto) {
+    assertAutodialSchedules(input.schedules);
+    const rows: IAutodialSchedule[] = input.schedules.map((row, index) => ({ ...row, uid: index + 1, campaign_uid: 0,
+      timezone: row.timezone!, weekday: row.weekday ?? null, date_from: row.date_from || null, date_to: row.date_to || null, enabled: row.enabled ?? true }));
+    const now = new Date();
+    return { checked_at: now.toISOString(), campaign_open: campaignWindowOpen(rows, now),
+      subscriber_open: input.tz_offset_min === undefined ? null : subscriberHoursAllowForSchedules(input.tz_offset_min, now, rows),
+      next_allowed_at: nextAutodialWindow(rows, now, input.tz_offset_min)?.toISOString() ?? null, horizon_days: 370 };
   }
 
   /** Used before AI proposal creation as well as immediately before execution. */
@@ -132,8 +145,13 @@ export class AutodialPreflightService {
     }
     add('trunk_pool', campaign.trunk_pool.length > 0, campaign.trunk_pool.length ? 'trunk_configured' : 'AC_NO_TRUNK');
     add('scenario', campaign.scenario_actions.some((action) => action.enabled !== false), 'scenario_configured');
+    if (campaign.scenario_actions.some((action) => action.enabled !== false && action.type === 'text2speech' && !action.params?.onFailure)) {
+      checks.push({ id: 'speech_failure_policy', status: 'warning', code: 'tts_failure_policy_legacy' });
+    }
     add('ari', this.ari.isConnected(), 'ari_connected');
     add('ami', this.ami.isConnected(), 'ami_connected');
+    if (campaignUid) add('applied_revision', !campaign.apply_error && campaign.applied_revision === campaign.revision,
+      campaign.apply_error ? 'dialplan_apply_failed' : campaign.applied_revision === campaign.revision ? 'dialplan_applied' : 'dialplan_revision_pending');
     if (campaign.amd?.enabled) {
       try {
         await this.dialplan.assertAmdReady({ amd: campaign.amd, user_uid: userUid });

@@ -1,4 +1,5 @@
-import { BlfService } from './blf.service';
+import { Logger } from '@nestjs/common';
+import { BlfService, describeFailure } from './blf.service';
 
 describe('BLF reconciliation', () => {
   function setup() {
@@ -19,6 +20,16 @@ describe('BLF reconciliation', () => {
     endpoints.findAll.mockResolvedValue([]);
     await service.sync(42);
     expect(dialplan.applyCategories).toHaveBeenLastCalledWith('krasterisk/routes/blf_42.conf', [{ name: 'krsk-blf-42', lines: [] }]);
+  });
+
+  it('prints the AMI message when the failure is not an Error instance', async () => {
+    expect(describeFailure({ message: 'Config file has invalid format' })).toBe('Config file has invalid format');
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const { dialplan, service } = setup();
+    dialplan.applyCategories.mockRejectedValueOnce({ message: 'Config file has invalid format' });
+    expect(await service.sync(42)).toBe(false);
+    expect(warn).toHaveBeenCalledWith('BLF tenant 42 apply pending: Config file has invalid format');
+    warn.mockRestore();
   });
 
   it('retries failed applications and serializes concurrent mutations', async () => {

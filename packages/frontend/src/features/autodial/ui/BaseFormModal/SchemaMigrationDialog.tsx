@@ -1,3 +1,4 @@
+import { useAutodialDialogFocus } from '../AutodialConfirmation/useAutodialDialogFocus';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AutodialSchemaMigrationRequest, IAutodialSchemaPreview } from '@krasterisk/shared';
@@ -6,13 +7,15 @@ import { VStack } from '@/shared/ui/Stack';
 import { useApplyAutodialSchemaMutation } from '@/shared/api/endpoints/autodialApi';
 import { autodialErrorKey } from '../../lib/mutationError';
 
-export function SchemaMigrationDialog({ uid, request, preview, onClose, onApplied }: {
+export function SchemaMigrationDialog({ uid, request, preview, onClose, onApplied, returnFocusTo }: {
   uid: number; request: AutodialSchemaMigrationRequest; preview: IAutodialSchemaPreview | null; onClose: () => void; onApplied: () => void;
+  returnFocusTo?: HTMLElement | null;
 }) {
   const { t } = useTranslation();
+  const dialogFocus = useAutodialDialogFocus(returnFocusTo);
   const [apply, { isLoading }] = useApplyAutodialSchemaMutation();
   const [error, setError] = useState<string | null>(null);
-  return <Dialog open={Boolean(preview)} onOpenChange={(open) => !open && !isLoading && onClose()}><FormDialogContent size="large" aria-describedby={undefined}>
+  return <Dialog open={Boolean(preview)} onOpenChange={(open) => !open && !isLoading && onClose()}><FormDialogContent {...dialogFocus} size="large" aria-describedby={undefined}>
     <DialogHeader><DialogTitle>{t('autodial.workspace.schemaPreview')}</DialogTitle></DialogHeader>
     <ModalBody><ModalSection><VStack gap="12" max>
       <Text>{t('autodial.workspace.schemaCounts', { checked: preview?.scanned_contacts ?? 0, errors: preview?.error_count ?? 0, archive: preview?.archived_values ?? 0 })}</Text>

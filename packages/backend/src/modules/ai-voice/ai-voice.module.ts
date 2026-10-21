@@ -17,19 +17,27 @@ import { RobotConfigController } from './robot-config.controller';
 import { CcAiProvider } from '../ai-connectivity/ai-provider.model';
 import { AiBusinessConnection } from '../ai-tool-connectivity/tool.models';
 import { KbBase } from '../knowledge/knowledge.models';
+import { AiConnectivityModule } from '../ai-connectivity/ai-connectivity.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { RobotPlaygroundService } from './robot-playground.service';
+import { AiPlatformModule } from '../ai-platform/ai-platform.module';
+import { AiRobotsAiAdapter } from './ai-robots-ai.adapter';
 
 @Module({
   imports: [
     IntegrationCredentialsModule,
     ProductAccessCoreModule,
+    AiConnectivityModule,
+    KnowledgeModule,
+    AiPlatformModule,
     SequelizeModule.forFeature([
       CcAiAgent, CcAiProvider, AiBusinessConnection, KbBase, AiRobotDraft, AiRobotVersion, AiRobotDeployment,
       AiVoiceSession, AiVoiceTurn, AiVoiceEvent, AiCallControlOperation, AiVoiceTicket,
       AiSipConnection, AiSipConfigRevision, AiSipDidBinding, AiVoiceInvocation,
     ]),
   ],
-  providers: [AiVoiceService, AiSipService, AiVoiceDeploymentResolver, RobotConfigService],
+  providers: [AiVoiceService, AiSipService, AiVoiceDeploymentResolver, RobotConfigService, RobotPlaygroundService, AiRobotsAiAdapter],
   controllers: [AiVoiceJwtController, RobotConfigController],
-  exports: [AiVoiceService, AiSipService, SequelizeModule],
+  exports: [AiVoiceService, AiSipService, RobotConfigService, SequelizeModule],
 })
 export class AiVoiceModule {}

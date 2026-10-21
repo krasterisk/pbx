@@ -38,7 +38,7 @@ test('rate-limit is transient and exhausts after three attempts', () => {
 
 test('load profile docs name measurement not SLA for 11F docs', () => {
   const docs = fs.readFileSync(
-    path.join(__dirname, '../../.planning/initiatives/ai-products/AI-11-11F-FAULT.md'),
+    path.join(__dirname, '../../docs/plans/initiatives/ai-products/AI-11-11F-FAULT.md'),
     'utf8',
   );
   assert.match(docs, /Not a product SLA|not a product SLA/i);

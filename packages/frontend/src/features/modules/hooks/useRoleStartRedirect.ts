@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useGetRoleStartQuery } from '@/shared/api/endpoints/cloudAdminApi';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { UserLevel } from '@krasterisk/shared';
+import { clearLoginReturn, consumeLoginReturn } from '@/shared/lib/auth/loginReturn';
+import { resolveLoginReturnPath } from '../lib/loginReturnPath';
 import { resolveRoleStart } from '../lib/roleStartResolver';
 import { resolveAvailableStartPath } from '../lib/availableStartPath';
 import { useHubModules } from './useHubModules';
@@ -31,6 +33,7 @@ export function useRoleStartRedirect() {
   useEffect(() => {
     if (applied.current || !user || !pending) return;
     if (user.level === UserLevel.SUPERADMIN) {
+      clearLoginReturn();
       sessionStorage.removeItem(ROLE_START_PENDING_KEY);
       applied.current = true;
       if (location.pathname !== '/platform' && !location.pathname.startsWith('/platform/')) {
@@ -45,13 +48,16 @@ export function useRoleStartRedirect() {
       callCenterEnabled: data?.callCenterEnabled,
     });
 
-    const path = isError ? '/modules' : resolveAvailableStartPath(preferredPath, navigation ?? [...active, ...marketplace], user.level as UserLevel | undefined);
+    const rows = navigation ?? [...active, ...marketplace];
+    const savedPath = consumeLoginReturn(user);
+    const returnPath = !isError ? resolveLoginReturnPath(savedPath, rows, user.level as UserLevel) : null;
+    const path = returnPath ?? (isError ? '/modules' : resolveAvailableStartPath(preferredPath, rows, user.level as UserLevel | undefined));
 
     sessionStorage.removeItem(ROLE_START_PENDING_KEY);
     applied.current = true;
 
-    if (path && path !== location.pathname) {
+    if (path && path !== location.pathname + (location.search ?? '') + (location.hash ?? '')) {
       navigate(path, { replace: true });
     }
-  }, [user, pending, data, isFetching, isLoading, isError, active, marketplace, navigation, location.pathname, navigate]);
+  }, [user, pending, data, isFetching, isLoading, isError, active, marketplace, navigation, location.pathname, location.search, location.hash, navigate]);
 }

@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { DashboardCacheService } from './dashboard-cache.service';
 import { DashboardReadStore } from './dashboard-read-store.service';
 import { classifyDashboardCall } from './dashboard-classifier';
+import { buildCallFact } from '../calls/call-record';
 function mockStore(dialect = 'postgres') {
   const query = jest.fn().mockResolvedValue([]);
   const sequelize = { query, getDialect: () => dialect, transaction: jest.fn(async (optionsOrWork: any, work?: (t: unknown) => Promise<unknown>) => (work || optionsOrWork)({})) };
@@ -9,6 +10,22 @@ function mockStore(dialect = 'postgres') {
 }
 const fixedPeriod = { period: 'custom' as const, from: '2026-10-01T00:00:00Z', to: '2026-10-02T00:00:00Z' };
 describe('Dashboard durable read store', () => {
+  it.each(['mysql', 'postgres'])('writes the journal fact, ACL and dashboard counters in one transaction in %s', async (dialect) => {
+    const { store, query, sequelize } = mockStore(dialect);
+    const call = classifyDashboardCall(42, 'node', [{ uniqueid: 'u1', calldate: '2026-10-01 00:00:00', channel: 'PJSIP/e201_42-1', disposition: 'BUSY' }], { complete: true });
+    const fact = buildCallFact(call, [{ uniqueid: 'u1', calldate: '2026-10-01 00:00:00', channel: 'PJSIP/e201_42-1', disposition: 'BUSY' }], { complete: true }, 'UTC');
+    fact.caller.name = 'Анна'; fact.caller.department = 'Продажи';
+    await store.putCall(call, undefined, fact);
+    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+    const writes = query.mock.calls.filter(([sql]) => /^(INSERT|DELETE)/.test(sql));
+    const tx = writes[0][1].transaction;
+    expect(tx).toBeDefined();
+    expect(writes.every(([, options]) => options.transaction === tx)).toBe(true);
+    const factWrite = writes.find(([sql]) => sql.startsWith('INSERT INTO call_facts'))!;
+    expect(factWrite[1].replacements).toMatchObject({ tenant: 42, caller_number: '201', departments: '["продажи"]', connected_sec: null });
+    expect(writes.some(([sql]) => sql.startsWith('INSERT INTO dashboard_participants'))).toBe(true);
+    expect(writes.some(([sql]) => sql.startsWith('INSERT INTO dashboard_buckets'))).toBe(true);
+  });
   it.each(['mysql', 'postgres'])('uses portable idempotent upserts and atomic bucket corrections in %s', async (dialect) => {
     const { store, query, sequelize } = mockStore(dialect);
     const call = classifyDashboardCall(42, 'node', [{ uniqueid: 'u1', linkedid: 'l1', calldate: '2026-10-01 10:00:00', channel: 'PJSIP/t_trunk_42-1', dstchannel: 'PJSIP/e101_42-2', dialednum: '7495', disposition: 'ANSWERED', duration: 5 }], { complete: true });

@@ -12,11 +12,15 @@ import type { Sequelize } from "sequelize-typescript";
 import { InjectConnection } from "@nestjs/sequelize";
 import { randomUUID } from 'node:crypto';
 import { autodialSqlDate } from './autodial-sql-time.util';
+import { parseTourDispositions, previewAutodialTour } from './autodial-tour-preview';
+import { campaignWindowOpen } from './autodial-schedule.util';
 import type { IAutodialBaseField } from '@krasterisk/shared';
 import {
   AUTODIAL_TERMINAL_DISPOSITIONS,
+  AUTODIAL_SCHEDULE_KINDS,
   AUTODIAL_SUPPORTED_ACTIONS as SUPPORTED_ACTION_TYPES,
   autodialScenarioActionSchema,
+  autodialOutcomeDefinitionError,
   autodialTaskActionSchema,
   type AutodialCallerIdSource,
   type AutodialCampaignStatus,
@@ -225,6 +229,19 @@ export class AutodialCampaignsService {
     actorUid?: number,
     audit?: { source: 'ai_assistant'; threadUid?: number },
   ): Promise<IAutodialCampaign> {
+    const row = await this.sequelize.transaction((transaction) => this.createInTransaction(userUid, dto, transaction, actorUid, audit));
+    await this.applyAndRecord(row, row.revision);
+    return this.findOne(userUid, row.uid);
+  }
+
+  async completeCreation(userUid: number, uid: number): Promise<IAutodialCampaign> {
+    const row = await this.getOrThrow(userUid, uid);
+    if (row.status === 'draft' && row.applied_revision !== row.revision) await this.applyAndRecord(row, row.revision);
+    return this.findOne(userUid, uid);
+  }
+
+  async createInTransaction(userUid: number, dto: CreateAutodialCampaignDto, transaction: Transaction, actorUid?: number,
+    audit?: { source: 'ai_assistant'; threadUid?: number }): Promise<AcCampaign> {
     const trunkPool = toAutodialTrunkPool(dto.trunk_pool ?? []);
     const base = await this.basesService.findOne(userUid, dto.base_uid);
     await this.assertTrunkPoolConfig(userUid, base.fields ?? [], trunkPool);
@@ -237,11 +254,11 @@ export class AutodialCampaignsService {
     await this.assertQueueReferences(userUid, queueNames, dto.scenario_actions);
     await this.assertExtensionReferences(userUid, dto.scenario_actions);
 
-    const row = await this.sequelize.transaction(async (transaction) => {
       const created = await this.campaignModel.create(
         {
           user_uid: userUid,
           name: dto.name.trim(),
+          business_goal: dto.business_goal ?? 'custom',
           status: "draft",
           dial_mode: dto.dial_mode ?? "progressive",
           base_uid: dto.base_uid,
@@ -268,9 +285,6 @@ export class AutodialCampaignsService {
       }
       await this.recordEvent(created, 'created', { actor_uid: actorUid ?? null, ...(audit ? { actor_source: audit.source, thread_uid: audit.threadUid ?? null } : {}) }, transaction);
       return created;
-    });
-    await this.applyAndRecord(row, row.revision);
-    return this.findOne(userUid, row.uid);
   }
 
   async update(
@@ -325,6 +339,7 @@ export class AutodialCampaignsService {
 
       const nextRevision = locked.revision + 1;
       const patch: Partial<AcCampaign> = { revision: nextRevision };
+      if (dto.business_goal !== undefined) patch.business_goal = dto.business_goal;
       if (dto.name != null) patch.name = dto.name.trim();
       if (dto.dial_mode != null) patch.dial_mode = dto.dial_mode;
       if (dto.base_uid != null) patch.base_uid = dto.base_uid;
@@ -393,6 +408,15 @@ export class AutodialCampaignsService {
 
   // ── lifecycle ─────────────────────────────────────────────────────
 
+  async previewTour(userUid: number, uid: number, rawSelection?: unknown) {
+    const dispositions = parseTourDispositions(rawSelection);
+    const row = await this.getOrThrow(userUid, uid);
+    const base = await this.basesService.findOne(userUid, row.base_uid);
+    return previewAutodialTour(this.sequelize, { userUid, campaignUid: row.uid, baseUid: row.base_uid,
+      campaignRevision: row.revision, baseRevision: base.revision, tourNo: row.tour_no ?? 0,
+      status: row.status, dispositions });
+  }
+
   /**
    * Generate tasks and switch to running. `include_dispositions` re-selects
    * contacts whose previous attempts ended in the given dispositions (D-19);
@@ -405,8 +429,17 @@ export class AutodialCampaignsService {
     actorUid?: number,
   ): Promise<{ campaign: IAutodialCampaign; tasks_created: number }> {
     const row = await this.getOrThrow(userUid, uid);
-    if (row.status === 'running' || row.status === 'paused') {
+    if (dto.expected_revision !== undefined && dto.expected_revision !== row.revision) {
+      throw new ConflictException({ code: 'AC_CAMPAIGN_REVISION_CONFLICT', message: 'Review the current campaign before starting' });
+    }
+      if (row.status === 'running' || row.status === 'paused' || row.status === 'scheduled') {
       throw new ConflictException({ code: 'AC_CAMPAIGN_ACTIVE', message: 'Use resume for a paused tour' });
+    }
+    if (dto.expected_base_revision !== undefined) {
+      const base = await this.basesService.findOne(userUid, row.base_uid);
+      if (base.revision !== dto.expected_base_revision) {
+        throw new ConflictException({ code: 'AC_REVISION_CONFLICT', message: 'Review the current customer base before starting' });
+      }
     }
     if (!row.trunk_pool?.length) {
       throw new BadRequestException({
@@ -432,15 +465,22 @@ export class AutodialCampaignsService {
     const created = await this.sequelize.transaction(async (transaction) => {
       const locked = await this.getOrThrow(userUid, uid, transaction);
       if (locked.revision !== row.revision) throw new ConflictException({ code: 'AC_CAMPAIGN_REVISION_CONFLICT', message: 'Configuration changed while preparing the tour' });
-      if (locked.status === 'running' || locked.status === 'paused') {
+      if (locked.status === 'running' || locked.status === 'paused' || locked.status === 'scheduled') {
         throw new ConflictException({ code: 'AC_CAMPAIGN_ACTIVE', message: 'Pause/resume an active tour instead of starting another' });
       }
       if (await this.attemptModel.count({ where: { campaign_uid: uid, user_uid: userUid, disposition: 'dialing' }, transaction })) {
         throw new ConflictException({ code: 'AC_CAMPAIGN_ACTIVE_CALLS', message: 'Wait for previous calls to finish before starting a new tour' });
       }
+      if (dto.expected_base_revision !== undefined) {
+        const base = await this.basesService.lockBase(userUid, locked.base_uid, transaction);
+        if (base.revision !== dto.expected_base_revision) {
+          throw new ConflictException({ code: 'AC_REVISION_CONFLICT', message: 'Review the current customer base before starting' });
+        }
+      }
       await locked.update({ tour_no: (locked.tour_no ?? 0) + 1 }, { transaction });
       const generated = await this.generateTasks(userUid, locked, dto, transaction);
-      await locked.update({ status: 'running' }, { transaction });
+      const schedules = await this.scheduleModel.findAll({ where: { campaign_uid: uid }, transaction });
+      await locked.update({ status: campaignWindowOpen(schedules, new Date()) ? 'running' : 'scheduled' }, { transaction });
       await this.recordEvent(locked, 'tour_started', { include_dispositions: dto.include_dispositions ?? [], tasks_created: generated,
         max_attempts: locked.retry?.max_attempts, actor_uid: actorUid ?? null }, transaction);
       return generated;
@@ -479,7 +519,8 @@ export class AutodialCampaignsService {
           "Campaign dialplan could not be applied. No calls were started.",
       });
     }
-    await row.update({ status: "running" });
+    const schedules = await this.scheduleModel.findAll({ where: { campaign_uid: uid } });
+    await row.update({ status: campaignWindowOpen(schedules, new Date()) ? 'running' : 'scheduled' });
     await this.recordEvent(row, 'resumed', { actor_uid: actorUid ?? null });
     return this.findOne(userUid, uid);
   }
@@ -952,6 +993,9 @@ export class AutodialCampaignsService {
           field: `scenario_actions.${index}.${issue.path.join('.')}`, message: `Step ${index + 1}: ${issue.message}` });
       }
     }
+    const outcomeError = autodialOutcomeDefinitionError(actions);
+    if (outcomeError) throw new BadRequestException({ code: 'AC_SCENARIO_INVALID_PARAMS', step_index: outcomeError.index,
+      field: `scenario_actions.${outcomeError.index}.${outcomeError.field}`, message: 'Outcome definitions must reference mapped codes and keep one meaning per code' });
     const enabled = actions.filter((action) => action && action.enabled !== false);
     const labels = enabled.filter((action) => action.type === 'label')
       .map((action) => String(action.params?.label_name ?? action.params?.name ?? ''));
@@ -984,6 +1028,7 @@ export class AutodialCampaignsService {
       uid: row.uid,
       user_uid: row.user_uid,
       name: row.name,
+      business_goal: row.business_goal ?? 'custom',
       status: row.status,
       dial_mode: row.dial_mode,
       base_uid: row.base_uid,
@@ -1053,18 +1098,24 @@ function hasDirectoryCallerIdSource(pool: IAutodialTrunkPoolItem[]): boolean {
 }
 
 
-export function assertAutodialSchedules(drafts: Array<{ kind: string; weekday?: number | null; time_from: string; time_to: string; timezone?: string }>): void {
+export function assertAutodialSchedules(drafts: Array<{ kind: string; weekday?: number | null; time_from: string; time_to: string; timezone?: string; date_from?: string | null; date_to?: string | null }>): void {
     for (const draft of drafts) {
+      const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+      if (!(AUTODIAL_SCHEDULE_KINDS as readonly string[]).includes(draft.kind) || draft.date_from && !validDate(draft.date_from) || draft.date_to && !validDate(draft.date_to)
+        || draft.kind === 'one_off' && !draft.date_from
+        || draft.kind !== 'one_off' && draft.date_from && draft.date_to && draft.date_from > draft.date_to) {
+        throw new BadRequestException({ code: 'AC_SCHEDULE_DATES', message: 'Check schedule kind and calendar date boundaries' });
+      }
       if (!TIME_RE.test(draft.time_from) || !TIME_RE.test(draft.time_to)) {
         throw new BadRequestException({
           code: "AC_SCHEDULE_TIME",
           message: "time_from/time_to must be HH:MM",
         });
       }
-      if (draft.time_from >= draft.time_to) {
+      if (draft.time_from === draft.time_to) {
         throw new BadRequestException({
           code: "AC_SCHEDULE_RANGE",
-          message: "time_from must be earlier than time_to",
+          message: "time_from and time_to must differ; overnight windows use their start day",
         });
       }
       if (

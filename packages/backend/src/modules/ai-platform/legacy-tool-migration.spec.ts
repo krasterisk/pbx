@@ -85,6 +85,7 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
     remove: jest.Mock;
   };
   let cdrService: { getStats: jest.Mock; findCalls: jest.Mock };
+  let callsService: { aiActor: jest.Mock; list: jest.Mock; overview: jest.Mock; detail: jest.Mock; attention: jest.Mock; auditResearch: jest.Mock };
   let endpointsService: {
     findAll: jest.Mock;
     findOne: jest.Mock;
@@ -188,7 +189,18 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
 
     new ContextsAiAdapter(contextsService as any, registry).onModuleInit();
     new DirectoriesAiAdapter(directoriesService as any, registry).onModuleInit();
-    new ReportsAiAdapter(cdrService as any, registry).onModuleInit();
+    callsService = {
+      aiActor: jest.fn(async (tenant: number, sub: number) => ({sub,vpbx_user_uid:tenant})),
+      overview: jest.fn(async (user: {vpbx_user_uid:number}) => ({summary:{total:user.vpbx_user_uid===TENANT_A?STATS_A.totalCalls:STATS_B.totalCalls}})),
+      list: jest.fn(async (user: {vpbx_user_uid:number}, filters: {limit:number}) => {
+        const legacy=await cdrService.findCalls(user.vpbx_user_uid,filters);
+        return {rows:legacy.rows.map((r:{linkedid:string;src:string})=>({id:r.linkedid,caller:{number:r.src},recipient:{number:null},analytics:null})),total:legacy.count};
+      }),
+      detail: jest.fn(async(user:{vpbx_user_uid:number},id:string)=>({call:{id,caller:{number:user.vpbx_user_uid===TENANT_A?'cdr-a-call':'cdr-b-call'}}})),
+      attention: jest.fn(async(user:{vpbx_user_uid:number})=>({rows:[],totals:{waiting:user.vpbx_user_uid===TENANT_A?1:2}})),
+      auditResearch: jest.fn(),
+    };
+    new ReportsAiAdapter(callsService as any, registry).onModuleInit();
     new EndpointsAiAdapter(endpointsService as any, registry, contextsService as never, { findAll: async (uid: number) => [{ uid, name: 'Pickup ' + uid, slug: 't' + uid + '_pickup' }] } as never, { findAll: async (uid: number) => [{ uid, name: 'Provision ' + uid, vendor: 'test', model: 'phone' }] } as never).onModuleInit();
     new TrunksAiAdapter(trunksService as any, routesService as any, registry, contextsService as never).onModuleInit();
 
@@ -284,9 +296,9 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
           forgedArgs[key] = TENANT_B;
         }
 
-        const resultA = await mcp.callTool(tool.name, argsA, TENANT_A);
-        const forged = await mcp.callTool(tool.name, forgedArgs, TENANT_A);
-        const resultB = await mcp.callTool(tool.name, argsB, TENANT_B);
+        const resultA = await mcp.callTool(tool.name, argsA, TENANT_A, { userUid: 1 });
+        const forged = await mcp.callTool(tool.name, forgedArgs, TENANT_A, { userUid: 1 });
+        const resultB = await mcp.callTool(tool.name, argsB, TENANT_B, { userUid: 2 });
 
         expect(forged).toEqual(resultA);
         expectNoForeignTenantLeak(resultA[0].text, TENANT_A);
@@ -310,28 +322,26 @@ describe('legacy-tool-migration (D-22, D-27)', () => {
   });
 
   describe('call-records adapter (D-12, D-15, D-22)', () => {
-    it('forwards the date range to getStats and returns that result unchanged', async () => {
+    it('forwards the date range to the unified overview', async () => {
       const result = await mcp.callTool(
         'get_cdr_summary',
         { dateFrom: '2026-01-01', dateTo: '2026-01-31' },
         TENANT_A,
+        { userUid: 1 },
       );
-      expect(cdrService.getStats).toHaveBeenCalledWith(TENANT_A, {
-        dateFrom: '2026-01-01',
-        dateTo: '2026-01-31',
-      });
-      expect(parseToolJson(result)).toEqual(STATS_A);
+      expect(callsService.overview).toHaveBeenCalledWith({sub:1,vpbx_user_uid:TENANT_A}, expect.objectContaining({dateFrom:'2026-01-01',dateTo:'2026-01-31'}));
+      expect(parseToolJson(result)).toMatchObject({summary:{total:STATS_A.totalCalls}});
     });
 
     it('clamps find_cdr_calls limit to 50 and defaults to 20', async () => {
-      await mcp.callTool('find_cdr_calls', { limit: 999 }, TENANT_A);
-      expect(cdrService.findCalls).toHaveBeenCalledWith(TENANT_A, expect.objectContaining({ limit: 50, offset: 0 }));
+      await mcp.callTool('find_cdr_calls', { limit: 999 }, TENANT_A, { userUid: 1 });
+      expect(callsService.list).toHaveBeenCalledWith({sub:1,vpbx_user_uid:TENANT_A}, expect.objectContaining({limit:50}));
 
-      cdrService.findCalls.mockClear();
-      await mcp.callTool('find_cdr_calls', {}, TENANT_A);
-      expect(cdrService.findCalls).toHaveBeenCalledWith(TENANT_A, expect.objectContaining({ limit: 20, offset: 0 }));
+      callsService.list.mockClear();
+      await mcp.callTool('find_cdr_calls', {}, TENANT_A, { userUid: 1 });
+      expect(callsService.list).toHaveBeenCalledWith({sub:1,vpbx_user_uid:TENANT_A}, expect.objectContaining({limit:20}));
 
-      const oversize = await mcp.callTool('find_cdr_calls', { limit: 999 }, TENANT_A);
+      const oversize = await mcp.callTool('find_cdr_calls', { limit: 999 }, TENANT_A, { userUid: 1 });
       expect(parseToolJson(oversize).rows).toHaveLength(50);
     });
 
@@ -456,6 +466,7 @@ async function minimalArgs(
   tool: { name: string; inputSchema: Record<string, any>; entityType?: string },
   uid: number,
 ): Promise<Record<string, any>> {
+  if(tool.entityType==='call') return tool.name==='get_call'?{id:(uid===TENANT_A?'a':'b').repeat(64)}:{dateFrom:'2026-10-01',dateTo:'2026-10-18'};
   const args: Record<string, any> = {};
   const schema = tool.inputSchema?.properties ?? tool.inputSchema ?? {};
   let listedUid: number | undefined;

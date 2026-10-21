@@ -45,7 +45,7 @@ test('baseline and AppModule model table/column names stay in sync', () => {
     'sa_tenant_capture_policies', 'sa_transcript_corrections',
     'sa_transcript_segments', 'sa_transcripts',
   ]);
-  assert.equal(result.counts.modelColumns, result.counts.baselineColumns + 117);
+  assert.equal(result.counts.modelColumns, result.counts.baselineColumns + 125);
   assert.deepEqual(result.differences, {
     modelTablesAbsentFromBaseline: reviewed.extraTables, baselineTablesAbsentFromModels: [],
     modelColumnsAbsentFromBaseline: reviewed.extraColumns, baselineColumnsAbsentFromModels: reviewed.removedColumns,
@@ -199,4 +199,17 @@ test('virtual context attributes are fingerprinted but never treated as SQL colu
     assert.equal(result.differences.modelColumnsAbsentFromBaseline.includes('contexts.' + field), false);
   }
   assert.equal(result.sources.modelMetadataSha256, reviewed.modelMetadataSha256);
+});
+
+// These additions are full-PBX only and must exist on both SQL engines.
+test('phone ownership and campaign intent have reviewed dual-engine SQL ownership', () => {
+  for (const dialect of ['', 'postgres/']) {
+    const base = path.resolve(__dirname, '../../packages/backend/database/migrations', dialect);
+    const phone = fs.readFileSync(path.join(base, '0055-phone-sessions.sql'), 'utf8');
+    assert.match(phone, /CREATE TABLE phone_sessions \(/);
+    assert.match(phone, /PRIMARY KEY \(tenant, user_id\)/);
+    assert.match(phone, /CREATE INDEX idx_phone_session_endpoint/);
+    const campaign = fs.readFileSync(path.join(base, '0053-autodial-business-goal.sql'), 'utf8');
+    assert.match(campaign, /ADD COLUMN business_goal VARCHAR\(32\) NOT NULL DEFAULT 'custom'/);
+  }
 });

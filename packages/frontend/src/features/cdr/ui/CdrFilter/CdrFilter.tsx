@@ -38,8 +38,8 @@ export const CdrFilter = memo(({ filters, onChange, onExportCsv, isExporting }: 
       search: undefined,
       direction: undefined,
       disposition: undefined,
-      dateFrom: undefined,
-      dateTo: undefined,
+      dateFrom: '',
+      dateTo: '',
       extension: undefined,
       trunk: undefined,
       bucket: undefined,
@@ -93,14 +93,14 @@ export const CdrFilter = memo(({ filters, onChange, onExportCsv, isExporting }: 
         type="date"
         className={cls.dateField}
         value={filters.dateFrom || ''}
-        onChange={(e) => onChange({ dateFrom: e.target.value || undefined })}
+        onChange={(e) => onChange({ dateFrom: e.target.value })}
       />
       <Text variant="muted">-</Text>
       <Input
         type="date"
         className={cls.dateField}
         value={filters.dateTo || ''}
-        onChange={(e) => onChange({ dateTo: e.target.value || undefined })}
+        onChange={(e) => onChange({ dateTo: e.target.value })}
       />
 
       <Flex align="center" gap="8">

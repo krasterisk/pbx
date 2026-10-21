@@ -1,6 +1,8 @@
 import { autodialWorkspaceEn, autodialWorkspaceErrorsEn } from './autodialWorkspace';
 import { aiVoiceDesignerEn } from './aiVoiceDesigner';
+import { callsEn } from './calls';
 export const en = {
+  calls: callsEn,
   modal: { defaultOption: "Default", errors: {"save":"Could not save. Check the settings and try again.","upload":"Could not upload the file. Try again.","remove":"Could not delete the file. Try again."}, sections: {report: 'Report', filters: 'Filters', delivery: 'Delivery', "identity":"General information","connection":"Connection","account":"Credentials","access":"Access permissions","settings":"Settings","timing":"Waiting and timers"} },
   period: {
     day: "Day",
@@ -1264,6 +1266,11 @@ export const en = {
         promptsSection: "Prompts",
         phonebooksSection: "Phonebooks",
         ttsSection: "TTS engines",
+        ttsLoadError: "Could not load speech providers. Try again.",
+        ttsForbidden: "You do not have permission to view speech providers. Contact an administrator.",
+        ttsDisabled: "The saved speech provider is disabled. Enable it or choose another.",
+        ttsNoneEnabled: "No speech providers are enabled. Check the connection settings.",
+        ttsUnavailable: "The saved speech provider is unavailable. Choose another or check its settings.",
         callGroupsSection: "Call groups",
         voiceRobotsSection: "Voice robots",
         contextsSection: "Contexts",
@@ -1540,6 +1547,7 @@ export const en = {
         restore: "Restore step",
       },
       unreachable: {
+        graphBody: 'There is no path from the start to the marked steps. Check branches and actions that end the chain.',
         title_one: "The step below will not run",
         title_other: "The steps below will not run",
         body_one:
@@ -4060,6 +4068,7 @@ export const en = {
       askAgain: "Ask the agent again",
       applyFailed: "Could not apply. {{reason}}",
       interactiveRequired: "Sign in again with your password in this browser to confirm the autodial change. The proposal is preserved.",
+      interactiveSecureContextRequired: "To confirm the change, open the app over HTTPS or through localhost and sign in with your password. Signing in again over an HTTP IP connection will not help. The proposal is preserved.",
       requestFailed: "The request failed. Check your connection and retry.",
       deniedExplanation: "You do not have permission for this action.",
       dest: {
@@ -6059,7 +6068,8 @@ export const en = {
         webhookUidPlaceholder: "Webhook integration ID (optional)",
         palette: "Field palette",
         fieldsList: "Template fields",
-        preview: "Preview",
+        preview: "What the operator will see",
+        inspectorEmpty: "Select a field on the left to change its label, whether it is required, and its choices.",
         dragHandle: "Drag to reorder",
         required: "Required",
         widthFull: "Full width",
@@ -6965,7 +6975,14 @@ export const en = {
     publishFailed: "Could not publish the project",
     projectNotFound: "Project not found",
     editorTabs: "Editor sections",
+    textPrivacy: {
+      title: "Data protection",
+      enable: "De-identify text before cloud analysis",
+      explanation: "The local aiPBX model identifies personal data; the system replaces it with placeholders. If preparation is unavailable, analysis stops. Original recordings and transcripts retain their existing access restrictions.",
+      limits: "Automatic de-identification reduces disclosure risk and requires quality checks. It does not correct words, amounts, dates or the meaning of the conversation.",
+    },
     editorTab: {
+      privacy: "Data protection",
       templates: "Templates",
       metrics: "Metrics",
       scales: "Scales",
@@ -7129,18 +7146,25 @@ export const en = {
   hub: {
     allSectionPages: "All pages in {{name}}",
     sectionPagesTitle: "Pages: {{name}}",
-    unavailableSections: "Unavailable sections",
-    notConnected: "Not connected",
-
     title: "Modules",
     open: "Open",
-    activeSection: "Active",
-    marketplaceSection: "Marketplace",
+    activeSection: "My modules",
+    marketplaceSection: "Available to connect",
+    new: "New",
+    until: "until {{date}}",
+    disabledByAdmin: "Turned off by an administrator",
+    askAdmin: "An administrator connects this",
+    turnedOff: "An administrator turned this module off",
+    pageForbidden: "You are not allowed to open this page",
+    enable: "Turn on",
+    disable: "Turn off",
+    includes: "Included pages",
+    roleStart: "Role start pages",
     addFavorite: "Add to favorites",
     removeFavorite: "Remove from favorites",
     openModule: "Open {{name}}",
     kindBase: "Included",
-    kindMarket: "Extension",
+    kindMarket: "Add-on",
     buyPlaceholder: "Checkout will be available soon",
     emptyActive: {
       title: "No modules available",
@@ -7151,9 +7175,9 @@ export const en = {
       "Disable module: access will be revoked for all tenant users. Continue?",
     chipEmpty: "Modules",
     more: "More",
-    catalog: "Sections",
+    catalog: "Modules",
     openSectionPages: "Choose a page in {{name}}",
-    searchNav: "Search a section or page",
+    searchNav: "Search a module or page",
     pagesSection: "Pages",
     navBack: "Back",
     home: "Home",
@@ -7163,8 +7187,16 @@ export const en = {
     expandSidebar: "Expand",
   },
   marketplace: {
-    buy: "Buy",
-    confirmPurchase: "Confirm purchase",
+    buy: "Connect",
+    confirmPurchase: "Connect",
+    connectFor: "Connect for {{amount}} ₽/mo",
+    enableNow: "Turn on now",
+    balanceNow: "Balance: {{amount}} ₽",
+    balanceAfter: "After connecting: {{amount}} ₽",
+    shortfall: "Short by {{amount}} ₽",
+    topUpHint: "A platform operator adds funds. Send them the missing amount.",
+    openModule: "Open module",
+    enableFailed: "The module is paid for, but turning it on failed. Try again.",
     addModule: "Add module",
     empty: {
       title: "All modules already active",
@@ -7182,17 +7214,13 @@ export const en = {
     priceMonthly: "{{amount}} ₽/mo",
     priceFree: "Free",
     insufficientBalance: "Insufficient balance to complete this purchase.",
-    insufficientBalanceHint:
-      "Top up the tenant balance via your cloud admin (bank transfer / deposit).",
-    depositLink: "Open modules",
+    insufficientBalanceHint: "A platform operator adds funds.",
     checkoutError:
       "Purchase could not be completed. Check the details and try again",
     skuUnpublished: "Not published",
-    checkoutPlanHintSku:
-      "Review the SKU and price. Purchase entitles the product; enable it separately.",
-    checkoutConfirmBodySku:
-      "Charge {{amount}} ₽/mo and entitle «{{name}}»? Enable remains a separate step.",
-    checkoutSuccessSku: "«{{name}}» is entitled. Enable it when you are ready.",
+    checkoutPlanHintSku: "Review the price. The module can be turned on immediately.",
+    checkoutConfirmBodySku: "Charge {{amount}} ₽/mo and connect «{{name}}»?",
+    checkoutSuccessSku: "«{{name}}» is connected.",
     removeFromBaseConfirm:
       "Remove module from base composition: this affects all tenants without an override. Continue?",
   },
@@ -7203,8 +7231,8 @@ export const en = {
     empty: "Nothing found. Try a different search term",
   },
   license: {
-    locked: "Locked",
-    disabled: "Disabled",
+    locked: "Not connected",
+    disabled: "Off",
     active: "Active",
   },
   platform: {
@@ -7246,8 +7274,8 @@ export const en = {
     roleStartTitle: "Role → start",
     roleStartScaffold: "Role→start editor loading…",
     addModule: "Add module",
-    kindBase: "Base",
-    kindMarket: "Market",
+    kindBase: "Included",
+    kindMarket: "Add-on",
     kindOff: "Off",
     kindOffTitle: "Turn the module off",
     kindOffConfirm: "The module disappears from the hub and the sidebar for every cabinet. Continue?",

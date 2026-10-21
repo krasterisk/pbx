@@ -42,4 +42,4 @@ Apply portable additive0033-pbx-dashboard through the canonical migration runner
 
 Configure DASHBOARD_NODE_ID, DASHBOARD_CDR_TIMEZONE (actual legacy writer timezone), PBX_DEFAULT_TIMEZONE, DASHBOARD_AMI_INVENTORY_TIMEOUT_MS and PBX_MONITORING_TARGETS; examples are in root .env.example. Each target has id/label/role/URL and optional recordsMount/filesystems. Empty targets are explicitly not configured. CLOUD never exposes host metrics.
 
-Implementation/verification details, reproducible browser/SQL/live scripts and known external gates: .planning/pbx-dashboard/SUMMARY.md and EXECUTION.md. Unit mocks, seeded SQL HTTP load, actual source probes, full live application acceptance and release are recorded separately.
+Implementation/verification details, reproducible browser/SQL/live scripts and known external gates: docs/plans/pbx-dashboard/SUMMARY.md and EXECUTION.md. Unit mocks, seeded SQL HTTP load, actual source probes, full live application acceptance and release are recorded separately.

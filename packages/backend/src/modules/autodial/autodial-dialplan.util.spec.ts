@@ -113,7 +113,7 @@ describe('generateAutodialCampaignDialplan', () => {
     expect(lines).not.toContain('same => n,Playback(welcome)');
   });
 
-  it('prepares TTS through the shared CURL+Playback renderer', () => {
+  it('uses a bounded TTS request and observes playback for plain text too', () => {
     const { lines } = generateAutodialCampaignDialplan(
       campaign({
         scenario_actions: [action('text2speech', { text: 'hello', engine: 3 })],
@@ -123,7 +123,8 @@ describe('generateAutodialCampaignDialplan', () => {
     const body = lines.join('\n');
     expect(body).toMatch(/CURL\(/);
     expect(body).toMatch(/Playback\(/);
-    expect(body).not.toContain('KRSK_TTS_');
+    expect(body).toContain('Set(CURLOPT(httptimeout)=30)');
+    expect(body).toContain('UserEvent(AutodialStepResult');
   });
 
   it('interpolates autodial field tokens in TTS instead of stripping them', () => {
@@ -141,9 +142,24 @@ describe('generateAutodialCampaignDialplan', () => {
     const body = lines.join('\n');
     expect(body).toMatch(/Set\(KRSK_TTS_TEXT_\d+=Здравствуйте \$\{AC_NAME\} ваш долг \$\{AC_DEBT\} рублей\)/);
     expect(body).toContain('text=${URIENCODE(${KRSK_TTS_TEXT_');
-    expect(body).toContain('ExecIf($["${KRSK_HTTP_RESULT}" != ""]?Playback(/usr/records/42/sounds/${KRSK_HTTP_RESULT}))');
-    expect(body).toContain('SayNumber(${AC_DEBT})');
-    expect(body).toContain('Playback(beep)');
+    expect(body).toContain('Playback(/usr/records/42/sounds/${KRSK_HTTP_RESULT})');
+    expect(body).toContain('REGEX("^[A-Za-z0-9_-]+$" ${KRSK_HTTP_RESULT})');
+    expect(body).not.toContain('SayNumber(');
+    expect(body).not.toContain('Playback(beep)');
+  });
+  it('prepares a real input signal instead of an empty Read prompt and observes READSTATUS', () => {
+    const body = generateAutodialCampaignDialplan(campaign({ scenario_actions: [action('collect_input', {
+      variableName: 'AC_VISIT', digitsCount: 1, attempts: 2, timeout: 10,
+    })] }), 42).lines.join('\n');
+    expect(body).toContain('Set(AC_VISIT=)');
+    expect(body).toContain('Read(AC_VISIT,/usr/records/42/sounds/krsk_ac_input_signal_v1,1,,2,10)');
+    expect(body).toContain('Status: ${READSTATUS},Digits: ${AC_VISIT}');
+  });
+  it('ends a conversation on a failed TTS step when its explicit policy requires it', () => {
+    const body = generateAutodialCampaignDialplan(campaign({ scenario_actions: [action('text2speech', {
+      text: 'Customer reminder', engine: 3, onFailure: 'hangup',
+    })] }), 42).lines.join('\n');
+    expect(body).toContain('ExecIf($["${KRSK_AC_TTS_STATUS}" != "SUCCESS"]?Hangup())');
   });
 
   it('rejects a toqueue step without a fixed queue instead of using campaign.queue_names', () => {

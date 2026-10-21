@@ -1,0 +1,10 @@
+.screen {
+  flex: 1;
+  min-height: 240px;
+  padding: 32px 16px;
+}
+
+.card {
+  width: min(480px, 100%);
+  text-align: center;
+}

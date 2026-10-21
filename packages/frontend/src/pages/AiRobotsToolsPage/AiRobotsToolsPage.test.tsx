@@ -5,7 +5,7 @@ import { AiRobotsToolsPage } from './AiRobotsToolsPage';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/features/aiRobots/api/aiToolsApi', () => ({
   useGetAiToolsQuery: () => ({ data: [] }),
-  useCreateAiToolMutation: () => [vi.fn()],
+  useCreateAiToolMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 describe('AiRobotsToolsPage', () => {

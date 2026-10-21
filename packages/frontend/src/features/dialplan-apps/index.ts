@@ -5,3 +5,4 @@ export { allowedTypesForHost } from './model/hostTypes';
 export { clientStepFieldErrors, resolveClientFieldError } from './model/clientStepFieldErrors';
 export { mapStepErrors, localizeStepError } from './model/stepErrors';
 export type { IDialplanAppConfig } from './model/types';
+export type { SchemaCatalogRef } from './model/schema.types';

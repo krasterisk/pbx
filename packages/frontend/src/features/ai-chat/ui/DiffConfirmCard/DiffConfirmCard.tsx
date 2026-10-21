@@ -197,7 +197,12 @@ export const DiffConfirmCard = ({ proposal, onAskAgain, onSettled, readOnly }: D
             setApplyError(result.error ?? result.reason ?? result.proposal?.error ?? 'apply_failed');
         } catch (error) {
             const code = (error as { data?: { code?: string } })?.data?.code;
-            setApplyError(t(code === 'AC_INTERACTIVE_SESSION_REQUIRED' ? 'aiChat.card.interactiveRequired' : 'aiChat.card.requestFailed'));
+            const messageKey = code === 'AC_INTERACTIVE_SESSION_REQUIRED'
+                ? globalThis.isSecureContext === false
+                    ? 'aiChat.card.interactiveSecureContextRequired'
+                    : 'aiChat.card.interactiveRequired'
+                : 'aiChat.card.requestFailed';
+            setApplyError(t(messageKey));
         } finally {
             setSecureInputs({});
             inFlightRef.current = false;

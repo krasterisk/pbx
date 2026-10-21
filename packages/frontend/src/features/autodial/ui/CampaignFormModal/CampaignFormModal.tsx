@@ -1,3 +1,5 @@
+import { useAutodialConfirmation } from '../AutodialConfirmation/useAutodialConfirmation';
+import { useAutodialDialogFocus } from '../AutodialConfirmation/useAutodialDialogFocus';
 import { ModalBody, ModalSection } from '@/shared/ui';
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -49,6 +51,9 @@ import { CampaignScenarioTab } from "./CampaignScenarioTab";
 import { CampaignDncTab } from "./CampaignDncTab";
 import cls from "./CampaignFormModal.module.scss";
 import { CampaignCreationWizard } from './CampaignCreationWizard';
+import { useCreateCommand, uncertainAutodialSave } from '../../model/useCreateCommand';
+import { CreateCommandStatus } from '../CreateCommandStatus/CreateCommandStatus';
+import { campaignDraftSessionKey, readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from '../../model/campaignDraftSession';
 
 type TabId =
   | "general"
@@ -78,15 +83,22 @@ const ERROR_TAB: Record<string, TabId> = {
   predictive: "pacing",
   trunk_pool: "trunks",
   scenario_actions: "scenario",
+  schedules: 'schedule',
+  retry: 'retry',
 };
 
 export const CampaignFormModal = memo(() => {
   const { t } = useTranslation();
+  const { confirm, confirmationDialog } = useAutodialConfirmation();
+  const dialogFocus = useAutodialDialogFocus();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const isOpen = useAppSelector(selectAutodialCampaignModalOpen);
   const mode = useAppSelector(selectAutodialCampaignModalMode);
   const uid = useAppSelector(selectAutodialSelectedCampaignUid);
+  const user = useAppSelector((state) => state.auth?.user);
+  const draftKey = user?.uniqueid && mode !== 'edit' ? campaignDraftSessionKey(user.vpbx_user_uid, user.uniqueid, `${mode}:${uid ?? 'new'}`) : null;
+  const command = useCreateCommand<AutodialCampaignDraft, ReturnType<typeof draftToPayload>>('campaign', `${mode}:${uid ?? 'new'}`);
 
   const { data: campaign, isFetching } = useGetAutodialCampaignQuery(
     uid as number,
@@ -103,6 +115,9 @@ export const CampaignFormModal = memo(() => {
   const [tab, setTab] = useState<TabId>("general");
   const [showErrors, setShowErrors] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [restored, setRestored] = useState(false);
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [localDraftSaved, setLocalDraftSaved] = useState<boolean | null>(null);
   const hydratedSession = useRef<string | null>(null);
   const baseline = useRef('');
 
@@ -111,39 +126,52 @@ export const CampaignFormModal = memo(() => {
       hydratedSession.current = null;
       return;
     }
-    const session = `${mode}:${uid ?? "create"}`;
+    const session = `${mode}:${uid ?? "create"}:${mode === 'edit' ? '' : command.pending?.id ?? ''}`;
     if (hydratedSession.current === session) return;
     setTab("general");
     setShowErrors(false);
     setApiError(null);
-    if (uid === null) {
-      const initial = emptyCampaignDraft(); setDraft(initial); baseline.current = JSON.stringify(initial);
+    setRestored(false);
+    setLocalDraftSaved(null);
+    if (uid === null || mode === 'copy' && command.pending) {
+      const stored = readCampaignDraft(draftKey);
+      const initial = command.pending?.draft ?? stored ?? emptyCampaignDraft(); setDraft(initial); baseline.current = JSON.stringify(initial);
+      setRestored(Boolean(stored && !command.pending));
       hydratedSession.current = session;
     } else if (campaign) {
       const next = campaignToDraft(campaign);
+      const stored = mode === 'copy' ? readCampaignDraft(draftKey) : null;
       setDraft(
-        mode === "copy"
+        stored ?? (mode === "copy"
           ? {
               ...next,
               name: t("autodial.form.copySuffix", { name: next.name }),
             }
-          : next,
+          : next),
       );
+      setRestored(Boolean(stored));
       baseline.current = JSON.stringify(mode === 'copy' ? { ...next, name: t('autodial.form.copySuffix', { name: next.name }) } : next);
       hydratedSession.current = session;
     }
-  }, [isOpen, uid, campaign, mode, t]);
+  }, [isOpen, uid, campaign, mode, t, command.pending, draftKey]);
+
+  const changeDraft = (next: AutodialCampaignDraft) => {
+    setDraft(next);
+    if (mode !== 'edit' && !command.pending) setLocalDraftSaved(writeCampaignDraft(draftKey, next));
+  };
 
   const errors = useMemo(() => validateCampaignDraft(draft), [draft]);
   const isBlocked = hasCampaignErrors(errors);
-  const isSaving = isCreating || isUpdating;
+  const isSaving = isCreating || isUpdating || command.busy;
 
-  const close = (force = false) => {
-    if (!force && JSON.stringify(draft) !== baseline.current && !window.confirm(t('autodial.workspace.discard'))) return;
+  const close = async (force = false) => {
+    if (!force && command.pending && !(await confirm(t('autodial.workspace.commandCloseHint')))) return;
+    if (!force && JSON.stringify(draft) !== baseline.current && !(await confirm(t(mode !== 'edit' && localDraftSaved ? 'autodial.workspace.localDraftClose' : 'autodial.workspace.discard')))) return;
     dispatch(autodialPageActions.closeCampaignModal());
   };
 
   const onSave = async (openStart = false) => {
+    if (isSaving) return;
     if (isBlocked) {
       setShowErrors(true);
       const firstErrorKey = Object.keys(errors)[0];
@@ -162,12 +190,14 @@ export const CampaignFormModal = memo(() => {
           },
         }).unwrap();
       } else {
-        const created = await createCampaign(payload).unwrap();
+        const created = await command.run(draft, payload, (body, id) => createCampaign({ ...body, ui_command_id: id }).unwrap());
         if (created?.uid) navigate(`/autodial/campaigns/${created.uid}${openStart ? '?start=1' : ''}`);
       }
+      removeCampaignDraft(draftKey);
       close(true);
     } catch (error) {
-      setApiError(t(autodialErrorKey(error, "autodial.form.saveFailed")));
+      setApiError(uncertainAutodialSave(error) ? mode === 'edit' ? t('autodial.workspace.updateUncertain') : null
+        : t(autodialErrorKey(error, "autodial.form.saveFailed")));
     }
   };
 
@@ -179,8 +209,10 @@ export const CampaignFormModal = memo(() => {
         : t("autodial.form.createTitle");
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && close()}>
+      {confirmationDialog}
       <FormDialogContent
+        {...dialogFocus}
         size="large"
         className={cls.dialog}
         data-testid="autodial-campaign-form-modal"
@@ -193,8 +225,21 @@ export const CampaignFormModal = memo(() => {
           <HStack justify="center" align="center" className={cls.body}>
             <Loader2 size={24} className={cls.spinner} />
           </HStack>
-        ) : mode !== 'edit' ? <CampaignCreationWizard key={`${mode}:${uid ?? 'new'}:${isOpen}`} draft={draft} onChange={setDraft}
-          onSave={onSave} onClose={() => close()} saving={isSaving} apiError={apiError} /> : (
+        ) : mode !== 'edit' ? <CampaignCreationWizard key={`${mode}:${uid ?? 'new'}:${isOpen}:${draftVersion}`} draft={draft} onChange={changeDraft}
+          draftKey={draftKey} onDiscard={async () => {
+            if (command.pending || isSaving || !(await confirm(t('autodial.workspace.clearLocalDraftConfirm')))) return;
+            removeCampaignDraft(draftKey);
+            const next = mode === 'copy' && campaign ? { ...campaignToDraft(campaign), name: t('autodial.form.copySuffix', { name: campaign.name }) } : emptyCampaignDraft();
+            setDraft(next); baseline.current = JSON.stringify(next); setRestored(false); setLocalDraftSaved(null); setApiError(null);
+            setDraftVersion((value) => value + 1);
+          }}
+          onSave={onSave} onClose={() => close()} saving={isSaving} apiError={apiError} locked={Boolean(command.pending)}
+          commandStatus={<>{(restored || localDraftSaved !== null) && <Text variant="muted" role="status">{t(restored ? 'autodial.workspace.localDraftRestored' : localDraftSaved ? 'autodial.workspace.localDraftSaved' : 'autodial.workspace.localDraftUnavailable')}</Text>}<CreateCommandStatus pending={Boolean(command.pending)} busy={command.busy} slow={command.slow} onCheck={() => {
+            void command.check().then((saved) => {
+              if (saved) { removeCampaignDraft(draftKey); navigate(`/autodial/campaigns/${saved}`); close(true); }
+              else setApiError(t('autodial.workspace.commandStillUnknown'));
+            }).catch(() => setApiError(t('autodial.workspace.commandCheckFailed')));
+          }} /></>} /> : (
           <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as TabId)}

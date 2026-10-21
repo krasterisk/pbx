@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ConfigModule } from '@nestjs/config';
 import { AmiModule } from '../ami/ami.module';
+import { PhoneSessionModule } from '../phone-session/phone-session.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { AiPlatformModule } from '../ai-platform/ai-platform.module';
@@ -91,6 +92,7 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
 
 @Module({
   imports: [
+    PhoneSessionModule,
     SequelizeModule.forFeature([
       CcPauseReason,
       CcAgentSession,

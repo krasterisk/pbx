@@ -561,11 +561,17 @@ export class AmiService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       this.ami.action(action, (err: any, res: any) => {
+        const reply = res ?? (typeof err === 'object' ? err : undefined);
+        const status = String(reply?.response ?? reply?.Response ?? '').toLowerCase();
+        if (status === 'error') { reject(reply); return; }
         if (err) {
           // asterisk-manager bug: some actions (e.g. UpdateConfig) pass
           // the success response as err instead of res
-          if (err.response === 'Success') {
-            resolve(err);
+          // Asterisk 16 CLI commands use Response:Follows. The manager puts
+          // that valid response in its error slot; other AMI actions must not
+          // gain a blanket Follows exception.
+          if (status === 'success' || (String(action.action ?? action.Action).toLowerCase() === 'command' && status === 'follows')) {
+            resolve(reply);
           } else {
             reject(err);
           }

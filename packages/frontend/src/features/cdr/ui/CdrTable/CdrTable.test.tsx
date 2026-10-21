@@ -14,10 +14,12 @@ vi.mock('@/shared/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/ui')>();
   return {
     ...actual,
-    RecordingButton: () => (
-      <button type="button" title="Прослушать запись" aria-label="Прослушать запись">
-        Mic
-      </button>
+    RecordingButton: ({ uniqueid, recordingUrl }: { uniqueid?: string; recordingUrl?: string }) => (
+      uniqueid || recordingUrl ? (
+        <button type="button" title="Прослушать запись" aria-label="Прослушать запись">
+          Mic
+        </button>
+      ) : null
     ),
   };
 });
@@ -183,7 +185,7 @@ describe('CdrTable speech analytics actions (D-05, D-16, D-18, D-19)', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Прослушать запись' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Прослушать запись' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Аналитика' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Получить аналитику' })).not.toBeInTheDocument();
   });
@@ -209,6 +211,21 @@ describe('CdrTable speech analytics actions (D-05, D-16, D-18, D-19)', () => {
     const analytics = screen.getByRole('button', { name: 'Аналитика' });
     fireEvent.click(analytics);
     expect(onOpenAnalytics).toHaveBeenCalledWith('conv-1');
+  });
+
+  it('does not offer playback when the recording file does not exist', () => {
+    render(
+      <CdrTable
+        data={[call({ hasRecording: false, record: 'missing.wav', recordingUrl: null })]}
+        isLoading={false}
+        totalRows={1}
+        currentPage={0}
+        pageSize={50}
+        onPageChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Прослушать запись' })).not.toBeInTheDocument();
   });
 
   it('shows Получить аналитику when recording exists and module is active, even if company is paused', () => {

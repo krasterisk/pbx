@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { TenantContextGuard, type TenantContextRequest } from '../integration-credentials/tenant-context.guard';
 import { KnowledgeService } from './knowledge.service';
 
@@ -27,5 +27,15 @@ export class KnowledgeJwtController {
   @Post('search')
   search(@Body() body: { query: string; chunks: Array<{ id: string; text: string; allowed: boolean }> }) {
     return this.knowledge.search(body.query, body.chunks);
+  }
+
+  @Post('query')
+  query(@Req() request: Authed, @Body() body: { baseIds: string[]; query: string }) {
+    return this.knowledge.searchBases(request.tenantContext.tenantUid, body.baseIds ?? [], body.query ?? '');
+  }
+
+  @Post(':id/text')
+  addText(@Req() request: Authed, @Param('id') id: string, @Body() body: { title?: string; text: string }) {
+    return this.knowledge.addText(request.tenantContext, id, body.title || 'Текст', body.text || '');
   }
 }

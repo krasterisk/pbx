@@ -38,10 +38,23 @@ export interface AutodialSummaryRow {
   failed: number;
   talk_sec_sum: number;
   billsec_sum: number;
+  contacts_reached: number;
+  contacts_attempted: number;
+  /** No verified identity event is collected by legacy scenarios. */
+  right_party_confirmed: null;
   kpi: AutodialKpi;
 }
 
 export interface AutodialDetailRow {
+  contact_uid: number | null;
+  base_uid: number | null;
+  external_id: string | null;
+  phone: string | null;
+  dialled_phone?: string | null;
+  client_values_current: Record<string, unknown> | null;
+  next_attempt_at: string | null;
+  task_status: string | null;
+  tour_no: number;
   uniqueid?: string | null;
   attempt_uid: number;
   campaign_uid: number;
@@ -66,20 +79,28 @@ const SUMMARY_COLUMNS: ReportColumn[] = [
   { key: 'campaign_name', header: 'Кампания' },
   { key: 'dials', header: 'Наборов' },
   { key: 'answered', header: 'Отвечено' },
-  { key: 'success', header: 'Успешно' },
+  { key: 'success', header: 'Технический успех (порог разговора)' },
+  { key: 'contacts_reached', header: 'Уникальные ответившие клиенты' },
+  { key: 'contacts_attempted', header: 'Уникальные клиенты с попыткой' },
+  { key: 'right_party_confirmed', header: 'Подтверждённое нужное лицо (нет данных)' },
   { key: 'short', header: 'Короткие' },
   { key: 'no_answer', header: 'Не ответили' },
   { key: 'busy', header: 'Занято' },
   { key: 'amd', header: 'Автоответчик' },
   { key: 'failed', header: 'Ошибки' },
   { key: 'contact_rate', header: 'Contact rate, %' },
-  { key: 'rpc', header: 'RPC, %' },
-  { key: 'aht', header: 'AHT, с' },
-  { key: 'acd', header: 'ACD, с' },
-  { key: 'calls_per_hour', header: 'Звонков/час' },
+  { key: 'rpc', header: 'Технический успех / попытки, % (legacy rpc)' },
+  { key: 'aht', header: 'Разговор / отвеченные, с (legacy aht)' },
+  { key: 'acd', header: 'Оплачиваемые секунды / попытки, с (legacy acd)' },
+  { key: 'calls_per_hour', header: 'Попытки / час между первым и последним событием' },
 ];
 
 const DETAIL_COLUMNS: ReportColumn[] = [
+  { key: 'contact_uid', header: 'ID клиента' },
+  { key: 'external_id', header: 'Внешний ID клиента (текущая карточка)' },
+  { key: 'phone', header: 'Номер (текущая карточка)' },
+  { key: 'dialled_phone', header: 'Номер при наборе (снимок попытки)' },
+  { key: 'tour_no', header: 'Тур' },
   { key: 'campaign_uid', header: 'Кампания' },
   { key: 'task_uid', header: 'Задача' },
   { key: 'attempt_no', header: 'Попытка' },
@@ -96,14 +117,20 @@ const DETAIL_COLUMNS: ReportColumn[] = [
   { key: 'agent_interface', header: 'Оператор' },
   { key: 'amd_result', header: 'AMD' },
   { key: 'scenario_result', header: 'Результат сценария' },
+  { key: 'business_outcome', header: 'Бизнес-исход (код)' },
+  { key: 'business_outcome_label', header: 'Бизнес-исход (подпись на момент звонка)' },
+  { key: 'business_outcome_category', header: 'Категория исхода на момент звонка' },
+  { key: 'business_goal_relation', header: 'Достижение цели на момент звонка' },
+  { key: 'scenario_revision', header: 'Ревизия сценария на момент звонка' },
+  { key: 'dtmf', header: 'DTMF' },
+  { key: 'next_attempt_at', header: 'Следующая попытка (текущее состояние)' },
 ];
 
 const DETAIL_ROW_LIMIT = 50_000;
 
 /**
- * Reporting reads from `ac_attempts` for ranges that include today and from the
- * nightly `ac_daily_campaign_stats` rollup for closed days, so a long history
- * never scans the attempt table.
+ * Durable attempts are the source for calendar reports, including closed days
+ * missed by the nightly rollup. All queries retain the tenant predicate.
  */
 @Injectable()
 export class AutodialReportsService {
@@ -238,6 +265,9 @@ export class AutodialReportsService {
         failed: num(raw.failed),
         talk_sec_sum: num(raw.talk_sec_sum),
         billsec_sum: num(raw.billsec_sum),
+        contacts_reached: num(raw.reached),
+        contacts_attempted: num(raw.attempted),
+        right_party_confirmed: null,
         kpi: computeAutodialKpi({
           dials,
           answered,
@@ -308,7 +338,33 @@ export class AutodialReportsService {
       order: [['uid', 'DESC']],
       limit: DETAIL_ROW_LIMIT,
     });
+    if (!rows.length) return [];
+    const quote = this.sequelize.getDialect() === 'postgres' ? '"' : '`';
+    const contexts = await this.sequelize.query<{
+      task_uid: number; contact_uid: number; base_uid: number; external_id: string | null;
+      phone: string | null; client_values_current: Record<string, unknown> | string;
+      next_attempt_at: Date | string | null; task_status: string;
+    }>(`SELECT t.uid AS task_uid, t.contact_uid, c.base_uid, c.external_id,
+        p.normalized AS phone, c.${quote}values${quote} AS client_values_current,
+        t.next_attempt_at, t.status AS task_status
+      FROM ac_tasks t
+      LEFT JOIN ac_contacts c ON c.uid = t.contact_uid AND c.vpbx_user_uid = t.vpbx_user_uid
+      LEFT JOIN ac_contact_phones p ON p.uid = t.phone_uid AND p.contact_uid = c.uid AND p.base_uid = c.base_uid
+      WHERE t.vpbx_user_uid = :userUid AND t.uid IN (:taskUids)`, {
+      replacements: { userUid, taskUids: [...new Set(rows.map((row) => row.task_uid))] }, type: QueryTypes.SELECT,
+    });
+    const contextByTask = new Map(contexts.map((row) => [Number(row.task_uid), row]));
     return rows.map((r) => ({
+      contact_uid: contextByTask.get(r.task_uid)?.contact_uid ?? null,
+      base_uid: contextByTask.get(r.task_uid)?.base_uid ?? null,
+      external_id: contextByTask.get(r.task_uid)?.external_id ?? null,
+      phone: contextByTask.get(r.task_uid)?.phone ?? null,
+      dialled_phone: typeof (r.scenario_result?.snapshot as { dialled_phone?: unknown } | undefined)?.dialled_phone === 'string'
+        ? (r.scenario_result!.snapshot as { dialled_phone: string }).dialled_phone : null,
+      client_values_current: parseClientValues(contextByTask.get(r.task_uid)?.client_values_current),
+      next_attempt_at: contextByTask.get(r.task_uid)?.next_attempt_at ? new Date(contextByTask.get(r.task_uid)!.next_attempt_at!).toISOString() : null,
+      task_status: contextByTask.get(r.task_uid)?.task_status ?? null,
+      tour_no: r.tour_no,
       attempt_uid: r.uid,
       campaign_uid: r.campaign_uid,
       task_uid: r.task_uid,
@@ -350,7 +406,14 @@ export class AutodialReportsService {
     range: AutodialReportRange,
     format: 'csv' | 'xlsx',
   ): Promise<{ body: string | Buffer; contentType: string; filename: string }> {
-    const rows = await this.detail(userUid, range);
+    const rows = (await this.detail(userUid, range)).map((row) => ({ ...row,
+      business_outcome: row.scenario_result?.business_outcome ?? null,
+      business_outcome_label: row.scenario_result?.business_outcome_label ?? null,
+      business_outcome_category: row.scenario_result?.business_outcome_category ?? 'unknown',
+      business_goal_relation: row.scenario_result?.business_goal_relation ?? 'unknown',
+      scenario_revision: (row.scenario_result?.snapshot as { revision?: number } | undefined)?.revision ?? null,
+      dtmf: row.scenario_result?.dtmf ?? null,
+    }));
     return this.export(
       'autodial-detail',
       DETAIL_COLUMNS,
@@ -374,8 +437,16 @@ export class AutodialReportsService {
         filename: `${name}.xlsx`,
       };
     }
+    const formatter = new Intl.DateTimeFormat('sv-SE', { timeZone: metadata.timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+    const dateKeys = columns.filter((column) => /_at$/.test(column.key)).map((column) => column.key);
+    const csvRows = rows.map((row) => {
+      const next: Record<string, unknown> = { ...row, report_from: metadata.from, report_to: metadata.to, report_timezone: metadata.timezone };
+      for (const key of dateKeys) if (next[key]) next[key] = formatter.format(new Date(String(next[key])));
+      return next;
+    });
     return {
-      body: buildReportCsv(columns, rows),
+      body: buildReportCsv([...columns.map((column) => dateKeys.includes(column.key) ? { ...column, header: `${column.header} (${metadata.timezone})` } : column),
+        { key: 'report_from', header: 'Период с' }, { key: 'report_to', header: 'Период по (включительно)' }, { key: 'report_timezone', header: 'Зона отчёта' }], csvRows),
       contentType: 'text/csv; charset=utf-8',
       filename: `${name}.csv`,
     };
@@ -464,4 +535,10 @@ export class AutodialReportsService {
 function num(value: string | number | null | undefined): number {
   const n = Number(value ?? 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+function parseClientValues(value: Record<string, unknown> | string | undefined): Record<string, unknown> | null {
+  try { const data = typeof value === 'string' ? JSON.parse(value) : value;
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : null;
+  } catch { return null; }
 }

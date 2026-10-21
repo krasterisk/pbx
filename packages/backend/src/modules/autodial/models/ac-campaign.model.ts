@@ -4,6 +4,7 @@ import {
 } from 'sequelize-typescript';
 import type {
   AutodialCampaignStatus,
+  AutodialBusinessGoal,
   AutodialDialMode,
   IAutodialAmdConfig,
   IAutodialCidPolicy,
@@ -35,6 +36,10 @@ export class AcCampaign extends Model {
 
   @Column({ type: DataType.STRING(255), allowNull: false })
   declare name: string;
+
+  @Default('custom')
+  @Column({ type: DataType.STRING(32), allowNull: false })
+  declare business_goal: AutodialBusinessGoal;
 
   @Default('draft')
   @Column({ type: DataType.STRING(16), allowNull: false })

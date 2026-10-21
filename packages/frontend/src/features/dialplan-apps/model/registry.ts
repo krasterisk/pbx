@@ -296,7 +296,7 @@ const registryDraft: Record<ActionType, Omit<IDialplanAppConfig, 'schema' | 'sum
     type: 'ai_voice_robot',
     labelKey: 'routes.action.ai_voice_robot',
     category: 'media',
-    defaultParams: { deployment_id: '' },
+    defaultParams: { robot_uid: '' },
     schema: buildAiVoiceRobotSchema((key: string, fallback?: string) => fallback ?? key),
     summarize: summarizeAiVoiceRobot,
   },

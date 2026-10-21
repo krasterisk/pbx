@@ -32,7 +32,7 @@ test('quota fail-closed returns fairness_exhausted', () => {
 
 test('load profile docs name measurement not SLA', () => {
   const docs = fs.readFileSync(path.join(
-    __dirname, '../../.planning/initiatives/ai-products/AI-11-11L-LOAD.md',
+    __dirname, '../../docs/plans/initiatives/ai-products/AI-11-11L-LOAD.md',
   ), 'utf8');
   assert.match(docs, /1→5→20|1->5->20/);
   assert.match(docs, /not .*product SLA|не .*лимит продукта|productSlaClaimed:\s*false/i);

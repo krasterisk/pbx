@@ -5,6 +5,8 @@
  *   node runner/index.ts [--scenario <id>] [--tag <tag>] [--kind api|ui|realtime] [--parallel]
  */
 import { spawnSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
+import { outputPath } from '../../tools/artifacts/paths.cjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { waitForAppReady } from '../environment/readiness.js';

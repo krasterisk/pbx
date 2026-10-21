@@ -381,6 +381,17 @@ describe('DiffConfirmCard', () => {
         expect(screen.getByTestId('ai-agent-diff-card')).toHaveAttribute('data-status', 'pending');
         expect(screen.getByRole('button', { name: 'aiChat.card.retry' })).toBeEnabled();
     });
+    it('explains the transport requirement on HTTP instead of asking for an ineffective login', async () => {
+        vi.stubGlobal('isSecureContext', false);
+        try {
+            confirmUnwrap = async () => { throw { status: 403, data: { code: 'AC_INTERACTIVE_SESSION_REQUIRED' } }; };
+            render(<DiffConfirmCard proposal={{ ...pendingView(), entityType: 'autodial_campaign' }} />);
+            fireEvent.click(screen.getByRole('button', { name: 'aiChat.card.apply' }));
+            await vi.waitFor(() => expect(screen.getByText('aiChat.card.applyFailed:aiChat.card.interactiveSecureContextRequired')).toBeInTheDocument());
+            expect(screen.getByTestId('ai-agent-diff-card')).toHaveAttribute('data-status', 'pending');
+            expect(screen.queryByText('aiChat.card.applyFailed:aiChat.card.interactiveRequired')).toBeNull();
+        } finally { vi.unstubAllGlobals(); }
+    });
 
     it('keeps a failed apply pending with the error and a retry', async () => {
         confirmResult = { ok: false, error: 'switch reload failed', reason: 'switch_failed' };

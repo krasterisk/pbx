@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import {
   defaultSaProjectConfig,
   isSaIndustryTemplateId,
+  saTextPrivacyEnabled,
   type SaProjectConfigV1,
 } from '@krasterisk/shared';
 import { UserLevel } from '../../users/user.model';
@@ -57,6 +58,7 @@ export function metricSetStampPayload(config: SaProjectConfigV1): unknown {
     insights: config.insights ?? null,
     sttProviderUid: config.sttProviderUid ?? null,
     llmProviderUid: config.llmProviderUid ?? null,
+    textPrivacy: { anonymizeBeforeLlm: saTextPrivacyEnabled(config) },
   };
 }
 
@@ -75,6 +77,8 @@ export function stampChanged(
 }
 
 export function assertValidTemplate(config: SaProjectConfigV1): void {
+  try { saTextPrivacyEnabled(config); }
+  catch { throw new ProjectEditorError('invalid_text_privacy', 400); }
   if (!isSaIndustryTemplateId(config.templateId)) {
     throw new ProjectEditorError('invalid_template', 400, String(config.templateId));
   }

@@ -49,6 +49,8 @@ describe('CallCenterService contacts (D-11…D-15)', () => {
       emptyModel,
       {} as any,
       {} as any,
+      {} as any,
+      { guardCallCenterLogin: jest.fn((_iface, _tenant, _user, login) => login()) } as any,
     );
   });
 

@@ -12,6 +12,26 @@ function setup() {
 }
 
 describe('Autodial durable reporting', () => {
+  it('adds tenant-scoped current customer context without replacing historical conversation facts', async () => {
+    const { service, findAll, query } = setup();
+    findAll.mockResolvedValue([{ uid: 91, task_uid: 23, campaign_uid: 4, tour_no: 2, attempt_no: 1,
+      started_at: new Date('2026-10-16T08:00:00Z'), answered_at: new Date('2026-10-16T08:00:02Z'), ended_at: new Date('2026-10-16T08:00:15Z'),
+      billsec: 13, disposition: 'answered_short', scenario_result: { business_outcome: 'visit_confirmed', dtmf: '1', snapshot: { dialled_phone: '00991420' } },
+    }]);
+    query.mockResolvedValue([{ task_uid: 23, contact_uid: 8, base_uid: 3, external_id: 'crm-8', phone: '00991419',
+      client_values_current: '{"name":"Current card"}', next_attempt_at: null, task_status: 'completed' }]);
+    const rows = await service.detail(7, { from: '2026-10-16', to: '2026-10-16' });
+    expect(rows[0]).toMatchObject({ contact_uid: 8, external_id: 'crm-8', phone: '00991419', dialled_phone: '00991420', tour_no: 2,
+      client_values_current: { name: 'Current card' }, billsec: 13, disposition: 'answered_short', scenario_result: { business_outcome: 'visit_confirmed' } });
+    expect(query.mock.calls[0][0]).toContain('t.vpbx_user_uid = :userUid');
+    expect(query.mock.calls[0][0]).toContain('p.contact_uid = c.uid AND p.base_uid = c.base_uid');
+    expect(query.mock.calls[0][1].replacements).toEqual({ userUid: 7, taskUids: [23] });
+    const exported = await service.exportDetail(7, { from: '2026-10-16', to: '2026-10-16' }, 'csv');
+    expect(exported.body).toContain('visit_confirmed');
+    expect(exported.body).toContain('Asia/Krasnoyarsk');
+    expect(exported.body).toContain('2026-10-16 15:00:00');
+    expect(exported.body).toContain('crm-8');
+  });
   it('uses complete tenant days, including the final fractional second', async () => {
     const { service, findAll } = setup();
     await service.detail(7, { from: '2026-10-16', to: '2026-10-16' });

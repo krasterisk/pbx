@@ -6,6 +6,7 @@ import {
   useGetCardTemplatesQuery,
 } from "@/shared/api/endpoints/callCenterApi";
 import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
+import { buildBulkDeletePreview } from "@/shared/lib/tableSelection/bulkDeletePreview";
 import {
   Badge,
   Button,
@@ -15,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   HStack,
+  QueryErrorState,
   TableCard,
   TableToolbar,
   Text,
@@ -24,6 +26,7 @@ import { Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
+import styles from "./CardTemplatesTab.module.scss";
 
 type ViewMode = "list" | "create" | "edit";
 
@@ -34,7 +37,6 @@ export function CardTemplatesTab() {
     data: templates = [],
     isLoading,
     isError,
-    error,
     refetch,
   } = useGetCardTemplatesQuery();
   const [deleteTemplate] = useDeleteCardTemplateMutation();
@@ -70,7 +72,7 @@ export function CardTemplatesTab() {
     } finally {
       setDeletingSelected(false);
     }
-  }, [confirmDelete, deleteTemplate, t, selection.clearSelection]);
+  }, [confirmDelete, deleteTemplate, t, selection]);
 
   if (mode === "create") {
     return <TemplateBuilder onDone={handleDone} />;
@@ -81,20 +83,24 @@ export function CardTemplatesTab() {
   }
 
   if (isError) return (
-    <VStack gap="16" className="w-full" role="alert" data-error-status={error && 'status' in error ? String(error.status) : undefined}>
-      <Text>{t('callcenter.cards.builder.loadError', 'Could not load card templates. Try again.')}</Text>
-      <Button onClick={() => void refetch()}>{t('common.retry', 'Retry')}</Button>
-    </VStack>
+    <QueryErrorState
+      message={t('callcenter.cards.builder.loadError', 'Could not load card templates. Try again.')}
+      onRetry={() => void refetch()}
+    />
   );
 
+  const deletePreview = buildBulkDeletePreview({
+    labels: (confirmDelete ?? []).map((template) => template.name),
+    allMatching: false,
+    hasFilter: false,
+    filteredTotal: confirmDelete?.length ?? 0,
+  });
+
   return (
-    <VStack gap="16" className="w-full">
-      <HStack justify="between" align="center" className="w-full">
-        <Text className="font-medium">
-          {t("callcenter.cards.builder.listTitle")}
-        </Text>
+    <VStack gap="16" max>
+      <HStack justify="end" align="center" max>
         <Button size="sm" onClick={() => setMode("create")}>
-          <Plus className="w-4 h-4 mr-1" />
+          <Plus size={16} />
           {t("callcenter.cards.builder.createTemplate")}
         </Button>
       </HStack>
@@ -120,15 +126,15 @@ export function CardTemplatesTab() {
       {isLoading ? (
         <Text>{t("common.loading")}</Text>
       ) : templates.length === 0 ? (
-        <VStack gap="12" align="center" className="py-12">
+        <VStack gap="12" align="center" className={styles.empty}>
           <Text variant="muted">{t("callcenter.cards.builder.empty")}</Text>
           <Button onClick={() => setMode("create")}>
-            <Plus className="w-4 h-4 mr-1" />
+            <Plus size={16} />
             {t("callcenter.cards.builder.createTemplate")}
           </Button>
         </VStack>
       ) : (
-        <VStack gap="8" className="w-full">
+        <VStack gap="8" max>
           {templates.map((tpl) => (
             <TableCard
               onActivate={() => {
@@ -143,10 +149,10 @@ export function CardTemplatesTab() {
               )}
               justify="between"
               align="center"
-              className="w-full p-4 border border-border rounded-lg"
+              className={styles.card}
             >
               <VStack gap="4">
-                <Text className="font-medium">{tpl.name}</Text>
+                <Text className={styles.name}>{tpl.name}</Text>
                 <HStack gap="8" wrap="wrap">
                   <Badge variant={tpl.is_active ? "default" : "secondary"}>
                     {tpl.is_active
@@ -176,12 +182,18 @@ export function CardTemplatesTab() {
           <DialogHeader>
             <DialogTitle>
               {t("callcenter.cards.builder.confirmDelete", {
-                name:
-                  confirmDelete?.map((template) => template.name).join(", ") ??
-                  "",
+                name: deletePreview.previewLabels.join(", "),
               })}
             </DialogTitle>
           </DialogHeader>
+          {deletePreview.mode === "truncated" ? (
+            <Text>
+              {t("common.confirmBulkDeleteBodyMore", {
+                labels: deletePreview.previewLabels.join(", "),
+                remaining: deletePreview.remaining,
+              })}
+            </Text>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDelete(null)}>
               {t("common.cancel")}

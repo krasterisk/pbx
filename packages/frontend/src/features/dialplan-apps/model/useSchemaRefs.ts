@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useGetPromptsQuery } from '@/shared/api/endpoints/promptsApi';
 import { useGetCallGroupsQuery } from '@/shared/api/endpoints/callGroupApi';
 import { useGetTrunksQuery } from '@/shared/api/endpoints/trunkApi';
@@ -13,7 +14,7 @@ import { useGetContextsQuery } from '@/shared/api/endpoints/contextApi';
 import { useGetEndpointsQuery } from '@/shared/api/endpoints/endpointApi';
 import { useGetNotificationsQuery } from '@/shared/api/endpoints/notificationApi';
 import { useGetConferenceRoomsQuery } from '@/shared/api/endpoints/conferenceRoomApi';
-import type { OptionsSource, SchemaRefs } from './schema.types';
+import type { OptionsSource, SchemaRefs, SchemaCatalogRef } from './schema.types';
 
 /**
  * Single owner of every `optionsSource` catalog used by SchemaFields.
@@ -24,7 +25,8 @@ import type { OptionsSource, SchemaRefs } from './schema.types';
  *
  * @layer features/dialplan-apps
  */
-export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
+export function useSchemaRefs(sources?: readonly OptionsSource[], ttsCatalog?: SchemaCatalogRef): SchemaRefs {
+  const { t } = useTranslation();
   const needs = (source: OptionsSource) => !sources || sources.includes(source);
 
   const prompts = useGetPromptsQuery(undefined, { skip: !needs('prompts') });
@@ -33,7 +35,10 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
   const queues = useGetQueuesQuery(undefined, { skip: !needs('queues') });
   const directories = useGetDirectoriesQuery(undefined, { skip: !needs('dialplanDirectories') });
   const ivrs = useGetIvrsQuery(undefined, { skip: !needs('ivrs') });
-  const ttsEngines = useGetTtsEnginesQuery(undefined, { skip: !needs('tts-engines') });
+  const ttsEngines = useGetTtsEnginesQuery(undefined, {
+    skip: !needs('tts-engines') || Boolean(ttsCatalog),
+    refetchOnMountOrArgChange: true,
+  });
   const sttEngines = useGetSttEnginesQuery(undefined, { skip: !needs('stt-engines') });
   const voiceRobots = useGetVoiceRobotsQuery(undefined, { skip: !needs('voiceRobots') });
   const aiVoiceRobots = useGetAiVoiceRobotsQuery(undefined, { skip: !needs('aiVoiceRobots') });
@@ -117,12 +122,16 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
         sectionKey: 'routes.chain.catalog.ivrsSection',
         sectionFallback: 'IVR',
       },
-      'tts-engines': {
+      'tts-engines': ttsCatalog ?? {
         items: (ttsEngines.data ?? []).map((engine) => ({
           value: String(engine.uid),
           label: engine.name,
+          disabled: engine.enabled === false,
         })),
-        isLoading: ttsEngines.isLoading,
+        isLoading: Boolean(ttsEngines.isLoading || ttsEngines.isFetching),
+        isError: ttsEngines.isError,
+        errorStatus: (ttsEngines.error as { status?: number | string } | undefined)?.status,
+        onRetry: ttsEngines.refetch,
         sectionHref: '/settings/tts-engines',
         sectionKey: 'routes.chain.catalog.ttsSection',
         sectionFallback: 'Движки синтеза',
@@ -148,8 +157,11 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
         sectionFallback: 'Голосовые роботы',
       },
       aiVoiceRobots: {
-        items: (aiVoiceRobots.data ?? []).filter(robot => robot.config.enabled && robot.versionId).map(robot => ({
-          value: String(robot.uid), label: robot.config.name,
+        items: (aiVoiceRobots.data ?? []).map(robot => ({
+          value: String(robot.uid),
+          label: robot.config.enabled && robot.versionId
+            ? robot.config.name
+            : `${robot.config.name} (${t('aiVoiceDesigner.notReady')})`,
         })),
         isLoading: aiVoiceRobots.isLoading,
         sectionHref: '/ai-robots/studio',
@@ -212,6 +224,11 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       ivrs.isLoading,
       ttsEngines.data,
       ttsEngines.isLoading,
+      ttsEngines.isFetching,
+      ttsEngines.isError,
+      ttsEngines.error,
+      ttsEngines.refetch,
+      ttsCatalog,
       sttEngines.data,
       sttEngines.isLoading,
       voiceRobots.data,
@@ -226,6 +243,7 @@ export function useSchemaRefs(sources?: readonly OptionsSource[]): SchemaRefs {
       notifications.isLoading,
       conferenceRooms.data,
       conferenceRooms.isLoading,
+      t,
     ],
   );
 }

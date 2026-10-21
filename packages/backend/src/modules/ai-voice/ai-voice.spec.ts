@@ -1,6 +1,6 @@
 import {
   admitSession, assertExpectedRevision, bumpDraft, consumeTicket, createDeployment,
-  drainOnExpiry, emptyVoiceStores, enableDeployment, ensureDraft, issueTicket, publishVersion,
+  drainOnExpiry, emptyVoiceStores, enableDeployment, ensureDraft, issueTicket, publishVersion, requireTicketSecret,
   type AgentSnapshot,
 } from './voice-engine';
 import { acceptFinalStt, bargeIn, beginSpeaking, ignoreLateCallback, initialCascade, serialPlayback } from './turn-coordinator';
@@ -150,6 +150,14 @@ describe('10R drain-on-expiry', () => {
       stores, sessions, deploymentId: deployment.id, ingressKind: 'native', ingressKey: 'new',
     })).toThrow(/admissions_stopped/);
     expect(sessions.get(live.id)?.ingressKey).toBe('live');
+  });
+});
+
+describe('ticket secret', () => {
+  it('fails closed when the secret is missing or too short', () => {
+    expect(() => requireTicketSecret(undefined)).toThrow(/ticket_secret_unconfigured/);
+    expect(() => requireTicketSecret('short')).toThrow(/ticket_secret_unconfigured/);
+    expect(requireTicketSecret('a-sufficiently-long-secret')).toBe('a-sufficiently-long-secret');
   });
 });
 

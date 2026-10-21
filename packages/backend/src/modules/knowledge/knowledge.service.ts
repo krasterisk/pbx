@@ -6,7 +6,7 @@ import {
   assertKnowledgeSource, chunkText, DomainError, lexicalRetrieve, manifestDigest, vectorRetrieve,
 } from './knowledge-engine';
 import {
-  KbAccessBinding, KbBase,
+  KbAccessBinding, KbBase, KbChunk, KbDocument, KbDocumentRevision,
 } from './knowledge.models';
 import { randomUUID } from 'node:crypto';
 
@@ -16,6 +16,9 @@ export class KnowledgeService {
     private readonly products: ProductAccessService,
     @InjectModel(KbBase) private readonly bases: typeof KbBase,
     @InjectModel(KbAccessBinding) private readonly access: typeof KbAccessBinding,
+    @InjectModel(KbDocument) private readonly documents: typeof KbDocument,
+    @InjectModel(KbDocumentRevision) private readonly revisions: typeof KbDocumentRevision,
+    @InjectModel(KbChunk) private readonly chunks: typeof KbChunk,
   ) {}
 
   private mapError(error: unknown): never {
@@ -32,9 +35,10 @@ export class KnowledgeService {
     try {
       const access = await this.products.decide(context.tenantUid, 'ai_voice_robots');
       if (!access.allowed) throw new DomainError('entitlement', 403);
+      const principal = /^user:(\d+)$/.exec(context.principalId);
       return this.bases.create({
         id: randomUUID(), tenant_uid: context.tenantUid, name, status: 'draft', draft_revision: 1,
-        created_by: Number(context.principalId) || 0, created_at: new Date(), updated_at: new Date(),
+        created_by: principal ? Number(principal[1]) : 0, created_at: new Date(), updated_at: new Date(),
       });
     } catch (error) { this.mapError(error); }
   }
@@ -58,6 +62,41 @@ export class KnowledgeService {
 
   releaseDigest(memberIds: string[]) {
     return manifestDigest(memberIds);
+  }
+
+  async addText(context: TenantContext, baseId: string, title: string, text: string, mime = 'text/markdown') {
+    try {
+      const base = await this.bases.findOne({ where: { tenant_uid: context.tenantUid, id: baseId } });
+      if (!base) throw new DomainError('resource_not_found', 404);
+      assertKnowledgeSource({ mime, bytes: Buffer.byteLength(text), text });
+      const pieces = chunkText(text, 180, 24);
+      const document = await this.documents.create({
+        id: randomUUID(), tenant_uid: context.tenantUid, base_id: baseId, source_asset_id: randomUUID(),
+        content_hash: manifestDigest([text]), status: 'ready', tombstoned_at: null, created_at: new Date(),
+      });
+      const revision = await this.revisions.create({
+        id: randomUUID(), tenant_uid: context.tenantUid, document_id: document.id, revision: 1,
+        extract_digest: manifestDigest([text]), extract_config: JSON.stringify({ title, mime }), created_at: new Date(),
+      });
+      for (const piece of pieces) {
+        await this.chunks.create({
+          id: randomUUID(), tenant_uid: context.tenantUid, document_revision_id: revision.id,
+          ordinal: piece.ordinal, text_ref: piece.text, provenance: JSON.stringify({ baseId, title }),
+          tokens: piece.text.split(/\s+/).length, content_hash: manifestDigest([piece.text]), created_at: new Date(),
+        });
+      }
+      return { documentId: document.id, chunks: pieces.length };
+    } catch (error) { this.mapError(error); }
+  }
+
+  async searchBases(tenantUid: number, baseIds: string[], query: string) {
+    const rows = await this.chunks.findAll({ where: { tenant_uid: tenantUid } });
+    const allowed = new Set(baseIds);
+    return lexicalRetrieve(query, rows.flatMap(row => {
+      let baseId = '';
+      try { baseId = JSON.parse(row.provenance).baseId; } catch { baseId = ''; }
+      return allowed.has(baseId) ? [{ id: row.id, text: row.text_ref, allowed: true }] : [];
+    }));
   }
 
   async revoke(context: TenantContext, baseId: string, principalKind: 'user' | 'robot', principalId: string) {

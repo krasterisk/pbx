@@ -9,6 +9,10 @@ export interface ModulePageDef {
   path: string;
   labelKey: string;
   icon: LucideIcon;
+  /** Extra paths owned by this page that are not their own menu item. */
+  matchPaths?: string[];
+  /** Route guard copied from the previous router. Omitted pages stay open to the shell. */
+  routeAllow?: UserLevel[];
   /** If set, page is visible only when user level is in this list. */
   minLevels?: UserLevel[];
 }
@@ -33,4 +37,6 @@ export interface HubModuleRow extends ModuleDef {
   billingIntervalCount?: number;
   /** When false, this cabinet does not show the module. Omitted means visible. */
   tenantVisible?: boolean;
+  description?: string | null;
+  accessUntil?: string | null;
 }

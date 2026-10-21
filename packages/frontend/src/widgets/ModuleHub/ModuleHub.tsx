@@ -9,6 +9,8 @@ import { UserLevel } from '@krasterisk/shared';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { ModuleHubRow } from './ModuleHubRow';
 import { ModuleHubMarketplaceCard } from './ModuleHubMarketplaceCard';
+import { ModuleDetailsSheet } from '@/features/modules/ui/ModuleDetailsSheet/ModuleDetailsSheet';
+import { TenantRoleStartEditor } from '@/features/modules/ui/TenantRoleStartEditor/TenantRoleStartEditor';
 import cls from './ModuleHub.module.scss';
 
 function usePrefersReducedMotion(): boolean {
@@ -38,11 +40,14 @@ export const ModuleHub = memo(function ModuleHub() {
   const { t } = useTranslation();
   const user = useAppSelector((s) => s.auth.user);
   const level = user?.level as UserLevel | undefined;
+  const [opened, setOpened] = useState<string | null>(null);
   const { active, marketplace, isLoading, isError, refetch, toggleFavorite } = useHubModules();
   const reduceMotion = usePrefersReducedMotion();
   const location = useLocation();
   const selectedCode = new URLSearchParams(location.search).get('module');
-  const selected = [...active, ...marketplace].find((row) => row.code === selectedCode);
+  const rows = [...active, ...marketplace];
+  const selected = rows.find((row) => row.code === selectedCode);
+  const openedRow = rows.find((row) => row.code === opened) ?? null;
   const focusCode = selected?.code;
   const targetRef = useRef<HTMLDivElement>(null);
   const handledRef = useRef<string | null>(null);
@@ -104,6 +109,7 @@ export const ModuleHub = memo(function ModuleHub() {
                 index={index}
                 reduceMotion={reduceMotion}
                 onToggleFavorite={toggleFavorite}
+                onOpen={() => setOpened(row.code)}
               />
               </Flex>
             ))}
@@ -131,12 +137,21 @@ export const ModuleHub = memo(function ModuleHub() {
                 row={row}
                 index={index}
                 reduceMotion={reduceMotion}
+                onOpen={() => setOpened(row.code)}
               />
               </Flex>
             ))}
           </VStack>
         )}
       </VStack>
+
+      {level === UserLevel.ADMIN && (
+        <VStack gap="12" max>
+          <Text as="h2" className={cls.sectionLabel}>{t('hub.roleStart')}</Text>
+          <TenantRoleStartEditor />
+        </VStack>
+      )}
+      {openedRow && <ModuleDetailsSheet row={openedRow} open onOpenChange={(next) => { if (!next) setOpened(null); }} />}
     </VStack>
   );
 });

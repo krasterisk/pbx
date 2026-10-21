@@ -25,7 +25,6 @@ export const HUB_PAGE_OPTIONS: MultiSelectOption[] = [
   { value: 'tts_engines', label: 'tts_engines (/settings/tts-engines)' },
   { value: 'stt_engines', label: 'stt_engines (/settings/stt-engines)' },
   { value: 'audit_log', label: 'audit_log (/audit-log)' },
-  { value: 'tenant_modules', label: 'tenant_modules (/system/modules)' },
   { value: 'service_requests', label: 'service_requests (/service-requests)' },
   { value: 'komandor_claims', label: 'komandor_claims (/komandor-claims)' },
   { value: 'cc_dashboard', label: 'cc_dashboard (/callcenter/dashboard)' },

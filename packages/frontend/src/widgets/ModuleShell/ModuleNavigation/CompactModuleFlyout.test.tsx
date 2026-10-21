@@ -157,7 +157,7 @@ describe('compact navigation flyout', () => {
     expect(screen.getByRole('link', { name: 'page.second' })).toBeInTheDocument();
   });
 
-  it('filters pages and sections before creating the panel, and retains locked-module links', async () => {
+  it('filters pages and sections before creating the panel, and hides locked modules', async () => {
     const user = userEvent.setup();
     const restricted = { id: 'admin', path: '/admin', labelKey: 'page.admin', icon: Phone, minLevels: [UserLevel.ADMIN] };
     render(fixture([
@@ -166,7 +166,7 @@ describe('compact navigation flyout', () => {
       { ...module, code: 'locked', labelKey: 'nav.locked', licenseStatus: 'locked' },
     ]));
     expect(screen.queryByTestId('menu-hidden')).toBeNull();
-    expect(screen.getByTestId('menu-locked')).toHaveAttribute('href', '/modules?module=locked');
+    expect(screen.queryByTestId('menu-locked')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'nav.calls' }));
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(within(screen.getByRole('dialog')).getAllByRole('link')).toHaveLength(2);

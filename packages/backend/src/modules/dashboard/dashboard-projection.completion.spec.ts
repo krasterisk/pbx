@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { DashboardProjectionService } from './dashboard-projection.service';
-import { classifyDashboardCall, type DashboardClassifiedCall, type DashboardLeg } from './dashboard-classifier';
+import { classifyDashboardCall, DASHBOARD_SEMANTICS_VERSION, type DashboardClassifiedCall, type DashboardLeg } from './dashboard-classifier';
 
 const NOW = Date.parse('2026-10-11T10:00:40Z');
 const leg = (change: Partial<DashboardLeg> = {}): DashboardLeg => ({ id: 1, vpbx_user_uid: 42, uniqueid: 'own', linkedid: 'root', calldate: '2026-10-11 10:00:00', duration: 30, channel: 'PJSIP/t_trunk_42-01', dstchannel: '', lastapp: 'Playback', disposition: 'ANSWERED', ...change });
@@ -138,11 +138,11 @@ describe('Logical completion proof and bounded pending replay', () => {
   it('resumes a bounded versioned retrofit after restart with a fixed upper key and coverage', async () => {
     const legs = Array.from({ length: 1101 }, (_, i) => leg({ id: i + 1, uniqueid: `u${i}`, linkedid: `l${i}` })); const f = fixture(legs);
     for (const row of legs) { const call = classifyDashboardCall(42, 'node', [row], { complete: true, completeThrough: NOW }); call.fingerprint = 'v2'; f.calls.set(call.id, call); }
-    f.live({}); const ordered = [...f.calls.keys()].sort(); const key = 'semantics:v3:node';
+    f.live({}); const ordered = [...f.calls.keys()].sort(); const key = `semantics:v${DASHBOARD_SEMANTICS_VERSION}:node`;
     await (f.worker as any).replaySemantics();
-    const first = f.checkpoints.get(key); expect(first).toMatchObject({ cursor_value: 3, bootstrap_complete: 0 }); expect(first.cursor_key).toBe(ordered[499] + ordered[1100]);
+    const first = f.checkpoints.get(key); expect(first).toMatchObject({ cursor_value: DASHBOARD_SEMANTICS_VERSION, bootstrap_complete: 0 }); expect(first.cursor_key).toBe(ordered[499] + ordered[1100]);
     const restarted = f.createWorker(); await (restarted as any).replaySemantics(); expect(f.checkpoints.get(key).cursor_key).toBe(ordered[999] + ordered[1100]);
-    await (restarted as any).replaySemantics(); expect(f.checkpoints.get(key)).toMatchObject({ cursor_value: 3, bootstrap_complete: 1, initialized_from: first.initialized_from });
+    await (restarted as any).replaySemantics(); expect(f.checkpoints.get(key)).toMatchObject({ cursor_value: DASHBOARD_SEMANTICS_VERSION, bootstrap_complete: 1, initialized_from: first.initialized_from });
     expect(f.checkpoints.get(key).cursor_key).toBe(ordered[1100] + ordered[1100]);
     expect(f.store.putCall).toHaveBeenCalledTimes(1101); expect(new Set(f.store.putCall.mock.calls.map(([call]) => call.id)).size).toBe(1101);
     const reads = f.store.select.mock.calls.filter(([sql]) => sql.includes('call_key<= :upper')); expect(reads).toHaveLength(3); expect(reads.every(([, args]) => args.limit === 500)).toBe(true);
@@ -152,10 +152,10 @@ describe('Logical completion proof and bounded pending replay', () => {
     const legs = [leg()]; const f = fixture(legs); const call = classifyDashboardCall(42, 'node', legs, { complete: true }); f.calls.set(call.id, call);
     f.store.putCall.mockImplementation(async () => { (f.worker as any).destroyed = true; return false; });
     await expect((f.worker as any).replaySemantics()).rejects.toThrow('stopped before semantics checkpoint');
-    expect(f.checkpoints.get('semantics:v3:node')).toMatchObject({ bootstrap_complete: 0, cursor_key: '0'.repeat(64) + call.id });
+    expect(f.checkpoints.get(`semantics:v${DASHBOARD_SEMANTICS_VERSION}:node`)).toMatchObject({ bootstrap_complete: 0, cursor_key: '0'.repeat(64) + call.id });
     const restarted = f.createWorker(); f.store.saveCheckpoint.mockRejectedValueOnce(new Error('Projection ownership lost'));
     await expect((restarted as any).replaySemantics()).rejects.toThrow('Projection ownership lost');
-    expect(f.checkpoints.get('semantics:v3:node').bootstrap_complete).toBe(0);
+    expect(f.checkpoints.get(`semantics:v${DASHBOARD_SEMANTICS_VERSION}:node`).bootstrap_complete).toBe(0);
   });
 
 });

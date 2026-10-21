@@ -2,7 +2,7 @@ import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { Input, Label, Switch, Text, Skeleton } from '@/shared/ui';
+import { Flex, Input, Label, Switch, Text, Skeleton } from '@/shared/ui';
 import { UserLevel, selectUserLevel } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import {
@@ -174,9 +174,9 @@ export function AlertThresholdsForm() {
   if (isLoading) {
     return (
       <div className={styles.skeletonWrap}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="2.5rem" width="100%" />
+        <Skeleton height="2.5rem" width="100%" />
       </div>
     );
   }
@@ -207,7 +207,10 @@ export function AlertThresholdsForm() {
   );
 
   return (
-    <form
+    <Flex
+      as="form"
+      direction="column"
+      align="stretch"
       className={styles.form}
       onSubmit={(e) => {
         e.preventDefault();
@@ -253,6 +256,7 @@ export function AlertThresholdsForm() {
 
       {canEdit && (
         <FormSaveBar
+          placement="footer"
           dirty={dirty}
           saving={isSaving}
           onSave={handleSave}
@@ -260,6 +264,6 @@ export function AlertThresholdsForm() {
           testId="alerts-save-bar"
         />
       )}
-    </form>
+    </Flex>
   );
 }

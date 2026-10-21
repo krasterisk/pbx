@@ -10,14 +10,15 @@ import { Op } from 'sequelize';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { resolveInsightsFocus, type SaProjectConfigV1 } from '@krasterisk/shared';
+import { resolveInsightsFocus, saTextPrivacyEnabled, type SaProjectConfigV1 } from '@krasterisk/shared';
+import { preparePrivateJson, TEXT_PRIVACY_PROFILE } from '../pipeline/text-privacy';
 import { AiPriceRevision } from '../../ai-usage/usage.models';
 import { AiProvidersService } from '../../ai-connectivity/ai-providers.service';
 import { decryptSecret } from '../../ai-connectivity/secret-cipher.util';
 import type { TenantContext } from '../../integration-credentials/tenant-context';
 import { ProductResourceAuthorization } from '../../integration-credentials/product-resource.authorization';
 import { ProductAccessService } from '../../product-access/product-access.service';
-import { SaInsightsCache, SaInsightsRequest, SaProject } from '../speech-analytics.models';
+import { SaInsightsCache, SaInsightsRequest, SaProject, SaProjectVersion } from '../speech-analytics.models';
 import { SaJournalService } from '../journal/journal.service';
 import { configForAnalysis } from '../pipeline/analysis-prompt';
 import { ModuleSettingsService } from '../module-settings.service';
@@ -237,6 +238,9 @@ export class InsightsService {
     private readonly resources?: ProductResourceAuthorization,
     @Optional()
     private readonly products?: ProductAccessService,
+    @Optional()
+    @InjectModel(SaProjectVersion)
+    private readonly versions?: typeof SaProjectVersion,
   ) {}
 
   /** Latest speech_analytics rates; missing model/rows → [] so seam writes amount 0. */
@@ -358,10 +362,19 @@ export class InsightsService {
     });
     const current = await loadAggregate({ from: body.from, to: body.to });
     const previous = await loadAggregate({ from: period.previous.from, to: period.previous.to });
-    const facts: InsightsFactPack = buildInsightsFacts(current, previous, {
+    let facts: InsightsFactPack = buildInsightsFacts(current, previous, {
       currentLabel: period.current.label,
       previousLabel: period.previous.label,
     });
+    const privacyEnabled=saTextPrivacyEnabled(project.config);
+    let narrative={projectName:project.name,systemPrompt:project.systemPrompt,insightsFocus:project.insightsFocus};
+    if(privacyEnabled) {
+      if(!this.providers) throw new HttpException({code:'text_privacy_local_unavailable'},503);
+      try {
+        const prepared=await preparePrivateJson({narrative,facts},this.providers);
+        narrative=prepared.narrative;facts=prepared.facts;
+      } catch {throw new HttpException({code:'text_privacy_failed'},503);}
+    }
     const cacheKey = insightsCacheKey({
       tenantUid: context.tenantUid,
       projectId: body.projectId,
@@ -369,15 +382,13 @@ export class InsightsService {
       to: body.to,
       facts,
       insightsFocus: project.insightsFocus,
-    });
+    })+(privacyEnabled?`:${TEXT_PRIVACY_PROFILE}`:'');
     try {
       const result = await this.generate(
         {
           tenantUid: context.tenantUid,
           projectId: body.projectId,
-          projectName: project.name,
-          systemPrompt: project.systemPrompt,
-          insightsFocus: project.insightsFocus,
+          ...narrative,
           conversationCount: current.conversationCount,
           dashboardFacts: facts as unknown as Record<string, unknown>,
           calls: current.calls,
@@ -429,9 +440,16 @@ export class InsightsService {
       : null;
     if (!row) throw new NotFoundException({ code: 'resource_not_found' });
     let parsed: unknown = row.draft_config;
-    if (typeof parsed === 'string') {
-      try { parsed = JSON.parse(parsed) as unknown; } catch { parsed = null; }
+    if(row.active_version_id) {
+      if(!this.versions) throw new HttpException({code:'project_config_unavailable'},503);
+      const published=await this.versions.findOne({where:{id:row.active_version_id,project_id:projectId,tenant_uid:tenantUid}});
+      if(!published?.config) throw new HttpException({code:'project_config_unavailable'},503);
+      parsed=published.config;
     }
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed) as unknown; } catch { throw new HttpException({code:'project_config_invalid'},503); }
+    }
+    if((row.active_version_id && !parsed) || (parsed && (typeof parsed!=='object' || Array.isArray(parsed)))) throw new HttpException({code:'project_config_invalid'},503);
     const config = configForAnalysis(
       parsed && typeof parsed === 'object' ? parsed as Partial<SaProjectConfigV1> : null,
     );

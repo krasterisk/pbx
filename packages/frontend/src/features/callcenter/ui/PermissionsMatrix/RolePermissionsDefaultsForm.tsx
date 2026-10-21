@@ -114,8 +114,8 @@ export function RolePermissionsDefaultsForm({
   if (isLoading) {
     return (
       <div className={styles.wrap}>
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-32 w-full" />
+        <Skeleton height="2rem" width="14rem" />
+        <Skeleton height="8rem" width="100%" />
       </div>
     );
   }

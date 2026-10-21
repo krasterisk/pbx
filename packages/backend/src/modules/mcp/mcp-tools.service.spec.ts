@@ -151,6 +151,17 @@ describe('McpToolsService', () => {
       await service.callTool('list_directories', { foo: 'bar' }, 100);
       expect(adapterHandler).toHaveBeenCalledWith({ foo: 'bar' }, 100);
     });
+
+    it('passes the calling user to read-only tools so they can apply per-user visibility', async () => {
+      const adapterHandler = jest.fn().mockResolvedValue({ ok: true });
+      aiAdapterRegistry.getAllTools.mockReturnValue([
+        { name: 'find_cdr_calls', description: 'calls', inputSchema: {}, entityType: 'cdr', handler: adapterHandler },
+      ]);
+      service.registerAll();
+
+      await service.callTool('find_cdr_calls', {}, 100, { userUid: 58, role: 2, threadUid: 7 });
+      expect(adapterHandler).toHaveBeenCalledWith({}, 100, { userUid: 58, role: 2, threadUid: 7 });
+    });
   });
 
   describe('hard cutover — no handwritten registrations (D-11, D-27)', () => {

@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Languages, Moon, Sun, Sparkles } from 'lucide-react';
-import { AppBrand, Button, Tooltip } from '@/shared/ui';
+import { Search, Sparkles } from 'lucide-react';
+import { AppBrand, Button, Text, Tooltip } from '@/shared/ui';
 import { Flex, HStack } from '@/shared/ui/Stack';
 import { AssistantPanel, type AssistantPanelMode } from '@/widgets/AssistantPanel';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
@@ -17,10 +18,9 @@ import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import { UserLevel } from '@krasterisk/shared';
 import { useHubModules } from '@/features/modules/hooks/useHubModules';
 import { useModuleLicenseGate } from '@/features/modules/hooks/useModuleLicenseGate';
+import { ModuleAccessScreen } from '@/features/modules/ui/ModuleAccessScreen/ModuleAccessScreen';
+import { filterPagesByLevel, findModuleByPath } from '@/features/modules/lib/moduleRegistry';
 import { UserBlock } from '@/widgets/UserBlock';
-import {
-  filterPagesByLevel,
-} from '@/features/modules/lib/moduleRegistry';
 import { ConferenceSessionProvider } from '@/features/conferences/lib/ConferenceSessionProvider';
 import { ConferenceMiniPanel } from '@/features/conferences/ui/ConferenceMiniPanel';
 import { readImpersonation } from '@/features/auth/lib/impersonationSession';
@@ -54,9 +54,10 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
   const panelMode = useAppSelector((s) => s.aiChat.panelMode) ?? 'dock';
   const chatSeed = useAppSelector((s) => s.aiChat.seedMessage);
   const ccAgent = useAppSelector(selectMyAgent);
+  const { pathname } = useLocation();
   const level = user?.level as UserLevel | undefined;
-  const { active, marketplace, navigation, isLoading, isError, refetch } = useHubModules();
-  useModuleLicenseGate();
+  const { active, marketplace, navigation, isLoading, isError, refetch, freshCodes = [], clearFresh } = useHubModules();
+  const blocked = useModuleLicenseGate();
 
   const [isDark, setIsDark] = useState(() => { try { return localStorage.getItem('theme') !== 'light'; } catch { return !document.documentElement.classList.contains('light'); } });
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -83,6 +84,10 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
   const sidebarResize = useSidebarWidth(isMobile || effectiveCollapsed);
 
   const navModules = useMemo(() => navigation ?? [...active, ...marketplace], [navigation, active, marketplace]);
+  const currentCode = findModuleByPath(pathname, navModules)?.code;
+  useEffect(() => {
+    if (currentCode && freshCodes.includes(currentCode)) clearFresh?.(currentCode);
+  }, [currentCode, freshCodes, clearFresh]);
   const getDestination = useNavigationHistory(navModules, !isLoading && !isError, readImpersonation(accessToken)?.tenantId);
   const showSidebar = !isMobile;
 
@@ -209,39 +214,25 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
             <Button
               type="button"
               variant="ghost"
-              size="icon"
               id="shell-cmdk-trigger"
+              className={cls.searchTrigger}
               onClick={openPalette}
               aria-label={t('commandPalette.placeholder')}
             >
-              <Search size={16} aria-hidden />
+              <Search key="icon" size={16} aria-hidden />
+              <Text key="label" as="span" className={cls.searchLabel}>{t('commandPalette.placeholder')}</Text>
+              <Text key="kbd" as="span" className={cls.searchKbd}>{shortcutMod}+K</Text>
             </Button>
           </Tooltip>
-
-        {!isMobile && <Button
-          id="shell-lang-toggle"
-          variant="ghost"
-          size="icon"
-          onClick={toggleLanguage}
-          aria-label={t('auth.switchLanguage', { language: i18n.language.startsWith('ru') ? 'EN' : 'RU' })}
-          title={t('auth.switchLanguage', { language: i18n.language.startsWith('ru') ? 'EN' : 'RU' })}
-        >
-          <Languages size={16} aria-hidden />
-        </Button>}
-
-        {!isMobile && <Button id="shell-theme-toggle" variant="ghost" size="icon" onClick={toggleTheme}
-          aria-label={t(isDark ? 'auth.themeToLight' : 'auth.themeToDark')} title={t(isDark ? 'auth.themeToLight' : 'auth.themeToDark')}>
-          {isDark ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
-        </Button>}
 
         <HStack gap="8" align="center">
           <UserBlock
             className={cls.userTrigger}
-            preferences={isMobile ? {
+            preferences={{
               themeLabel: t(isDark ? 'auth.themeToLight' : 'auth.themeToDark'),
               languageLabel: t('auth.switchLanguage', { language: i18n.language.startsWith('ru') ? 'EN' : 'RU' }),
               onThemeChange: toggleTheme, onLanguageChange: toggleLanguage,
-            } : undefined}
+            }}
             displayName={ccAgent ? agentDisplayName(ccAgent) : undefined}
             secondaryLine={
               ccAgent
@@ -265,9 +256,12 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
             refetch={refetch}
             collapsed={effectiveCollapsed}
             onCollapsedChange={handleCollapsedChange}
+            freshCodes={freshCodes}
           />
         )}
-        <Flex as="main" direction="column" align="stretch" className={cls.main} tabIndex={-1}>{children}</Flex>
+        <Flex as="main" direction="column" align="stretch" className={cls.main} tabIndex={-1}>
+          {blocked ? <ModuleAccessScreen block={blocked} /> : children}
+        </Flex>
       </Flex>
 
       <CommandPalette

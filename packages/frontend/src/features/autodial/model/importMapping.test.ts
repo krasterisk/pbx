@@ -65,6 +65,11 @@ describe('buildAutoColumnMap', () => {
     const map = buildAutoColumnMap(['id'], fields);
     expect(map[0]).toMatchObject({ field_key: '__external_id' });
   });
+  it('recognises the API external_id header while preserving explicit schema fields', () => {
+    expect(buildAutoColumnMap(['external_id'], fields)[0]).toMatchObject({ field_key: '__external_id' });
+    expect(buildAutoColumnMap(['external_id'], [field({ key: 'external_id', label: 'CRM custom field' })])[0])
+      .toMatchObject({ field_key: 'external_id' });
+  });
 
   it('leaves an unrecognised column unmapped instead of guessing', () => {
     expect(buildAutoColumnMap(['какая-то_колонка'], fields)).toEqual([]);

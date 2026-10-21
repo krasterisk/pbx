@@ -3,6 +3,13 @@ import { findPageByPath, pageMatchesPath, resolveNavigation } from './navigation
 import { BASELINE_MODULES, mergeModulesWithCatalog } from './moduleRegistry';
 
 describe('canonical current navigation', () => {
+  it('keeps new call journal URLs under the existing CDR page grant', () => {
+    for (const path of ['/reports/calls', '/reports/calls/abc']) {
+      expect(resolveNavigation(path, BASELINE_MODULES)?.page.id).toBe('cdr');
+      const rows = mergeModulesWithCatalog(BASELINE_MODULES, [{ code: 'analytics', licenseStatus: 'active', pages: [{ page_code: 'cdr', path: '/reports/cdr' }] }]);
+      expect(resolveNavigation(path, rows)?.page.id).toBe('cdr');
+    }
+  });
   it.each(['/settings/stt-engines', '/reports/cdr', '/autodial/bases'])('selects the deepest page for %s', (path) => {
     const current = resolveNavigation(path, BASELINE_MODULES);
     expect(current?.page.path).toBe(path);

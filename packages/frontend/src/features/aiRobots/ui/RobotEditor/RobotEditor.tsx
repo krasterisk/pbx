@@ -6,6 +6,7 @@ import { AI_VOICE_ROBOT_DEFAULTS, validateAiVoiceConfig, type AiVoiceRobot, type
 import { Button, Dialog, FormDialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Text } from '@/shared/ui';
 import { useSaveAiVoiceRobotMutation } from '@/shared/api/endpoints/aiVoiceRobotsApi';
 import { RobotSettingsForm } from '../RobotSettingsForm';
+import { TestPanel } from '../TestPanel/TestPanel';
 import cls from './RobotEditor.module.scss';
 
 export function RobotEditor({ robot, copy = false, onClose }: { robot?: AiVoiceRobot; copy?: boolean; onClose: () => void }) {
@@ -53,6 +54,7 @@ export function RobotEditor({ robot, copy = false, onClose }: { robot?: AiVoiceR
         {error ? <Text role="alert" variant="error">{error}</Text> : null}
         <RobotSettingsForm value={config} issues={issues} disabled={isLoading}
           onChange={next => { setConfig(next); setIssues([]); }} />
+        <TestPanel config={config} uid={copy ? undefined : robot?.uid} />
       </ModalBody>
       <DialogFooter className={cls.footer}>
         {confirmDiscard ? <>

@@ -248,7 +248,7 @@ export const CampaignPacingTab = memo(({ draft, onChange, errors, hideQueueAgent
                   <MultiSelect
                     options={(queues ?? []).map((queue) => ({
                       value: queue.name,
-                      label: queue.name,
+                      label: queue.display_name || queue.name,
                     }))}
                     value={provider.queue_names}
                     onChange={(queue_names) =>

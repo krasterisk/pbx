@@ -28,4 +28,9 @@ Run commands **sequentially**: `.tmp/production-pilots.json` contains shared sta
 
 `isolation` verifies owned endpoint counts and rejects foreign context IDs. `inventory` saves tools/skills. `apply-context` recompiles only that company's test context after a compiler fix. `cleanup-drafts` rejects unused pending cards; it does not delete applied configuration. Test companies remain for inspection; remove them only through an explicitly reviewed cleanup process. Never delete an ambiguous claimed workflow to make a test green.
 
-The repeatable target and known failures are recorded in `.planning/PRODUCTION-READINESS-2026-09-17.md`.
+The repeatable target and known failures are recorded in `docs/plans/legacy/PRODUCTION-READINESS-2026-09-17.md`.
+
+
+## External output location
+
+Maintained legacy manual scripts that previously used `.planning/evidence` or `.planning/artifacts` now write/read `ARTIFACTS_ROOT/runs/manual/<HARNESS_RUN_ID>/`. Set the same `HARNESS_RUN_ID` for a producer and its follow-up consumer; the compatibility default is `legacy`. Use a fresh run ID for each reviewed run. Historical outputs stay local/external and are not required files in a clone. Path migration does not authorize running these network/DB/SIP scenarios.

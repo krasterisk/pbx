@@ -19,7 +19,7 @@ const PHONE_HEADER_HINTS = [
   'сот',
 ];
 
-const EXTERNAL_ID_HINTS = ['id', 'external', 'внешний', 'код', 'клиент_id'];
+const EXTERNAL_ID_HINTS = ['id', 'external', 'external_id', 'externalid', 'внешний', 'внешний_id', 'код', 'клиент_id'];
 
 function normalizeHeader(header: string): string {
   return header.trim().toLowerCase().replace(/\s+/g, '_');

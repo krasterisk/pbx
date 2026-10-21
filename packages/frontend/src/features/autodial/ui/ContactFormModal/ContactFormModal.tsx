@@ -1,10 +1,12 @@
+import { useAutodialConfirmation } from '../AutodialConfirmation/useAutodialConfirmation';
+import { useAutodialDialogFocus } from '../AutodialConfirmation/useAutodialDialogFocus';
 import { Switch } from '@/shared/ui';
 import { ModalBody } from '@/shared/ui';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import type { IAutodialBaseField } from '@krasterisk/shared';
+import type { IAutodialBaseField, CreateAutodialContactInput } from '@krasterisk/shared';
 import {
   Button,
   Checkbox,
@@ -35,6 +37,10 @@ import {
 } from '../../model/slice/autodialPageSlice';
 import cls from './ContactFormModal.module.scss';
 import { autodialErrorKey } from '../../lib/mutationError';
+import { PhoneOffsetSelect } from '../PhoneOffsetSelect/PhoneOffsetSelect';
+import { useCreateCommand, uncertainAutodialSave } from '../../model/useCreateCommand';
+import { CreateCommandStatus } from '../CreateCommandStatus/CreateCommandStatus';
+import { ContactHistory } from './ContactHistory';
 
 interface PhoneDraft {
   uid?: number;
@@ -51,6 +57,8 @@ interface ContactFormModalProps {
 
 export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
   const { t } = useTranslation();
+  const { confirm, confirmationDialog } = useAutodialConfirmation();
+  const dialogFocus = useAutodialDialogFocus();
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector(selectAutodialContactModalOpen);
   const contactUid = useAppSelector(selectAutodialSelectedContactUid);
@@ -69,8 +77,10 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [hydratedKey, setHydratedKey] = useState<string | null>(null);
+  const baseline = useRef('');
   const sessionKey = `${baseUid}:${contactUid ?? 'new'}`;
-  const isSaving = isCreating || isUpdating;
+  const command = useCreateCommand<CreateAutodialContactInput, CreateAutodialContactInput>('contact', sessionKey, baseUid);
+  const isSaving = isCreating || isUpdating || command.busy;
   const loadError = baseError || (contactUid !== null && contactError);
   const isReady = Boolean(base) && hydratedKey === sessionKey && !loadError;
 
@@ -78,33 +88,34 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
     if (!isOpen) { setHydratedKey(null); return; }
     if (hydratedKey === sessionKey || !base || (contactUid !== null && !existing)) return;
     setError(null);
-    if (contactUid !== null && existing) {
-      setValues(existing.values ?? {});
-      setPhones(
-        (existing.phones ?? []).map((p) => ({
-          uid: p.uid,
-          raw: p.raw || p.normalized,
-          is_primary: p.is_primary,
-          tz_offset_min: p.tz_offset_min,
-        })),
-      );
-      setExternalId(existing.external_id ?? '');
-      setComment(existing.comment ?? '');
-    } else {
-      setValues(Object.fromEntries(base.fields.filter((field) => field.type === 'boolean').map((field) => [field.key, false])));
-      setPhones([{ raw: '', is_primary: true, tz_offset_min: 0 }]);
-      setExternalId('');
-      setComment('');
-    }
+    const pending = command.pending?.draft;
+    const initial = contactUid !== null && existing ? {
+      values: existing.values ?? {},
+      phones: (existing.phones ?? []).map((p) => ({ uid: p.uid, raw: p.raw || p.normalized, is_primary: p.is_primary, tz_offset_min: p.tz_offset_min })),
+      externalId: existing.external_id ?? '', comment: existing.comment ?? '',
+    } : {
+      values: pending?.values ?? Object.fromEntries(base.fields.filter((field) => field.type === 'boolean').map((field) => [field.key, false])),
+      phones: pending?.phones.map((phone) => ({ ...phone, is_primary: phone.is_primary ?? false, tz_offset_min: phone.tz_offset_min ?? 0 })) ?? [{ raw: '', is_primary: true, tz_offset_min: 0 }],
+      externalId: pending?.external_id ?? '', comment: pending?.comment ?? '',
+    };
+    setValues(initial.values); setPhones(initial.phones); setExternalId(initial.externalId); setComment(initial.comment);
+    baseline.current = JSON.stringify(initial);
     setHydratedKey(sessionKey);
-  }, [isOpen, contactUid, existing, base, sessionKey, hydratedKey]);
+  }, [isOpen, contactUid, existing, base, sessionKey, hydratedKey, command.pending]);
 
   const fields = (base?.fields ?? [])
     .slice()
     .sort((a, b) => a.position - b.position)
     .filter((field) => !field.is_phone && field.type !== 'phone');
 
-  const close = () => dispatch(autodialPageActions.closeContactModal());
+  const close = async (force = false) => {
+    if (!force) {
+      const message = command.pending ? 'autodial.workspace.commandCloseHint'
+        : isReady && JSON.stringify({ values, phones, externalId, comment }) !== baseline.current ? 'autodial.workspace.discard' : null;
+      if (message && !(await confirm(t(message)))) return;
+    }
+    dispatch(autodialPageActions.closeContactModal());
+  };
 
   const setPhone = (index: number, next: PhoneDraft) =>
     setPhones(phones.map((p, i) => (i === index ? next : p)));
@@ -114,7 +125,8 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
 
   const onSave = async () => {
     if (!isReady || isSaving) return;
-    const cleanPhones = phones
+    const original = command.pending?.payload;
+    const cleanPhones = (original?.phones ?? phones)
       .filter((p) => p.raw.trim())
       .map((p) => ({ ...p, raw: p.raw.trim() }));
     if (cleanPhones.length === 0) {
@@ -127,12 +139,12 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
       (field: IAutodialBaseField) =>
         field.required && !field.is_phone && field.type !== 'phone' && !String(values[field.key] ?? '').trim(),
     );
-    if (missing) {
+    if (missing && !original) {
       setError(t('autodial.contacts.fieldRequired', { field: missing.label || missing.key }));
       return;
     }
 
-    const data = {
+    const data = original ?? {
       values,
       phones: cleanPhones,
       external_id: externalId.trim() || null,
@@ -142,17 +154,18 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
       if (contactUid !== null) {
         await updateContact({ baseUid, contactUid, data }).unwrap();
       } else {
-        await createContact({ baseUid, data }).unwrap();
+        await command.run(data, data, (body, id) => createContact({ baseUid, data: body, ui_command_id: id }).unwrap());
       }
-      close();
+      close(true);
     } catch (error) {
-      setError(t(autodialErrorKey(error, 'autodial.contacts.saveFailed')));
+      setError(uncertainAutodialSave(error) ? contactUid === null ? null : t('autodial.workspace.updateUncertain') : t(autodialErrorKey(error, 'autodial.contacts.saveFailed')));
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && close()}>
-      <FormDialogContent size="large" className={cls.dialog} data-testid="autodial-contact-form-modal" aria-describedby={undefined}>
+      {confirmationDialog}
+      <FormDialogContent {...dialogFocus} size="large" className={cls.dialog} data-testid="autodial-contact-form-modal" aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>
             {contactUid !== null
@@ -172,7 +185,7 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
           {loadError ? (
             <QueryErrorState message={t('autodial.common.loadFailed')} onRetry={() => { void refetchBase(); if (contactUid !== null) void refetchContact(); }} retryLabel={t('autodial.common.retry')} />
           ) : !isReady ? <Loader2 aria-label={t('common.loading')} /> : null}
-          <VStack align="stretch" gap="8" max inert={!isReady || isSaving}>
+          <VStack align="stretch" gap="8" max inert={!isReady || isSaving || Boolean(command.pending)}>
             <Text className={cls.sectionTitle}>{t('autodial.contacts.phones')}</Text>
             {phones.map((phone, index) => (
               <HStack key={index} gap="8" align="end" max wrap="wrap" className={cls.phoneRow}>
@@ -189,15 +202,13 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
                 </VStack>
                 <VStack align="stretch" gap="4" className={cls.narrow}>
                   <Label htmlFor={`autodial-contact-tz-${index}`}>
-                    {t('autodial.contacts.tzOffset')}
+                    {t('autodial.workspace.phoneTimezone')}
                   </Label>
-                  <Input
+                  <PhoneOffsetSelect
                     id={`autodial-contact-tz-${index}`}
-                    type="number"
-                    step={60}
                     value={phone.tz_offset_min}
-                    onChange={(e) =>
-                      setPhone(index, { ...phone, tz_offset_min: Number(e.target.value) || 0 })
+                    onChange={(minutes) =>
+                      setPhone(index, { ...phone, tz_offset_min: minutes })
                     }
                   />
                 </VStack>
@@ -235,10 +246,10 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
                 {t('autodial.contacts.addPhone')}
               </Button>
             </HStack>
-            <Text className={cls.hint}>{t('autodial.contacts.tzHint')}</Text>
+            <Text className={cls.hint}>{t('autodial.workspace.phoneTimezoneHint')}</Text>
           </VStack>
 
-          <VStack align="stretch" gap="8" max inert={!isReady || isSaving}>
+          <VStack align="stretch" gap="8" max inert={!isReady || isSaving || Boolean(command.pending)}>
             <Text className={cls.sectionTitle}>{t('autodial.contacts.fieldsSection')}</Text>
             <div className={cls.grid}>
               {fields.map((field) => (
@@ -320,13 +331,17 @@ export const ContactFormModal = memo(({ baseUid }: ContactFormModalProps) => {
               </VStack>
             </div>
           </VStack>
+          {isReady && contactUid !== null && <ContactHistory baseUid={baseUid} contactUid={contactUid} />}
         </ModalBody>
 
         <DialogFooter className={cls.footer} data-testid="autodial-contact-form-footer">
           <VStack gap="8" max align="end">
-            {error && <Text className={cls.error}>{error}</Text>}
+            <CreateCommandStatus pending={Boolean(command.pending)} busy={command.busy} slow={command.slow} onCheck={() => {
+              void command.check().then((saved) => { if (saved) close(true); else setError(t('autodial.workspace.commandStillUnknown')); }).catch(() => setError(t('autodial.workspace.commandCheckFailed')));
+            }} />
+            {error && <Text className={cls.error} role="alert">{error}</Text>}
             <HStack gap="8" justify="end" max wrap="wrap" className={cls.footerActions}>
-              <Button variant="outline" disabled={isSaving} onClick={close}>
+              <Button variant="outline" disabled={isSaving} onClick={() => close()}>
                 {t('common.cancel')}
               </Button>
               <Button disabled={isSaving || !isReady} onClick={() => void onSave()}>

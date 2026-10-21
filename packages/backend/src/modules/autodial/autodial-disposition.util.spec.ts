@@ -3,6 +3,7 @@ import {
   decideRetry,
   dispositionFromAnsweredCall,
   dispositionFromHangupCause,
+  dispositionFromUnansweredChannel,
   isTerminalDisposition,
 } from './autodial-disposition.util';
 
@@ -84,5 +85,28 @@ describe('isTerminalDisposition', () => {
     expect(isTerminalDisposition('dnc')).toBe(true);
     expect(isTerminalDisposition('max_attempts')).toBe(true);
     expect(isTerminalDisposition('no_answer')).toBe(false);
+  });
+});
+
+
+describe('ARI ringing timeout evidence', () => {
+  it('recognizes the captured cause0/Ringing event only after the admitted dial limit', () => {
+    expect(dispositionFromUnansweredChannel({ cause: 0, state: 'Ringing', elapsedMs: 5008, dialTimeoutSec: 5 })).toBe('no_answer');
+    expect(dispositionFromHangupCause(0)).toBe('failed');
+  });
+  it.each([
+    { cause: 0, state: 'Ringing', elapsedMs: 4999, dialTimeoutSec: 5 },
+    { cause: 0, state: 'Down', elapsedMs: 10000, dialTimeoutSec: 5 },
+    { cause: 0, state: 'Ringing', elapsedMs: 10000 },
+    { cause: 0, state: 'Ringing', dialTimeoutSec: 5 },
+    { cause: 0, state: 'Ringing', elapsedMs: 10000, dialTimeoutSec: 0 },
+    { cause: 0, state: 'Ringing', elapsedMs: NaN, dialTimeoutSec: 5 },
+    { cause: 0, state: 'Ringing', elapsedMs: Infinity, dialTimeoutSec: 5 },
+    { cause: 21, state: 'Ringing', elapsedMs: 10000, dialTimeoutSec: 5 },
+  ])('does not relabel early cancellation, transport failure or missing evidence %#', (event) => {
+    expect(dispositionFromUnansweredChannel(event)).toBe('failed');
+  });
+  it('preserves an explicit busy cause even after the timer', () => {
+    expect(dispositionFromUnansweredChannel({ cause: 17, state: 'Ringing', elapsedMs: 10000, dialTimeoutSec: 5 })).toBe('busy');
   });
 });

@@ -5,8 +5,19 @@ import type { ILoginResponse } from '@krasterisk/shared';
 import { setSession } from '@/features/auth/model/authSlice';
 import { accessTokenIsImpersonation } from '@/features/auth/lib/impersonationSession';
 import { getEffectiveApiBase, isStandaloneApp } from './apiBase';
+import { getLoginRedirectPath } from './lib/loginRedirectPath';
+import { rememberLoginReturn, type LoginReturnIdentity } from '@/shared/lib/auth/loginReturn';
 
-type AuthSliceState = { auth?: { accessToken?: string | null } };
+type AuthSliceState = { auth?: { accessToken?: string | null; user?: LoginReturnIdentity | null } };
+
+function rememberExpiredSession(getState: () => unknown) {
+  let user = (getState() as AuthSliceState).auth?.user;
+  if (!user) {
+    try { user = JSON.parse(localStorage.getItem('user') || 'null'); } catch { /* Invalid persisted identity. */ }
+  }
+  const { pathname, search = '', hash = '' } = window.location;
+  rememberLoginReturn(pathname + search + hash, user, import.meta.env.BASE_URL);
+}
 
 function resolveAccessToken(getState: () => unknown): string | null {
   const fromStore = (getState() as AuthSliceState).auth?.accessToken;
@@ -80,16 +91,18 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
           extraOptions,
         );
       } else {
+        rememberExpiredSession(api.getState);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
 
-        window.location.href = '/login';
+        window.location.href = getLoginRedirectPath();
       }
     } else {
+      rememberExpiredSession(api.getState);
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      window.location.href = getLoginRedirectPath();
     }
   }
 

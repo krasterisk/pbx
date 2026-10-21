@@ -62,7 +62,7 @@ const LegacyCdrReportPage = memo(() => {
 
   const queryParams = filtersToQueryParams(filters, page, PAGE_SIZE);
   const { data: listData, isLoading: listLoading, isFetching, isError: listLoadError, refetch: retryList } = useGetCdrListQuery(queryParams);
-  const { data: statsData, isLoading: statsLoading } = useGetCdrStatsQuery({
+  const { data: statsData, isLoading: statsLoading, isError: statsLoadError } = useGetCdrStatsQuery({
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
     direction: filters.direction,
@@ -110,6 +110,10 @@ const LegacyCdrReportPage = memo(() => {
       if (value) next.set(key, value);
       else next.delete(key);
     });
+    if (patch.dateFrom === '' || patch.dateTo === '') {
+      next.set('dateFrom', '');
+      next.set('dateTo', '');
+    }
     setSearchParams(next);
   }, [searchParams, setSearchParams]);
 
@@ -165,7 +169,7 @@ const LegacyCdrReportPage = memo(() => {
       </Flex>
 
       <Flex direction="column" align="stretch" max className={cls.statsScroll}>
-        <CdrStats stats={statsData} isLoading={statsLoading} />
+        <CdrStats stats={statsData} isLoading={statsLoading} isError={statsLoadError} />
       </Flex>
 
       <Card className={cls.card}>

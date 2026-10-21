@@ -195,7 +195,35 @@
         {
           "id": "0048-ai-robot-studio.sql",
           "artifact": "0048-ai-robot-studio.sql"
-        }
+        },
+        {
+          "id": "0049-call-facts.sql",
+          "artifact": "0049-call-facts.sql"
+        },
+          {
+            "id": "0050-call-dimensions.sql",
+            "artifact": "0050-call-dimensions.sql"
+          },
+          {
+            "id": "0051-autodial-ui-commands.sql",
+            "artifact": "0051-autodial-ui-commands.sql"
+          },
+          {
+            "id": "0052-autodial-test-evidence.sql",
+            "artifact": "0052-autodial-test-evidence.sql"
+          },
+          {
+            "id": "0053-autodial-business-goal.sql",
+            "artifact": "0053-autodial-business-goal.sql"
+          },
+          {
+            "id": "0054-call-semantic-windows.sql",
+            "artifact": "0054-call-semantic-windows.sql"
+          },
+          {
+            "id": "0055-phone-sessions.sql",
+            "artifact": "0055-phone-sessions.sql"
+          }
       ],
       "profiles": {
         "analytics-api": [
@@ -606,7 +634,35 @@
         {
           "id": "0048-ai-robot-studio.sql",
           "artifact": "postgres/0048-ai-robot-studio.sql"
-        }
+        },
+        {
+          "id": "0049-call-facts.sql",
+          "artifact": "postgres/0049-call-facts.sql"
+        },
+          {
+            "id": "0050-call-dimensions.sql",
+            "artifact": "postgres/0050-call-dimensions.sql"
+          },
+          {
+            "id": "0051-autodial-ui-commands.sql",
+            "artifact": "postgres/0051-autodial-ui-commands.sql"
+          },
+          {
+            "id": "0052-autodial-test-evidence.sql",
+            "artifact": "postgres/0052-autodial-test-evidence.sql"
+          },
+          {
+            "id": "0053-autodial-business-goal.sql",
+            "artifact": "postgres/0053-autodial-business-goal.sql"
+          },
+          {
+            "id": "0054-call-semantic-windows.sql",
+            "artifact": "postgres/0054-call-semantic-windows.sql"
+          },
+          {
+            "id": "0055-phone-sessions.sql",
+            "artifact": "postgres/0055-phone-sessions.sql"
+          }
       ],
       "profiles": {
         "analytics-api": [

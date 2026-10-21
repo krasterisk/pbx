@@ -35,6 +35,7 @@ import { CallCenterAccessListService } from './callcenter-access-list.service';
 import { amiFailureMessage, isAlreadyQueueMemberError } from './ami-error.util';
 import { CallCenterShiftRestoreService } from './callcenter-shift-restore.service';
 import { ConferenceEphemeralService } from '../conferences/conference-ephemeral.service';
+import { PhoneSessionService } from '../phone-session/phone-session.service';
 import { User } from '../users/user.model';
 import { ServiceRequest } from '../service-requests/service-request.model';
 import { buildSipId, companionIdOf, isWebrtcCompanion, primaryIdOf, extractExtension, interfaceToExtension } from '../endpoints/endpoint-ids.util';
@@ -102,6 +103,7 @@ export class CallCenterService {
     private readonly accessListService: CallCenterAccessListService,
     private readonly shiftRestore: CallCenterShiftRestoreService,
     private readonly conferenceEphemeralService: ConferenceEphemeralService,
+    private readonly phoneSessions: PhoneSessionService,
   ) {}
 
   // ─── Helpers ─────────────────────────────────────────────
@@ -435,6 +437,11 @@ export class CallCenterService {
   // ─── Agent Actions ──────────────────────────────────────
 
   async agentLogin(agentInterface: string, queues: string[], userUid: number, userId: number) {
+    return this.phoneSessions.guardCallCenterLogin(agentInterface, userUid, userId,
+      () => this.agentLoginWithPhoneOwnership(agentInterface, queues, userUid, userId));
+  }
+
+  private async agentLoginWithPhoneOwnership(agentInterface: string, queues: string[], userUid: number, userId: number) {
     // In-memory + AMI events use queue suffix (q700_0 → 0), not necessarily JWT vpbx.
     const stateUid = this.tenantFromQueues(queues) ?? userUid;
 

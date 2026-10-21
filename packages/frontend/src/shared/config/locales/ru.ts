@@ -1,6 +1,8 @@
 import { autodialWorkspaceRu, autodialWorkspaceErrorsRu } from './autodialWorkspace';
 import { aiVoiceDesignerRu } from './aiVoiceDesigner';
+import { callsRu } from './calls';
 export const ru = {
+  calls: callsRu,
   modal: { defaultOption: "По умолчанию", errors: {"save":"Не удалось сохранить. Проверьте настройки и повторите попытку.","upload":"Не удалось загрузить файл. Повторите попытку.","remove":"Не удалось удалить файл. Повторите попытку."}, sections: {report: 'Отчёт', filters: 'Фильтры', delivery: 'Доставка', "identity":"Основные сведения","connection":"Подключение","account":"Учётные данные","access":"Права доступа","settings":"Параметры","timing":"Ожидание и таймеры"} },
   period: {
     day: "День",
@@ -1278,6 +1280,11 @@ export const ru = {
         promptsSection: "Записи",
         phonebooksSection: "Справочники",
         ttsSection: "Движки синтеза",
+        ttsLoadError: "Не удалось загрузить провайдеры речи. Повторите запрос.",
+        ttsForbidden: "Недостаточно прав для просмотра провайдеров речи. Обратитесь к администратору.",
+        ttsDisabled: "Сохранённый провайдер речи отключён. Включите его или выберите другой.",
+        ttsNoneEnabled: "Нет включённых провайдеров речи. Проверьте настройки подключения.",
+        ttsUnavailable: "Сохранённый провайдер речи недоступен. Выберите другой или проверьте его настройки.",
         callGroupsSection: "Группы вызова",
         voiceRobotsSection: "Голосовые роботы",
         contextsSection: "Контексты",
@@ -1555,6 +1562,7 @@ export const ru = {
         restore: "Вернуть шаг",
       },
       unreachable: {
+        graphBody: 'От начала цепочки нет пути к отмеченным шагам. Проверьте переходы и завершающие действия.',
         title_one: "Шаг ниже не выполнится",
         title_other: "Шаги ниже не выполнятся",
         body_one:
@@ -4141,6 +4149,7 @@ export const ru = {
       askAgain: "Попросить агента ещё раз",
       applyFailed: "Не удалось применить. {{reason}}",
       interactiveRequired: "Войдите заново с паролем в этом браузере, чтобы подтвердить изменение автообзвона. Карточка сохранена.",
+      interactiveSecureContextRequired: "Для подтверждения изменения откройте приложение по HTTPS или через localhost и войдите с паролем. При HTTP-подключении по IP повторный вход не поможет. Карточка сохранена.",
       requestFailed: "Запрос не выполнен. Проверьте соединение и повторите действие.",
       deniedExplanation: "У вас нет прав на это действие.",
       dest: {
@@ -6163,7 +6172,8 @@ export const ru = {
         webhookUidPlaceholder: "ID webhook-интеграции (необязательно)",
         palette: "Палитра полей",
         fieldsList: "Поля шаблона",
-        preview: "Предпросмотр",
+        preview: "Как увидит оператор",
+        inspectorEmpty: "Выберите поле слева, чтобы изменить подпись, обязательность и варианты.",
         dragHandle: "Перетащите для изменения порядка",
         required: "Обязательное",
         widthFull: "На всю ширину",
@@ -7071,7 +7081,14 @@ export const ru = {
     publishFailed: "Не удалось опубликовать проект",
     projectNotFound: "Проект не найден",
     editorTabs: "Разделы редактора",
+    textPrivacy: {
+      title: "Защита данных",
+      enable: "Обезличивать текст перед анализом в облаке",
+      explanation: "Локальная модель aiPBX выделяет персональные данные; система заменяет их условными обозначениями. Если подготовка недоступна, анализ остановится. Исходные запись и расшифровка сохраняются с прежними правами доступа.",
+      limits: "Автоматическое обезличивание снижает риск раскрытия данных, но требует проверки качества. Оно не исправляет слова, суммы, даты или смысл разговора.",
+    },
     editorTab: {
+      privacy: "Защита данных",
       templates: "Шаблоны",
       metrics: "Метрики",
       scales: "Шкалы",
@@ -7233,20 +7250,27 @@ export const ru = {
 
   // Module Hub / Marketplace / Command palette (Phase 08 NAV-14)
   hub: {
-    allSectionPages: "Все страницы раздела {{name}}",
+    allSectionPages: "Все страницы модуля {{name}}",
     sectionPagesTitle: "Страницы: {{name}}",
-    unavailableSections: "Недоступные разделы",
-    notConnected: "Не подключён",
-
     title: "Модули",
     open: "Открыть",
-    activeSection: "Активные",
-    marketplaceSection: "Маркетплейс",
+    activeSection: "Мои модули",
+    marketplaceSection: "Можно подключить",
+    new: "Новый",
+    until: "до {{date}}",
+    disabledByAdmin: "Выключен администратором",
+    askAdmin: "Подключает администратор",
+    turnedOff: "Модуль выключен администратором",
+    pageForbidden: "Эта страница вам не разрешена",
+    enable: "Включить",
+    disable: "Выключить",
+    includes: "Что входит",
+    roleStart: "Стартовые страницы ролей",
     addFavorite: "Добавить в избранное",
     removeFavorite: "Убрать из избранного",
     openModule: "Открыть {{name}}",
     kindBase: "В комплекте",
-    kindMarket: "Расширение",
+    kindMarket: "Дополнительный",
     buyPlaceholder: "Оформление покупки скоро будет доступно",
     emptyActive: {
       title: "Нет доступных модулей",
@@ -7254,12 +7278,12 @@ export const ru = {
     },
     moduleUnavailable: "Модуль недоступен. Переход на главный экран",
     disableConfirm:
-      "Отключить модуль: доступ к разделу будет закрыт для всех пользователей тенанта. Продолжить?",
+      "Выключить модуль: доступ будет закрыт для всех пользователей тенанта. Продолжить?",
     chipEmpty: "Модули",
     more: "Ещё",
-    catalog: "Разделы",
-    openSectionPages: "Выбрать страницу: {{name}}",
-    searchNav: "Поиск раздела или страницы",
+    catalog: "Модули",
+    openSectionPages: "Выбрать страницу модуля {{name}}",
+    searchNav: "Поиск модуля или страницы",
     pagesSection: "Страницы",
     navBack: "Назад",
     home: "Главная",
@@ -7269,8 +7293,16 @@ export const ru = {
     expandSidebar: "Развернуть",
   },
   marketplace: {
-    buy: "Купить",
-    confirmPurchase: "Подтвердить покупку",
+    buy: "Подключить",
+    confirmPurchase: "Подключить",
+    connectFor: "Подключить за {{amount}} ₽/мес",
+    enableNow: "Включить сразу",
+    balanceNow: "Баланс: {{amount}} ₽",
+    balanceAfter: "После подключения: {{amount}} ₽",
+    shortfall: "Не хватает {{amount}} ₽",
+    topUpHint: "Пополнение делает оператор платформы. Напишите ему недостающую сумму.",
+    openModule: "Открыть модуль",
+    enableFailed: "Модуль оплачен, но включить его не удалось. Повторите включение.",
     addModule: "Добавить модуль",
     empty: {
       title: "Все модули уже подключены",
@@ -7290,16 +7322,13 @@ export const ru = {
     priceFree: "Бесплатно",
     insufficientBalance: "Недостаточно средств на балансе для покупки.",
     insufficientBalanceHint:
-      "Пополните баланс тенанта через облачного администратора (банк / депозит).",
-    depositLink: "К модулям",
+      "Пополнение делает оператор платформы.",
     checkoutError:
       "Не удалось завершить покупку. Проверьте данные и повторите попытку",
     skuUnpublished: "Не опубликовано",
-    checkoutPlanHintSku:
-      "Проверьте SKU и цену. Покупка выдаёт entitlement; включение продукта — отдельный шаг.",
-    checkoutConfirmBodySku:
-      "Списать {{amount}} ₽/мес и выдать право на «{{name}}»? Включение остаётся отдельным шагом.",
-    checkoutSuccessSku: "«{{name}}» теперь доступен. Включите продукт, когда будете готовы.",
+    checkoutPlanHintSku: "Проверьте цену. Модуль можно включить сразу.",
+    checkoutConfirmBodySku: "Списать {{amount}} ₽/мес и подключить «{{name}}»?",
+    checkoutSuccessSku: "«{{name}}» подключён.",
     removeFromBaseConfirm:
       "Удалить модуль из базового набора: изменение затронет все тенанты без переопределения. Продолжить?",
   },
@@ -7310,9 +7339,9 @@ export const ru = {
     empty: "Ничего не найдено. Попробуйте другой запрос",
   },
   license: {
-    locked: "Заблокировано",
-    disabled: "Отключено",
-    active: "Включено",
+    locked: "Не подключён",
+    disabled: "Выключен",
+    active: "Активен",
   },
   platform: {
     consoleBanner: "Вы в",
@@ -7353,8 +7382,8 @@ export const ru = {
     roleStartTitle: "Роль → старт",
     roleStartScaffold: "Редактор роль→старт загружается…",
     addModule: "Добавить модуль",
-    kindBase: "Базовый",
-    kindMarket: "Маркет",
+    kindBase: "В комплекте",
+    kindMarket: "Дополнительный",
     kindOff: "Выключен",
     kindOffTitle: "Выключить модуль",
     kindOffConfirm: "Модуль пропадёт из хаба и бокового меню у всех кабинетов. Продолжить?",

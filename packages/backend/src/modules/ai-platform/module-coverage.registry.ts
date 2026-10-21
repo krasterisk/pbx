@@ -32,6 +32,8 @@ export type ReasonedModule = {
 export type ModuleCoverageEntry = CoveredModule | ReasonedModule;
 
 export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
+  'phone-session': { kind: 'infrastructure', reason: 'Authenticated browser phone ownership and SIP/WebRTC transport; choosing a device and originating calls require the current user session, not autonomous AI tools.' },
+  calls: { kind: 'infrastructure', reason: 'Shared logical-call classification and projection contracts; tenant read tools are provided by the reports adapter.' },
   support: {kind:'covered',domain:'support',sharedSkill:'helpdesk-support',capability:'read'},
   'ai-agents': {
     kind: 'infrastructure',
@@ -68,10 +70,7 @@ export const MODULE_COVERAGE: Record<string, ModuleCoverageEntry> = {
     kind: 'infrastructure',
     reason: 'Usage and quota contracts; D4 owns ledger tables. Not a tenant agent catalog.',
   },
-  'ai-voice': {
-    kind: 'infrastructure',
-    reason: 'Cascade AI voice runtime, tickets and deployments; not a tenant PBX agent catalog.',
-  },
+  'ai-voice': { kind: 'covered', domain: 'ai-robots', capability: 'read' },
   'ai-tool-connectivity': {
     kind: 'infrastructure',
     reason: 'Business tool connections and MCP gateway contracts; not a tenant PBX agent catalog.',

@@ -1,4 +1,5 @@
 import { looksLikeMultiEntitySetup, looksLikeRouteSetup } from './turn-outcome.util';
+import { isCdrAnswerTool } from './cdr-answer-links';
 
 export type TurnMode = 'confirm' | 'clarify' | 'configure' | 'diagnose' | 'read';
 
@@ -50,6 +51,10 @@ export const UNTRUNCATED_TOOLS = new Set([
 
 const ROBOT_READ_TOOLS = new Set(['validate_voice_robot_scenario', 'check_voice_robot_readiness',
   'export_voice_robot_scenario', 'test_voice_robot_match', 'test_voice_robot_data_list']);
+
+// Exact report reads only: broad search_/resolve_ prefixes could expose mutations.
+const REPORT_READ_TOOLS = new Set(['search_calls', 'summarize_calls', 'get_cdr_summary',
+  'resolve_call_employees', 'summarize_employee_calls', 'search_call_content', 'summarize_call_conversations']);
 
 const READ_TOOL_NAME = /^(?:get_|list_|read_|find_|describe_|evaluate_|cc_get_|cc_list_|dialplan_dry_run$)/;
 
@@ -115,7 +120,7 @@ export function turnModeHint(message: string): string {
 }
 
 export function isReadToolName(name: string): boolean {
-  return READ_TOOL_NAME.test(name) || ROBOT_READ_TOOLS.has(name);
+  return READ_TOOL_NAME.test(name) || ROBOT_READ_TOOLS.has(name) || REPORT_READ_TOOLS.has(name);
 }
 
 /** MCP discovery may exceed the provider's per-request tool limit. Keep discovery and the requested domains first. */
@@ -163,6 +168,23 @@ export function evidenceReminder(locale?: string): string {
 }
 
 export function clipToolResult(toolName: string, content: string, maxChars: number): string {
+  if (isCdrAnswerTool(toolName)) {
+    // Report totals and coverage must stay parseable and cannot be silently
+    // turned into a partial sample by cutting a row or a summary in half.
+    try {
+      const compact = JSON.stringify(JSON.parse(content));
+      if (compact.length <= 12_000) return compact;
+      return JSON.stringify({
+        error: 'report_result_too_large',
+        message: 'Narrow the period, filters or row limit. No partial report was returned.',
+      });
+    } catch {
+      return JSON.stringify({
+        error: 'report_result_invalid',
+        message: 'The report tool failed or returned an unreadable result. Do not infer counts or contents.',
+      });
+    }
+  }
   if (UNTRUNCATED_TOOLS.has(toolName)) return content;
   if (content.length <= maxChars) return content;
   return `${content.slice(0, maxChars)}\n[truncated]`;

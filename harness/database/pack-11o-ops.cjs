@@ -39,7 +39,9 @@ addDir('packages/backend/database', (name) => /\.(cjs|sql|json)$/.test(name) && 
 addDir('packages/backend/src/database', (name) => name.endsWith('.cjs'));
 addFile('packages/shared/package.json');
 addDir('packages/shared/dist', (name) => name.endsWith('.js') || name.endsWith('.d.ts'));
-addFile('.planning/initiatives/ai-products/AI-11-11O-OPS.md');
+addFile('tools/artifacts/paths.cjs');
+addFile('tools/artifacts/policy.json');
+addFile('docs/plans/initiatives/ai-products/AI-11-11O-OPS.md');
 
 fs.writeFileSync(path.join(stage, 'package.json'), `${JSON.stringify({
   name: 'krasterisk-11o-ops',

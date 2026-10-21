@@ -18,6 +18,6 @@ import { DashboardAiAdapter } from './dashboard-ai.adapter';
  imports:[AmiModule,AuthModule,CloudAdminModule,AiPlatformModule],
  controllers:[DashboardController],
  providers:[DashboardService,DashboardAccessService,DashboardGateway,DashboardCollectorService,DashboardReadStore,DashboardProjectionService,DashboardCloudService,DashboardSystemService,DashboardCacheService,DashboardAiAdapter],
- exports:[DashboardService,DashboardReadStore,DashboardAccessService]
+ exports:[DashboardService,DashboardReadStore,DashboardAccessService,DashboardCloudService]
 })
 export class DashboardModule {}

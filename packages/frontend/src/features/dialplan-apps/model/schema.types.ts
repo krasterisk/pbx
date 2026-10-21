@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { ITtsEngine } from '@/entities/engines';
 
 export type FieldKind =
   | 'text'
@@ -44,9 +45,15 @@ export interface FieldOption {
 }
 
 export interface SchemaCatalogRef {
-  items: Array<{ value: string; label: string; aliases?: string[]; fields?: Array<{ value: string; label: string }> }>;
+  items: Array<{ value: string; label: string; disabled?: boolean; aliases?: string[]; fields?: Array<{ value: string; label: string }> }>;
   isLoading: boolean;
-  sectionHref: string;
+  isError?: boolean;
+  errorStatus?: number | string;
+  onRetry?: () => void;
+  /** Null denotes a read-only catalog without an administrative configuration link. */
+  sectionHref: string | null;
+  emptyHint?: string;
+  ttsEngines?: Array<Pick<ITtsEngine, 'uid' | 'type' | 'settings'>>;
   sectionKey?: string;
   sectionFallback: string;
 }
@@ -58,6 +65,7 @@ export interface SchemaFieldRenderCtx {
   onChange: (patch: Record<string, unknown>) => void;
   readOnly?: boolean;
   field: FieldSchema;
+  ttsEngines?: SchemaCatalogRef['ttsEngines'];
   /** Current route extensions — used by dial-number preview when dest is route_pattern. */
   previewPatterns?: string[];
   tenantUid?: number;

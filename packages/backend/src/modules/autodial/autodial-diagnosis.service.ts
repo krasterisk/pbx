@@ -10,6 +10,7 @@ import { campaignWindowOpen } from './autodial-schedule.util';
 import { countAutodialReadyAgents } from './autodial-ready-agents.util';
 import type { IAutodialDiagnosis } from '@krasterisk/shared';
 import { autodialSqlDate } from './autodial-sql-time.util';
+import { nextAutodialWindow } from './autodial-next-window.util';
 
 @Injectable()
 export class AutodialDiagnosisService {
@@ -36,7 +37,7 @@ export class AutodialDiagnosisService {
     if (campaign.apply_error) reasons.push({ code: 'apply_error', detail: campaign.apply_error });
     if (campaign.status !== 'running') reasons.push({ code: `campaign_${campaign.status}` });
     if (!this.ari.isConnected()) reasons.push({ code: 'ari_disconnected' });
-    if (!open) reasons.push({ code: 'outside_schedule' });
+    if (!open) reasons.push({ code: 'outside_schedule', next_at: nextAutodialWindow(campaign.schedules ?? [], now)?.toISOString() });
     if (campaign.dial_mode !== 'agentless' && readyAgents === 0) reasons.push({ code: 'no_ready_agents' });
     if (Number(counts?.ready ?? 0) === 0) {
       if (Number(counts?.waiting ?? 0) > 0) reasons.push({ code: 'waiting_retry', count: Number(counts.waiting),

@@ -17,6 +17,7 @@ export * from './types/peer.types';
 export * from './types/trunk.types';
 export * from './types/queue.types';
 export * from './types/cdr.types';
+export * from './calls';
 export * from './types/ami-events.types';
 export * from './types/api.types';
 export * from './types/dialplan-params.types';

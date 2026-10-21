@@ -222,6 +222,18 @@ function createHarness(
 }
 
 describe('PbxAgentLoopService', () => {
+  it('publishes and persists only the current authorized CDR link when a model invents a host', async () => {
+    const id='a'.repeat(64), url=`/reports/calls/${id}?transcriptSegment=s1`;
+    const h=createHarness([
+      {text:'',toolCalls:[{id:'c-cdr',name:'search_call_content',arguments:{phrase:'кран'}}]},
+      {text:`[Открыть звонок](https://krasterisk.local/reports/calls/${id}?transcriptSegment=s1)`,toolCalls:[]},
+    ],{tools:[{name:'search_call_content',description:'Find authorized call content',inputSchema:{phrase:{type:'string'}}}],skillNames:['reports'],domains:['reports']});
+    h.mcpTools.callTool.mockResolvedValue([{type:'text',text:JSON.stringify({rows:[{url}]})}]);
+    const events=await collect(h.service.runTurn('Найди разговор о кране',{uid:THREAD},turnContext()));
+    const reply=events.filter(e=>e.name==='item').map(e=>e.data as {kind?:string;text?:string}).find(e=>e.kind==='assistant');
+    expect(reply?.text).toBe(`[Открыть звонок](${url})`);
+    expect(h.stored.find(row=>row.role==='assistant'&&row.visibility==='public')?.content).toBe(reply?.text);
+  });
   it('keeps provider reasoning for continuation without exposing it in public events', async () => {
     const h = createHarness([
       { text: '', reasoning: 'private-continuation-only', toolCalls: [{ id: 'c-reason', name: 'get_pbx_state', arguments: {} }] },

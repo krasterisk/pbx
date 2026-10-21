@@ -1,9 +1,9 @@
 import { HTTP_RESULT_VAR, AUTODIAL_SUPPORTED_ACTIONS, autodialScenarioActionSchema, type IAutodialAmdConfig, type IRouteAction } from '@krasterisk/shared';
 import type { DialplanCategory } from '../ami/dialplan-apply.service';
 import { buildCurlCall } from '../../shared/utils/dialplan-curl.util';
-import { emitPlayback } from '../../shared/utils/dialplan-playback.util';
 import { renderActionChain } from '../../shared/utils/dialplan.util';
 import { autodialExtensionTarget, autodialQueueTarget } from './autodial-target.util';
+import { AUTODIAL_INPUT_SIGNAL } from './autodial-input-signal.util';
 
 /** Chars that would break out of a dialplan application argument. */
 const DIALPLAN_UNSAFE = /[(),?[\]{}$\\";\n\r]/g;
@@ -149,7 +149,9 @@ function emitScenario(actions: IRouteAction[], vpbxUserUid: number): string[] {
 
   for (const action of list) {
     if (!action || (action as { enabled?: boolean }).enabled === false) continue;
-    lines.push(`same => n,UserEvent(AutodialStep,Tenant: ${vpbxUserUid},Attempt: \${KRSK_AC_ATTEMPT},Step: ${sanitizeAutodialArg(action.id)},Type: ${sanitizeAutodialArg(action.type)})`);
+    const stepId = sanitizeAutodialArg(action.id || `step_${list.indexOf(action) + 1}`);
+    const observedAction = { ...action, id: stepId };
+    lines.push(`same => n,UserEvent(AutodialStep,Tenant: ${vpbxUserUid},Attempt: \${KRSK_AC_ATTEMPT},Test: \${KRSK_AC_TEST_UID},Step: ${stepId},Type: ${sanitizeAutodialArg(action.type)})`);
     if ((AUTODIAL_SUPPORTED_ACTIONS as readonly string[]).includes(action.type)) {
       const checked = autodialScenarioActionSchema.safeParse(action);
       if (!checked.success) throw new Error(`AC_SCENARIO_INVALID_PARAMS: ${checked.error.issues[0].message}`);
@@ -158,15 +160,17 @@ function emitScenario(actions: IRouteAction[], vpbxUserUid: number): string[] {
 
     switch (action.type) {
       case 'playback': {
+        lines.push('same => n,Set(PLAYBACKSTATUS=FAILED)');
         const params = { ...(action.params ?? {}) } as Record<string, unknown>;
         if (params.files == null && params.file == null && params.prompt) {
           params.files = params.prompt;
         }
         lines.push(...emitSharedChain({ ...action, params } as IRouteAction, vpbxUserUid));
+        if (!params.mode || params.mode === 'plain') lines.push(stepResultEvent(observedAction, vpbxUserUid, '${PLAYBACKSTATUS}'));
         break;
       }
       case 'text2speech':
-        lines.push(...emitAutodialText2Speech(action, vpbxUserUid, lines.length));
+        lines.push(...emitAutodialText2Speech(observedAction, vpbxUserUid, lines.length));
         break;
       case 'toqueue': {
         // Route destination comes only from the scenario step. Campaign
@@ -207,12 +211,13 @@ function emitScenario(actions: IRouteAction[], vpbxUserUid: number): string[] {
         break;
       }
       case 'ai_voice_robot': {
+        const robotUid = Number(params.robot_uid ?? params.robotUid ?? 0);
         const deploymentId = sanitizeAutodialArg(params.deployment_id ?? params.deploymentId ?? '');
-        lines.push(
-          deploymentId
-            ? `same => n,Stasis(krasterisk_ai_voice,${deploymentId},\${KRSK_AC_ATTEMPT})`
-            : 'same => n,NoOp(Autodial: no AI voice deployment)',
-        );
+        const target = robotUid > 0 ? `robot:${robotUid}` : deploymentId;
+        lines.push(target
+          ? `same => n,Stasis(krasterisk_ai_voice,${target},\${KRSK_AC_ATTEMPT})`
+          : 'same => n,Set(AI_ROBOT_OUTCOME=failed)');
+        if (!target) lines.push('same => n,NoOp(Autodial: no AI voice robot)');
         break;
       }
       case 'collect_input': {
@@ -232,8 +237,10 @@ function emitScenario(actions: IRouteAction[], vpbxUserUid: number): string[] {
         if (stem && !/^[A-Za-z0-9_-]+$/.test(stem)) {
           throw new Error('AC_SCENARIO_INVALID_PROMPT');
         }
-        const prompt = stem ? `/usr/records/${vpbxUserUid}/sounds/${stem}` : '';
+        const prompt = `/usr/records/${vpbxUserUid}/sounds/${stem || AUTODIAL_INPUT_SIGNAL}`;
+        lines.push(`same => n,Set(${variable}=)`);
         lines.push(`same => n,Read(${variable},${prompt},${digits},,${attempts},${timeout})`);
+        lines.push(stepResultEvent(observedAction, vpbxUserUid, '${READSTATUS}', `,Digits: \${${variable}}`));
         lines.push(`same => n,Set(__${variable}=\${${variable}})`);
         if (variable !== 'KRSK_AC_DTMF') {
           lines.push(`same => n,Set(__KRSK_AC_DTMF=\${${variable}})`);
@@ -298,59 +305,36 @@ export function autodialTtsRuntimeTemplate(text: unknown): { template: string; v
   return { template: parts.join(''), vars: [...new Set(vars)] };
 }
 
-function emitAutodialText2Speech(
-  action: IRouteAction,
-  vpbxUserUid: number,
-  stepIndex: number,
-): string[] {
+function stepResultEvent(action: IRouteAction, tenant: number, status: string, extra = ''): string {
+  return `same => n,UserEvent(AutodialStepResult,Tenant: ${tenant},Attempt: \${KRSK_AC_ATTEMPT},Test: \${KRSK_AC_TEST_UID},Step: ${sanitizeAutodialArg(action.id)},Type: ${sanitizeAutodialArg(action.type)},Status: ${status}${extra})`;
+}
+
+function emitAutodialText2Speech(action: IRouteAction, vpbxUserUid: number, stepIndex: number): string[] {
   const params = (action.params ?? {}) as Record<string, unknown>;
-  if (!autodialTtsHasFieldTokens(params.text)) {
-    return emitSharedChain(action, vpbxUserUid);
-  }
-  const { template, vars } = autodialTtsRuntimeTemplate(params.text);
+  const { template } = autodialTtsRuntimeTemplate(params.text);
   const textVar = `KRSK_TTS_TEXT_${stepIndex}`;
-  const curl = buildCurlCall(
-    'tts',
-    {
-      text: `\${${textVar}}`,
-      engine: sanitizeAutodialArg(params.engine),
-      ...Object.fromEntries(Object.entries((params.settings ?? {}) as Record<string, unknown>)
-        .filter(([key, value]) => ['voice', 'language_code', 'speed', 'speaking_rate', 'role', 'pitch_shift'].includes(key) && value != null)
-        .map(([key, value]) => [key, sanitizeAutodialArg(value)])),
-    },
-    { vpbxUserUid },
-  );
-  const play = emitPlayback(
-    { mode: 'plain', files: `\${${HTTP_RESULT_VAR}}` },
-    { vpbxUserUid },
-  );
-  const lines = [
+  const done = `ac_tts_done_${stepIndex}`;
+  const curl = buildCurlCall('tts', {
+    text: `\${${textVar}}`, engine: sanitizeAutodialArg(params.engine),
+    ...Object.fromEntries(Object.entries((params.settings ?? {}) as Record<string, unknown>)
+      .filter(([key, value]) => ['voice', 'language_code', 'speed', 'speaking_rate', 'role', 'pitch_shift'].includes(key) && value != null)
+      .map(([key, value]) => [key, sanitizeAutodialArg(value)])),
+  }, { vpbxUserUid, timeoutSec: 30 });
+  return [
     `same => n,Set(${textVar}=${template})`,
-    ...curl
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => (/^(same => n,|exten => |\[)/.test(line) ? line : `same => n,${line}`)),
+    'same => n,Set(KRSK_AC_TTS_STATUS=TTS_FAILED)',
+    'same => n,Set(PLAYBACKSTATUS=FAILED)',
+    ...autodialApplicationLines(curl),
+    // Only the bridge's tenant-published media stem can reach Playback. HTTP
+    // errors and empty replies remain failures; no unrelated beep/number audio.
+    `same => n,GotoIf($[\${REGEX("^[A-Za-z0-9_-]+$" \${${HTTP_RESULT_VAR}})} != 1]?${done})`,
+    `same => n,Playback(/usr/records/${vpbxUserUid}/sounds/\${${HTTP_RESULT_VAR}})`,
+    'same => n,Set(KRSK_AC_TTS_STATUS=${PLAYBACKSTATUS})',
+    `same => n(${done}),NoOp(Autodial speech result)`,
+    stepResultEvent(action, vpbxUserUid, '${KRSK_AC_TTS_STATUS}'),
+    ...(params.completionOutcome ? [`same => n,ExecIf($["\${KRSK_AC_TTS_STATUS}" = "SUCCESS"]?Set(__KRSK_AC_BUSINESS_OUTCOME=${sanitizeAutodialArg((params.completionOutcome as { code: string }).code)}))`] : []),
+    ...(params.onFailure === 'hangup' ? ['same => n,ExecIf($["${KRSK_AC_TTS_STATUS}" != "SUCCESS"]?Hangup())'] : []),
   ];
-  for (const raw of play.split('\n').map((line) => line.trim()).filter(Boolean)) {
-    const line = /^(same => n,|exten => |\[)/.test(raw) ? raw : `same => n,${raw}`;
-    const playback = /^same => n,Playback\((.+)\)$/.exec(line);
-    if (playback) {
-      lines.push(
-        `same => n,ExecIf($["\${${HTTP_RESULT_VAR}}" != ""]?Playback(${playback[1]}))`,
-      );
-    } else {
-      lines.push(line);
-    }
-  }
-  const numberVar = vars.find((name) => /DEBT|AMOUNT|SUM|TOTAL/.test(name));
-  if (numberVar) {
-    lines.push(
-      `same => n,ExecIf($["\${${HTTP_RESULT_VAR}}" = ""]?SayNumber(\${${numberVar}}))`,
-    );
-  }
-  lines.push(`same => n,ExecIf($["\${${HTTP_RESULT_VAR}}" = ""]?Playback(beep))`);
-  return lines;
 }
 
 /** Adapter onto the shared action renderer (playback/TTS media prep). */

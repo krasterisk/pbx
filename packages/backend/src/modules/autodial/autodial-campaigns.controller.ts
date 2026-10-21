@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   ParseIntPipe,
   Post,
@@ -24,8 +25,10 @@ import { AutodialPreflightService } from './autodial-preflight.service';
 import { AutodialWriteGuard } from './autodial-write.guard';
 import { AutodialTestCallService } from './autodial-test-call.service';
 import { AutodialPreviewService } from './autodial-preview.service';
+import { AutodialUiCommandService } from './autodial-ui-command.service';
 import {
   CreateAutodialCampaignDto,
+  AutodialSchedulePreviewDto,
   CreateAutodialDncDto,
   StartAutodialCampaignDto,
   UpdateAutodialCampaignDto,
@@ -44,6 +47,7 @@ export class AutodialCampaignsController {
     private readonly preflight: AutodialPreflightService,
     private readonly testCalls: AutodialTestCallService,
     private readonly preview: AutodialPreviewService,
+    private readonly commands: AutodialUiCommandService,
   ) {}
 
   @Get('capabilities')
@@ -59,6 +63,13 @@ export class AutodialCampaignsController {
     return this.preflight.check(req.user.vpbx_user_uid, uid);
   }
 
+  @Get('campaigns/:uid/tour-preview')
+  previewTour(@Req() req: AuthedRequest, @Param('uid', ParseIntPipe) uid: number,
+    @Query('include_dispositions') selection: unknown, @Res({ passthrough: true }) response: Response) {
+    response.setHeader('Cache-Control', 'private, no-store');
+    return this.campaigns.previewTour(req.user.vpbx_user_uid, uid, selection);
+  }
+
   @Get('campaigns')
   findAll(@Req() req: AuthedRequest) {
     return this.campaigns.findAll(req.user.vpbx_user_uid);
@@ -69,9 +80,35 @@ export class AutodialCampaignsController {
     return this.preflight.checkDraft(req.user.vpbx_user_uid, body);
   }
 
+  @Post('schedule-preview')
+  schedulePreview(@Body() body: AutodialSchedulePreviewDto) {
+    return this.preflight.previewSchedule(body);
+  }
+
   @Post('campaigns/:uid/test-call')
   testCall(@Req() req: AuthedRequest, @Param('uid', ParseIntPipe) uid: number, @Body() body: unknown) {
     return this.testCalls.call(req.user.vpbx_user_uid, req.user.sub, uid, body);
+  }
+
+  @Get('campaigns/:uid/latest-test-call')
+  latestTestCall(@Req() req: AuthedRequest, @Param('uid', ParseIntPipe) uid: number,
+    @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'private, no-store');
+    return this.testCalls.latest(req.user.vpbx_user_uid, req.user.sub, uid);
+  }
+
+  @Get('campaigns/:uid/test-calls/:testUid')
+  testCallStatus(@Req() req: AuthedRequest, @Param('uid', ParseIntPipe) uid: number,
+    @Param('testUid') testUid: string, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.testCalls.status(req.user.vpbx_user_uid, req.user.sub, uid, testUid);
+  }
+
+  @Get('campaigns/:uid/test-call-command')
+  reconcileTestCall(@Req() req: AuthedRequest, @Param('uid', ParseIntPipe) uid: number,
+    @Query('key') key: string, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.testCalls.reconcile(req.user.vpbx_user_uid, req.user.sub, uid, key);
   }
 
   @Get('campaigns/:uid/scenario-preview')
@@ -89,7 +126,12 @@ export class AutodialCampaignsController {
   }
 
   @Post('campaigns')
-  create(@Req() req: AuthedRequest, @Body() body: CreateAutodialCampaignDto) {
+  async create(@Req() req: AuthedRequest, @Body() body: CreateAutodialCampaignDto, @Headers('idempotency-key') key?: string) {
+    if (key !== undefined) {
+      const uid = await this.commands.run(req.user.vpbx_user_uid, req.user.sub, key, 'create_campaign', body,
+        (transaction) => this.campaigns.createInTransaction(req.user.vpbx_user_uid, body, transaction, req.user.sub));
+      return this.campaigns.completeCreation(req.user.vpbx_user_uid, uid);
+    }
     return this.campaigns.create(req.user.vpbx_user_uid, body, req.user.sub);
   }
 

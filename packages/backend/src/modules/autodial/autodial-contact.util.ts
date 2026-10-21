@@ -15,11 +15,13 @@ function invalid(code: string, field: string): never {
 export function coerceAutodialValue(field: Field, raw: unknown): string | number | boolean {
   if (!['string', 'number', 'boolean'].includes(typeof raw)) invalid('AC_INVALID_VALUE', field.key);
   switch (field.type) {
-    case 'boolean':
+    case 'boolean': {
       if (typeof raw === 'boolean') return raw;
-      if (raw === '1' || raw === 1 || raw === 'true' || raw === 'yes') return true;
-      if (raw === '0' || raw === 0 || raw === 'false' || raw === 'no') return false;
+      const text = String(raw).trim().toLowerCase();
+      if (['1', 'true', 'yes', 'да'].includes(text)) return true;
+      if (['0', 'false', 'no', 'нет'].includes(text)) return false;
       return invalid('AC_INVALID_BOOL', field.key);
+    }
     case 'number':
     case 'money': {
       if (typeof raw === 'boolean' || !String(raw).trim()) invalid('AC_INVALID_NUMBER', field.key);

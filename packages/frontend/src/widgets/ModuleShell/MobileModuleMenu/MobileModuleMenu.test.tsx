@@ -66,7 +66,8 @@ describe('MobileModuleMenu left Sheet', () => {
     const trigger = screen.getByTestId('phone-module-apps');
     expect(document.getElementById(trigger.getAttribute('aria-controls')!)).toHaveAttribute('hidden');
     expect(screen.getByTestId('phone-module-apps')).toHaveTextContent('nav.apps');
-    expect(screen.getByTestId('phone-module-ai')).toBeInTheDocument();
+    expect(screen.queryByTestId('phone-module-ai')).toBeNull();
+    expect(screen.queryByTestId('phone-module-disabled')).toBeNull();
     expect(screen.getByRole('navigation', { name: 'hub.catalog' })).toBeInTheDocument();
   });
 
@@ -106,22 +107,11 @@ describe('MobileModuleMenu left Sheet', () => {
     expect(screen.queryByTestId('phone-module-page-core-trunks')).toBeNull();
   });
 
-  it.each(['ai', 'disabled'])('sends unavailable section %s to Hub', (code) => {
-    render(
-      <MemoryRouter initialEntries={['/endpoints']}>
-        <MobileModuleMenu />
-        <Routes>
-          <Route path="/endpoints" element={<div>Endpoints</div>} />
-          <Route path="/modules" element={<div data-testid="hub-page">Hub</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
-    fireEvent.click(screen.getByTestId('phone-module-menu-trigger'));
-    expect(screen.getByTestId('phone-module-' + code)).toHaveAttribute('href', '/modules?module=' + code);
-    expect(screen.queryByTestId('phone-module-page-ai-ai-agents')).toBeNull();
-    expect(screen.queryByTestId('phone-module-page-disabled-ivrs')).toBeNull();
-    fireEvent.click(screen.getByTestId('phone-module-' + code));
-    expect(screen.getByTestId('hub-page')).toBeInTheDocument();
+  it('keeps locked and disabled modules out of the section menu', () => {
+    renderMenu();
+    expect(screen.queryByTestId('phone-module-ai')).toBeNull();
+    expect(screen.queryByTestId('phone-module-disabled')).toBeNull();
+    expect(screen.getByTestId('phone-module-hub')).toHaveAttribute('href', '/modules');
   });
 
 
@@ -190,12 +180,12 @@ describe('MobileModuleMenu left Sheet', () => {
   });
 });
 
-describe('stable section menu and unavailable context',()=>{
- it('uses canonical navigation order, keeps Hub last and names the locked status',()=>{
+describe('stable section menu',()=>{
+ it('uses canonical navigation order and keeps Hub last without locked modules',()=>{
   userLevel=UserLevel.ADMIN;vi.mocked(useHubModules).mockReturnValue({navigation:[core,apps,locked],active:[apps,core],marketplace:[locked],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
   renderMenu();const links=screen.getByRole('navigation',{name:'hub.catalog'}).querySelectorAll('a,button');
   expect(links[0]).toHaveAttribute('data-testid','phone-module-core');expect(links[links.length-1]).toHaveAttribute('data-testid','phone-module-hub');
-  expect(screen.getByTestId('phone-module-ai')).toHaveAttribute('href','/modules?module=ai');expect(screen.getByTestId('phone-module-ai')).toHaveTextContent('hub.notConnected');
+  expect(screen.queryByTestId('phone-module-ai')).toBeNull();
  });
 });
 

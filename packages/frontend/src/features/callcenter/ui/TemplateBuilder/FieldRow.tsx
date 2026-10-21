@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { GripVertical, Pencil, Trash2, Columns2, Square, ArrowUp, ArrowDown } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Badge, Text, Tooltip } from '@/shared/ui';
+import { Badge, Text, Tooltip, TableRowAction } from '@/shared/ui';
 import { Flex } from '@/shared/ui/Stack';
+import styles from './FieldRow.module.scss';
 import type { ICardField } from '@/features/callcenter/model/types/callCard';
 
 export type BuilderField = ICardField & { id: string };
@@ -35,8 +36,6 @@ export const FieldRow = memo(({ field, selected, onEdit, onRemove, onToggleWidth
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.8 : 1,
   };
 
   const handleRemove = useCallback(() => onRemove(), [onRemove]);
@@ -48,50 +47,44 @@ export const FieldRow = memo(({ field, selected, onEdit, onRemove, onToggleWidth
       direction="row"
       align="center"
       gap="8"
-      className={`flex-wrap sm:flex-nowrap p-3 border rounded-lg bg-background/50 ${isDragging ? 'border-primary' : 'border-border'} ${selected ? 'ring-1 ring-primary' : ''}`}
+      className={`${styles.row}${isDragging ? ` ${styles.dragging}` : ''}${selected ? ` ${styles.selected}` : ''}`}
     >
       <Tooltip content={t('callcenter.cards.builder.dragHandle')}>
         <Flex
           {...attributes}
           aria-label={t('callcenter.cards.builder.dragHandle')}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 shrink-0"
+          className={styles.handle}
         >
-          <GripVertical className="w-4 h-4" />
+          <GripVertical size={16} />
         </Flex>
       </Tooltip>
 
-      <Flex direction="column" gap="2" className="flex-1 min-w-0">
-        <Text className="truncate font-medium">{field.label || field.field_key}</Text>
+      <Flex direction="column" gap="2" className={styles.body}>
+        <Text className={styles.label}>{field.label || field.field_key}</Text>
         <Flex gap="6" align="center">
           <Badge variant="secondary">{t(`callcenter.cards.fieldTypes.${field.field_type}`)}</Badge>
           {field.is_required ? (
-            <Text variant="muted" className="text-xs">{t('callcenter.cards.builder.required')}</Text>
+            <Text variant="muted" className={styles.required}>{t('callcenter.cards.builder.required')}</Text>
           ) : null}
         </Flex>
       </Flex>
 
-      {onMove ? <><Button variant="ghost" size="icon" disabled={first} aria-label={t('callcenter.cards.builder.moveUp')} onClick={() => onMove(-1)}><ArrowUp size={14} /></Button><Button variant="ghost" size="icon" disabled={last} aria-label={t('callcenter.cards.builder.moveDown')} onClick={() => onMove(1)}><ArrowDown size={14} /></Button></> : null}
-      <Tooltip content={field.width === 'half' ? t('callcenter.cards.builder.widthFull') : t('callcenter.cards.builder.widthHalf')}>
-        <Button variant="ghost" size="icon" aria-label={t(field.width === 'half' ? 'callcenter.cards.builder.widthFull' : 'callcenter.cards.builder.widthHalf')} onClick={onToggleWidth}>
-          {field.width === 'half' ? <Columns2 className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-        </Button>
-      </Tooltip>
-
-      <Button variant="ghost" size="icon" aria-label={t('common.edit')} onClick={onEdit}>
-        <Pencil className="w-4 h-4" />
-      </Button>
-
-      <Tooltip content={t('common.delete')}>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-          aria-label={t('common.delete')} onClick={handleRemove}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </Tooltip>
+      {onMove ? (
+        <>
+          <TableRowAction disabled={first} aria-label={t('callcenter.cards.builder.moveUp')} onClick={() => onMove(-1)}><ArrowUp size={16} /></TableRowAction>
+          <TableRowAction disabled={last} aria-label={t('callcenter.cards.builder.moveDown')} onClick={() => onMove(1)}><ArrowDown size={16} /></TableRowAction>
+        </>
+      ) : null}
+      <TableRowAction aria-label={t(field.width === 'half' ? 'callcenter.cards.builder.widthFull' : 'callcenter.cards.builder.widthHalf')} onClick={onToggleWidth}>
+        {field.width === 'half' ? <Columns2 size={16} /> : <Square size={16} />}
+      </TableRowAction>
+      <TableRowAction aria-label={t('common.edit')} onClick={onEdit}>
+        <Pencil size={16} />
+      </TableRowAction>
+      <TableRowAction danger aria-label={t('common.delete')} onClick={handleRemove}>
+        <Trash2 size={16} />
+      </TableRowAction>
     </Flex>
   );
 });

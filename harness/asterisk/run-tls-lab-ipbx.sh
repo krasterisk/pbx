@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 KEY="${IPBX_SSH_KEY:-$HOME/.ssh/krasterisk_ipbx_agent}"
 HOST="${IPBX_HOST:-root@ipbx.krasterisk.ru}"
 REMOTE_DIR="/tmp/krasterisk-tls-lab-$$"
-LOCAL_EVIDENCE="${1:-$ROOT/.planning/initiatives/ai-products/evidence/followup-fe-tls-pilot}"
+LOCAL_EVIDENCE="${1:-$(node "$ROOT/tools/artifacts/paths.cjs" --output runs ai-products followup-fe-tls-pilot)}"
 
 mkdir -p "$LOCAL_EVIDENCE"
 ssh -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes "$HOST" "mkdir -p $REMOTE_DIR"

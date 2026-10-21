@@ -1,10 +1,8 @@
 import {
   useBulkDeleteAutodialBasesMutation,
-  useDeleteAutodialBaseMutation,
   useGetAutodialBasesQuery,
 } from "@/shared/api/endpoints/autodialApi";
-import { useAppDispatch, useAppSelector } from "@/shared/hooks/useAppStore";
-import { classNames } from "@/shared/lib/classNames/classNames";
+import { useAppDispatch } from "@/shared/hooks/useAppStore";
 import {
   Badge,
   BulkDeleteDialog,
@@ -14,49 +12,41 @@ import {
   CardHeader,
   TableCard,
   TableToolbar,
+  Select,
+  TableRowAction,
   Text,
 } from "@/shared/ui";
 import { QueryErrorState } from "@/shared/ui/QueryErrorState";
 import { Flex, HStack, VStack } from "@/shared/ui/Stack";
-import { Database, Loader2 } from "lucide-react";
-import { memo, useEffect, useMemo, useState } from "react";
+import { Database, Loader2, Pencil } from "lucide-react";
+import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { autodialErrorKey } from "../../lib/mutationError";
 import {
   autodialPageActions,
-  selectAutodialActiveBaseUid,
 } from "../../model/slice/autodialPageSlice";
 import cls from "./BasesList.module.scss";
 
-export const BasesList = memo(() => {
+export const BasesList = memo(({ onOpen }: { onOpen: (uid: number) => void }) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const activeUid = useAppSelector(selectAutodialActiveBaseUid);
   const {
     data: bases,
     isLoading,
     isError,
     refetch,
   } = useGetAutodialBasesQuery();
-  const [deleteBase, { isLoading: isDeleting }] =
-    useDeleteAutodialBaseMutation();
   const [bulkDelete, { isLoading: isBulkDeleting }] =
     useBulkDeleteAutodialBasesMutation();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
-
-  useEffect(() => {
-    if (
-      bases &&
-      !bases.some((base) => base.uid === activeUid) &&
-      !isDeleting &&
-      !isBulkDeleting
-    ) {
-      const next = bases[0]?.uid ?? null;
-      if (next !== activeUid) dispatch(autodialPageActions.selectBase(next));
-    }
-  }, [activeUid, bases, dispatch, isDeleting, isBulkDeleting]);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('name');
+  const visibleBases = useMemo(() => (bases ?? []).filter((base) =>
+    `${base.name} ${base.description ?? ''}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
+    .sort((a, b) => sort === 'contacts' ? (b.contact_count ?? 0) - (a.contact_count ?? 0)
+      : a.name.localeCompare(b.name, undefined, { numeric: true })), [bases, search, sort]);
 
   const labels = useMemo(
     () =>
@@ -72,18 +62,6 @@ export const BasesList = memo(() => {
         ? [...new Set([...current, uid])]
         : current.filter((id) => id !== uid),
     );
-  };
-
-  const remove = async (uid: number) => {
-    if (isDeleting || isBulkDeleting) return;
-    setError(null);
-    try {
-      await deleteBase(uid).unwrap();
-      setSelected((current) => current.filter((id) => id !== uid));
-      await refetch();
-    } catch (caught) {
-      setError(t(autodialErrorKey(caught, "autodial.common.deleteFailed")));
-    }
   };
 
   const confirmBulk = async () => {
@@ -105,21 +83,27 @@ export const BasesList = memo(() => {
   return (
     <Card className={cls.card}>
       <CardHeader>
-        <HStack gap="8" align="center" justify="between" max>
+        <HStack gap="12" align="center" justify="between" wrap="wrap" max>
           <HStack gap="8" align="center">
             <Database size={20} className={cls.icon} />
             <Text className={cls.title}>{t("autodial.bases.title")}</Text>
           </HStack>
           <TableToolbar
-            showSearch={false}
+            searchId="autodial-bases-search"
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchLabel={t('autodial.workspace.baseSearch')}
+            searchPlaceholder={t('autodial.workspace.baseSearch')}
             showExport={false}
+            actions={<Select aria-label={t('autodial.workspace.baseSort')} value={sort} onChange={(event) => setSort(event.target.value)}
+              options={[{ value: 'name', label: t('autodial.workspace.sortName') }, { value: 'contacts', label: t('autodial.workspace.sortContacts') }]} />}
             selection={{
               selectedCount: selected.length,
               selectedIds: selected.map(String),
               selectAllMatching: (ids = []) => setSelected(ids.map(Number)),
               clearSelection: () => setSelected([]),
             }}
-            selectionRowIds={(bases ?? []).map((base) => String(base.uid))}
+            selectionRowIds={visibleBases.map((base) => String(base.uid))}
             onDeleteSelected={() => setBulkOpen(true)}
             deleteDisabled={isBulkDeleting}
           />
@@ -137,16 +121,16 @@ export const BasesList = memo(() => {
           <Flex justify="center" className={cls.loading}>
             <Loader2 size={20} className={cls.spinner} />
           </Flex>
-        ) : (bases ?? []).length === 0 ? (
+        ) : visibleBases.length === 0 ? (
           <VStack gap="8" align="center" className={cls.empty}>
-            <Text variant="muted">{t("autodial.bases.empty")}</Text>
+            <Text variant="muted">{t(search ? 'autodial.workspace.noMatchingBases' : 'autodial.bases.empty')}</Text>
           </VStack>
         ) : (
           <VStack gap="4" max>
-            {(bases ?? []).map((base) => (
+            {visibleBases.map((base) => (
               <TableCard
                 onActivate={() =>
-                  dispatch(autodialPageActions.openEditBase(base.uid))
+                  onOpen(base.uid)
                 }
                 direction="row"
                 key={base.uid}
@@ -159,17 +143,14 @@ export const BasesList = memo(() => {
                 align="center"
                 max
                 gap="8"
-                className={classNames(cls.row, {
-                  [cls.rowActive]: base.uid === activeUid,
-                })}
+                className={cls.row}
               >
                 <Button
                   type="button"
                   variant="ghost"
                   className={cls.rowButton}
-                  aria-current={base.uid === activeUid ? "true" : undefined}
                   onClick={() =>
-                    dispatch(autodialPageActions.selectBase(base.uid))
+                    onOpen(base.uid)
                   }
                 >
                   <VStack gap="2" align="start">
@@ -190,6 +171,8 @@ export const BasesList = memo(() => {
                     </HStack>
                   </VStack>
                 </Button>
+                <TableRowAction aria-label={t('autodial.workspace.baseSettings', { name: base.name })}
+                  onClick={() => dispatch(autodialPageActions.openEditBase(base.uid))}><Pencil /></TableRowAction>
               </TableCard>
             ))}
           </VStack>
@@ -200,7 +183,7 @@ export const BasesList = memo(() => {
         onOpenChange={setBulkOpen}
         labels={labels}
         allMatching={false}
-        hasFilter={false}
+        hasFilter={Boolean(search.trim())}
         isDeleting={isBulkDeleting}
         onConfirm={() => void confirmBulk()}
         i18nNs="autodial.bases"

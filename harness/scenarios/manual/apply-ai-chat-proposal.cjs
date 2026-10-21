@@ -1,10 +1,11 @@
+const manualOutput = (name) => require('../../../tools/artifacts/paths.cjs').outputPath('runs', 'manual', process.env.HARNESS_RUN_ID || 'legacy', name);
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
 const mysql = require('mysql2/promise');
 const path = require('node:path');
 
-const EVIDENCE = path.resolve('.planning/evidence/autodial-mcp-live-2026-09-21.json');
+const EVIDENCE = manualOutput('autodial-mcp-live-2026-09-21.json');
 
 for (const line of fs.readFileSync('.env', 'utf8').split(/\r?\n/)) {
   const match = line.match(/^([A-Z0-9_]+)=(.*)$/);

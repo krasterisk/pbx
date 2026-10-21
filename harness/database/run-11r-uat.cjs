@@ -349,7 +349,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       assert.equal(report.nativePbx.reason, 'native_pbx_gated');
       assert.deepEqual(report.remainingGates, [...REMAINING_GATES]);
       const outDir = process.env.AI11_11R_OUT
-        || path.join(__dirname, '../../.planning/initiatives/ai-products/evidence/11r');
+        || require('../../tools/artifacts/paths.cjs').outputPath('runs', 'ai-products', '11r');
       const outFile = writeRobotsEvalReport(outDir, dialect, report);
       t.diagnostic(`eval=${outFile}`);
     });

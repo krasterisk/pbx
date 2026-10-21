@@ -7,6 +7,7 @@ import { AmiService } from '../ami/ami.service';
 import { DashboardReadStore } from './dashboard-read-store.service';
 import { DashboardCacheService } from './dashboard-cache.service';
 import { participantTokens, scopeAllows, tenantFromChannel } from './dashboard-classifier';
+import { dashboardInventoryKey, DASHBOARD_SNAPSHOT_SELECT, decodeDashboardSnapshot, encodeDashboardSnapshot, type DashboardStoredSnapshot } from './dashboard-snapshot-storage';
 
 type Event = Record<string, any>;
 interface Contact { status: DashboardEndpoint['status']; expires: number | null; renewalPreviousExpiry?: number | null }
@@ -46,6 +47,7 @@ export class DashboardCollectorService implements OnModuleInit, OnModuleDestroy 
   private leaseHeartbeatTask: Promise<void> | null = null;
   private generation = 0;
   private inventoryRevision = 0;
+  private persistedInventoryHash: string | null = null;
   private hydratedGeneration = -1;
   private callsInitialized = false;
   private inventoryInitialized = false;
@@ -84,7 +86,7 @@ export class DashboardCollectorService implements OnModuleInit, OnModuleDestroy 
       if (this.destroyed || beforeAcquire !== this.generation) return;
       if (!acquired) { if (previousLeader) this.loseLeadership(); return; }
       this.leader = true;
-      if (!previousLeader) { this.generation++; this.lastCalls = 0; this.lastInventory = 0; }
+      if (!previousLeader) { this.generation++; this.lastCalls = 0; this.lastInventory = 0; this.persistedInventoryHash = null; }
       const generation = this.generation;
       if (this.hydratedGeneration !== generation) await this.hydrateFallback(generation);
       if (!this.current(generation)) return;
@@ -131,9 +133,9 @@ export class DashboardCollectorService implements OnModuleInit, OnModuleDestroy 
     if (memory) memory.inventory = memory.inventory.map((row) => ({ ...row }));
     let payload: LivePayload | null = memory;
     try {
-      const [row] = await this.store.select<{ payload: string }>('SELECT payload FROM dashboard_live_state WHERE node_id= :node AND OCTET_LENGTH(payload)<= :maxBytes', { node: this.store.nodeId, maxBytes: this.maxFallbackBytes });
+      const [row] = await this.store.select<DashboardStoredSnapshot>(DASHBOARD_SNAPSHOT_SELECT, { node: this.store.nodeId, inventoryNode: dashboardInventoryKey(this.store.nodeId), maxBytes: this.maxFallbackBytes });
       if (row && typeof row.payload === 'string' && Buffer.byteLength(row.payload) <= this.maxFallbackBytes) {
-        const saved = JSON.parse(row.payload); if (this.validFallback(saved)) payload = saved;
+        const saved = decodeDashboardSnapshot<LivePayload>(this.store.nodeId, row); if (this.validFallback(saved)) payload = saved;
       }
     } catch { /* Keep an available in-process last complete source; cold starts remain unavailable. */ }
     if (!this.current(generation)) return;
@@ -182,13 +184,19 @@ export class DashboardCollectorService implements OnModuleInit, OnModuleDestroy 
     } catch { if (this.current(generation)) this.loseLeadership(); }
   }
   private async publish(generation: number): Promise<void> {
-    await this.store.sequelize.transaction(async (transaction) => {
+    const inventoryHash = await this.store.sequelize.transaction(async (transaction) => {
       const [lease] = await this.store.select<{ owner: string; expires_at: number }>('SELECT owner,expires_at FROM dashboard_leases WHERE lease_key= :key FOR UPDATE', { key: `collector:${this.store.nodeId}` }, transaction);
       if (!this.current(generation)) return;
       if (lease?.owner !== this.owner || Number(lease.expires_at) <= Date.now()) { this.loseLeadership(); throw new Error('Collector ownership lost before publication'); }
-      await this.store.upsert('dashboard_live_state', { node_id: this.store.nodeId, payload: JSON.stringify(this.buildPayload()), updated_at: Date.now() }, ['node_id'], transaction);
+      const snapshot = encodeDashboardSnapshot(this.store.nodeId, this.buildPayload());
+      if (snapshot.hash !== this.persistedInventoryHash) {
+        await this.store.upsert('dashboard_live_state', { node_id: snapshot.key, payload: snapshot.inventory, updated_at: Date.now() }, ['node_id'], transaction);
+      }
+      await this.store.upsert('dashboard_live_state', { node_id: this.store.nodeId, payload: snapshot.payload, updated_at: Date.now() }, ['node_id'], transaction);
       if (!this.current(generation) || Number(lease.expires_at) <= Date.now()) throw new Error('Collector publication cancelled before commit');
+      return snapshot.hash;
     });
+    if (inventoryHash && this.current(generation)) this.persistedInventoryHash = inventoryHash;
   }
   private channel(event: Event): Channel | null {
     const id = String(event.uniqueid || event.destuniqueid || ''); if (!id) return null;
@@ -531,12 +539,13 @@ export class DashboardCollectorService implements OnModuleInit, OnModuleDestroy 
   private async read(): Promise<LivePayload> {
     return this.cache.get(`live:${this.store.nodeId}`, 5000, async () => {
       try {
-        const [row] = await this.store.select<{ payload: string; updated_at: number }>('SELECT payload,updated_at FROM dashboard_live_state WHERE node_id= :node', { node: this.store.nodeId });
+        const [row] = await this.store.select<DashboardStoredSnapshot>(DASHBOARD_SNAPSHOT_SELECT, { node: this.store.nodeId, inventoryNode: dashboardInventoryKey(this.store.nodeId), maxBytes: this.maxFallbackBytes });
         if (!row) throw new Error('live projection missing');
-        const payload = JSON.parse(row.payload) as LivePayload;
+        const payload = decodeDashboardSnapshot<LivePayload>(this.store.nodeId, row);
         if (!payload || !payload.source || !payload.inventorySource || !Array.isArray(payload.inventory) || !payload.calls || !payload.live) throw new Error('invalid live projection');
         this.lastPayload = payload;
-        if (Date.now() - Number(row.updated_at) > 45000) return this.stalePayload(payload);
+        const age = Date.now() - Number(row.updated_at);
+        if (!Number.isFinite(age) || age > 45000 || age < -1000) return this.stalePayload(payload);
         return payload;
       } catch {
         if (this.lastPayload) return this.stalePayload(this.lastPayload);

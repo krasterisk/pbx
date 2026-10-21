@@ -1,7 +1,9 @@
 /** runAnalysis - STT → diarize → score → SA-CHARGE-RUN (D-23, D-38, D-46). */
 
-import type { SaProjectConfigV1 } from '@krasterisk/shared';
+import { saTextPrivacyEnabled, type SaProjectConfigV1 } from '@krasterisk/shared';
 import type { SaChargeRunDeps, SaChargeRunInput, SaChargeRunResult } from '../charging/sa-charge-run';
+import { boundSttToMedia } from './media-timing';
+import { alignTranscriptPrivacyEvidence } from './text-privacy';
 
 export type AnalysisModels = {
   sttModelId: string;
@@ -15,6 +17,8 @@ export type RunAnalysisInput = {
   tenantUid: number;
   audioPath: string;
   audioMs: number;
+  /** Duration measured from decoded media, never a CDR billing duration. */
+  verifiedMediaDurationMs?: number;
   currency: string;
   channelSource: ChannelSource;
   swapChannels: boolean;
@@ -63,6 +67,7 @@ export type ScoreResult = {
 };
 
 export type RunAnalysisDeps = {
+  prepareText?: (segments: SttSegment[], config: SaProjectConfigV1) => Promise<{texts:string[];config:SaProjectConfigV1;receipt:unknown}>;
   stt: (args: { audioPath: string; modelId: string }) => Promise<SttResult | null>;
   score: (args: {
     segments: DiarizedSegment[];
@@ -84,6 +89,7 @@ export type RunAnalysisDeps = {
     summary: string;
     models: AnalysisModels;
     providerTokens: number;
+    evidence?: unknown[];
   }) => Promise<void>;
   persistError: (reason: string) => Promise<void>;
   invokeSaChargeRun: (
@@ -241,8 +247,26 @@ export async function runAnalysis(
     return { state: 'error', reason: sttOutcome.error };
   }
 
+  let bounded: ReturnType<typeof boundSttToMedia>;
+  try { bounded=boundSttToMedia(sttOutcome.stt.segments,input.verifiedMediaDurationMs); }
+  catch (error) {const reason=error instanceof Error?error.message:'invalid_stt_timing';await deps.persistError(reason);return{state:'error',reason};}
+  let cloudSegments=bounded.segments;
+  let cloudConfig=input.projectConfig ?? null;
+  const evidence:unknown[]=[...bounded.evidence];
+  try {
+    if(saTextPrivacyEnabled(cloudConfig)) {
+      if(!deps.prepareText || !cloudConfig) throw new Error('text_privacy_local_unavailable');
+      const prepared=await deps.prepareText(bounded.segments,cloudConfig);
+      if(prepared.texts.length!==bounded.segments.length || prepared.texts.some(s=>typeof s!=='string' || !s.trim())) throw new Error('text_privacy_invalid_response');
+      cloudSegments=bounded.segments.map((s,i)=>({...s,text:prepared.texts[i]}));
+      cloudConfig=prepared.config; evidence.push(prepared.receipt);
+    }
+  } catch {
+    await deps.persistError('text_privacy_failed');
+    return {state:'error',reason:'text_privacy_failed'};
+  }
   const diarized = await deps.diarize({
-    segments: sttOutcome.stt.segments,
+    segments: cloudSegments,
     audioPath: input.audioPath,
     channels: input.channels,
     stereoVerified: input.stereoVerified,
@@ -265,7 +289,7 @@ export async function runAnalysis(
     resolved.fallback
       ? { ...resolved.fallback, sttModelId: sttOutcome.used.sttModelId }
       : null,
-    input.projectConfig ?? null,
+    cloudConfig,
   );
   if ('error' in scoreOutcome) {
     await deps.persistError(scoreOutcome.error);
@@ -276,12 +300,36 @@ export async function runAnalysis(
     (sttOutcome.stt.providerTokens || 0) + (scoreOutcome.score.providerTokens || 0);
 
   // Stamp published version models on the run (D-38), not the runtime fallback choice.
+  let persistedSegments=diarized.segments;
+  if(saTextPrivacyEnabled(input.projectConfig)) {
+    // Energy diarization coalesces adjacent turns. Align consecutive source text,
+    // not array indexes, so originals and timestamps survive that transformation.
+    const norm=(s:string)=>s.normalize('NFKC').replace(/\s+/gu,' ').trim();
+    let cursor=0;
+    try {
+      persistedSegments=diarized.segments.map(segment=>{
+        const from=cursor;let combined='';
+        while(cursor<cloudSegments.length && norm(combined)!==norm(segment.text)) {
+          combined+=(combined?' ':'')+cloudSegments[cursor++].text;
+          if(norm(combined).length>norm(segment.text).length) break;
+        }
+        if(cursor===from || norm(combined)!==norm(segment.text)) throw new Error('alignment');
+        return {...segment,text:bounded.segments.slice(from,cursor).map(s=>s.text.trim()).join(' ')};
+      });
+      if(cursor!==cloudSegments.length) throw new Error('alignment');
+      evidence.splice(0,evidence.length,...alignTranscriptPrivacyEvidence(evidence,bounded.segments,persistedSegments));
+    } catch {
+      await deps.persistError('text_privacy_alignment_failed');
+      return {state:'error',reason:'text_privacy_alignment_failed'};
+    }
+  }
   await deps.persistSuccess({
-    segments: diarized.segments,
+    segments: persistedSegments,
     metrics: scoreOutcome.score.metrics,
     summary: scoreOutcome.score.summary,
     models: input.publishedVersionModels,
     providerTokens,
+    ...(evidence.length ? {evidence}:{}),
   });
 
   // D-46: prefer positive hangup/job audioMs; else STT durationSec→ms when known.

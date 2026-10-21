@@ -80,105 +80,32 @@
 }
 
 
-.crumbs {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
-  min-width: 0;
-  font-size: 14px;
-}
-
-.crumbItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-}
-
-.crumbSep {
-  color: var(--color-muted-foreground);
-  flex-shrink: 0;
-  opacity: 0.7;
-}
-
-.crumbLink {
-  color: var(--color-muted-foreground);
-  text-decoration: none;
-  white-space: nowrap;
-  border-radius: 4px;
-  padding: 2px 4px;
-
-  &:hover {
-    color: var(--color-primary);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
-  }
-}
-
-.crumbBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 28vw;
-  min-height: 32px;
-  padding: 2px 6px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-muted-foreground);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.2;
-
-  &:hover {
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-foreground) 4%, transparent);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
-  }
-
-  &.crumbCurrent {
-    color: var(--color-foreground);
-    font-weight: 600;
-  }
-}
-
-.crumbBtnLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.crumbChevron {
-  flex-shrink: 0;
-  opacity: 0.7;
-}
-
-.crumbText {
-  color: var(--color-muted-foreground);
-  white-space: nowrap;
-  padding: 2px 4px;
-}
-
-.crumbCurrent {
-  color: var(--color-foreground);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 28vw;
-}
-
 .spacer {
   flex: 1;
   min-width: 8px;
+}
+
+.searchTrigger {
+  gap: 8px;
+  min-width: 44px;
+  color: var(--color-muted-foreground);
+}
+
+.searchLabel, .searchKbd { display: none; }
+
+@media (min-width: 1280px) {
+  .searchTrigger {
+    width: min(420px, 36vw);
+    justify-content: flex-start;
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-foreground) 4%, transparent);
+  }
+
+  .searchLabel, .searchKbd { display: inline; }
+
+  .searchLabel { flex: 1; text-align: left; }
+
+  .searchKbd { font-size: 12px; }
 }
 
 .agentTriggerActive {
@@ -489,7 +416,6 @@
   .userTrigger { min-height: 44px; }
 }
 .sidebarNav { gap: 4px; }
-.crumbBtn { height: auto; }
 
 .sidebarItemActive { color: var(--color-foreground); box-shadow: inset 3px 0 0 currentColor; }
 

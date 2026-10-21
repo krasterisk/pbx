@@ -21,6 +21,7 @@ const LABEL_BY_SEED_CODE: Record<string, string> = {
   provision: 'nav.provisionTemplates',
   voice_robot: 'nav.voiceRobots',
   users_roles: 'nav.users',
+  tenant_modules: 'nav.modules',
   phonebooks: 'phonebooks.title',
   service_requests: 'nav.serviceRequests',
   komandor_claims: 'nav.komandorClaims',

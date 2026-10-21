@@ -25,7 +25,7 @@ test('eval report is measurement not SLA', () => {
 
 test('11A docs name LIVE-UAT and remaining gates', () => {
   const docs = fs.readFileSync(
-    path.join(__dirname, '../../.planning/initiatives/ai-products/AI-11-11A-UAT.md'),
+    path.join(__dirname, '../../docs/plans/initiatives/ai-products/AI-11-11A-UAT.md'),
     'utf8',
   );
   assert.match(docs, /Not a product SLA|not a product SLA/i);

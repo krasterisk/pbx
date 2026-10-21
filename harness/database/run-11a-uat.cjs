@@ -350,7 +350,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       assert.equal(report.productSlaClaimed, false);
       assert.deepEqual(report.remainingGates, [...REMAINING_GATES]);
       const outDir = process.env.AI11_11A_OUT
-        || path.join(__dirname, '../../.planning/initiatives/ai-products/evidence/11a');
+        || require('../../tools/artifacts/paths.cjs').outputPath('runs', 'ai-products', '11a');
       const outFile = writeEvalReport(outDir, dialect, report);
       t.diagnostic(`eval=${outFile}`);
     });

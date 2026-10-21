@@ -1,10 +1,12 @@
+import { formatContactValue } from '../../lib/formatContactValue';
+import { useAutodialConfirmation } from '../AutodialConfirmation/useAutodialConfirmation';
 import {
   useDeleteAutodialContactMutation,
   useGetAutodialBaseQuery,
   useGetAutodialContactsQuery,
   useGetAutodialCampaignContactsQuery,
 } from "@/shared/api/endpoints/autodialApi";
-import { useAppDispatch } from "@/shared/hooks/useAppStore";
+import { useAppDispatch, useAppSelector } from "@/shared/hooks/useAppStore";
 import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
 import {
   Badge,
@@ -12,6 +14,8 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Checkbox,
+  Label,
   Pagination,
   Select,
   Table,
@@ -35,29 +39,12 @@ import { autodialDispositionLabel } from '../../lib/labels';
 import { autodialPageActions } from "../../model/slice/autodialPageSlice";
 import cls from "./ContactsGrid.module.scss";
 import { ContactTaskActions } from '../CampaignWorkspace/ContactTaskActions';
+import { clientColumnViewKey, readHiddenClientColumns } from '../../model/clientColumnView';
 
 const PAGE_SIZE = 25;
 
-function renderValue(
-  field: IAutodialBaseField,
-  contact: IAutodialContact,
-  yes: string,
-  no: string,
-  empty: string,
-): string {
-  const raw = contact.values?.[field.key];
-  if (raw === undefined || raw === null || raw === "") return empty;
-  if (field.type === "boolean") return raw ? yes : no;
-  if (field.type === 'money' && typeof raw === 'number') return raw.toLocaleString(undefined, {
-    style: 'currency', currency: field.format?.currency ?? 'RUB',
-    ...(field.format?.decimal_places !== undefined ? { minimumFractionDigits: field.format.decimal_places, maximumFractionDigits: field.format.decimal_places } : {}),
-  });
-  if (field.type === 'date' && typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    if (field.format?.date_input === 'iso') return raw;
-    if (field.format?.date_input === 'ru') return raw.split('-').reverse().join('.');
-    return new Date(`${raw}T12:00:00`).toLocaleDateString();
-  }
-  return String(raw);
+function renderValue(field: IAutodialBaseField, contact: IAutodialContact, yes: string, no: string, empty: string, locale?: string): string {
+  return formatContactValue(field, contact.values?.[field.key], { yes, no, empty, locale });
 }
 
 interface ContactsGridProps {
@@ -66,8 +53,20 @@ interface ContactsGridProps {
 }
 
 export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { confirm, confirmationDialog } = useAutodialConfirmation();
   const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth?.user);
+  const viewKey = user?.uniqueid ? clientColumnViewKey(user.vpbx_user_uid, user.uniqueid, baseUid) : null;
+  const [columnView, setColumnView] = useState(() => ({ key: viewKey, hidden: readHiddenClientColumns(viewKey) }));
+  const [viewUnavailable, setViewUnavailable] = useState(false);
+  const hidden = columnView.key === viewKey ? columnView.hidden : readHiddenClientColumns(viewKey);
+  const toggleColumn = (id: string) => {
+    const next = hidden.includes(id) ? hidden.filter((value) => value !== id) : [...hidden, id];
+    setColumnView({ key: viewKey, hidden: next });
+    if (viewKey) try { localStorage.setItem(viewKey, JSON.stringify(next)); setViewUnavailable(false); }
+    catch { setViewUnavailable(true); }
+  };
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -85,7 +84,7 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
-  const { data: base } = useGetAutodialBaseQuery(baseUid);
+  const { currentData: base } = useGetAutodialBaseQuery(baseUid);
   const baseContacts = useGetAutodialContactsQuery({
     baseUid,
     page,
@@ -93,7 +92,7 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
     q: query || undefined,
   }, { skip: campaignUid !== undefined });
   const campaignContacts = useGetAutodialCampaignContactsQuery({
-    uid: campaignUid ?? 0, page, pageSize: PAGE_SIZE, q: query || undefined, disposition,
+    uid: campaignUid ?? 0, baseUid, page, pageSize: PAGE_SIZE, q: query || undefined, disposition,
   }, { skip: campaignUid === undefined, pollingInterval: 15000 });
   const { currentData: data, isLoading, isFetching, isError, refetch } = campaignUid === undefined ? baseContacts : campaignContacts;
   const [deleteContact, { isLoading: isDeleting }] =
@@ -102,6 +101,10 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
   const fields = (base?.fields ?? [])
     .slice()
     .sort((a, b) => a.position - b.position);
+  const nameField = fields.find((field) => !field.is_phone && field.type === 'string');
+  const visibleFields = fields.filter((field) => !field.is_phone && (field.uid === nameField?.uid || !hidden.includes(`field:${field.uid}`)))
+    .sort((a, b) => Number(b.uid === nameField?.uid) - Number(a.uid === nameField?.uid));
+  const showExternalId = !hidden.includes('external_id');
   const contacts = data?.items ?? [];
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -123,9 +126,9 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
   const deleteSelected = async () => {
     if (isDeleting || deletingSelected || !selection.selectedCount) return;
     if (
-      !window.confirm(
+      !(await confirm(
         `${t("autodial.contacts.confirmDelete")} (${selection.selectedCount})`,
-      )
+      ))
     )
       return;
     setDeletingSelected(true);
@@ -141,6 +144,7 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
 
   return (
     <Card className={cls.card}>
+      {confirmationDialog}
       <CardHeader>
         <Flex justify="between" align="center" max className={cls.toolbar}>
           <HStack gap="8" align="center">
@@ -148,7 +152,7 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
               {base?.name ?? t("autodial.contacts.title")}
             </Text>
             <Badge variant="outline">
-              {t("autodial.bases.contacts", { count: total })}
+              {data ? t("autodial.bases.contacts", { count: total }) : '—'}
             </Badge>
             {isFetching && <Loader2 size={14} className={cls.spinner} />}
           </HStack>
@@ -183,8 +187,7 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
                     id: "phones",
                     header: t("autodial.contacts.phones"),
                   },
-                  ...fields
-                    .filter((field) => !field.is_phone)
+                  ...visibleFields
                     .map((field) => ({
                       id: field.key,
                       header: field.label || field.key,
@@ -197,10 +200,10 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
                           "-",
                         ),
                     })),
-                  {
+                  ...(showExternalId ? [{
                     accessorKey: "external_id",
                     header: t("autodial.contacts.externalId"),
-                  },
+                  }] : []),
                 ],
                 filename: "autodial-contacts-page",
               }}
@@ -223,8 +226,18 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
       </CardHeader>
 
       <CardContent className={cls.content}>
+        <details className={cls.columnPicker}><summary>{t('autodial.workspace.clientColumns')}</summary><VStack gap="8" max>
+          <Text variant="muted">{t('autodial.workspace.clientColumnsHint')}</Text>
+          {fields.filter((field) => !field.is_phone).map((field) => <HStack gap="8" key={field.uid}>
+            <Checkbox id={`client-column-${baseUid}-${field.uid}`} checked={field.uid === nameField?.uid || !hidden.includes(`field:${field.uid}`)} disabled={field.uid === nameField?.uid} onChange={() => toggleColumn(`field:${field.uid}`)} />
+            <Label htmlFor={`client-column-${baseUid}-${field.uid}`}>{field.label || field.key}</Label>
+          </HStack>)}
+          <HStack gap="8"><Checkbox id={`client-column-${baseUid}-external`} checked={showExternalId} onChange={() => toggleColumn('external_id')} /><Label htmlFor={`client-column-${baseUid}-external`}>{t('autodial.contacts.externalId')}</Label></HStack>
+          {viewUnavailable && <Text role="status">{t('autodial.workspace.clientViewUnavailable')}</Text>}
+        </VStack></details>
         {deleteError && <Text role="alert">{deleteError}</Text>}
-        {isError ? (
+        {isError && data && <HStack gap="8" wrap="wrap"><Text role="status">{t('autodial.workspace.clientDataStale')}</Text><Button variant="outline" onClick={() => void refetch()}>{t('common.retry')}</Button></HStack>}
+        {isError && !data ? (
           <QueryErrorState
             message={t("autodial.common.loadFailed")}
             onRetry={() => void refetch()}
@@ -236,8 +249,8 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
           </Flex>
         ) : contacts.length === 0 ? (
           <VStack gap="8" align="center" className={cls.empty}>
-            <Text>{t("autodial.contacts.empty")}</Text>
-            <Text variant="muted">{t("autodial.contacts.emptyHint")}</Text>
+            <Text>{t(query || disposition ? 'autodial.workspace.clientSearchEmpty' : 'autodial.contacts.empty')}</Text>
+            {query || disposition ? <Button variant="outline" onClick={() => { setSearch(''); setQuery(''); setDisposition(''); setPage(1); selection.clearSelection(); }}>{t('autodial.workspace.resetFilters')}</Button> : <Text variant="muted">{t('autodial.contacts.emptyHint')}</Text>}
           </VStack>
         ) : (
           <>
@@ -245,17 +258,17 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
               <Table showSearch={false} showExport={false}>
                 <TableHeader>
                   <TableRow>
-                    <TableHead exportable={false} />
-                    <TableHead>{t("autodial.contacts.phones")}</TableHead>
-                    {fields
-                      .filter((field) => !field.is_phone)
+                    <TableHead exportable={false} className={cls.selectionColumn} />
+                    <TableHead className={cls.phoneColumn}>{t("autodial.contacts.phones")}</TableHead>
+                    {visibleFields
                       .map((field) => (
-                        <TableHead key={field.uid}>
+                        <TableHead key={field.uid} className={field.uid === nameField?.uid ? cls.nameColumn : undefined}>
                           {field.label || field.key}
                         </TableHead>
                       ))}
-                    <TableHead>{t("autodial.contacts.externalId")}</TableHead>
-                    {campaignUid !== undefined && <><TableHead>{t('autodial.workspace.taskState')}</TableHead><TableHead exportable={false}>{t('autodial.workspace.actions')}</TableHead></>}
+                    {showExternalId && <TableHead>{t("autodial.contacts.externalId")}</TableHead>}
+                    {campaignUid !== undefined && <TableHead>{t('autodial.workspace.taskState')}</TableHead>}
+                    <TableHead exportable={false}>{t('autodial.workspace.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -277,7 +290,7 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
                           index: String(contact.uid),
                         })}
                       />
-                      <TableCell>
+                      <TableCell className={cls.phoneColumn}>
                         <VStack gap="2" align="start">
                           {(contact.phones ?? []).map((phone) => (
                             <HStack key={phone.uid} gap="4" align="center">
@@ -298,10 +311,9 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
                           )}
                         </VStack>
                       </TableCell>
-                      {fields
-                        .filter((field) => !field.is_phone)
+                      {visibleFields
                         .map((field) => (
-                          <TableCell key={field.uid}>
+                          <TableCell key={field.uid} className={field.uid === nameField?.uid ? cls.nameColumn : undefined}>
                             {renderValue(
                               field,
                               contact,
@@ -311,7 +323,7 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
                             )}
                           </TableCell>
                         ))}
-                      <TableCell>{contact.external_id ?? "-"}</TableCell>
+                      {showExternalId && <TableCell>{contact.external_id ?? "-"}</TableCell>}
                       {campaignUid !== undefined && <TableCell><VStack gap="4" align="start">
                         {((contact as IAutodialCampaignContact).tasks ?? []).map((task) => <Text key={task.uid} as="span">
                           {autodialDispositionLabel(task.last_disposition, t)} · {t('autodial.workspace.attempts', { count: task.attempt_count })}
@@ -321,7 +333,12 @@ export const ContactsGrid = memo(({ baseUid, campaignUid }: ContactsGridProps) =
                         {(contact as IAutodialCampaignContact).blocked_phone_uids?.length > 0 && <Badge variant="destructive">DNC</Badge>}
                         {!(contact as IAutodialCampaignContact).tasks?.length && <Text variant="muted">{t('autodial.workspace.notStarted')}</Text>}
                       </VStack></TableCell>}
-                      {campaignUid !== undefined && <TableCell><ContactTaskActions uid={campaignUid} contact={contact as IAutodialCampaignContact} /></TableCell>}
+                      <TableCell><HStack gap="8" wrap="wrap">
+                        <Button variant="outline" onClick={(event) => { event.stopPropagation(); dispatch(autodialPageActions.openEditContact(contact.uid)); }}>
+                          {t('common.edit')}
+                        </Button>
+                        {campaignUid !== undefined && <ContactTaskActions uid={campaignUid} contact={contact as IAutodialCampaignContact} />}
+                      </HStack></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

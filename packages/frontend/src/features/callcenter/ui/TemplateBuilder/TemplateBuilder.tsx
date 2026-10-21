@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
-  Button, Input, Textarea, Select, Checkbox, MultiSelect, Text, VStack, HStack,
+  Button, Input, Textarea, Select, Checkbox, MultiSelect, Text, VStack, HStack, Flex,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/shared/ui';
 import {
@@ -37,6 +37,7 @@ import { FieldRenderer } from '../FieldRenderer';
 import { FieldRow, type BuilderField } from './FieldRow';
 import { FieldConfig } from './FieldConfig';
 import { FormSaveBar } from '../FormSaveBar/FormSaveBar';
+import { cardTemplateErrorText, toCardFieldPayload } from '../../lib/cardTemplatePayload';
 import { isFieldVisible } from '../CallCardForm/CallCardForm';
 import { queueDisplayName } from '../../lib/displayLabels';
 import styles from './TemplateBuilder.module.scss';
@@ -89,6 +90,7 @@ export const TemplateBuilder = memo(({ templateId, onDone }: TemplateBuilderProp
   const dirtyRef = useRef(false);
   dirtyRef.current = dirty;
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -184,10 +186,7 @@ export const TemplateBuilder = memo(({ templateId, onDone }: TemplateBuilderProp
       auto_save_on_timeout: autoSaveOnTimeout,
       queue_names: queueNames,
       webhook_integration_uid: webhookIntegrationUid ? Number(webhookIntegrationUid) : null,
-      fields: fields.map(({ id: _id, ...f }, idx) => ({
-        ...f,
-        sort_order: idx,
-      })),
+      fields: fields.map((field, idx) => toCardFieldPayload(field, idx)),
     };
 
     try {
@@ -201,9 +200,10 @@ export const TemplateBuilder = memo(({ templateId, onDone }: TemplateBuilderProp
       setDirty(false);
       onDone();
     } catch (error) {
-      const message = (error as { data?: { message?: string | string[] } })?.data?.message;
-      setSaveError(Array.isArray(message) ? message.join('; ') : message || t('callcenter.cards.builder.saveError'));
-      toast.error(t('callcenter.cards.builder.saveError'));
+      const message = (error as { data?: { message?: unknown } })?.data?.message;
+      const text = cardTemplateErrorText(message, t('callcenter.cards.builder.saveError'));
+      setSaveError(text);
+      toast.error(text);
     }
   }, [
     name, description, isActive, autoOpenOn, autoSaveOnTimeout, queueNames,
@@ -215,69 +215,96 @@ export const TemplateBuilder = memo(({ templateId, onDone }: TemplateBuilderProp
   }
 
   return (
-    <div className={styles.root}>
-      <div className={styles.leftPane} onChangeCapture={() => setDirty(true)}>
+    <Flex direction="column" className={styles.editor} onChangeCapture={() => setDirty(true)}>
+      <Flex align="stretch" className={styles.workspace}>
+        <VStack className={styles.pane}>
         <VStack gap="16">
           <Text variant="muted">{t('callcenter.cards.builder.guide')}</Text>
-          <VStack gap="8">
-            <Text className="font-medium">{t('callcenter.cards.builder.templateSettings')}</Text>
-            <Input
-              aria-label={t('callcenter.cards.builder.namePlaceholder')} value={name}
-              placeholder={t('callcenter.cards.builder.namePlaceholder')}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <Textarea
-              aria-label={t('callcenter.cards.builder.descriptionPlaceholder')} value={description}
-              placeholder={t('callcenter.cards.builder.descriptionPlaceholder')}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+          <VStack gap="12" className={styles.section}>
+            <Text className={styles.sectionTitle}>{t('callcenter.cards.builder.templateSettings')}</Text>
+            <VStack gap="4">
+              <Text variant="xs" className={styles.fieldLabel}>{t('callcenter.cards.builder.namePlaceholder')}</Text>
+              <Input
+                aria-label={t('callcenter.cards.builder.namePlaceholder')}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </VStack>
+            <VStack gap="4">
+              <Text variant="xs" className={styles.fieldLabel}>{t('callcenter.cards.builder.descriptionPlaceholder')}</Text>
+              <Textarea
+                aria-label={t('callcenter.cards.builder.descriptionPlaceholder')}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </VStack>
             <HStack gap="12" align="center">
               <Checkbox aria-label={t('callcenter.cards.builder.isActive')} checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
               <Text>{t('callcenter.cards.builder.isActive')}</Text>
             </HStack>
-            <Select aria-label={t('callcenter.cards.builder.whenOpen')} value={autoOpenOn} onChange={(e) => setAutoOpenOn(e.target.value as AutoOpenOn)}>
-              <option value="answer">{t('callcenter.cards.builder.autoOpen.answer')}</option>
-              <option value="ring">{t('callcenter.cards.builder.autoOpen.ring')}</option>
-              <option value="manual">{t('callcenter.cards.builder.autoOpen.manual')}</option>
-            </Select>
+            <VStack gap="4">
+              <Text variant="xs" className={styles.fieldLabel}>{t('callcenter.cards.builder.whenOpen')}</Text>
+              <Select aria-label={t('callcenter.cards.builder.whenOpen')} value={autoOpenOn} onChange={(e) => setAutoOpenOn(e.target.value as AutoOpenOn)}>
+                <option value="answer">{t('callcenter.cards.builder.autoOpen.answer')}</option>
+                <option value="ring">{t('callcenter.cards.builder.autoOpen.ring')}</option>
+                <option value="manual">{t('callcenter.cards.builder.autoOpen.manual')}</option>
+              </Select>
+            </VStack>
             <HStack gap="12" align="center">
               <Checkbox
-                aria-label={t('callcenter.cards.builder.autoSaveOnTimeout')} checked={autoSaveOnTimeout}
+                aria-label={t('callcenter.cards.builder.autoSaveOnTimeout')}
+                checked={autoSaveOnTimeout}
                 onChange={(e) => setAutoSaveOnTimeout(e.target.checked)}
               />
               <Text>{t('callcenter.cards.builder.autoSaveOnTimeout')}</Text>
             </HStack>
-            <Text variant="muted">{t('callcenter.cards.builder.allQueues')}</Text>
-            <MultiSelect
-              value={queueNames}
-              options={queueOptions}
-              placeholder={t('callcenter.cards.builder.queueNamesPlaceholder')}
-              onChange={(next) => { setDirty(true); setQueueNames(next); }}
-            />
-            <details><summary>{t('callcenter.cards.builder.advancedTemplate')}</summary><Input
-              aria-label={t('callcenter.cards.builder.webhookUidPlaceholder')} type="number"
-              value={webhookIntegrationUid}
-              placeholder={t('callcenter.cards.builder.webhookUidPlaceholder')}
-              onChange={(e) => setWebhookIntegrationUid(e.target.value)}
-            /></details>
+            <VStack gap="4">
+              <Text variant="xs" className={styles.fieldLabel}>{t('callcenter.cards.builder.queueNamesPlaceholder')}</Text>
+              <MultiSelect
+                ariaLabel={t('callcenter.cards.builder.queueNamesPlaceholder')}
+                value={queueNames}
+                options={queueOptions}
+                placeholder={t('callcenter.cards.builder.queueNamesPlaceholder')}
+                onChange={(next) => { setDirty(true); setQueueNames(next); }}
+              />
+              <Text variant="muted">{t('callcenter.cards.builder.allQueues')}</Text>
+            </VStack>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setShowAdvanced((open) => !open)}>
+              {t('callcenter.cards.builder.advancedTemplate')}
+            </Button>
+            {showAdvanced ? (
+              <VStack gap="4">
+                <Text variant="xs" className={styles.fieldLabel}>{t('callcenter.cards.builder.webhookUidPlaceholder')}</Text>
+                <Input
+                  aria-label={t('callcenter.cards.builder.webhookUidPlaceholder')}
+                  type="number"
+                  value={webhookIntegrationUid}
+                  onChange={(e) => setWebhookIntegrationUid(e.target.value)}
+                />
+              </VStack>
+            ) : null}
           </VStack>
 
           <VStack gap="8">
-            <Text className="font-medium">{t('callcenter.cards.builder.palette')}</Text>
-            <div className={styles.palette}>
+            <Text className={styles.sectionTitle}>{t('callcenter.cards.builder.palette')}</Text>
+            <Flex wrap="wrap" gap="8" className={styles.palette}>
               {CARD_FIELD_TYPES.filter(type => !['phonebook_lookup', 'readonly', 'datetime', 'divider'].includes(type)).map((type) => (
                 <Button key={type} variant="outline" size="sm" onClick={() => addField(type)}>
                   {t(`callcenter.cards.fieldTypes.${type}`)}
                 </Button>
               ))}
-            </div>
-            <details><summary>{t('callcenter.cards.builder.advancedTypes')}</summary><div className={styles.palette}>
-              {CARD_FIELD_TYPES.filter(type => ['phonebook_lookup', 'readonly', 'datetime', 'divider'].includes(type)).map(type => <Button key={type} variant="outline" size="sm" onClick={() => addField(type)}>{t(`callcenter.cards.fieldTypes.${type}`)}</Button>)}
-            </div></details>
+            </Flex>
+            {showAdvanced ? (
+              <Flex wrap="wrap" gap="8" className={styles.palette}>
+                {CARD_FIELD_TYPES.filter(type => ['phonebook_lookup', 'readonly', 'datetime', 'divider'].includes(type)).map(type => (
+                  <Button key={type} variant="outline" size="sm" onClick={() => addField(type)}>{t(`callcenter.cards.fieldTypes.${type}`)}</Button>
+                ))}
+              </Flex>
+            ) : null}
           </VStack>
 
           <VStack gap="8">
-            <Text className="font-medium">{t('callcenter.cards.builder.fieldsList')}</Text>
+            <Text className={styles.sectionTitle}>{t('callcenter.cards.builder.fieldsList')}</Text>
             {!fields.length ? <Text variant="muted">{t('callcenter.cards.builder.addFirstField')}</Text> : null}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
@@ -300,44 +327,49 @@ export const TemplateBuilder = memo(({ templateId, onDone }: TemplateBuilderProp
             </DndContext>
           </VStack>
 
+        </VStack>
+        </VStack>
+
+        <VStack className={styles.pane}>
           {selectedField ? (
             <FieldConfig
               field={selectedField}
               allFields={fields}
               onChange={(patch) => updateField(selectedField.id, patch)}
             />
-          ) : null}
-
-          <FormSaveBar dirty={dirty} saving={creating || updating} onSave={handleSave} onCancel={() => setConfirmLeave(true)} />
-          {saveError ? <div role="alert">{saveError}</div> : null}
-          <HStack gap="8">
-            <Button variant="outline" onClick={() => dirty ? setConfirmLeave(true) : onDone()}>
-              {t('common.cancel')}
-            </Button>
-          </HStack>
+          ) : (
+            <Text variant="muted">{t('callcenter.cards.builder.inspectorEmpty')}</Text>
+          )}
+          <Text className={styles.sectionTitle}>{t('callcenter.cards.builder.preview')}</Text>
+          <Flex align="stretch" className={styles.previewGrid}>
+            {fields.filter(field => isFieldVisible(field, previewValues)).map((field) => (
+              <Flex
+                key={field.id}
+                direction="column"
+                align="stretch"
+                className={field.width === 'half' ? styles.previewHalf : styles.previewFull}
+              >
+                <FieldRenderer
+                  preview
+                  field={field}
+                  value={previewValues[field.field_key]}
+                  onChange={(v) => setPreviewValues((prev) => ({ ...prev, [field.field_key]: v }))}
+                />
+              </Flex>
+            ))}
+          </Flex>
         </VStack>
-      </div>
-
-      <div className={styles.rightPane}>
-        <Text className="font-medium mb-4">{t('callcenter.cards.builder.preview')}</Text>
-        <div className={styles.previewGrid}>
-          {fields.filter(field => isFieldVisible(field, previewValues)).map((field) => (
-            <div
-              key={field.id}
-              className={field.width === 'half' ? styles.previewHalf : styles.previewFull}
-            >
-              <FieldRenderer
-                preview
-                field={field}
-                value={previewValues[field.field_key]}
-                onChange={(v) => setPreviewValues((prev) => ({ ...prev, [field.field_key]: v }))}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+      </Flex>
+      {saveError ? <Text role="alert" className={styles.saveError}>{saveError}</Text> : null}
+      <FormSaveBar
+        placement="footer"
+        dirty={dirty}
+        saving={creating || updating}
+        onSave={handleSave}
+        onCancel={() => setConfirmLeave(true)}
+      />
       <Dialog open={confirmLeave} onOpenChange={setConfirmLeave}><DialogContent><DialogHeader><DialogTitle>{t('callcenter.settings.saveBar.leaveTitle')}</DialogTitle></DialogHeader><Text>{t('callcenter.settings.saveBar.leaveBody')}</Text><DialogFooter><Button variant="outline" onClick={() => setConfirmLeave(false)}>{t('callcenter.settings.saveBar.stay')}</Button><Button variant="destructive" onClick={onDone}>{t('callcenter.settings.saveBar.leave')}</Button></DialogFooter></DialogContent></Dialog>
-    </div>
+    </Flex>
   );
 });
 

@@ -58,10 +58,20 @@ export function convertAutodialSchemaValues(raw: Record<string, string | number 
   return { valuesByKey, archives, errors };
 }
 
+const SPEECH_SUFFIXES = new Set(['_SAY_MONEY', '_SAY_DATE', '_SAY_NUMBER', '_SAY_DIGITS']);
+const FIELD_TOKEN = /\$?\{\{?(AC_[A-Z0-9_]+)\}\}?/g;
+
+/** Exact variables win over derived tokens; unknown suffixes are ordinary text. */
+function variableSuffix(name: string, variable: string): string | null {
+  if (name === variable) return '';
+  const suffix = name.startsWith(variable) ? name.slice(variable.length) : '';
+  return SPEECH_SUFFIXES.has(suffix) ? suffix : null;
+}
+
 export function autodialFieldReferenced(value: unknown, field: Pick<IAutodialBaseField, 'key' | 'var_name'>): boolean {
   if (typeof value === 'string') {
-    const variable = field.var_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return value === field.var_name || new RegExp(`\\$?\\{\\{?${variable}\\}\\}?`).test(value);
+    return variableSuffix(value, field.var_name) !== null
+      || [...value.matchAll(FIELD_TOKEN)].some((match) => variableSuffix(match[1], field.var_name) !== null);
   }
   if (Array.isArray(value)) return value.some((item) => autodialFieldReferenced(item, field));
   if (value && typeof value === 'object') return Object.entries(value).some(([key, item]) =>
@@ -72,13 +82,19 @@ export function autodialFieldReferenced(value: unknown, field: Pick<IAutodialBas
 export function rewriteAutodialFieldReferences<T>(value: T, renames: ReturnType<typeof planAutodialFields>['renames'], property?: string): T;
 export function rewriteAutodialFieldReferences(value: unknown, renames: ReturnType<typeof planAutodialFields>['renames'], property?: string): unknown {
   if (typeof value === 'string') {
-    for (const rename of renames) {
-      if (property === 'field_key' && value === rename.oldKey) return rename.key;
-      if (value === rename.oldVar) return rename.variable;
+    if (property === 'field_key') {
+      const rename = renames.find((item) => item.oldKey === value);
+      if (rename) return rename.key;
     }
-    return value.replace(/\$?\{\{?(AC_[A-Z0-9_]+)\}\}?/g, (token, name: string) => {
-      const rename = renames.find((item) => item.oldVar === name);
-      return rename ? token.replace(name, rename.variable) : token;
+    const rewriteVariable = (name: string) => {
+      const rename = renames.find((item) => item.oldVar === name)
+        ?? renames.find((item) => variableSuffix(name, item.oldVar) !== null);
+      return rename ? rename.variable + variableSuffix(name, rename.oldVar)! : name;
+    };
+    const standalone = rewriteVariable(value);
+    if (standalone !== value) return standalone;
+    return value.replace(FIELD_TOKEN, (token, name: string) => {
+      return token.replace(name, rewriteVariable(name));
     });
   }
   if (Array.isArray(value)) return value.map((item) => rewriteAutodialFieldReferences(item, renames));

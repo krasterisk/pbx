@@ -1,6 +1,6 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input, Textarea, Select, Checkbox, TagInput, Label, Text, VStack } from '@/shared/ui';
+import { Input, Textarea, Select, Checkbox, TagInput, Label, Text, VStack, HStack, Button } from '@/shared/ui';
 import type { ICardField } from '@/features/callcenter/model/types/callCard';
 import type { BuilderField } from './FieldRow';
 import { DirectorySourceEditor } from './DirectorySourceEditor';
@@ -20,6 +20,7 @@ export interface FieldConfigProps {
 
 export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProps) => {
   const { t } = useTranslation();
+  const [advanced, setAdvanced] = useState(false);
 
   const otherFields = allFields.filter((f) => f.id !== field.id && f.field_type !== 'divider' && f.field_type !== 'heading');
   const showOptions = field.field_type === 'select' || field.field_type === 'multi_select';
@@ -29,8 +30,8 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
   }, [onChange]);
 
   return (
-    <VStack gap="12" className="p-4 border border-border rounded-lg bg-muted/20">
-      <Text className="font-medium">{t('callcenter.cards.builder.fieldConfigTitle')}</Text>
+    <VStack gap="12">
+      <Text>{t('callcenter.cards.builder.fieldConfigTitle')}: {field.label || field.field_key}</Text>
 
       <VStack gap="4">
         <Label>{t('callcenter.cards.builder.fieldLabel')}</Label>
@@ -47,17 +48,20 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
             />
           </VStack>
 
-          <FlexRow>
+          <HStack gap="8" align="center">
             <Checkbox
               aria-label={t('callcenter.cards.builder.required')} checked={Boolean(field.is_required)}
               onChange={(e) => onChange({ is_required: e.target.checked })}
             />
             <Label>{t('callcenter.cards.builder.required')}</Label>
-          </FlexRow>
+          </HStack>
 
           {showOptions ? <DirectorySourceEditor value={field.options} onChange={(options) => onChange({ options })} /> : null}
 
-          <details><summary className="cursor-pointer text-sm text-muted-foreground">{t('callcenter.cards.builder.advancedField')}</summary><VStack gap="12" className="pt-3">      <VStack gap="4">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setAdvanced((open) => !open)}>
+            {t('callcenter.cards.builder.advancedField')}
+          </Button>
+          {advanced ? <VStack gap="12"><VStack gap="4">
         <Label>{t('callcenter.cards.builder.fieldKey')}</Label>
         <Input aria-label={t('callcenter.cards.builder.fieldKey')} value={field.field_key} onChange={handleKeyChange} />
       </VStack>
@@ -98,7 +102,7 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
                 </option>
               ))}
             </Select>
-          </VStack></VStack></details>
+          </VStack></VStack> : null}
         </>
       ) : (
         <VStack gap="4">
@@ -114,7 +118,3 @@ export const FieldConfig = memo(({ field, allFields, onChange }: FieldConfigProp
 });
 
 FieldConfig.displayName = 'FieldConfig';
-
-function FlexRow({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center gap-2">{children}</div>;
-}

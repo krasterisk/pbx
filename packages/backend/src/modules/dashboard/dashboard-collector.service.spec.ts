@@ -1,8 +1,10 @@
 import { ConfigService } from '@nestjs/config';
 import { DashboardCollectorService } from './dashboard-collector.service';
 import { DashboardCacheService } from './dashboard-cache.service';
+import { dashboardInventoryKey, decodeDashboardSnapshot } from './dashboard-snapshot-storage';
 interface CollectorFixture {
   collector: DashboardCollectorService; cache: DashboardCacheService; states: Map<string, any>; aors: Map<string, any>;
+  persistedRows?: Map<string, any>;
   store: {
     nodeId: string; acquireLease: jest.Mock; renewLease: jest.Mock; releaseLease: jest.Mock;
     select: jest.Mock<Promise<any[]>, [string]>; upsert: jest.Mock<Promise<void>, [string, any]>;
@@ -11,12 +13,12 @@ interface CollectorFixture {
   ami: { subscribeInternalEvents: jest.Mock; isConnected: jest.Mock; getActiveChannels: jest.Mock; collectDashboardEndpoints: jest.Mock; collectDashboardContacts: jest.Mock; collectDashboardRegistrations: jest.Mock };
 }
 function setup(channels: any[] = [], config: Record<string, unknown> = { AMI_SECRET: 'test' }): CollectorFixture {
-  let persisted = ''; const states = new Map<string, any>(); const aors = new Map<string, any>();
-  const store = { nodeId: 'node', acquireLease: jest.fn().mockResolvedValue(true), renewLease: jest.fn().mockResolvedValue(true), releaseLease: jest.fn().mockResolvedValue(undefined), select: jest.fn(async (sql: string): Promise<any[]> => sql.includes('FROM dashboard_leases') ? [{ owner: (collector as any).owner, expires_at: Date.now() + 60000 }] : sql.includes('FROM ps_endpoints') ? [...states.values()] : sql.includes('FROM ps_aors') ? [...aors.values()] : persisted ? [{ payload: persisted, updated_at: Date.now() }] : []), upsert: jest.fn(async (_: string, row: any) => { persisted = row.payload; }), sequelize: { transaction: async (work: (tx: unknown) => Promise<void>) => work({}) } };
+  const persistedRows = new Map<string, any>(); const states = new Map<string, any>(); const aors = new Map<string, any>();
+  const store = { nodeId: 'node', acquireLease: jest.fn().mockResolvedValue(true), renewLease: jest.fn().mockResolvedValue(true), releaseLease: jest.fn().mockResolvedValue(undefined), select: jest.fn(async (sql: string): Promise<any[]> => sql.includes('FROM dashboard_leases') ? [{ owner: (collector as any).owner, expires_at: Date.now() + 60000 }] : sql.includes('FROM ps_endpoints') ? [...states.values()] : sql.includes('FROM ps_aors') ? [...aors.values()] : persistedRows.has('node') ? [{ ...persistedRows.get('node'), inventory_payload: persistedRows.get(dashboardInventoryKey('node'))?.payload }] : []), upsert: jest.fn(async (_: string, row: any) => { persistedRows.set(row.node_id, row); }), sequelize: { transaction: async (work: (tx: unknown) => Promise<void>) => work({}) } };
   const ami = { subscribeInternalEvents: jest.fn(), isConnected: jest.fn().mockReturnValue(true), getActiveChannels: jest.fn().mockResolvedValue({ complete: true, events: channels }), collectDashboardEndpoints: jest.fn().mockResolvedValue({ complete: true, events: [] }), collectDashboardContacts: jest.fn().mockResolvedValue({ complete: true, events: [] }), collectDashboardRegistrations: jest.fn().mockResolvedValue({ complete: true, events: [] }) };
   const cache = new DashboardCacheService();
   const collector: DashboardCollectorService = new DashboardCollectorService(store as any, ami as any, new ConfigService(config), cache);
-  return { collector, store, ami, states, cache, aors };
+  return { collector, store, ami, states, cache, aors, persistedRows };
 }
 async function collectTick(collector: DashboardCollectorService): Promise<void> {
   const revision = (collector as any).inventoryRevision;
@@ -25,17 +27,18 @@ async function collectTick(collector: DashboardCollectorService): Promise<void> 
 }
 
 function restartFixture(fixture: CollectorFixture, saved: any): Pick<CollectorFixture, 'collector' | 'cache'> {
-  const { store, ami, states, aors } = fixture; let persisted = JSON.stringify(saved);
+  const { store, ami, states, aors } = fixture;
+  const persistedRows = new Map(fixture.persistedRows || []); persistedRows.set('node', { payload: JSON.stringify(saved), updated_at: Date.now() });
   const cache = new DashboardCacheService();
   const collector = new DashboardCollectorService(store as any, ami as any, new ConfigService({ AMI_SECRET: 'test' }), cache);
   store.select.mockImplementation(async (sql: string) => {
     if (sql.includes('FROM dashboard_leases')) return [{ owner: (collector as any).owner, expires_at: Date.now() + 60000 }] as any;
-    if (sql.includes('FROM dashboard_live_state')) return [{ payload: persisted, updated_at: Date.now() }] as any;
+    if (sql.includes('FROM dashboard_live_state')) return [{ ...persistedRows.get('node'), inventory_payload: persistedRows.get(dashboardInventoryKey('node'))?.payload }] as any;
     if (sql.includes('FROM ps_endpoints')) return [...states.values()];
     if (sql.includes('FROM ps_aors')) return [...aors.values()];
     return [];
   });
-  store.upsert.mockImplementation(async (_table: string, row: any) => { persisted = row.payload; });
+  store.upsert.mockImplementation(async (_table: string, row: any) => { persistedRows.set(row.node_id, row); });
   return { collector, cache };
 }
 
@@ -583,7 +586,7 @@ describe('Dashboard viewer-independent node collector', () => {
     const initial = setup(channels);
     for (let i = 0; i < 10000; i++) initial.states.set(`e${i + 100}_42`, { id: `e${i + 100}_42`, tenantid: '42', callerid: String(i), aors: '' });
     await collectTick(initial.collector);
-    const saved = JSON.parse(initial.store.upsert.mock.calls.at(-1)![1].payload); const oldAge = new Date(Date.now() - 600000).toISOString();
+    const saved: any = decodeDashboardSnapshot('node', { payload: initial.store.upsert.mock.calls.at(-1)![1].payload, inventory_payload: initial.persistedRows!.get(dashboardInventoryKey('node')).payload }); const oldAge = new Date(Date.now() - 600000).toISOString();
     saved.source.updatedAt = oldAge; saved.inventorySource.updatedAt = oldAge;
     // Fallback inventory has no contact reducer: its persisted status must not be re-expired.
     for (const row of saved.inventory) { row.status = 'online'; row.expires = Date.now() - 1; }
@@ -595,7 +598,8 @@ describe('Dashboard viewer-independent node collector', () => {
       initial.store.select.mockClear(); await collector.tick(); collector.onModuleInit(); await jest.advanceTimersByTimeAsync(75000); cache.invalidate('live:');
       expect(await collector.overview(42)).toMatchObject({ activeCalls: 1000, endpoints: { total: 10000, online: 10000 }, callsSource: { state: 'stale', updatedAt: oldAge }, inventorySource: { state: 'stale', updatedAt: oldAge } });
       const hydration = initial.store.select.mock.calls.filter(([sql]) => sql.includes('OCTET_LENGTH'));
-      expect(hydration).toHaveLength(1);
+      // One cold-owner hydration and one viewer read; periodic ticks do not rehydrate.
+      expect(hydration).toHaveLength(2);
       expect((hydration[0] as any[])[1].maxBytes).toBe(32 * 1024 * 1024);
       const task = (collector as any).inventoryTask; finish({ complete: false, events: [] }); await task; await collector.tick(); cache.invalidate('live:');
       expect(await collector.overview(42)).toMatchObject({ activeCalls: 1000, endpoints: { total: 10000, online: 10000 }, callsSource: { updatedAt: oldAge }, inventorySource: { state: 'stale', updatedAt: oldAge } });
@@ -611,7 +615,7 @@ describe('Dashboard viewer-independent node collector', () => {
   it('replaces only inventory fallback with a complete empty inventory while calls still lack a complete snapshot', async () => {
     const initial = setup([{ uniqueid: 'one', linkedid: 'one', channel: 'PJSIP/e101_42-01', context: 'sip-out42' }]);
     initial.states.set('e101_42', { id: 'e101_42', tenantid: '42', callerid: '101', aors: '' }); await collectTick(initial.collector);
-    const saved = JSON.parse(initial.store.upsert.mock.calls.at(-1)![1].payload); await initial.collector.onModuleDestroy();
+    const saved: any = decodeDashboardSnapshot('node', { payload: initial.store.upsert.mock.calls.at(-1)![1].payload, inventory_payload: initial.persistedRows!.get(dashboardInventoryKey('node')).payload }); await initial.collector.onModuleDestroy();
     const { collector, cache } = restartFixture(initial, saved); initial.states.clear(); initial.ami.getActiveChannels.mockResolvedValue({ complete: false, events: [] });
     await collectTick(collector); cache.invalidate('live:');
     expect(await collector.overview(42)).toMatchObject({ activeCalls: 1, endpoints: { total: 0 }, callsSource: { state: 'stale', updatedAt: saved.source.updatedAt }, inventorySource: { state: 'ok' } });
@@ -650,7 +654,7 @@ describe('Dashboard viewer-independent node collector', () => {
   it.each([null, 'calls', 'inventory'])('retains disconnected cold-start snapshots independently when %s lacks a previous timestamp', async (missing) => {
     const initial = setup([{ uniqueid: 'one', linkedid: 'one', channel: 'PJSIP/e101_42-01', context: 'sip-out42' }]);
     initial.states.set('e101_42', { id: 'e101_42', tenantid: '42', callerid: '101', aors: '' }); await collectTick(initial.collector);
-    const saved = JSON.parse(initial.store.upsert.mock.calls.at(-1)![1].payload); const age = new Date(Date.now() - 600000).toISOString();
+    const saved: any = decodeDashboardSnapshot('node', { payload: initial.store.upsert.mock.calls.at(-1)![1].payload, inventory_payload: initial.persistedRows!.get(dashboardInventoryKey('node')).payload }); const age = new Date(Date.now() - 600000).toISOString();
     saved.source.updatedAt = missing === 'calls' ? null : age; saved.inventorySource.updatedAt = missing === 'inventory' ? null : age;
     await initial.collector.onModuleDestroy(); const { collector, cache } = restartFixture(initial, saved);
     initial.ami.isConnected.mockReturnValue(false); initial.ami.getActiveChannels.mockClear(); initial.ami.collectDashboardEndpoints.mockClear();
@@ -733,4 +737,74 @@ describe('Dashboard viewer-independent node collector', () => {
     await collectTick(collector); const page=await collector.calls(42,{outcome:'active'});
     expect(page.rows[0]).toMatchObject({direction:'out',src:'101',linkedid:'root'});
   });
+});
+
+
+describe('Dashboard inventory write amplification', () => {
+  afterEach(() => jest.restoreAllMocks());
+  it('keeps a 5-second heartbeat without rewriting 10k unchanged endpoints and still marks stopped publication stale', async () => {
+    let now = Date.now(); jest.spyOn(Date, 'now').mockImplementation(() => now);
+    const f = setup();
+    for (let i = 0; i < 10000; i++) f.states.set(`e${i}_42`, { id: `e${i}_42`, tenantid: '42', callerid: String(i), aors: '' });
+    await collectTick(f.collector); f.store.upsert.mockClear();
+    for (let i = 0; i < 20; i++) { now += 5000; await f.collector.tick(); }
+    const writes = f.store.upsert.mock.calls.map(call => call[1]);
+    expect(writes).toHaveLength(20);
+    expect(writes.every(row => row.node_id === 'node' && Buffer.byteLength(row.payload) < 5000)).toBe(true);
+    expect(f.persistedRows!.size).toBe(2);
+    f.cache.invalidate('live:');
+    expect(await f.collector.overview(42)).toMatchObject({ endpoints: { total: 10000 }, callsSource: { state: 'ok' } });
+    now += 45001; f.cache.invalidate('live:');
+    expect(await f.collector.overview(42)).toMatchObject({ endpoints: { total: 10000 }, callsSource: { state: 'stale' } });
+    await f.collector.onModuleDestroy();
+  });
+  it('persists inventory changes in the same transaction as the new heartbeat', async () => {
+    const f = setup(); f.states.set('e101_42', { id: 'e101_42', tenantid: '42', callerid: 'before', aors: '' });
+    await collectTick(f.collector); f.store.upsert.mockClear();
+    (f.collector as any).inventory[0].name = 'after';
+    await f.collector.tick();
+    expect(f.store.upsert.mock.calls.map(call => call[1].node_id)).toEqual([dashboardInventoryKey('node'), 'node']);
+    const calls = f.store.upsert.mock.calls as any[][];
+    expect(calls[0][3]).toBe(calls[1][3]);
+    f.cache.invalidate('live:');
+    expect((await f.collector.endpoints(42, {})).rows[0].name).toBe('after');
+    await f.collector.onModuleDestroy();
+  });
+  it('does not cache an inventory fingerprint before transaction commit, and retries a failed commit', async () => {
+    const f = setup(); await collectTick(f.collector);
+    const before = (f.collector as any).persistedInventoryHash;
+    (f.collector as any).inventory.push({ id: 'e101_42', tenant: 42, kind: 'endpoint', status: 'offline', enabled: true, name: 'new', expires: null });
+    const transaction = f.store.sequelize.transaction;
+    f.store.sequelize.transaction = async work => { await work({}); throw new Error('commit failed'); };
+    await f.collector.tick();
+    expect((f.collector as any).persistedInventoryHash).toBe(before);
+    f.store.sequelize.transaction = transaction; f.store.upsert.mockClear();
+    await f.collector.tick();
+    expect(f.store.upsert.mock.calls[0][1].node_id).toBe(dashboardInventoryKey('node'));
+    expect((f.collector as any).persistedInventoryHash).not.toBe(before);
+    await f.collector.onModuleDestroy();
+  });
+  it.each([NaN, Date.now() + 3600000])('never treats invalid or future heartbeat %s as fresh', async timestamp => {
+    const f = setup(); await collectTick(f.collector);
+    f.persistedRows!.get('node').updated_at = timestamp; f.cache.invalidate('live:');
+    expect((await f.collector.overview(42)).callsSource.state).toBe('stale');
+    await f.collector.onModuleDestroy();
+  });
+  it('keeps last-good scoped inventory stale when the referenced inventory becomes corrupt', async () => {
+    const f = setup(); f.states.set('e101_42', { id: 'e101_42', tenantid: '42', callerid: 'kept', aors: '' });
+    await collectTick(f.collector); expect((await f.collector.overview(42)).endpoints.total).toBe(1);
+    f.persistedRows!.get(dashboardInventoryKey('node')).payload = '{}'; f.cache.invalidate('live:');
+    expect(await f.collector.overview(42)).toMatchObject({ endpoints: { total: 1 }, callsSource: { state: 'stale' } });
+    await f.collector.onModuleDestroy();
+  });
+  it('republishes inventory after reacquiring ownership even when its in-memory hash did not change', async () => {
+    const f = setup(); await collectTick(f.collector);
+    f.store.acquireLease.mockResolvedValueOnce(false); await f.collector.tick();
+    f.persistedRows!.get(dashboardInventoryKey('node')).payload = '{}'; f.store.upsert.mockClear();
+    await collectTick(f.collector);
+    expect(f.store.upsert.mock.calls.some(call => call[1].node_id === dashboardInventoryKey('node'))).toBe(true);
+    f.cache.invalidate('live:'); expect((await f.collector.overview(42)).callsSource.state).toBe('ok');
+    await f.collector.onModuleDestroy();
+  });
+
 });

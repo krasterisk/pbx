@@ -13,7 +13,7 @@ export function MobileModuleMenu({ open: controlledOpen, onOpenChange }: { open?
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const level = useAppSelector((s) => s.auth.user?.level) as UserLevel | undefined;
-  const { active, marketplace, navigation, isLoading, isError, refetch } = useHubModules();
+  const { active, marketplace, navigation, isLoading, isError, refetch, freshCodes = [] } = useHubModules();
   const [localOpen, setLocalOpen] = useState(false);
   const open = controlledOpen ?? localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
@@ -34,7 +34,7 @@ export function MobileModuleMenu({ open: controlledOpen, onOpenChange }: { open?
       }}>
       <SheetHeader className={cls.header}><AppBrand /><SheetTitle ref={titleRef} tabIndex={-1} className={cls.menuTitle}>{t('hub.catalog')}</SheetTitle></SheetHeader>
       <ModuleNavigation rows={navigation ?? [...active, ...marketplace]} level={level} testIdPrefix='phone-module'
-        isLoading={isLoading} isError={isError} refetch={refetch}
+        isLoading={isLoading} isError={isError} refetch={refetch} freshCodes={freshCodes}
         onNavigate={(event) => { if (isPlainNavigationClick(event)) setOpen(false); }} />
       <AppVersionLabel className={cls.version} />
     </SheetContent>

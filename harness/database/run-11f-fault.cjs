@@ -260,7 +260,7 @@ if (process.env.F11_CHILD === 'enqueue-kill') {
         assert.equal(matrix.constraints.shadowDebitOnly, true);
 
         const outDir = process.env.AI11_11F_OUT
-          || path.join(__dirname, '../../.planning/initiatives/ai-products/evidence/11f');
+          || require('../../tools/artifacts/paths.cjs').outputPath('runs', 'ai-products', '11f');
         fs.mkdirSync(outDir, { recursive: true });
         const outFile = path.join(outDir, `matrix-${dialect}.json`);
         fs.writeFileSync(outFile, `${JSON.stringify(matrix, null, 2)}\n`);

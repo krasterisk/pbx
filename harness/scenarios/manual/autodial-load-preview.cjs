@@ -1,3 +1,4 @@
+const manualOutput = (name) => require('../../../tools/artifacts/paths.cjs').outputPath('runs', 'manual', process.env.HARNESS_RUN_ID || 'legacy', name);
 /**
  * Bounded import-preview timing for 1k/10k CSV rows.
  * Preview only: does not execute import and does not start campaigns.
@@ -95,7 +96,7 @@ async function main() {
     note: 'import-preview only; no execute/import, no campaign start',
     results,
   };
-  const dest = path.join(root, '.planning/evidence/autodial-load-preview-2026-09-21.json');
+  const dest = manualOutput('autodial-load-preview-2026-09-21.json');
   fs.writeFileSync(dest, JSON.stringify(out, null, 2));
   console.log(JSON.stringify(out, null, 2));
 }

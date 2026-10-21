@@ -13,6 +13,7 @@ import type {
   IAutodialBase,
   IAutodialContact,
   IAutodialContactsPage,
+  IAutodialContactHistory,
 } from '@krasterisk/shared';
 import { AcBase } from './models/ac-base.model';
 import { AcBaseField } from './models/ac-base-field.model';
@@ -74,8 +75,11 @@ export class AutodialBasesService {
   }
 
   async create(userUid: number, dto: CreateAutodialBaseDto): Promise<IAutodialBase> {
+    return this.sequelize.transaction((transaction) => this.createInTransaction(userUid, dto, transaction));
+  }
+
+  async createInTransaction(userUid: number, dto: CreateAutodialBaseDto, transaction: Transaction): Promise<IAutodialBase> {
     this.assertFields(dto.fields);
-    return this.sequelize.transaction(async (transaction) => {
       try {
         const base = await this.baseModel.create(
           {
@@ -100,7 +104,6 @@ export class AutodialBasesService {
         }
         throw e;
       }
-    });
   }
 
   async update(userUid: number, uid: number, dto: UpdateAutodialBaseDto): Promise<IAutodialBase> {
@@ -169,10 +172,15 @@ export class AutodialBasesService {
   /** Copy a report selection atomically, including scoped exclusions. No tasks are copied. */
   async cloneContacts(userUid: number, sourceUid: number, contactUids: number[], name: string,
     revision: number, campaignUid: number): Promise<IAutodialBase> {
+    return this.sequelize.transaction((transaction) => this.cloneContactsInTransaction(userUid, sourceUid,
+      contactUids, name, revision, campaignUid, transaction));
+  }
+
+  async cloneContactsInTransaction(userUid: number, sourceUid: number, contactUids: number[], name: string,
+    revision: number, campaignUid: number, transaction: Transaction): Promise<IAutodialBase> {
     const ids = [...new Set(contactUids)];
     if (!name.trim() || name.trim().length > 128 || !ids.length || ids.length > 5000
       || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new BadRequestException({ code: 'AC_SELECTION_INVALID' });
-    return this.sequelize.transaction(async (transaction) => {
       const source = await this.lockBase(userUid, sourceUid, transaction);
       if (source.revision !== revision) throw new ConflictException({ code: 'AC_REVISION_CONFLICT' });
       if (!await this.campaignModel.findOne({ where: { uid: campaignUid, base_uid: sourceUid, user_uid: userUid }, transaction }))
@@ -214,7 +222,6 @@ export class AutodialBasesService {
         { replacements: { userUid, newBase: base.uid, sourceUid, campaignUid }, transaction, type: QueryTypes.INSERT });
       base.fields = fields;
       return this.toBaseDto(base, ids.length);
-    });
   }
 
   async removeMany(
@@ -285,6 +292,40 @@ export class AutodialBasesService {
     return this.toContactDto(contact, base.fields ?? []);
   }
 
+  async contactHistory(userUid: number, baseUid: number, contactUid: number): Promise<IAutodialContactHistory> {
+    await this.findContact(userUid, baseUid, contactUid);
+    const replacements = { tenant: userUid, base: baseUid, contact: contactUid };
+    const [attempts, tasks] = await Promise.all([
+      this.sequelize.query<{ uid: number; campaign_uid: number; campaign_name: string; started_at: Date | string; ended_at: Date | string | null; disposition: string; scenario_result: unknown; billsec: number }>(
+        `SELECT a.uid, a.campaign_uid, p.name AS campaign_name, a.started_at, a.ended_at, a.disposition, a.scenario_result, a.billsec
+        FROM ac_attempts a JOIN ac_tasks t ON t.uid = a.task_uid AND t.vpbx_user_uid = a.vpbx_user_uid
+        JOIN ac_contacts c ON c.uid = t.contact_uid AND c.vpbx_user_uid = a.vpbx_user_uid
+        JOIN ac_campaigns p ON p.uid = a.campaign_uid AND p.vpbx_user_uid = a.vpbx_user_uid
+        WHERE a.vpbx_user_uid = :tenant AND c.base_uid = :base AND c.uid = :contact
+        ORDER BY a.started_at DESC, a.uid DESC LIMIT 51`, { replacements, type: QueryTypes.SELECT }),
+      this.sequelize.query<{ uid: number; campaign_uid: number; campaign_name: string; status: string; next_attempt_at: Date | string | null }>(
+        `SELECT t.uid, t.campaign_uid, p.name AS campaign_name, t.status, t.next_attempt_at
+        FROM ac_tasks t JOIN ac_contacts c ON c.uid = t.contact_uid AND c.vpbx_user_uid = t.vpbx_user_uid
+        JOIN ac_campaigns p ON p.uid = t.campaign_uid AND p.vpbx_user_uid = t.vpbx_user_uid
+        WHERE t.vpbx_user_uid = :tenant AND c.base_uid = :base AND c.uid = :contact
+        ORDER BY t.uid DESC LIMIT 51`, { replacements, type: QueryTypes.SELECT }),
+    ]);
+    const iso = (value: Date | string | null) => value ? new Date(value).toISOString() : null;
+    return { limit: 50, truncated: attempts.length > 50 || tasks.length > 50,
+      attempts: attempts.slice(0, 50).map(({ scenario_result, ...row }) => {
+        let result: Record<string, unknown> = {};
+        try { const parsed = typeof scenario_result === 'string' ? JSON.parse(scenario_result) : scenario_result;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) result = parsed;
+        } catch { /* Legacy malformed evidence is unknown. */ }
+        return { ...row, started_at: iso(row.started_at)!, ended_at: iso(row.ended_at), billsec: Number(row.billsec),
+          outcome: typeof result.business_outcome_label === 'string' ? result.business_outcome_label
+            : typeof result.business_outcome === 'string' ? result.business_outcome : null,
+          goal_relation: ['achieved', 'not_achieved'].includes(String(result.business_goal_relation)) ? String(result.business_goal_relation) : 'unknown' };
+      }),
+      tasks: tasks.slice(0, 50).map((row) => ({ ...row, next_attempt_at: iso(row.next_attempt_at) })),
+    };
+  }
+
   async findContacts(userUid: number, baseUid: number, ids: number[]): Promise<IAutodialContact[]> {
     const base = await this.loadBase(userUid, baseUid);
     if (!ids.length) return [];
@@ -333,6 +374,10 @@ export class AutodialBasesService {
 
   async createContacts(userUid: number, baseUid: number, contacts: CreateAutodialContactDto[], expectedRevision?: number): Promise<IAutodialContact[]> {
     return this.writeContactBatch(userUid, baseUid, contacts, false, expectedRevision);
+  }
+
+  async createContactInTransaction(userUid: number, baseUid: number, dto: CreateAutodialContactDto, transaction: Transaction) {
+    return (await this.writeContactBatch(userUid, baseUid, [dto], false, undefined, transaction))[0];
   }
 
   async upsertContacts(userUid: number, baseUid: number, contacts: CreateAutodialContactDto[], expectedRevision?: number, transaction?: Transaction) {

@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import {
   AUTODIAL_DIAL_MODES,
+  AUTODIAL_BUSINESS_GOALS,
   AUTODIAL_SCHEDULE_KINDS,
   autodialScenarioActionSchema,
   type IAutodialBaseField,
@@ -119,10 +120,10 @@ const amdSchema = z.strictObject({
 const scheduleSchema = z.strictObject({
   uid: z.number().int().positive().optional(),
   kind: z.enum(AUTODIAL_SCHEDULE_KINDS),
-  weekday: z.number().int().min(0).max(6).nullable().optional(),
+  weekday: z.number().int().min(0).max(6).nullable().optional().describe('Для weekly обязательно: 0=воскресенье, 1=понедельник … 6=суббота'),
   time_from: z.string().min(4).max(5),
   time_to: z.string().min(4).max(5),
-  timezone: z.string().optional(),
+  timezone: z.string().optional().describe('Поддерживаемая IANA зона, например Europe/Moscow или Asia/Krasnoyarsk; не local/МСК'),
   date_from: z.string().nullable().optional(),
   date_to: z.string().nullable().optional(),
   enabled: z.boolean().optional(),
@@ -132,17 +133,18 @@ const scenarioActionSchema = autodialScenarioActionSchema;
 
 const campaignFields = {
   name: z.string().min(1).max(255).describe('Отображаемое имя кампании'),
+  business_goal: z.enum(AUTODIAL_BUSINESS_GOALS).optional().describe('Бизнес-цель: debt, appointment, notification, operator, survey (собрать ответ опроса) или custom'),
   dial_mode: z.enum(AUTODIAL_DIAL_MODES).optional(),
   base_uid: z.number().int().positive().optional().describe('UID клиентской базы'),
   pacing: pacingSchema.optional(),
   retry: retrySchema.optional(),
   trunk_pool: z.array(trunkItemSchema).optional(),
   cid_policy: cidPolicySchema.optional(),
-  scenario_actions: z.array(scenarioActionSchema).optional(),
+  scenario_actions: z.array(scenarioActionSchema).optional().describe('При создании новой кампании пропущенный onFailure речевого шага фиксируется как hangup и показывается в карточке; явное значение и старые сценарии при обновлении сохраняются'),
   amd: amdSchema.optional(),
   success_min_sec: z.number().int().min(1).optional(),
   dial_timeout_sec: z.number().int().min(5).optional(),
-  schedules: z.array(scheduleSchema).optional(),
+  schedules: z.array(scheduleSchema).optional().describe('Для 24×7 передавай []: без окон. Окна имеют исключительную правую границу; 00:00–23:59 не является 24×7. Для weekly укажи weekday 0..6 и IANA timezone'),
 };
 
 const createInput = z.strictObject({
@@ -157,6 +159,7 @@ const updateInput = z.strictObject({
   uid: z.number().int().positive().optional().describe('UID кампании'),
   name: z.string().min(1).optional().describe('Имя кампании, если UID неизвестен'),
   dial_mode: campaignFields.dial_mode,
+  business_goal: campaignFields.business_goal,
   base_uid: campaignFields.base_uid,
   pacing: campaignFields.pacing,
   retry: campaignFields.retry,
@@ -174,6 +177,7 @@ const updateArgs = z.strictObject({
   expected_revision: z.number().int().nonnegative(),
   name: z.string().min(1).max(255).optional(),
   dial_mode: campaignFields.dial_mode,
+  business_goal: campaignFields.business_goal,
   base_uid: campaignFields.base_uid,
   pacing: campaignFields.pacing,
   retry: campaignFields.retry,
@@ -292,6 +296,8 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
 - Режимы: progressive (1 звонок на свободного оператора), power (N звонков на оператора), predictive (over-dial под abandon), agentless (робот/IVR без операторов).
 - Одна задача = (кампания, контакт, номер). Итог попытки — диспозиция: success, answered_short, no_answer, busy, congestion, failed, amd_machine, voicemail, invalid_number, dnc, max_attempts.
 - Черновик создаётся и правится через create_autodial_campaign / update_autodial_campaign (карточка подтверждения). Перед правкой читай get_autodial_campaign.
+- Круглосуточный режим 24×7 — schedules: [], а не семь окон 00:00–23:59. Конец окна исключается; weekly требует weekday 0..6, timezone — поддерживаемое IANA имя.
+- При создании нового черновика инструмент фиксирует пропущенный onFailure у text2speech как hangup до проверки и карточки подтверждения. Это не молчаливое изменение старых сценариев; явный continue сохраняется.
 - Повторный обзвон запускается выборкой по прежним диспозициям, а не созданием новой кампании.
 - Запуск кампании (start) агенту недоступен: это реальные звонки людям. Предлагай пользователю нажать «Запустить» в интерфейсе.
 - Останов набора конкретного номера — add_autodial_dnc, а не пауза всей кампании.`;
@@ -413,16 +419,24 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
         const plannedBase = ctx.planned?.autodialBases?.find((base) => base.uid === input.base_uid);
         const refused = plannedBase ? null : await this.refuseMissingBase(input.base_uid, ctx);
         if (refused) return refused;
-        const applyArgs = input;
+        // A new AI conversation must not inherit the legacy silent-continuation
+        // behavior when the model omits a speech failure policy. Normalize before
+        // review so confirmation applies exactly the reviewed configuration.
+        const applyArgs: CreateArgs = { ...input,
+          ...(input.scenario_actions ? { scenario_actions: input.scenario_actions.map((action) =>
+            action.type === 'text2speech' && action.params.onFailure === undefined
+              ? { ...action, params: { ...action.params, onFailure: 'hangup' } } : action) } : {}),
+        };
         if (plannedBase) await this.preflight.validateDraft(ctx.vpbxUserUid, applyArgs, plannedBase);
         else await this.preflight.validateDraft(ctx.vpbxUserUid, applyArgs);
         return {
           entityType: 'autodial_campaign',
           entityLabel: input.name,
-          summary: this.createSummary(input),
+          summary: this.createSummary(applyArgs),
           before: null,
           after: {
             name: input.name,
+            business_goal: input.business_goal ?? 'custom',
             status: 'draft',
             dial_mode: input.dial_mode ?? 'progressive',
             base_uid: input.base_uid,
@@ -672,6 +686,7 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
     const patch: Omit<UpdateArgs, 'uid' | 'expected_revision'> = {};
     if (input.name != null && input.uid != null) patch.name = input.name;
     if (input.dial_mode != null) patch.dial_mode = input.dial_mode;
+    if (input.business_goal != null) patch.business_goal = input.business_goal;
     if (input.base_uid != null) patch.base_uid = input.base_uid;
     if (input.pacing != null) patch.pacing = input.pacing;
     if (input.retry != null) patch.retry = input.retry;
@@ -690,6 +705,19 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
     if (input.dial_mode) lines.push(`Режим ${input.dial_mode}`);
     if (input.trunk_pool?.length) {
       lines.push(`Транки: ${input.trunk_pool.map((item) => item.trunk_id).join(', ')}`);
+    }
+    if (input.business_goal) lines.push(`Цель: ${{ custom: 'своя задача', debt: 'работа с задолженностью', appointment: 'подтверждение записи', notification: 'уведомление', operator: 'соединение с оператором', survey: 'получение ответа опроса' }[input.business_goal]}`);
+    if (input.retry) lines.push(`Максимум попыток: ${input.retry.max_attempts}`);
+    if (input.pacing) lines.push(`Ограничители набора: ${input.pacing.providers.map((provider) => provider.type === 'static' ? `${provider.max_channels} кан.` : provider.type).join(', ')}`);
+    lines.push(input.schedules?.length ? `Окон набора: ${input.schedules.length}; ${input.schedules.map((window) => `${window.time_from}–${window.time_to} (${window.timezone ?? 'зона не указана'})`).join('; ')}` : 'Расписание: круглосуточно');
+    const actions = input.scenario_actions ?? [];
+    lines.push(`Шагов разговора: ${actions.filter((step) => step.enabled !== false).length}`);
+    for (const [index, step] of actions.entries()) {
+      if (step.enabled === false) continue;
+      if (step.type === 'text2speech') lines.push(`Шаг ${index + 1}: озвучивание, провайдер ${step.params.engine ?? 'не выбран'}`);
+      if (step.type === 'text2speech') lines.push(`Шаг ${index + 1}: при ошибке озвучивания — ${step.params.onFailure === 'hangup' ? 'завершить звонок' : 'продолжить с сохранением ошибки'}`);
+      if (step.type === 'collect_input') lines.push(`Шаг ${index + 1}: ввод ${Object.entries(step.params.outcomeMap ?? {}).map(([digits, code]) => `${digits} → ${step.params.outcomeDefinitions?.[code]?.label ?? code}`).join('; ') || 'без бизнес-исходов'}`);
+      if (step.type === 'toqueue') lines.push(`Шаг ${index + 1}: соединение с очередью; цель подтверждается событием ответа оператора`);
     }
     return lines;
   }
@@ -710,6 +738,7 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
     return {
       uid: row.uid,
       name: row.name,
+      business_goal: row.business_goal ?? 'custom',
       status: row.status,
       dial_mode: row.dial_mode,
       base_uid: row.base_uid,
@@ -728,6 +757,7 @@ export class AutodialAiAdapter implements DomainAiAdapter, OnModuleInit {
     return {
       uid: row.uid,
       name: row.name,
+      business_goal: row.business_goal ?? 'custom',
       status: row.status,
       dial_mode: row.dial_mode,
       base_uid: row.base_uid,

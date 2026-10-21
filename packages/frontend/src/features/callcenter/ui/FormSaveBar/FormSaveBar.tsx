@@ -23,6 +23,8 @@ export interface FormSaveBarProps {
   /** Reverts the form to the saved state. */
   onCancel: () => void;
   testId?: string;
+  /** `sticky` floats over the page. `footer` stays under a scrolling form and does not cover fields. */
+  placement?: 'sticky' | 'footer';
 }
 
 /**
@@ -37,6 +39,7 @@ export function FormSaveBar({
   onSave,
   onCancel,
   testId = 'cc-form-save-bar',
+  placement = 'sticky',
 }: FormSaveBarProps) {
   const { t } = useTranslation();
   const blocker = useBlocker(({ currentLocation, nextLocation }) =>
@@ -62,7 +65,7 @@ export function FormSaveBar({
           gap="12"
           wrap="wrap"
           role="status"
-          className={styles.bar}
+          className={placement === 'footer' ? styles.footer : styles.bar}
           data-testid={testId}
         >
           <Text variant="small">{t('callcenter.settings.saveBar.unsaved', 'You have unsaved changes')}</Text>

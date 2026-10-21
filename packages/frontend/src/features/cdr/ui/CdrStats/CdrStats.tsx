@@ -8,16 +8,20 @@ import cls from './CdrStats.module.scss';
 interface CdrStatsProps {
   stats?: ICdrStats;
   isLoading: boolean;
+  isError?: boolean;
 }
 
-export const CdrStats = memo(({ stats, isLoading }: CdrStatsProps) => {
+const UNAVAILABLE = '—';
+
+export const CdrStats = memo(({ stats, isLoading, isError }: CdrStatsProps) => {
   const { t } = useTranslation();
+  const missing = isLoading || isError || !stats;
 
   const items = [
-    { label: t('cdr.stats.totalCalls', 'Всего звонков'), value: isLoading ? '-' : stats?.totalCalls ?? 0, icon: PhoneCall, iconClass: cls.iconIndigo },
-    { label: t('cdr.stats.asr', 'ASR'), value: isLoading ? '-' : `${stats?.asr ?? 0}%`, icon: CheckCircle2, iconClass: cls.iconGreen },
-    { label: t('cdr.stats.avgBillsec', 'Ср. разговор'), value: isLoading ? '-' : `${stats?.avgBillsec ?? 0} с`, icon: Clock, iconClass: cls.iconBlue },
-    { label: t('cdr.stats.avgPdd', 'Ср. PDD'), value: isLoading ? '-' : `${stats?.avgPdd ?? 0} с`, icon: Timer, iconClass: cls.iconAmber },
+    { label: t('cdr.stats.totalCalls', 'Всего звонков'), value: missing ? UNAVAILABLE : stats.totalCalls, icon: PhoneCall, iconClass: cls.iconIndigo },
+    { label: t('cdr.stats.asr', 'ASR'), value: missing ? UNAVAILABLE : `${stats.asr}%`, icon: CheckCircle2, iconClass: cls.iconGreen },
+    { label: t('cdr.stats.avgBillsec', 'Ср. разговор'), value: missing ? UNAVAILABLE : `${stats.avgBillsec} с`, icon: Clock, iconClass: cls.iconBlue },
+    { label: t('cdr.stats.avgPdd', 'Ср. PDD'), value: missing ? UNAVAILABLE : `${stats.avgPdd} с`, icon: Timer, iconClass: cls.iconAmber },
   ];
 
   return (

@@ -2,7 +2,8 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const lab = vi.hoisted(() => ({ ua: null as any, consults: [] as any[] }));
-vi.mock('sip.js', () => {
+vi.mock('sip.js', async (importOriginal) => {
+  const { Web } = await importOriginal<typeof import('sip.js')>();
   class Emitter {
     listeners: Array<(state: string) => void> = [];
     addListener(fn: (state: string) => void) { this.listeners.push(fn); }
@@ -37,7 +38,7 @@ vi.mock('sip.js', () => {
     register = vi.fn(async () => this.stateChange.emit('Registered'));
     unregister = vi.fn(async () => undefined);
   }
-  return { Session, Invitation, Inviter, UserAgent, Registerer, SessionState: { Established: 'Established', Terminated: 'Terminated', Initial: 'Initial' }, RegistererState: { Registered: 'Registered', Unregistered: 'Unregistered' }, Web: { holdModifier: 'hold' } };
+  return { Session, Invitation, Inviter, UserAgent, Registerer, SessionState: { Established: 'Established', Terminated: 'Terminated', Initial: 'Initial' }, RegistererState: { Registered: 'Registered', Unregistered: 'Unregistered' }, Web: { ...Web, holdModifier: 'hold' } };
 });
 
 import { Invitation } from 'sip.js';

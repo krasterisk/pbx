@@ -28,7 +28,7 @@ const PENDING_GATES = Object.freeze([
   'commercial_readiness_not_declared',
 ]);
 
-const EVIDENCE_ROOT = path.join(__dirname, '../../.planning/initiatives/ai-products/evidence');
+const EVIDENCE_ROOT = path.join(__dirname, '../../docs/plans/initiatives/ai-products/evidence');
 
 function evidenceExists(slice) {
   if (!slice) return { present: false, path: null };

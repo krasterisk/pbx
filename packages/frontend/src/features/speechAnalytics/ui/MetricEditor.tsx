@@ -49,6 +49,7 @@ const TAB_IDS = [
   'digest',
   'alerts',
   'budget',
+  'privacy',
   'models',
 ] as const;
 
@@ -64,6 +65,7 @@ const TAB_LABELS: Record<TabId, string> = {
   digest: 'Дайджест',
   alerts: 'Алерты',
   budget: 'Бюджет',
+  privacy: 'Защита данных',
   models: 'Модели',
 };
 
@@ -497,6 +499,20 @@ export const MetricEditor = memo(({ projectId, canEditModels = false }: MetricEd
                   patchConfig({ budget: { softLimit: Number(e.target.value) || 0 } })
                 }
               />
+            </VStack>
+          ) : null}
+
+          {tab === 'privacy' ? (
+            <VStack gap="12" max data-testid="sa-section-privacy" className={cls.tabPanel}>
+              <Text variant="h3" as="h3">{t('speechAnalytics.textPrivacy.title', 'Защита данных')}</Text>
+              <HStack gap="12">
+                <Switch id="sa-anonymize-before-llm" checked={config.textPrivacy?.anonymizeBeforeLlm === true}
+                  disabled={busy} onCheckedChange={(enabled) => patchConfig({ textPrivacy: { anonymizeBeforeLlm: enabled } })} />
+                <Label htmlFor="sa-anonymize-before-llm">{t('speechAnalytics.textPrivacy.enable', 'Обезличивать текст перед анализом в облаке')}</Label>
+              </HStack>
+              <Text variant="muted">{t('speechAnalytics.textPrivacy.explanation', 'Локальная модель aiPBX выделяет персональные данные; система заменяет их условными обозначениями. Если подготовка недоступна, анализ остановится. Исходные запись и расшифровка сохраняются с прежними правами доступа.')}</Text>
+              <Text variant="muted">{t('speechAnalytics.textPrivacy.limits', 'Автоматическое обезличивание снижает риск раскрытия данных, но требует проверки качества. Оно не исправляет слова, суммы, даты или смысл разговора.')}</Text>
+              <Text variant="muted">{t('speechAnalytics.draftHint', 'Черновик не влияет на звонки до публикации')}</Text>
             </VStack>
           ) : null}
 

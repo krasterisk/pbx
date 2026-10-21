@@ -49,8 +49,11 @@ import { AutodialStateService } from './autodial-state.service';
 import { AutodialDiagnosisService } from './autodial-diagnosis.service';
 import { AutodialPreflightService } from './autodial-preflight.service';
 import { AutodialTestCallService } from './autodial-test-call.service';
+import { AutodialStepEvidenceService } from './autodial-step-evidence.service';
 import { AutodialPreviewService } from './autodial-preview.service';
 import { AutodialSchemaService } from './autodial-schema.service';
+import { AutodialUiCommandService } from './autodial-ui-command.service';
+import { AutodialUiCommandsController } from './autodial-ui-commands.controller';
 import { AutodialAiPrivacyService } from './autodial-ai-privacy.service';
 import { AutodialAiPrivacyController } from './autodial-ai-privacy.controller';
 import { AutodialAiDataTools } from './autodial-ai-data.tools';
@@ -106,6 +109,7 @@ import { AutodialWebhooksService } from './autodial-webhooks.service';
     IvrsModule,
   ],
   controllers: [
+    AutodialUiCommandsController,
     AutodialCrmController,
     AutodialAnalyticsController,
     AutodialMonitorController,
@@ -117,6 +121,7 @@ import { AutodialWebhooksService } from './autodial-webhooks.service';
     AutodialInternalController,
   ],
   providers: [
+    AutodialUiCommandService,
     AutodialWebhooksService,
     AutodialCrmService,
     AutodialReportSelectionService,
@@ -142,6 +147,7 @@ import { AutodialWebhooksService } from './autodial-webhooks.service';
     AutodialDiagnosisService,
     AutodialPreflightService,
     AutodialTestCallService,
+    AutodialStepEvidenceService,
     AutodialPreviewService,
     AutodialSchemaService,
   ],

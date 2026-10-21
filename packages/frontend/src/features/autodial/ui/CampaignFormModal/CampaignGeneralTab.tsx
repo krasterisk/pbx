@@ -15,6 +15,7 @@ import type {
   CampaignDraftErrors,
 } from "../../model/campaignDraft";
 import cls from "./CampaignTabs.module.scss";
+import { AUTODIAL_BUSINESS_GOALS, type AutodialBusinessGoal } from '@krasterisk/shared';
 
 interface Props {
   draft: AutodialCampaignDraft;
@@ -39,6 +40,12 @@ export const CampaignGeneralTab = memo(
     return (
       <VStack gap="16" max>
         <div className={cls.grid}>
+          {section === 'all' && <VStack gap="8" max className={cls.field}>
+            <Label htmlFor="autodial-business-goal">{t('autodial.workspace.library.goal')}</Label>
+            <Select id="autodial-business-goal" value={draft.business_goal} onChange={(event) => patch({ business_goal: event.target.value as AutodialBusinessGoal })}>
+              {AUTODIAL_BUSINESS_GOALS.map((goal) => <option key={goal} value={goal}>{t(`autodial.workspace.library.goals.${goal}`)}</option>)}
+            </Select>
+          </VStack>}
           {section !== 'mode' && <>
           <VStack gap="8" max className={cls.field}>
             <Label htmlFor="autodial-campaign-name" className={cls.fieldLabel}>

@@ -16,6 +16,7 @@ interface StreamState {
   seq: number;
   timestamp: number;
   abortController: AbortController;
+  ssrc: number;
   targetAddress: string;
   targetPort: number;
 }
@@ -24,7 +25,6 @@ interface StreamState {
 export class StreamAudioService {
   private readonly logger = new Logger(StreamAudioService.name);
   private readonly streams = new Map<string, StreamState>();
-  private readonly RTP_SSRC = Math.floor(Math.random() * 0xffffffff);
   private readonly server: dgram.Socket;
 
   /** A-law payload type in RTP header */
@@ -51,6 +51,7 @@ export class StreamAudioService {
       seq: Math.floor(Math.random() * 65535),
       timestamp: 0,
       abortController: new AbortController(),
+      ssrc: Math.floor(Math.random() * 0xffffffff),
       targetAddress,
       targetPort,
     });
@@ -184,7 +185,7 @@ export class StreamAudioService {
       chunk,
       state.seq,
       state.timestamp,
-      this.RTP_SSRC,
+      state.ssrc,
       StreamAudioService.PAYLOAD_TYPE_ALAW,
     );
 

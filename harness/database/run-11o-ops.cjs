@@ -212,7 +212,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
     assert.equal(report.productSlaClaimed, false);
     assert.equal(report.constraints.noAutomaticRollback, true);
     const outDir = process.env.AI11_11O_OUT
-      || path.join(__dirname, '../../.planning/initiatives/ai-products/evidence/11o');
+      || require('../../tools/artifacts/paths.cjs').outputPath('runs', 'ai-products', '11o');
     fs.mkdirSync(outDir, { recursive: true });
     const outFile = path.join(outDir, `drill-${dialect}.json`);
     fs.writeFileSync(outFile, `${JSON.stringify(report, null, 2)}\n`);

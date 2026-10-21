@@ -8,7 +8,7 @@ export class DomainError extends Error {
 }
 
 const MAX_BYTES = 20 * 1024 * 1024;
-const FORBIDDEN = /javascript:|https?:\/\/|oleobject|macros?/i;
+const FORBIDDEN = /javascript:|vbscript:|oleobject|\bmacros?\b/i;
 
 export function assertKnowledgeSource(input: { mime: string; bytes: number; text: string }): void {
   if (input.bytes > MAX_BYTES) throw new DomainError('document_too_large', 400);

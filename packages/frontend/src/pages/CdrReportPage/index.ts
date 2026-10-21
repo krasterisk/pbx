@@ -1,1 +1,1 @@
-export { default as CdrReportPage } from './CdrReportPage';
+export { CallsJournalPage as CdrReportPage } from './CallsJournalPage';

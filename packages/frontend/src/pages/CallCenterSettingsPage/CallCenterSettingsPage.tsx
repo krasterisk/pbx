@@ -156,10 +156,15 @@ export function CallCenterSettingsPage() {
           </Flex>
         )}
 
-        <Flex className={styles.panel} direction="column" align="start" justify="start" data-testid="cc-settings-panel">
-          {activeTab !== 'overview' && <Text variant="muted" role="note">
-            {t(`callcenter.settings.scope.${activeTab === 'myPanel' ? 'personal' : activeTab === 'operatorSettings' ? 'operator' : activeTab === 'permissions' ? 'permissions' : 'tenant'}`)}
-          </Text>}
+        <Flex className={styles.panel} direction="column" align="start" justify="start" gap="12" data-testid="cc-settings-panel">
+          <VStack gap="4" max>
+            <Text as="h2" className={styles.panelTitle}>{tabTitle(activeTab)}</Text>
+            {activeTab === 'myPanel' || activeTab === 'operatorSettings' || activeTab === 'permissions' ? (
+              <Text variant="muted" role="note">
+                {t(`callcenter.settings.scope.${activeTab === 'myPanel' ? 'personal' : activeTab === 'operatorSettings' ? 'operator' : 'permissions'}`)}
+              </Text>
+            ) : null}
+          </VStack>
           {isMobile && tabDesc(activeTab) ? (
             <Text variant="muted" className={styles.mobileDesc}>{tabDesc(activeTab)}</Text>
           ) : null}

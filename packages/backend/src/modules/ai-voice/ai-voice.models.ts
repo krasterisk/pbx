@@ -7,6 +7,9 @@ export class AiRobotDraft extends Model {
   @AllowNull(false) @Column(DataType.STRING(36)) declare robot_uuid: string;
   @AllowNull(false) @Column(DataType.INTEGER) declare draft_revision: number;
   @AllowNull(false) @Column(DataType.TEXT) declare runtime_policy: string;
+  @Column(DataType.TEXT) declare config_json: string | null;
+  @Column(DataType.INTEGER) declare config_schema_version: number | null;
+  @Column(DataType.STRING(36)) declare current_version_id: string | null;
   @AllowNull(false) @Column(DataType.DATE) declare created_at: Date;
   @AllowNull(false) @Column(DataType.DATE) declare updated_at: Date;
 }

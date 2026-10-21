@@ -59,6 +59,7 @@ describe('AutodialAiAdapter', () => {
   let reports: { summary: jest.Mock; reportingTimezone: jest.Mock };
   let dnc: { create: jest.Mock };
   let registry: { register: jest.Mock };
+  let preflight: { validateDraft: jest.Mock; capabilities: jest.Mock; check: jest.Mock };
   let adapter: AutodialAiAdapter;
 
   const getTool = (name: string) => adapter.getTools().find((tool) => tool.name === name)!;
@@ -89,6 +90,7 @@ describe('AutodialAiAdapter', () => {
     reports = { summary: jest.fn(async () => []), reportingTimezone: jest.fn(async () => 'Asia/Krasnoyarsk') };
     dnc = { create: jest.fn() };
     registry = { register: jest.fn() };
+    preflight = { validateDraft: jest.fn().mockResolvedValue(undefined), capabilities: jest.fn(), check: jest.fn() };
     adapter = new AutodialAiAdapter(
       campaigns as any,
       bases as any,
@@ -96,7 +98,7 @@ describe('AutodialAiAdapter', () => {
       dnc as any,
       registry as any,
       { diagnose: jest.fn().mockResolvedValue({ next_attempt_at: '2026-10-17T02:14:00Z' }) } as any,
-      { validateDraft: jest.fn().mockResolvedValue(undefined), capabilities: jest.fn(), check: jest.fn() } as any,
+      preflight as any,
       { getTools: () => [] } as any,
     );
   });
@@ -141,6 +143,47 @@ describe('AutodialAiAdapter', () => {
   });
 
   describe('create_autodial_campaign', () => {
+    it('reviews and freezes a safe speech failure default without mutating the model input', async () => {
+      const action = { type: 'text2speech', params: { engine: 3, text: 'Test' } };
+      const proposal = await getTool('create_autodial_campaign').handler({ name: 'Safe new draft', base_uid: 8,
+        scenario_actions: [action] }, TENANT_A);
+      expect(proposal.applyPayload.args.scenario_actions[0].params.onFailure).toBe('hangup');
+      expect(proposal.summary).toContain('Шаг 1: при ошибке озвучивания — завершить звонок');
+      expect(action.params).not.toHaveProperty('onFailure');
+      expect(preflight.validateDraft).toHaveBeenCalledWith(TENANT_A,
+        expect.objectContaining({ scenario_actions: [expect.objectContaining({ params: expect.objectContaining({ onFailure: 'hangup' }) })] }));
+    });
+    it('keeps an explicitly chosen continuation policy', async () => {
+      const proposal = await getTool('create_autodial_campaign').handler({ name: 'Explicit policy', base_uid: 8,
+        scenario_actions: [{ type: 'text2speech', params: { engine: 3, text: 'Test', onFailure: 'continue' } }] }, TENANT_A);
+      expect(proposal.applyPayload.args.scenario_actions[0].params.onFailure).toBe('continue');
+      expect(proposal.summary).toContain('Шаг 1: при ошибке озвучивания — продолжить с сохранением ошибки');
+    });
+    it('keeps the business goal and exposes reviewable rules and branches without raw action parameters', async () => {
+      const proposal = await getTool('create_autodial_campaign').handler({ name: 'Appointment review', base_uid: 8,
+        dial_mode: 'agentless', business_goal: 'appointment', retry: { max_attempts: 1, default_interval_sec: 60 },
+        pacing: { providers: [{ type: 'static', max_channels: 1 }] },
+        scenario_actions: [{ type: 'text2speech', params: { engine: 3, text: 'Private customer text {AC_NAME}' } },
+          { type: 'collect_input', params: { outcomeMap: { '1': 'confirmed' }, outcomeDefinitions: {
+            confirmed: { label: 'Запись подтверждена', category: 'positive', goal_relation: 'achieved' },
+          } } }],
+      }, TENANT_A);
+      expect(proposal.after.business_goal).toBe('appointment');
+      expect(proposal.applyPayload.args.business_goal).toBe('appointment');
+      expect(proposal.summary).toEqual(expect.arrayContaining(['Цель: подтверждение записи', 'Максимум попыток: 1',
+        'Ограничители набора: 1 кан.', 'Расписание: круглосуточно', 'Шагов разговора: 2',
+        'Шаг 1: озвучивание, провайдер 3', 'Шаг 2: ввод 1 → Запись подтверждена']));
+      expect(JSON.stringify(proposal.summary)).not.toContain('Private customer text');
+      expect(campaigns.create).not.toHaveBeenCalled();
+    });
+    it('accepts a survey goal and describes it before applying', async () => {
+      const proposal = await getTool('create_autodial_campaign').handler({ name: 'Survey', base_uid: 8,
+        business_goal: 'survey', scenario_actions: [{ type: 'hangup', params: {} }] }, TENANT_A);
+      expect(proposal.after.business_goal).toBe('survey');
+      expect(proposal.applyPayload.args.business_goal).toBe('survey');
+      expect(proposal.summary).toContain('Цель: получение ответа опроса');
+      expect(campaigns.create).not.toHaveBeenCalled();
+    });
     it('proposes a draft without writing until apply', async () => {
       const tool = getTool('create_autodial_campaign');
       const proposal = await tool.handler(
@@ -182,6 +225,11 @@ describe('AutodialAiAdapter', () => {
   });
 
   describe('update_autodial_campaign', () => {
+    it('does not silently migrate a legacy conversation when reviewing an update', async () => {
+      const proposal = await getTool('update_autodial_campaign').handler({ uid: 11,
+        scenario_actions: [{ type: 'text2speech', params: { engine: 3, text: 'Legacy' } }] }, TENANT_A);
+      expect(proposal.applyPayload.args.scenario_actions[0].params).not.toHaveProperty('onFailure');
+    });
     it('stamps expected_revision from the current row and writes only after apply', async () => {
       const tool = getTool('update_autodial_campaign');
       const proposal = await tool.handler(

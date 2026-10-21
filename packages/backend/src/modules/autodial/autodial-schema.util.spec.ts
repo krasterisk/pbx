@@ -34,4 +34,30 @@ describe('explicit schema migration planning', () => {
     expect(autodialFieldReferenced(original, fields[1])).toBe(true);
     expect(rewriteAutodialFieldReferences(original, plan.renames)).toEqual({ text: 'amount: {AC_DEBT}, ${AC_DEBT}, {{AC_DEBT}}', key: { field_key: 'debt' } });
   });
+  it.each(['MONEY', 'DATE', 'NUMBER', 'DIGITS'])('tracks and rewrites derived %s references in all supported token forms', (format) => {
+    const plan = planAutodialFields(fields, request('string').map((field) => field.uid === 2
+      ? { ...field, key: 'debt', var_name: 'AC_DEBT' } : field));
+    for (const wrap of [(v: string) => `{${v}}`, (v: string) => `\${${v}}`, (v: string) => `{{${v}}}`, (v: string) => `\${{${v}}}`]) {
+      const token = wrap(`AC_AMOUNT_SAY_${format}`);
+      const scenario = [{ params: { text: `Value: ${token}` } }];
+      expect(autodialFieldReferenced(scenario, fields[1])).toBe(true);
+      expect(rewriteAutodialFieldReferences(scenario, plan.renames)).toEqual([{ params: { text: `Value: ${wrap(`AC_DEBT_SAY_${format}`)}` } }]);
+    }
+    expect(rewriteAutodialFieldReferences(`AC_AMOUNT_SAY_${format}`, plan.renames)).toBe(`AC_DEBT_SAY_${format}`);
+  });
+  it('does not mistake prefixes, unsupported formats or prose for field references', () => {
+    for (const text of ['{AC_AMOUNT2}', '{AC_AMOUNT_SAY_UNKNOWN}', 'amount is a field', 'AC_AMOUNT_SUFFIX']) {
+      expect(autodialFieldReferenced(text, fields[1])).toBe(false);
+      expect(rewriteAutodialFieldReferences(text, [{ oldKey: 'amount', key: 'debt', oldVar: 'AC_AMOUNT', variable: 'AC_DEBT' }])).toBe(text);
+    }
+  });
+  it('renames tokens simultaneously and prefers an exact variable over a derived interpretation', () => {
+    const renames = [
+      { oldKey: 'a', key: 'b', oldVar: 'AC_AMOUNT', variable: 'AC_DEBT' },
+      { oldKey: 'b', key: 'a', oldVar: 'AC_DEBT', variable: 'AC_AMOUNT' },
+      { oldKey: 'c', key: 'd', oldVar: 'AC_AMOUNT_SAY_DATE', variable: 'AC_VISIT' },
+    ];
+    expect(rewriteAutodialFieldReferences('{AC_AMOUNT} {AC_DEBT_SAY_MONEY} {AC_AMOUNT_SAY_DATE}', renames))
+      .toBe('{AC_DEBT} {AC_AMOUNT_SAY_MONEY} {AC_VISIT}');
+  });
 });

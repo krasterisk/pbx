@@ -15,6 +15,9 @@ vi.mock('@/features/modules/ui/CheckoutSheet/CheckoutSheet', () => ({
 vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
   useGetAiSkuCatalogQuery: () => ({ data: [] }),
 }));
+vi.mock('@/features/modules/ui/TenantRoleStartEditor/TenantRoleStartEditor', () => ({
+  TenantRoleStartEditor: () => null,
+}));
 
 vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppSelector: (sel: (s: { auth: { user: { level: number } } }) => unknown) =>

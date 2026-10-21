@@ -98,7 +98,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : [...ENGINES]) {
       }
     }
     const outDir = process.env.AI11_11M_OUT
-      || path.join(__dirname, '../../.planning/initiatives/ai-products/evidence/11m');
+      || require('../../tools/artifacts/paths.cjs').outputPath('runs', 'ai-products', '11m');
     fs.mkdirSync(outDir, { recursive: true });
     const outFile = path.join(outDir, `matrix-${dialect}.json`);
     fs.writeFileSync(outFile, `${JSON.stringify(matrix, null, 2)}\n`);

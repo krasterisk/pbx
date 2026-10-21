@@ -56,6 +56,7 @@ export interface ICdrLeg {
   duration: number;
   billsec: number;
   record: string | null;
+  hasRecording: boolean;
 }
 
 export interface ICdrEvent {

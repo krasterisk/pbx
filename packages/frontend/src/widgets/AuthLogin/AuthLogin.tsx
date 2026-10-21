@@ -7,6 +7,7 @@ import { login, clearError } from '@/features/auth/model/authSlice';
 import { resolveRoleStart } from '@/features/modules/lib/roleStartResolver';
 import { ROLE_START_PENDING_KEY } from '@/features/modules/hooks/useRoleStartRedirect';
 import { UserLevel } from '@krasterisk/shared';
+import { clearLoginReturn } from '@/shared/lib/auth/loginReturn';
 import { useGetAuthConfigQuery } from '@/shared/api/endpoints/authApi';
 import { AuthScreen } from '@/widgets/AuthScreen/AuthScreen';
 import cls from './AuthLogin.module.scss';
@@ -28,6 +29,7 @@ export function AuthLogin() {
     if (login.fulfilled.match(result)) {
       const level = result.payload.user.level as UserLevel;
       if (level === UserLevel.SUPERADMIN) {
+        clearLoginReturn();
         sessionStorage.removeItem(ROLE_START_PENDING_KEY);
         navigate('/platform');
         return;

@@ -8,6 +8,9 @@ import type { CdrAccessScope } from '../reports/cdr/cdr-access-scope';
 import type { DashboardClassifiedCall } from './dashboard-classifier';
 import { DashboardCacheService } from './dashboard-cache.service';
 import { resolveDashboardPeriod } from './dashboard-period';
+import { normalizeCallNumber } from '@krasterisk/shared';
+import { CALL_FACTS_VERSION, type CallFact } from '../calls/call-record';
+import { callDimensions } from '../calls/call-dimensions';
 
 export const emptyDashboardTotals = (): DashboardTotals => ({ total: 0, incoming: 0, outgoing: 0, internal: 0, external: 0, accepted: 0, missed: 0, unknown: 0 });
 export interface DashboardSummary { period: Period; totals: DashboardTotals; buckets: DashboardBucket[]; source: DashboardSource; version: string }
@@ -69,7 +72,7 @@ export class DashboardReadStore {
       : `ON DUPLICATE KEY UPDATE ${updates.map((c) => `${quoted(c)}=VALUES(${quoted(c)})`).join(',')}`;
     await this.execute(`INSERT INTO ${table} (${columns.map(quoted).join(',')}) VALUES (${columns.map((c) => `:${c}`).join(',')}) ${clause}`, values, transaction);
   }
-  async putCall(call: DashboardClassifiedCall, leaseOwner?: string): Promise<boolean> {
+  async putCall(call: DashboardClassifiedCall, leaseOwner?: string, fact?: CallFact): Promise<boolean> {
     return this.sequelize.transaction(async (transaction) => {
       let leaseExpiry = Infinity;
       if (leaseOwner) {
@@ -82,6 +85,22 @@ export class DashboardReadStore {
       if (old) await this.adjustBucket(old, -1, transaction);
       const row = { call_key: call.id, tenant: call.tenant, node_id: call.nodeId, linkedid: call.linkedid, started_at: Date.parse(call.startedAt), ended_at: call.endedAt ? Date.parse(call.endedAt) : null, src: call.src.slice(0, 128), dst: call.dst.slice(0, 128), direction: call.direction, origin: call.origin, outcome: call.outcome, reason: call.reason, duration: call.duration, fingerprint: call.fingerprint, updated_at: Date.now() };
       await this.upsert('dashboard_calls', row, ['call_key'], transaction);
+      if (fact) {
+        const parties = [fact.caller, fact.recipient, ...fact.participants];
+        await this.upsert('call_facts', {
+          call_key: call.id, tenant: call.tenant, outcome: fact.outcome,
+          caller_number: normalizeCallNumber(fact.caller.number || ''), recipient_number: normalizeCallNumber(fact.recipient.number || ''),
+          company_number: normalizeCallNumber(fact.companyNumber || ''), search_text: parties.flatMap((p) => [p.name, p.number, p.department]).filter(Boolean).join(' ').toLowerCase(),
+          departments: JSON.stringify([...new Set(parties.map((party) => party.department).filter(Boolean))]).toLowerCase(),
+          handling: JSON.stringify(fact.handling), has_voicemail: fact.hasVoicemail ? 1 : 0, analytics_state: fact.analytics?.state || 'none',
+          connected_sec: fact.connectedSec, timing_source: fact.timingSource || null, payload: JSON.stringify(fact), schema_version: CALL_FACTS_VERSION,
+        }, ['call_key'], transaction);
+        await this.execute('DELETE FROM call_dimensions WHERE call_key=:id AND tenant=:tenant', { id: call.id, tenant: call.tenant }, transaction);
+        for (const dimension of callDimensions(fact)) {
+          await this.execute('INSERT INTO call_dimensions (call_key,tenant,kind,value,label,search_label) VALUES (:id,:tenant,:kind,:value,:label,:searchLabel)',
+            { id: call.id, tenant: call.tenant, ...dimension, searchLabel: dimension.label.toLowerCase() }, transaction);
+        }
+      }
       await this.execute('DELETE FROM dashboard_participants WHERE call_key= :id', { id: call.id }, transaction);
       for (let offset = 0; offset < call.participants.length; offset += 100) {
         const replacements: Record<string, unknown> = { id: call.id, tenant: call.tenant };

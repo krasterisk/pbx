@@ -10,6 +10,7 @@ import { isAbandonedOutcome } from './autodial-predictive.util';
 import { AutodialStateService } from './autodial-state.service';
 import { normalizeAutodialPhone } from './autodial-phone.util';
 import { AutodialWebhooksService } from './autodial-webhooks.service';
+import { hasAutodialCdrBillsec, mergeAutodialAttemptEvidence } from './autodial-attempt-evidence.util';
 
 export interface FinalizeAttemptInput {
   attemptUid: number;
@@ -65,6 +66,7 @@ export class AutodialAttemptService {
     channelId: string;
     trunkId: string;
     callerId: string | null;
+    scenarioSnapshot?: Record<string, unknown>;
   }): Promise<AcAttempt> {
     return this.attemptModel.create({
       user_uid: params.userUid,
@@ -77,6 +79,7 @@ export class AutodialAttemptService {
       channel_id: params.channelId,
       trunk_id: params.trunkId,
       caller_id: params.callerId,
+      ...(params.scenarioSnapshot ? { scenario_result: { _evidence_version: 1, snapshot: params.scenarioSnapshot } } : {}),
     });
   }
 
@@ -121,14 +124,14 @@ export class AutodialAttemptService {
     if (input.hangupCause !== undefined) patch.hangup_cause = input.hangupCause;
     // Once the dialplan has reported CDR facts, ARI's rounded wall time is only
     // a fallback. Callback-first and callback-last must produce the same value.
-    if (input.billsec !== undefined && attempt.scenario_result == null) patch.billsec = input.billsec;
+    if (input.billsec !== undefined && !hasAutodialCdrBillsec(attempt.scenario_result)) patch.billsec = input.billsec;
     if (input.amdResult !== undefined) patch.amd_result = input.amdResult;
     if (input.queueName !== undefined) patch.queue_name = input.queueName;
     if (input.agentInterface !== undefined) patch.agent_interface = input.agentInterface;
     if (input.talkSec !== undefined) patch.talk_sec = input.talkSec;
     if (input.uniqueid !== undefined) patch.uniqueid = input.uniqueid;
     if (input.linkedid !== undefined) patch.linkedid = input.linkedid;
-    if (input.scenarioResult !== undefined) patch.scenario_result = input.scenarioResult;
+    if (input.scenarioResult !== undefined) patch.scenario_result = mergeAutodialAttemptEvidence(attempt.scenario_result, input.scenarioResult);
 
     // ARI destroy and the dialplan hangup handler can race. Only the request
     // that atomically moves `dialing` to a terminal disposition advances task.
@@ -208,6 +211,7 @@ export class AutodialAttemptService {
     channelId: string;
     trunkId: string;
     callerId: string | null;
+    scenarioSnapshot?: Record<string, unknown>;
     leaseId: string;
     normalizedPhone?: string;
     gate?: () => Promise<'ok' | 'dnc'>;
@@ -283,6 +287,7 @@ export class AutodialAttemptService {
         channel_id: params.channelId,
         trunk_id: params.trunkId,
         caller_id: params.callerId,
+        ...(params.scenarioSnapshot ? { scenario_result: { _evidence_version: 1, snapshot: params.scenarioSnapshot } } : {}),
       }, { transaction });
     });
   }
@@ -329,7 +334,7 @@ export class AutodialAttemptService {
       talk_sec: data.talkSec ?? attempt.talk_sec,
       uniqueid: data.uniqueid ?? attempt.uniqueid,
       linkedid: data.linkedid ?? attempt.linkedid,
-      scenario_result: data.scenarioResult ?? attempt.scenario_result,
+      scenario_result: mergeAutodialAttemptEvidence(attempt.scenario_result, data.scenarioResult, data.billsec !== undefined),
     }, transaction ? { transaction } : undefined);
     if (transaction && attempt.ended_at) await this.webhooks?.enqueueAttempt(attempt.user_uid, attempt.uid, transaction);
     });

@@ -1,0 +1,4 @@
+.parts { min-width: 0; }
+.part { min-width: 0; flex: 1 1 0; }
+.unit { color: var(--color-muted-foreground); font-size: 0.75rem; }
+.reset { align-self: flex-start; padding: 0; height: auto; min-height: 1.75rem; white-space: normal; }

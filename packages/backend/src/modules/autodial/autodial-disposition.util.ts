@@ -34,6 +34,22 @@ export function dispositionFromHangupCause(cause: number): AutodialDisposition {
   }
 }
 
+/** Some ARI originate timeouts report cause 0, while the final channel is still
+ * Ringing. Require the admitted dial limit and live per-leg clock; cause 0 on
+ * its own also represents transport failures and must remain unclassified. */
+export function dispositionFromUnansweredChannel(input: {
+  cause: number;
+  state?: string;
+  elapsedMs?: number;
+  dialTimeoutSec?: number;
+}): AutodialDisposition {
+  if (input.cause === 0 && input.state === 'Ringing'
+    && typeof input.elapsedMs === 'number' && Number.isFinite(input.elapsedMs)
+    && typeof input.dialTimeoutSec === 'number' && Number.isFinite(input.dialTimeoutSec)
+    && input.dialTimeoutSec > 0 && input.elapsedMs >= input.dialTimeoutSec * 1000) return 'no_answer';
+  return dispositionFromHangupCause(input.cause);
+}
+
 /**
  * Answered calls are judged by talk time: anything below `success_min_sec` is
  * `answered_short`, which is retryable, unlike `success`.

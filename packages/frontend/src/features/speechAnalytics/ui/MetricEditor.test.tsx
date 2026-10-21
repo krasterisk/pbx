@@ -121,6 +121,17 @@ describe('MetricEditor', () => {
     expect(publish).toBeDisabled();
   });
 
+  it('offers privacy without model-edit rights and keeps changes in the draft', async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(screen.getByRole('tab', { name: 'Защита данных' }));
+    const toggle = screen.getByRole('switch', { name: 'Обезличивать текст перед анализом в облаке' });
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    expect(toggle).toBeChecked();
+    expect(screen.getByText(/Если подготовка недоступна, анализ остановится/)).toBeInTheDocument();
+  });
+
   it('shows model override fields only when the cabinet right is on', async () => {
     const user = userEvent.setup();
     renderEditor(true);

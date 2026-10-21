@@ -86,9 +86,9 @@ export function CallCenterSettings() {
       <TabsContent value="panels">
         {uiLoading ? (
           <div className={styles.skeletonWrap}>
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton height="2rem" width="12rem" />
+            <Skeleton height="2.5rem" width="100%" />
+            <Skeleton height="2.5rem" width="100%" />
           </div>
         ) : uiError ? (
           <QueryErrorState message={t('callcenter.settings.loadError')} onRetry={() => void refetchUi()} retryLabel={t('callcenter.settings.retry')} />
@@ -148,8 +148,8 @@ export function CallCenterSettings() {
       <TabsContent value="notifications">
         {notifLoading ? (
           <div className={styles.skeletonWrap}>
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-32 w-full" />
+            <Skeleton height="2rem" width="12rem" />
+            <Skeleton height="8rem" width="100%" />
           </div>
         ) : notifError ? (
           <QueryErrorState message={t('callcenter.settings.loadError')} onRetry={() => void refetchNotifications()} retryLabel={t('callcenter.settings.retry')} />

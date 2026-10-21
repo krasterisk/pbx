@@ -8,6 +8,7 @@ import { useSchemaRefs } from './useSchemaRefs';
 import * as directoryApi from '@/shared/api/endpoints/directoryApi';
 import * as trunkApi from '@/shared/api/endpoints/trunkApi';
 import { useGetAiVoiceRobotsQuery } from '@/shared/api/endpoints/aiVoiceRobotsApi';
+import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
 
 const { useGetConferenceRoomsQuery, useGetCallGroupsQuery } = vi.hoisted(() => ({
   useGetConferenceRoomsQuery: vi.fn(() => ({ data: [] as Array<{ uid: number; number?: string; exten?: string; name: string }>,  isLoading: false })),
@@ -30,7 +31,7 @@ vi.mock('@/shared/api/endpoints/ivrsApi', () => ({
   useGetIvrsQuery: () => ({ data: [], isLoading: false }),
 }));
 vi.mock('@/shared/api/endpoints/ttsEnginesApi', () => ({
-  useGetTtsEnginesQuery: () => ({ data: [], isLoading: false }),
+  useGetTtsEnginesQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 vi.mock('@/shared/api/endpoints/sttEnginesApi', () => ({
   useGetSttEnginesQuery: () => ({ data: [], isLoading: false }),
@@ -71,6 +72,21 @@ function Probe() {
 }
 
 describe('useSchemaRefs', () => {
+  it('uses an explicitly permitted speech catalog instead of an administrative request, retaining refresh metadata', () => {
+    const catalog = { items: [{ value: '3', label: 'Permitted speech' }], isLoading: false, sectionHref: null, sectionFallback: 'Speech', onRetry: vi.fn() };
+    const { result, rerender } = renderHook(({ loading }) => useSchemaRefs(['tts-engines'], { ...catalog, isLoading: loading }), { initialProps: { loading: false } });
+    expect(result.current['tts-engines']?.items).toEqual(catalog.items);
+    expect(useGetTtsEnginesQuery).toHaveBeenLastCalledWith(undefined, { skip: true, refetchOnMountOrArgChange: true });
+    rerender({ loading: true });
+    expect(result.current['tts-engines']?.isLoading).toBe(true);
+    expect(result.current['tts-engines']?.onRetry).toBe(catalog.onRetry);
+  });
+  it('refreshes speech providers on reopening a step while preserving selective catalog loading', () => {
+    renderHook(() => useSchemaRefs(['tts-engines']));
+    expect(useGetTtsEnginesQuery).toHaveBeenLastCalledWith(undefined, { skip: false, refetchOnMountOrArgChange: true });
+    renderHook(() => useSchemaRefs(['queues']));
+    expect(useGetTtsEnginesQuery).toHaveBeenLastCalledWith(undefined, { skip: true, refetchOnMountOrArgChange: true });
+  });
   it('updates the AI robot catalog after loading and hides disabled or unsaved robots', () => {
     const query = vi.mocked(useGetAiVoiceRobotsQuery, { partial: true });
     query.mockReturnValueOnce({ data: undefined, isLoading: true });
@@ -82,7 +98,11 @@ describe('useSchemaRefs', () => {
       { uid: 3, robotUuid: 'r3', revision: 1, versionId: null, config: { ...AI_VOICE_ROBOT_DEFAULTS, name: 'Legacy' } },
     ], isLoading: false });
     rerender();
-    expect(result.current.aiVoiceRobots?.items).toEqual([{ value: '1', label: 'Ready' }]);
+    expect(result.current.aiVoiceRobots?.items).toEqual([
+      { value: '1', label: 'Ready' },
+      { value: '2', label: 'Off (aiVoiceDesigner.notReady)' },
+      { value: '3', label: 'Legacy (aiVoiceDesigner.notReady)' },
+    ]);
     expect(result.current.aiVoiceRobots?.isLoading).toBe(false);
   });
   beforeEach(() => {
@@ -94,6 +114,18 @@ describe('useSchemaRefs', () => {
       ],
       isLoading: false,
     });
+  });
+
+  it('retains TTS availability and updates an error-only transition without rewriting IDs', () => {
+    const query = useGetTtsEnginesQuery as unknown as ReturnType<typeof vi.fn>;
+    const data = [{ uid: 33, name: 'Off', enabled: false }], retry = vi.fn();
+    query.mockReturnValueOnce({ data, isLoading: false, isError: false, refetch: retry });
+    const { result, rerender } = renderHook(() => useSchemaRefs(['tts-engines']));
+    expect(result.current['tts-engines']?.items).toEqual([{ value: '33', label: 'Off', disabled: true }]);
+    expect(result.current['tts-engines']?.isError).toBe(false);
+    query.mockReturnValueOnce({ data, isLoading: false, isError: true, error: { status: 403 }, refetch: retry });
+    rerender();
+    expect(result.current['tts-engines']).toMatchObject({ isError: true, errorStatus: 403, onRetry: retry });
   });
 
   it('owns the dialplanDirectories catalog query', () => {

@@ -237,6 +237,7 @@ describe('CallCenterService', () => {
       accessListService,
       shiftRestore,
       conferenceEphemeral,
+      { guardCallCenterLogin: jest.fn((_iface, _tenant, _user, login) => login()) } as any,
     );
   });
 

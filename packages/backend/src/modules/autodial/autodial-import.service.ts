@@ -35,9 +35,9 @@ export interface ImportPreviewResult {
 export interface ImportExecuteResult {
   imported: number;
   skipped: number;
-  errors: Array<{ row: number; code: string; message: string; values?: string[] }>;
+  errors: Array<{ row: number; code: string; message: string; field?: string; values?: string[] }>;
   headers?: string[];
-  rejected_rows?: Array<{ row: number; code: string; message: string; values?: string[] }>;
+  rejected_rows?: Array<{ row: number; code: string; message: string; field?: string; values?: string[] }>;
   warnings: Array<{ row: number; field: string; value: string; code: string }>;
   run: IAutodialImportRun;
 }
@@ -70,6 +70,15 @@ export class AutodialImportService {
     private readonly basesService: AutodialBasesService,
     private readonly sequelize: Sequelize,
   ) {}
+
+  async listRuns(userUid: number, baseUid: number): Promise<IAutodialImportRun[]> {
+    await this.assertBase(userUid, baseUid);
+    const rows = await this.runModel.findAll({ where: { base_uid: baseUid, user_uid: userUid },
+      order: [['uid', 'DESC']], limit: 100 });
+    return rows.map((row) => ({ ...this.toRunDto(row),
+      errors: (row.errors ?? []).slice(0, 20).map(({ row: line, code }) => ({ row: line, code, message: code })),
+    }));
+  }
 
   async listProfiles(userUid: number, baseUid: number): Promise<IAutodialImportProfile[]> {
     await this.assertBase(userUid, baseUid);
@@ -243,10 +252,19 @@ export class AutodialImportService {
         warnings.push(...mapped.warnings.map((warning) => ({ row: rowNum, ...warning })));
         prepared.push({ ...mapped, source_row: rowNum });
       } catch (e) {
+        const response = (e as { response?: { code?: unknown; field?: unknown } })?.response;
+        // Keep the stable row_invalid code; expose only structured validation
+        // metadata, never arbitrary exception text or stack traces.
+        const reason = typeof response?.code === 'string' && /^AC_[A-Z_]+$/.test(response.code)
+          ? response.code : 'row_invalid';
+        const field = typeof response?.field === 'string'
+          && (fields.some((item) => item.key === response.field) || ['__phone', 'phones'].includes(response.field))
+          ? response.field : undefined;
         errors.push({
           row: rowNum,
           code: 'row_invalid',
-          message: (e as { response?: { code?: string } }).response?.code ?? 'row_invalid',
+          message: reason,
+          ...(field ? { field } : {}),
         });
       }
     }

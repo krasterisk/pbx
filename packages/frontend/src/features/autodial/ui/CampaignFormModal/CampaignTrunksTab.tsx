@@ -248,13 +248,10 @@ export const CampaignTrunksTab = memo(({ draft, onChange, errors }: Props) => {
     setPool(draft.trunk_pool.map((item, i) => (i === index ? next : item)));
 
   const addTrunk = () => {
-    const firstFree = (trunks ?? []).find(
-      (trunk) => !draft.trunk_pool.some((item) => item.trunk_id === trunk.id),
-    );
     setPool([
       ...draft.trunk_pool,
       {
-        trunk_id: firstFree?.id ?? "",
+        trunk_id: "",
         caller_id_source: { mode: "static", value: "" },
         weight: 1,
         max_channels: 0,

@@ -88,10 +88,6 @@ export function CcSettingsOverview() {
 
   return (
     <VStack gap="12" max className={styles.wrap} data-testid="cc-settings-overview">
-      <Text className={styles.title}>{t('callcenter.settings.overview.title', 'Call center readiness')}</Text>
-      <Text variant="muted">
-        {t('callcenter.settings.overview.hint', 'What is left to set up so everything works as intended')}
-      </Text>
       {queries.some((query) => query.isLoading) && <Text role="status">{t('callcenter.settings.overview.loading', 'Checking call center readiness…')}</Text>}
       {queries.some((query) => query.isError) && <Flex role="alert" gap="8" wrap="wrap" align="center">
         <Text>{t('callcenter.settings.overview.loadError', 'Some settings could not be checked. Their readiness is unknown.')}</Text>

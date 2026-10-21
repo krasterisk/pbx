@@ -101,9 +101,9 @@ export function DisplayTokensManager() {
   if (isLoading) {
     return (
       <div className={styles.skeletonWrap}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="2.5rem" width="100%" />
+        <Skeleton height="6rem" width="100%" />
       </div>
     );
   }
@@ -166,9 +166,6 @@ export function DisplayTokensManager() {
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
-        <Text className={styles.title}>
-          {t("callcenter.settings.displayTokens.title", "Display-токены")}
-        </Text>
         <Text className={styles.hint}>
           {t(
             "callcenter.settings.displayTokens.hint",
@@ -213,7 +210,7 @@ export function DisplayTokensManager() {
           onClick={() => void handleCreate()}
           disabled={isCreating}
         >
-          <Link2 className="w-4 h-4 mr-1.5" />
+          <Link2 size={16} />
           {t(
             "callcenter.settings.displayTokens.create",
             "Создать ссылку для TV",
@@ -230,14 +227,14 @@ export function DisplayTokensManager() {
             )}
           </Text>
           <div className={styles.onceRow}>
-            <code className={styles.url}>{createdUrl}</code>
+            <Text className={styles.url}>{createdUrl}</Text>
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => void handleCopy(createdUrl)}
             >
-              <Copy className="w-4 h-4 mr-1" />
+              <Copy size={16} />
               {t("callcenter.settings.displayTokens.copy", "Копировать")}
             </Button>
           </div>
@@ -311,7 +308,6 @@ export function DisplayTokensManager() {
             <TableBody>
               {sorted.map((row) => {
                 const revoked = Boolean(row.revoked_at);
-                const url = wallboardUrl(row.token);
                 return (
                   <TableRow
                     key={row.uid}
@@ -360,7 +356,7 @@ export function DisplayTokensManager() {
         open={Boolean(revokeTarget)}
         onOpenChange={(open) => !open && setRevokeTarget(null)}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {t(

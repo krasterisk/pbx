@@ -4,6 +4,29 @@
 
 import type { IRouteAction } from "./route.types";
 
+export const AUTODIAL_BUSINESS_GOALS = ['custom', 'debt', 'appointment', 'notification', 'operator', 'survey'] as const;
+export type AutodialBusinessGoal = (typeof AUTODIAL_BUSINESS_GOALS)[number];
+
+export interface IAutodialTestCallStatus {
+  uid: string;
+  status: 'pending' | 'answered' | 'ended' | 'failed' | 'expired';
+  revision: number;
+  contact_uid: number;
+  endpoint: string;
+  created_at: string;
+  deadline_at: string | null;
+  remaining_sec: number | null;
+  ended_at: string | null;
+  snapshot: { version: number; revision: number; business_goal?: AutodialBusinessGoal; skipped_steps: string[];
+    variables: Array<{ name: string; value: string | null }>;
+    steps: Array<{ id?: string; type: string; status: 'not_observed' | 'skipped'; text?: string; outcomes?: Record<string, string> }> } | null;
+  result: { answered_at?: string; ended_at?: string; answered?: boolean; delivery: 'not_observed' | 'playback_completed' | 'playback_failed';
+    business_outcome?: string; dtmf?: string;
+    business_outcome_label?: string | null; business_outcome_category?: string | null; business_goal_relation?: string;
+    steps?: Record<string, { type: string; status: string; detail?: string; digits?: string; entered_at?: string; completed_at?: string; executions?: number }>;
+    termination?: { cause: number | null; reason: string | null } } | null;
+}
+
 /** Compiler capabilities, shared by the editor and API validation. */
 export const AUTODIAL_SUPPORTED_ACTIONS = [
   'playback', 'text2speech', 'toqueue', 'toexten', 'voicerobot',
@@ -74,6 +97,14 @@ export interface IAutodialContact {
 }
 
 /** HTTP contracts: write payloads never accept tenant IDs or read-only counters. */
+export interface IAutodialContactHistory {
+  attempts: Array<{ uid: number; campaign_uid: number; campaign_name: string; started_at: string; ended_at: string | null;
+    disposition: string; outcome: string | null; goal_relation: string; billsec: number }>;
+  tasks: Array<{ uid: number; campaign_uid: number; campaign_name: string; status: string; next_attempt_at: string | null }>;
+  truncated: boolean;
+  limit: number;
+}
+
 export interface IAutodialContactsPage {
   items: IAutodialContact[];
   total: number;
@@ -292,6 +323,7 @@ export interface IAutodialAmdConfig {
 }
 
 export interface IAutodialCampaign {
+  business_goal?: AutodialBusinessGoal;
   /** Explicit dialling round; attempts retain their all-time sequence. */
   tour_no?: number;
   uid: number;
@@ -438,6 +470,7 @@ export interface AutodialScheduleInput {
 
 /** Campaign write contracts never contain tenant IDs or derived counters. */
 export interface CreateAutodialCampaignInput {
+  business_goal?: AutodialBusinessGoal;
   name: string;
   dial_mode: AutodialDialMode;
   base_uid: number;

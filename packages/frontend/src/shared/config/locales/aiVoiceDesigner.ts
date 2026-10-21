@@ -28,6 +28,10 @@ export const aiVoiceDesignerRu = {
   unsaved: 'Есть несохранённые изменения. Закрыть без сохранения?', keepEditing: 'Продолжить редактирование', discard: 'Не сохранять',
   identifierInUse: 'Этот идентификатор уже занят', providerUnavailable: 'Выбранный провайдер недоступен или не поддерживает выбранный режим',
   bindingUnavailable: 'Выбранный инструмент или база знаний больше недоступны',
+  test: 'Тест', testHint: 'Проверка идёт по текущим настройкам формы, даже если они ещё не сохранены.',
+  testMessage: 'Реплика абонента', testSend: 'Отправить', testEmpty: 'Напишите реплику, чтобы услышать ответ робота.',
+  testOutcome: 'Исход', templates: 'Шаблоны', describe: 'Опишите робота', generate: 'Собрать черновик',
+  notReady: 'не готов', versions: 'Версии', rollback: 'Откатить',
 };
 
 export const aiVoiceDesignerEn: Record<keyof typeof aiVoiceDesignerRu, string> = {
@@ -58,4 +62,8 @@ export const aiVoiceDesignerEn: Record<keyof typeof aiVoiceDesignerRu, string> =
   unsaved: 'You have unsaved changes. Close without saving?', keepEditing: 'Keep editing', discard: 'Discard changes',
   identifierInUse: 'This identifier is already in use', providerUnavailable: 'The selected provider is unavailable or does not support this mode',
   bindingUnavailable: 'A selected tool or knowledge base is no longer available',
+  test: 'Test', testHint: 'The test uses the form as it is now, even before you save.',
+  testMessage: 'Caller line', testSend: 'Send', testEmpty: 'Type a caller line to hear the robot answer.',
+  testOutcome: 'Outcome', templates: 'Templates', describe: 'Describe the robot', generate: 'Build a draft',
+  notReady: 'not ready', versions: 'Versions', rollback: 'Roll back',
 };

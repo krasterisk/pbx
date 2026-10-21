@@ -31,7 +31,7 @@ vi.mock('./SoftphoneContacts', () => ({
   SoftphoneContacts: () => <div data-testid="softphone-contacts" />,
 }));
 
-vi.mock('@/features/callcenter/lib/useAudioDevices', () => ({
+vi.mock('@/shared/lib/telephony/useAudioDevices', () => ({
   useAudioDevices: () => ({
     microphones: [
       { deviceId: 'mic1', label: 'Mic 1', kind: 'audioinput', groupId: '', toJSON: () => ({}) },

@@ -1,15 +1,16 @@
 'use strict';
-// Reviewed drift since immutable 0001; SQL ownership through 0046.
+// Reviewed drift since immutable 0001; SQL ownership through 0055 (business_goal 0053, phone_sessions 0055).
 // 0036-0039 own call-center offers, interval stats, hotkeys and daily metric columns.
 // 0040-0043 own autodial tour numbers, phone identity and field format.
 // Context VIRTUAL metadata remains fingerprinted but requires no DDL.
 module.exports = {
-  "modelMetadataSha256": "1c0dd03e925c6f20c8f1aa441a5138e23d8e2c9853c404fbf499321573ff8e63",
+  "modelMetadataSha256": "29d62d84cf348a759e76594cd71d8635c0ccc272096c86bfbfe89f259049bb95",
   "extraTables": [
     "ac_channel_reservations",
     "billing_sellers",
     "cc_agent_offers",
     "cc_interval_queue_stats",
+    "phone_sessions",
     "sa_insights_cache",
     "sa_insights_requests",
     "support_plans",
@@ -20,6 +21,7 @@ module.exports = {
     "ac_base_fields.format",
     "ac_campaigns.applied_revision",
     "ac_campaigns.apply_error",
+    "ac_campaigns.business_goal",
     "ac_campaigns.pacer_heartbeat_at",
     "ac_campaigns.pacer_owner",
     "ac_campaigns.tour_no",

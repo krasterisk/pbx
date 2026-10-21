@@ -417,11 +417,25 @@ export class AsteriskDialplanUtils {
       case 'ai_voice_robot': {
         const robotUid = Number(params.robot_uid);
         const deploymentId = this.sanitizeDialplanInput(String(params.deployment_id || ''));
-        dp = Number.isSafeInteger(robotUid) && robotUid > 0
-          ? `Stasis(${resolveAiVoiceAriAppName()},robot:${robotUid})`
+        const app = resolveAiVoiceAriAppName();
+        const stasis = Number.isSafeInteger(robotUid) && robotUid > 0
+          ? `Stasis(${app},robot:${robotUid})`
           : deploymentId
-          ? `Stasis(${resolveAiVoiceAriAppName()},${deploymentId})`
-          : `NoOp(Missing AI Voice deployment)`;
+            ? `Stasis(${app},${deploymentId})`
+            : '';
+        if (!stasis) {
+          dp = 'Set(AI_ROBOT_OUTCOME=failed)\nsame => n,NoOp(Missing AI Voice robot)';
+          break;
+        }
+        const lines = [stasis];
+        const greeting = this.sanitizeDialplanInput(String(params.greeting_override || ''));
+        if (greeting) lines.unshift(`Set(AI_ROBOT_GREETING=${greeting})`);
+        lines.push('ExecIf($["${AI_ROBOT_OUTCOME}" = ""]?Set(AI_ROBOT_OUTCOME=failed))');
+        for (const [outcome, key] of [['completed', 'on_completed'], ['transferred', 'on_transferred'], ['failed', 'on_failed'], ['no_input', 'on_no_input']] as const) {
+          const target = this.sanitizeDialplanInput(String(params[key] || ''));
+          if (target) lines.push(`GotoIf($["\${AI_ROBOT_OUTCOME}" = "${outcome}"]?${target})`);
+        }
+        dp = lines.join('\nsame => n,');
         break;
       }
       case 'tolist': {

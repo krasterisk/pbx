@@ -5,7 +5,8 @@ import {
   Button,
   Checkbox,
   Dialog,
-  DialogContent,
+  FormDialogContent,
+  ModalBody,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -17,12 +18,15 @@ import { HStack, VStack } from '@/shared/ui/Stack';
 import {
   useStartAutodialCampaignMutation,
   useGetAutodialPreflightQuery,
+  useGetAutodialTourPreviewQuery,
   type AutodialCampaignWithSchedules,
 } from '@/shared/api/endpoints/autodialApi';
 import { autodialDispositionLabel } from '../../lib/labels';
 import { autodialErrorKey } from '../../lib/mutationError';
 import cls from './StartCampaignDialog.module.scss';
 import { PreflightChecks } from '../CampaignWorkspace/PreflightChecklist';
+import { useAutodialDialogFocus } from '../AutodialConfirmation/useAutodialDialogFocus';
+import { LaunchReadinessSummary } from './LaunchReadinessSummary';
 
 /**
  * Dispositions worth another dial. Terminal outcomes (success, dnc,
@@ -49,19 +53,27 @@ interface StartCampaignDialogProps {
 
 export const StartCampaignDialog = memo(({ campaign, onClose, initialDispositions = '' }: StartCampaignDialogProps) => {
   const { t } = useTranslation();
+  const dialogFocus = useAutodialDialogFocus();
   const [start, { isLoading }] = useStartAutodialCampaignMutation();
   const [selected, setSelected] = useState<AutodialDisposition[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [alwaysConfirmed, setAlwaysConfirmed] = useState(false);
+  const aroundTheClock = campaign?.schedules?.length === 0;
+  const firstLaunch = (campaign?.tour_no ?? 0) === 0;
+  const { currentData: scope, isFetching: scopeLoading, isError: scopeFailed, refetch: refreshScope } = useGetAutodialTourPreviewQuery({
+    uid: campaign?.uid ?? 0, dispositions: firstLaunch ? [] : selected,
+  }, { skip: !campaign, refetchOnMountOrArgChange: true });
   const { currentData: preflight, isFetching: checking, isError: checkFailed, refetch } = useGetAutodialPreflightQuery(campaign?.uid ?? 0, {
     skip: !campaign, refetchOnMountOrArgChange: true,
   });
 
   useEffect(() => {
     if (campaign) {
-      setSelected(initialDispositions.split(',').filter((value): value is AutodialDisposition => REDIAL_DISPOSITIONS.includes(value as AutodialDisposition)));
+      setSelected(firstLaunch ? [] : initialDispositions.split(',').filter((value): value is AutodialDisposition => REDIAL_DISPOSITIONS.includes(value as AutodialDisposition)));
       setError(null);
+      setAlwaysConfirmed(false);
     }
-  }, [campaign?.uid, initialDispositions]);
+  }, [campaign?.uid, initialDispositions, firstLaunch]);
 
   const toggle = (disposition: AutodialDisposition) => {
     setSelected((prev) =>
@@ -72,11 +84,15 @@ export const StartCampaignDialog = memo(({ campaign, onClose, initialDisposition
   };
 
   const onStart = async () => {
-    if (!campaign) return;
+    if (!campaign || isLoading || checking || checkFailed || !preflight?.ready || scopeLoading || scopeFailed || !scope?.totals.tasks
+      || scope.campaign_revision !== campaign.revision || scope.totals.active_tasks > 0 || (aroundTheClock && !alwaysConfirmed)
+      || preflight.revision !== campaign.revision) return;
     try {
       await start({
         uid: campaign.uid,
-        include_dispositions: selected.length ? selected : undefined,
+        include_dispositions: !firstLaunch && selected.length ? selected : undefined,
+        expected_revision: scope.campaign_revision,
+        expected_base_revision: scope.base_revision,
       }).unwrap();
       onClose();
     } catch (error) {
@@ -88,19 +104,38 @@ export const StartCampaignDialog = memo(({ campaign, onClose, initialDisposition
 
   return (
     <Dialog open={Boolean(campaign)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <FormDialogContent size="large" {...dialogFocus}>
         <DialogHeader>
           <DialogTitle>
             {t('autodial.start.title', { name: campaign?.name ?? '' })}
           </DialogTitle>
-          <DialogDescription>{t('autodial.start.body')}</DialogDescription>
+          <DialogDescription>{t(firstLaunch ? 'autodial.workspace.firstLaunchHint' : 'autodial.workspace.nextTourHint')}</DialogDescription>
         </DialogHeader>
 
-        <VStack gap="8" max className={cls.list}>
+        <ModalBody><VStack gap="8" max className={cls.list}>
+          {campaign && <LaunchReadinessSummary campaign={campaign} onClose={onClose} />}
           {preflight && <PreflightChecks data={preflight} />}
           {checkFailed && <Text role="alert">{t('autodial.common.loadFailed')}</Text>}
-          <Button variant="outline" disabled={checking} onClick={() => void refetch()}>{t('autodial.workspace.recheck')}</Button>
-          <Text variant="muted">{t('autodial.start.redialHint')}</Text>
+          <Button variant="outline" disabled={checking || scopeLoading} onClick={() => { void refetch(); void refreshScope(); }}>{t('autodial.workspace.recheck')}</Button>
+          <section className={cls.scope} aria-live="polite" aria-busy={scopeLoading}>
+            <Text>{t('autodial.workspace.tourScopeTitle')}</Text>
+            {scopeLoading ? <Text>{t('autodial.workspace.tourScopeLoading')}</Text> : scopeFailed || !scope
+              ? <Text role="alert">{t('autodial.common.loadFailed')}</Text>
+              : <VStack gap="8" max>
+                <Text>{t('autodial.workspace.tourScopeCounts', scope.totals)}</Text>
+                <Text variant="muted">{t('autodial.workspace.tourScopeTasks', scope.totals)}</Text>
+                <Text variant="muted">{t('autodial.workspace.tourScopeDnc', scope.totals)}</Text>
+                {!scope.totals.tasks && <Text role="alert">{t('autodial.workspace.tourScopeEmpty')}</Text>}
+                {(scope.campaign_revision !== campaign?.revision || scope.totals.active_tasks > 0) && <Text role="alert">{t('autodial.workspace.tourScopeChanged')}</Text>}
+                <Text variant="muted">{t('autodial.workspace.tourScopeAdvisory')}</Text>
+              </VStack>}
+          </section>
+          {aroundTheClock && <HStack gap="8" align="center">
+            <Checkbox id="autodial-confirm-around-clock" checked={alwaysConfirmed} onChange={() => setAlwaysConfirmed((value) => !value)} />
+            <Label htmlFor="autodial-confirm-around-clock">{t('autodial.workspace.confirmAroundClock')}</Label>
+          </HStack>}
+          {!firstLaunch && <details><summary>{t('autodial.workspace.redialAdvanced')}</summary><VStack gap="8" max>
+          <Text variant="muted">{t('autodial.workspace.redialCountersHint')}</Text>
           {REDIAL_DISPOSITIONS.map((disposition) => (
             <HStack key={disposition} gap="8" align="center">
               <Checkbox
@@ -110,21 +145,22 @@ export const StartCampaignDialog = memo(({ campaign, onClose, initialDisposition
               />
               <Label htmlFor={`autodial-redial-${disposition}`}>
                 {autodialDispositionLabel(disposition, t)}
+                {!scopeLoading && !scopeFailed && scope && ` · ${t('autodial.workspace.tourOutcomeCount', scope.by_disposition.find((row) => row.disposition === disposition) ?? { tasks: 0, clients: 0, numbers: 0 })}`}
               </Label>
             </HStack>
-          ))}
-          {error && <Text className={cls.error}>{error}</Text>}
-        </VStack>
+          ))}</VStack></details>}
+          {error && <Text role="alert" className={cls.error}>{error}</Text>}
+        </VStack></ModalBody>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button disabled={isLoading || checking || !preflight?.ready} onClick={() => void onStart()}>
+          <Button disabled={isLoading || checking || checkFailed || !preflight?.ready || scopeLoading || scopeFailed || !scope?.totals.tasks || scope.totals.active_tasks > 0 || scope.campaign_revision !== campaign?.revision || (aroundTheClock && !alwaysConfirmed) || Boolean(campaign?.revision !== undefined && preflight.revision !== campaign.revision)} onClick={() => void onStart()}>
             {t('autodial.campaigns.start')}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 });

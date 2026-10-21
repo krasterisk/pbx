@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Op, Transaction } from 'sequelize';
 import { createHash, randomUUID } from 'node:crypto';
-import { AI_VOICE_ROBOT_DEFAULTS, validateAiVoiceConfig, type AiVoiceRobot, type AiVoiceRobotConfig } from '@krasterisk/shared';
+import { AI_VOICE_ROBOT_DEFAULTS, toRobotConfigV2, validateAiVoiceConfig, type AiVoiceRobot, type AiVoiceRobotConfig } from '@krasterisk/shared';
 import { CcAiAgent } from '../ai-agents/models/ai-agent.model';
 import { CcAiProvider } from '../ai-connectivity/ai-provider.model';
 import { ProductAccessService } from '../product-access/product-access.service';
@@ -141,9 +141,11 @@ export class RobotConfigService {
       const oldPolicy = draft ? JSON.parse(draft.runtime_policy) : DEFAULT_RUNTIME_POLICY;
       const policy = { ...oldPolicy, settings: config, archived: false, prerollMs: config.prefixPaddingMs,
         endpointSilenceMs: config.silenceDurationMs, maxCallMs: config.maxCallMs, transferTargetIds: config.transferTargets };
-      if (draft) await draft.update({ draft_revision: revision, runtime_policy: JSON.stringify(policy), updated_at: new Date() }, { transaction });
+      if (draft) await draft.update({ draft_revision: revision, runtime_policy: JSON.stringify(policy),
+        config_json: JSON.stringify(toRobotConfigV2(config)), config_schema_version: 2, updated_at: new Date() }, { transaction });
       else draft = await this.drafts.create({ tenant_uid: tenantUid, agent_uid: agent.uid, robot_uuid: randomUUID(),
-        draft_revision: revision, runtime_policy: JSON.stringify(policy), created_at: new Date(), updated_at: new Date() }, { transaction });
+        draft_revision: revision, runtime_policy: JSON.stringify(policy), config_json: JSON.stringify(toRobotConfigV2(config)),
+        config_schema_version: 2, created_at: new Date(), updated_at: new Date() }, { transaction });
       const last = await this.versions.max('version_no', { where: { tenant_uid: tenantUid, agent_uid: agent.uid }, transaction });
       const { settings: _settings, ...runtimePolicy } = policy;
       const snapshot = JSON.stringify({ schemaVersion: 1, settings: config, policy: runtimePolicy, providers });
@@ -163,7 +165,28 @@ export class RobotConfigService {
           revision: 1, capture_policy: JSON.stringify({ mode: 'allow', analytic: config.analytic }),
           fallback_policy: JSON.stringify({ action: 'continue' }), created_at: new Date() }, { transaction });
       }
+      const history = await this.versions.findAll({
+        where: { tenant_uid: tenantUid, agent_uid: agent.uid }, order: [['version_no', 'DESC']], transaction,
+      });
+      for (const row of history.slice(50)) await row.destroy({ transaction });
       return { uid: agent.uid, robotUuid: draft.robot_uuid, revision, versionId: version.id, config };
     });
+  }
+
+  async listVersions(tenantUid: number, uid: number) {
+    await this.access(tenantUid);
+    const rows = await this.versions.findAll({
+      where: { tenant_uid: tenantUid, agent_uid: uid }, order: [['version_no', 'DESC']], limit: 50,
+    });
+    return rows.map(row => ({ id: row.id, versionNo: row.version_no, digest: row.config_digest, createdAt: row.created_at }));
+  }
+
+  async rollback(tenantUid: number, userId: number, uid: number, versionId: string): Promise<AiVoiceRobot> {
+    const version = await this.versions.findOne({ where: { id: versionId, tenant_uid: tenantUid, agent_uid: uid } });
+    if (!version) throw new NotFoundException({ code: 'resource_not_found' });
+    const parsed = JSON.parse(version.config) as { settings?: AiVoiceRobotConfig };
+    if (!parsed.settings) throw new BadRequestException({ code: 'invalid_robot_configuration' });
+    const current = await this.get(tenantUid, uid);
+    return this.save(tenantUid, userId, parsed.settings, uid, current.revision);
   }
 }

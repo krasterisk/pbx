@@ -4,6 +4,7 @@ import { AutodialBasesController } from './autodial-bases.controller';
 import { AutodialBasesService } from './autodial-bases.service';
 import { AutodialImportService } from './autodial-import.service';
 import { AutodialSchemaService } from './autodial-schema.service';
+import { AutodialUiCommandService } from './autodial-ui-command.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
 
@@ -22,6 +23,7 @@ describe('Autodial bases HTTP contract', () => {
         { provide: AutodialBasesService, useValue: service },
         { provide: AutodialImportService, useValue: {} },
         { provide: AutodialSchemaService, useValue: {} },
+        { provide: AutodialUiCommandService, useValue: {} },
       ],
     }).overrideGuard(JwtAuthGuard).useValue({
       canActivate(context: ExecutionContext) {

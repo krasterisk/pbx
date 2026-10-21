@@ -124,7 +124,7 @@ for (const dialect of selected.length ? [...new Set(selected)] : ['mysql', 'post
       assert.equal(profile.constraints.productRuntime, 'not-installed');
 
       const outDir = process.env.AI11_11L_OUT
-        || path.join(__dirname, '../../.planning/initiatives/ai-products/evidence/11l');
+        || require('../../tools/artifacts/paths.cjs').outputPath('runs', 'ai-products', '11l');
       fs.mkdirSync(outDir, { recursive: true });
       const outFile = path.join(outDir, `profile-${dialect}.json`);
       fs.writeFileSync(outFile, `${JSON.stringify(profile, null, 2)}\n`);

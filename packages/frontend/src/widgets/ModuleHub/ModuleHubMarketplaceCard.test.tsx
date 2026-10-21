@@ -16,6 +16,10 @@ vi.mock('@/features/modules/ui/CheckoutSheet/CheckoutSheet', () => ({
 vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({
   useGetAiSkuCatalogQuery: () => ({ data: [] }),
 }));
+vi.mock('@/shared/hooks/useAppStore', () => ({
+  useAppSelector: (sel: (s: { auth: { user: { level: number } } }) => unknown) =>
+    sel({ auth: { user: { level: 1 } } }),
+}));
 
 const row: HubModuleRow = {
   code: 'speech_analytics',
@@ -31,7 +35,7 @@ describe('ModuleHubMarketplaceCard COM1 SKU gate', () => {
   it('does not start checkout for an unpublished AI SKU', () => {
     render(
       <MemoryRouter>
-        <ModuleHubMarketplaceCard row={row} index={0} reduceMotion />
+        <ModuleHubMarketplaceCard row={row} index={0} reduceMotion onOpen={() => undefined} />
       </MemoryRouter>,
     );
     const buy = screen.getByRole('button', { name: 'marketplace.skuUnpublished' });

@@ -155,7 +155,7 @@ databaseTests('Autodial data transactions (isolated MySQL schema)', () => {
     const campaign = await AcCampaign.create({ user_uid: 71, base_uid: base.uid, name: 'Internal test fixture', dial_mode: 'agentless', pacing: {}, retry: {}, trunk_pool: [], cid_policy: {}, queue_names: [], scenario_actions: [{ id: 'end', type: 'hangup', params: {} }], amd: {}, revision: 1 });
     await db!.query("INSERT INTO users VALUES (7101, 71, '00991501'), (7201, 72, '00991502')");
     await db!.query("INSERT INTO ps_endpoints VALUES ('e00991501_71', '71')");
-    const ari = { originateChannel: jest.fn().mockResolvedValue({}), getAutodialAppName: () => 'isolated', continueInDialplan: jest.fn(), hangupChannel: jest.fn().mockResolvedValue(undefined) };
+    const ari = { originateChannel: jest.fn().mockResolvedValue({}), getAutodialAppName: () => 'isolated', setChannelVar: jest.fn().mockResolvedValue(undefined), continueInDialplan: jest.fn(), hangupChannel: jest.fn().mockResolvedValue(undefined) };
     const writer = { applyCategories: jest.fn().mockResolvedValue({ success: true }), deleteCategories: jest.fn().mockResolvedValue(undefined) };
     const testCalls = new AutodialTestCallService(db!, campaignService(), bases, { validateDraft: async () => undefined } as never, ari as never, writer as never);
     const request = { contact_uid: contact.uid, expected_revision: 1, idempotency_key: 'same-request-001' };
@@ -169,6 +169,10 @@ databaseTests('Autodial data transactions (isolated MySQL schema)', () => {
     await testCalls.onAnswer({ channel: { id: `actest-${first.uid}`, state: 'Up' } });
     expect(ari.continueInDialplan).toHaveBeenCalledWith(`actest-${first.uid}`, expect.stringMatching(/^krsk-ac-test-/), 's', 1);
     await testCalls.onEnd({ channel: { id: `actest-${first.uid}` } });
+    expect(await testCalls.status(71, 7101, campaign.uid, first.uid)).toMatchObject({ status: 'ended', revision: 1, result: { answered: true, delivery: 'not_observed' } });
+    await expect(testCalls.status(71, 7201, campaign.uid, first.uid)).rejects.toMatchObject({ status: 404 });
+    await expect(testCalls.status(72, 7101, campaign.uid, first.uid)).rejects.toMatchObject({ status: 404 });
+    await expect(testCalls.status(71, 7101, campaign.uid + 1, first.uid)).rejects.toMatchObject({ status: 404 });
     expect(writer.deleteCategories).toHaveBeenCalledWith('krasterisk/autodial/ac_test_71.conf', expect.any(Array));
     for (let i = 2; i <= 5; i++) await testCalls.call(71, 7101, campaign.uid, { ...request, idempotency_key: 'test-request-00' + i });
     await expect(testCalls.call(71, 7101, campaign.uid, { ...request, idempotency_key: 'test-request-006' })).rejects.toMatchObject({ response: { code: 'AC_TEST_RATE_LIMIT' } });

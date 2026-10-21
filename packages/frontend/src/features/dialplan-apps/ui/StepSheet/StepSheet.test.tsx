@@ -8,6 +8,8 @@ import { StepSheet } from './StepSheet';
 import * as queueApiHooks from '@/shared/api/endpoints/queueApi';
 import * as directoryApi from '@/shared/api/endpoints/directoryApi';
 import * as schemaRefs from '../../model/useSchemaRefs';
+import * as ttsApiHooks from '@/shared/api/endpoints/ttsEnginesApi';
+import type { SchemaCatalogRef } from '../../model/schema.types';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -144,10 +146,49 @@ function EditorHarness({ initial = [emptyAction] }: { initial?: IRouteAction[] }
 describe('StepSheet', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(ttsApiHooks.useGetTtsEnginesQuery, { partial: true }).mockReturnValue({ data: [], isLoading: false });
     (queueApiHooks.useGetQueuesQuery as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [{ name: 'qsales_42', exten: 'sales', display_name: 'Sales' }],
       isLoading: false,
     });
+  });
+
+  it('edits voice settings from permitted descriptors and refreshes on opening without a request loop', () => {
+    vi.mocked(ttsApiHooks.useGetTtsEnginesQuery, { partial: true }).mockReturnValue({ data: [], isLoading: false, isError: true, error: { status: 403 } });
+    const refresh = vi.fn(), change = vi.fn();
+    const catalog: SchemaCatalogRef = { items: [{ value: '3', label: 'Scoped speech' }], isLoading: false, sectionHref: null, sectionFallback: 'Speech', onRetry: refresh,
+      ttsEngines: [{ uid: 3, type: 'google', settings: { speaking_rate: '1.25' } }] };
+    const props = { stepId: 'speech', tenantUid: 42, host: 'autodial' as const, initialSection: 'params' as const,
+      action: { id: 'speech', type: 'text2speech' as const, params: { engine: 3, text: 'Hello caller', settings: { voice: 'ru-RU-Wavenet-A' } }, condition: {} },
+      onOpenChange: vi.fn(), onTypeChange: vi.fn(), onChange: change };
+    const { rerender } = render(<StepSheet {...props} open ttsCatalog={catalog} />);
+    expect(screen.getByRole('option', { name: 'Scoped speech' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('1.25')).toBeInTheDocument();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(ttsApiHooks.useGetTtsEnginesQuery).toHaveBeenCalled();
+    expect(vi.mocked(ttsApiHooks.useGetTtsEnginesQuery).mock.calls.every(([, options]) => options?.skip === true)).toBe(true);
+    rerender(<StepSheet {...props} open ttsCatalog={{ ...catalog, isLoading: true }} />);
+    rerender(<StepSheet {...props} open ttsCatalog={catalog} />);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    rerender(<StepSheet {...props} open={false} ttsCatalog={catalog} />);
+    rerender(<StepSheet {...props} open ttsCatalog={catalog} />);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    expect(change).not.toHaveBeenCalled();
+  });
+
+  it('passes the permitted TTS catalog through the actual editor and retains other saved parameters', () => {
+    vi.mocked(ttsApiHooks.useGetTtsEnginesQuery, { partial: true }).mockReturnValue({ data: [], isLoading: false, isError: true, error: { status: 403 } });
+    const change = vi.fn();
+    const action: IRouteAction = { id: 'speech', type: 'text2speech', params: { engine: 3, text: 'Hello caller', settings: { speed: '1.1' } }, condition: {} };
+    render(<DialplanAppsEditor host="autodial" actions={[action]} onChange={change} ttsCatalog={{
+      items: [{ value: '3', label: 'Scoped speech' }, { value: '7', label: 'Alternate speech' }], isLoading: false, sectionHref: null, sectionFallback: 'Speech',
+      ttsEngines: [{ uid: 3, type: 'custom', settings: {} }, { uid: 7, type: 'custom', settings: {} }],
+    }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'text2speech' }));
+    expect(screen.getByRole('option', { name: 'Alternate speech' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Скорость' })).toHaveValue('1.1');
+    fireEvent.change(screen.getByRole('combobox', { name: 'routes.chain.tts.engine' }), { target: { value: '7' } });
+    expect(change).toHaveBeenLastCalledWith([expect.objectContaining({ params: { engine: '7', text: 'Hello caller', settings: { speed: '1.1' } } })]);
   });
 
   it('loads the directory catalog when a value-source field is present', () => {
@@ -193,7 +234,7 @@ describe('StepSheet', () => {
       />,
     );
 
-    expect(spy).toHaveBeenCalledWith(expect.arrayContaining(['trunkIds']));
+    expect(spy).toHaveBeenCalledWith(expect.arrayContaining(['trunkIds']), undefined);
     spy.mockRestore();
   });
 

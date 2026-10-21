@@ -25,7 +25,7 @@ test('robots eval report stays gated and not SLA', () => {
 
 test('11R docs name LIVE-UAT and native_pbx_gated', () => {
   const docs = fs.readFileSync(
-    path.join(__dirname, '../../.planning/initiatives/ai-products/AI-11-11R-UAT.md'),
+    path.join(__dirname, '../../docs/plans/initiatives/ai-products/AI-11-11R-UAT.md'),
     'utf8',
   );
   assert.match(docs, /Not a product SLA|not a product SLA/i);

@@ -22,6 +22,7 @@ vi.mock('@/shared/api/endpoints/autodialApi', () => ({
 function draft(overrides: Partial<AutodialCampaignDraft> = {}): AutodialCampaignDraft {
   return {
     name: 'Campaign',
+    business_goal: 'custom',
     dial_mode: 'progressive',
     base_uid: 8,
     pacing: { providers: [{ type: 'static', max_channels: 1 }] },
@@ -39,6 +40,13 @@ function draft(overrides: Partial<AutodialCampaignDraft> = {}): AutodialCampaign
 }
 
 describe('CampaignTrunksTab', () => {
+  it('requires an explicit route choice instead of silently selecting a real trunk', () => {
+    render(<CampaignTrunksTab draft={draft({ trunk_pool: [] })} onChange={mocks.onChange} errors={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'autodial.trunks.add' }));
+    expect(mocks.onChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      trunk_pool: [expect.objectContaining({ trunk_id: '' })],
+    }));
+  });
   it('moves a Caller ID list into the selected trunk instead of the campaign-wide policy', () => {
     const { rerender } = render(
       <CampaignTrunksTab draft={draft()} onChange={mocks.onChange} errors={{}} />,

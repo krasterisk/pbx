@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ValueSource } from '@krasterisk/shared';
 import {
+  Button,
   Checkbox,
   Input,
   Label,
@@ -269,11 +270,15 @@ function RefSelect({
 }) {
   const { t } = useTranslation();
   const defaults = CATALOG_DEFAULTS[source];
+  const speech = source === 'tts-engines';
+  const readOnlyCatalog = speech && catalog?.sectionHref === null;
   const loading = catalog?.isLoading ?? false;
+  const failed = speech && Boolean(catalog?.isError);
+  const forbidden = failed && Number(catalog?.errorStatus) === 403;
   const items = catalog?.items ?? [];
-  const empty = !loading && items.length === 0;
+  const empty = !loading && !failed && items.length === 0;
   const loadingLabel = t('routes.chain.catalog.loading', 'Загружаем список');
-  const emptyLabel = t('routes.chain.catalog.empty', 'Ничего не создано');
+  const emptyLabel = readOnlyCatalog ? t('common.statusUnavailable') : t('routes.chain.catalog.empty', 'Ничего не создано');
   const sectionName = t(
     catalog?.sectionKey ?? defaults.sectionKey,
     catalog?.sectionFallback ?? defaults.sectionFallback,
@@ -281,41 +286,61 @@ function RefSelect({
   const aria = loading ? loadingLabel : empty ? emptyLabel : label;
   const placeholder = loading
     ? loadingLabel
-    : empty
+    : failed ? t('common.queryLoadError') : empty
       ? emptyLabel
       : t('routes.chain.catalog.choose', 'Выберите');
   const selected = matchCatalogValue(value, items);
+  const current = items.find((item) => item.value === selected);
+  const missing = speech && !loading && !failed && Boolean(value) && !current;
+  const disabledSelection = speech && !loading && !failed && current?.disabled === true;
+  const allDisabled = speech && !loading && !failed && items.length > 0 && items.every((item) => item.disabled);
+  const message = failed ? t(forbidden ? 'routes.chain.catalog.ttsForbidden' : 'routes.chain.catalog.ttsLoadError')
+    : missing ? t('routes.chain.catalog.ttsUnavailable')
+    : disabledSelection ? t('routes.chain.catalog.ttsDisabled')
+    : allDisabled ? t('routes.chain.catalog.ttsNoneEnabled')
+    : readOnlyCatalog && empty ? catalog?.emptyHint ?? t('routes.chain.catalog.ttsNoneEnabled') : undefined;
+  const statusId = message ? `${id}-catalog-status` : undefined;
+  const showHelp = !loading && (empty || failed || missing || disabledSelection || allDisabled);
+  const sectionPath = catalog?.sectionHref === null ? null : catalog?.sectionHref ?? defaults.href;
+  const sectionHref = sectionPath === null ? null : speech ? `${(import.meta.env.BASE_URL || '/').replace(/\/+$/, '')}/${sectionPath.replace(/^\/+/, '')}` : sectionPath;
 
   return (
     <VStack gap="8" max>
       <Select
         id={id}
-        disabled={readOnly || loading || empty}
+        disabled={readOnly || loading || failed || empty}
         value={selected}
         aria-label={aria}
-        aria-invalid={invalid || undefined}
-        aria-describedby={errorId}
+        aria-invalid={invalid || Boolean(message) || undefined}
+        aria-describedby={[errorId, statusId].filter(Boolean).join(' ') || undefined}
         className={styles.touchTarget}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const next = e.target.value;
+          if (speech && (readOnly || loading || failed || next && !items.some((item) => item.value === next && !item.disabled))) return;
+          onChange(next);
+        }}
       >
         <option value="">{placeholder}</option>
+        {missing && <option value={selected} disabled>{t('common.statusUnavailable')}</option>}
         {items.map((item) => (
-          <option key={item.value} value={item.value}>
-            {item.label}
+          <option key={item.value} value={item.value} disabled={item.disabled}>
+            {item.label}{item.disabled ? ` · ${t('common.disabled')}` : ''}
           </option>
         ))}
       </Select>
-      {empty ? (
+      {message && <Text id={statusId} role="alert">{message}</Text>}
+      {speech && showHelp && catalog?.onRetry && <Button type="button" variant="outline" onClick={catalog.onRetry}>{t('common.retry')}</Button>}
+      {showHelp && !forbidden && sectionHref !== null ? (
         <>
-          <Text variant="muted">
+          {empty && <Text variant="muted">
             {t(
               'routes.chain.catalog.emptyHint',
               'Сначала создайте запись в разделе «{{section}}»',
             ).replace('{{section}}', sectionName)}
-          </Text>
+          </Text>}
           {/* catalogLink exception: cross-section link opens in a new tab, Text has no anchor props */}
           <a
-            href={catalog?.sectionHref ?? defaults.href}
+            href={sectionHref}
             target="_blank"
             rel="noopener noreferrer"
             className={styles.catalogLink}
@@ -546,6 +571,7 @@ function renderControl(
           field,
           previewPatterns: extras.previewPatterns,
           tenantUid,
+          ttsEngines: refs?.['tts-engines']?.ttsEngines,
         });
       }
       throw new Error(`custom field "${field.key}" is missing render`);
@@ -576,7 +602,7 @@ export function SchemaFields({
     const error = fieldErrors?.[field.key];
     const invalid = Boolean(error || (field.required && empty));
     const errorId = error ? `${id}-error` : undefined;
-    const renderCtxExtras = { previewPatterns, tenantUid };
+    const renderCtxExtras = { previewPatterns, tenantUid, ttsEngines: refs?.['tts-engines']?.ttsEngines };
 
     if (field.kind === 'value-source') {
       return (

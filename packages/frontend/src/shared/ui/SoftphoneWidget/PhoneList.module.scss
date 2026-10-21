@@ -1,0 +1,7 @@
+.wrap { min-width: 0; flex: 1; min-height: 0; }
+.list { flex: 1; min-height: 0; max-height: min(24rem, 48dvh); overflow-y: auto; overscroll-behavior: contain; }
+.row { padding: .65rem .35rem; border-bottom: 1px solid var(--color-border); border-radius: .4rem; }
+.identity { min-width: 0; flex: 1; }
+.name { overflow-wrap: anywhere; font-weight: 500; }
+.detail { font-size: .75rem; }
+.missed { border-left: 3px solid var(--color-destructive); background: color-mix(in srgb, var(--color-destructive) 5%, transparent); }

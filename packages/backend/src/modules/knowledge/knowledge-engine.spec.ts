@@ -4,8 +4,11 @@ import { hashedBowEmbedder } from '../embeddings/nomic-embed';
 describe('TOOL3 knowledge', () => {
   it('rejects active content and keeps retrieval ACL-aware', () => {
     expect(() => assertKnowledgeSource({
-      mime: 'text/plain', bytes: 12, text: 'see https://evil.example',
+      mime: 'text/plain', bytes: 24, text: 'see javascript:alert(1)',
     })).toThrow(/active_content_rejected/);
+    expect(() => assertKnowledgeSource({
+      mime: 'text/plain', bytes: 32, text: 'Прайс: https://help.example/faq',
+    })).not.toThrow();
     const chunks = chunkText('alpha beta gamma delta '.repeat(40));
     expect(chunks[0].ordinal).toBe(0);
     expect(lexicalRetrieve('alpha', [

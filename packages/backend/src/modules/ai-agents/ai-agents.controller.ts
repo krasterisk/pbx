@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete,
+  Controller, Get, Post, Put, Delete, GoneException,
   Body, Param, Query, Req, Headers, UseGuards, ParseIntPipe, ForbiddenException, BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -12,7 +12,6 @@ import { CreateAiAgentDto, UpdateAiAgentDto } from './dto/ai-agent.dto';
 import { CreateAiProviderDto, UpdateAiProviderDto } from './dto/ai-provider.dto';
 import { CreateAiToolsetDto, UpdateAiToolsetDto } from './dto/ai-toolset.dto';
 import { publicProvider } from '../ai-connectivity/provider-public';
-import { parseExpectedRevision } from './ai-agents.service';
 
 const ADMIN_LEVELS = new Set([0, 1]); // SUPERADMIN, ADMIN
 
@@ -34,10 +33,14 @@ export class AiAgentsController {
 
   // ─── Agents ─────────────────────────────────────────────
 
+  private retired(): never {
+    throw new GoneException({ code: 'ai_agents_retired', use: '/api/ai-voice/robots' });
+  }
+
   @Get()
   list(@Req() req: Request & { user: any }) {
     assertAdmin(req.user);
-    return this.agents.findAll(req.user.vpbx_user_uid);
+    return this.retired();
   }
 
   @Get('inventory')
@@ -85,9 +88,9 @@ export class AiAgentsController {
   }
 
   @Post()
-  create(@Body() dto: CreateAiAgentDto, @Req() req: Request & { user: any }) {
+  create(@Body() _dto: CreateAiAgentDto, @Req() req: Request & { user: any }) {
     assertAdmin(req.user);
-    return this.agents.create(dto, req.user.vpbx_user_uid);
+    return this.retired();
   }
 
   @Put(':id')
@@ -98,7 +101,8 @@ export class AiAgentsController {
     @Req() req: Request & { user: any },
   ) {
     assertAdmin(req.user);
-    return this.agents.update(id, dto, req.user.vpbx_user_uid, parseExpectedRevision(match));
+    void dto; void id; void match;
+    return this.retired();
   }
 
   @Delete(':id')
@@ -108,7 +112,8 @@ export class AiAgentsController {
     @Req() req: Request & { user: any },
   ) {
     assertAdmin(req.user);
-    return this.agents.remove(id, req.user.vpbx_user_uid, parseExpectedRevision(match));
+    void id; void match;
+    return this.retired();
   }
 
   // ─── Providers (sub-route) ──────────────────────────────
@@ -149,13 +154,13 @@ export class AiAgentsController {
   @Get('toolsets/list')
   listToolsets(@Req() req: Request & { user: any }) {
     assertAdmin(req.user);
-    return this.toolsets.findAll(req.user.vpbx_user_uid);
+    return this.retired();
   }
 
   @Post('toolsets')
-  createToolset(@Body() dto: CreateAiToolsetDto, @Req() req: Request & { user: any }) {
+  createToolset(@Body() _dto: CreateAiToolsetDto, @Req() req: Request & { user: any }) {
     assertAdmin(req.user);
-    return this.toolsets.create(dto, req.user.vpbx_user_uid);
+    return this.retired();
   }
 
   @Put('toolsets/:id')
@@ -165,12 +170,14 @@ export class AiAgentsController {
     @Req() req: Request & { user: any },
   ) {
     assertAdmin(req.user);
-    return this.toolsets.update(id, dto, req.user.vpbx_user_uid);
+    void id; void dto;
+    return this.retired();
   }
 
   @Delete('toolsets/:id')
   removeToolset(@Param('id', ParseIntPipe) id: number, @Req() req: Request & { user: any }) {
     assertAdmin(req.user);
-    return this.toolsets.remove(id, req.user.vpbx_user_uid);
+    void id;
+    return this.retired();
   }
 }

@@ -27,10 +27,9 @@ describe('moduleRegistry (NAV-01)', () => {
     );
   });
 
-  it('System module includes tenant Modules page at /system/modules', () => {
+  it('System module no longer exposes a separate modules page', () => {
     const system = getBaselineModule('system');
-    const page = system?.pages.find((p) => p.id === 'tenant-modules');
-    expect(page?.path).toBe('/system/modules');
+    expect(system?.pages.find((p) => p.id === 'tenant-modules')).toBeUndefined();
   });
 
   it('maps Hub modules to expected page paths', () => {
@@ -100,9 +99,9 @@ describe('moduleRegistry (NAV-01)', () => {
     const { active, disabled, locked } = partitionModulesByLicense(BASELINE_MODULES, {
       callcenter: 'disabled',
       analytics: 'locked',
-      ai: 'active',
+      ai_voice_robots: 'active',
     });
-    expect(active.some((m) => m.code === 'ai')).toBe(true);
+    expect(active.some((m) => m.code === 'ai_voice_robots')).toBe(true);
     expect(active.some((m) => m.code === 'core')).toBe(true); // base default active
     expect(disabled.map((m) => m.code)).toContain('callcenter');
     expect(locked.map((m) => m.code)).toContain('analytics');
@@ -129,12 +128,12 @@ describe('hub merge + favorites (NAV-02)', () => {
     const rows = mergeModulesWithCatalog(BASELINE_MODULES, [
       { code: 'callcenter', licenseStatus: 'disabled', name: 'Call Center' },
       { code: 'analytics', licenseStatus: 'locked' },
-      { code: 'ai', licenseStatus: 'active' },
+      { code: 'ai_voice_robots', licenseStatus: 'active' },
     ]);
 
     expect(rows.find((r) => r.code === 'callcenter')?.licenseStatus).toBe('disabled');
     expect(rows.find((r) => r.code === 'analytics')?.licenseStatus).toBe('locked');
-    expect(rows.find((r) => r.code === 'ai')?.licenseStatus).toBe('active');
+    expect(rows.find((r) => r.code === 'ai_voice_robots')?.licenseStatus).toBe('active');
     expect(rows.find((r) => r.code === 'core')?.licenseStatus).toBe('active'); // base default
   });
 
@@ -142,7 +141,7 @@ describe('hub merge + favorites (NAV-02)', () => {
     const rows = mergeModulesWithCatalog(BASELINE_MODULES, [
       { code: 'callcenter', licenseStatus: 'disabled' },
       { code: 'analytics', licenseStatus: 'locked' },
-      { code: 'ai', licenseStatus: 'locked' },
+      { code: 'ai_voice_robots', licenseStatus: 'locked' },
     ]);
     const { active, marketplace } = buildHubSections(rows, []);
 
@@ -151,7 +150,7 @@ describe('hub merge + favorites (NAV-02)', () => {
     expect(active.every((r) => r.licenseStatus !== 'locked')).toBe(true);
 
     expect(marketplace.map((r) => r.code).sort()).toEqual(
-      expect.arrayContaining(['analytics', 'ai']),
+      expect.arrayContaining(['analytics', 'ai_voice_robots']),
     );
     expect(marketplace.every((r) => r.licenseStatus === 'locked')).toBe(true);
     // Disabled must never be Buy/Marketplace targets
@@ -160,13 +159,13 @@ describe('hub merge + favorites (NAV-02)', () => {
 
   it('favorites sort to top of Active section', () => {
     const rows = mergeModulesWithCatalog(BASELINE_MODULES, [
-      { code: 'ai', licenseStatus: 'active' },
+      { code: 'ai_voice_robots', licenseStatus: 'active' },
       { code: 'callcenter', licenseStatus: 'active' },
     ]);
-    const { active } = buildHubSections(rows, ['ai']);
+    const { active } = buildHubSections(rows, ['ai_voice_robots']);
     const activeCodes = active.map((r) => r.code);
-    expect(activeCodes[0]).toBe('ai');
-    expect(active.find((r) => r.code === 'ai')?.favorite).toBe(true);
+    expect(activeCodes[0]).toBe('ai_voice_robots');
+    expect(active.find((r) => r.code === 'ai_voice_robots')?.favorite).toBe(true);
   });
 
   it('sortByFavorites preserves relative order of non-favorites', () => {

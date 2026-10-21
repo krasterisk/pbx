@@ -2,7 +2,7 @@ import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { Button, Input, Label, Select, Switch, Text, Skeleton } from '@/shared/ui';
+import { Button, Flex, Input, Label, Select, Switch, Text, Skeleton } from '@/shared/ui';
 import { UserLevel, selectUserLevel } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import {
@@ -73,8 +73,8 @@ export function AlertRoutingForm() {
   if (isLoading) {
     return (
       <div className={styles.skeletonWrap}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="2.5rem" width="100%" />
       </div>
     );
   }
@@ -86,7 +86,10 @@ export function AlertRoutingForm() {
   }
 
   return (
-    <form
+    <Flex
+      as="form"
+      direction="column"
+      align="stretch"
       className={styles.form}
       onSubmit={(e) => {
         e.preventDefault();
@@ -211,6 +214,6 @@ export function AlertRoutingForm() {
           )}
         </div>
       )}
-    </form>
+    </Flex>
   );
 }

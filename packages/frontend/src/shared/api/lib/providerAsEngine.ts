@@ -15,6 +15,7 @@ export function providerAsEngine(row: IAiProvider): ITtsEngine & ISttEngine {
   return {
     uid: row.uid,
     name: row.name,
+    enabled: row.enabled,
     type: vendor as ITtsEngine['type'],
     token: '',
     settings: defaults,

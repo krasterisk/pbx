@@ -34,13 +34,20 @@ export function filtersToQueryParams(
   };
 }
 
+function todayIso(): string {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
 export function parseFiltersFromSearchParams(params: URLSearchParams): CdrUiFilters {
+  const periodSet = params.has('dateFrom') || params.has('dateTo');
   return {
     search: params.get('search') || undefined,
     direction: params.get('direction') || undefined,
     disposition: params.get('disposition') || undefined,
-    dateFrom: params.get('dateFrom') || undefined,
-    dateTo: params.get('dateTo') || undefined,
+    dateFrom: periodSet ? params.get('dateFrom') || undefined : todayIso(),
+    dateTo: periodSet ? params.get('dateTo') || undefined : todayIso(),
     extension: params.get('extension') || undefined,
     trunk: params.get('trunk') || undefined,
     bucket: params.get('bucket') || undefined,

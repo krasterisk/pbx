@@ -12,6 +12,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleAccessGuard } from '../cloud-admin/module-access.guard';
 import { RequiresModule } from '../cloud-admin/requires-module.decorator';
 import { AutodialReportsService, type AutodialReportRange } from './autodial-reports.service';
+import { AutodialExportAuthGuard } from './autodial-export-auth.guard';
 
 type AuthedRequest = Request & { user: { vpbx_user_uid: number } };
 
@@ -38,6 +39,12 @@ export class AutodialReportsController {
     return this.reports.summary(req.user.vpbx_user_uid, this.range(from, to, campaigns));
   }
 
+  @Get('reports/context')
+  async context(@Req() req: AuthedRequest) {
+    return { timezone: await this.reports.reportingTimezone(req.user.vpbx_user_uid), detail_limit: 50000,
+      definitions_version: 'autodial-supervisor-1', client_fields_source: 'current_card', identity_verification: 'not_collected' };
+  }
+
   @Get('reports/daily')
   daily(
     @Req() req: AuthedRequest,
@@ -59,6 +66,7 @@ export class AutodialReportsController {
   }
 
   @Get('reports/export')
+  @UseGuards(AutodialExportAuthGuard)
   async export(
     @Req() req: AuthedRequest,
     @Res() res: Response,

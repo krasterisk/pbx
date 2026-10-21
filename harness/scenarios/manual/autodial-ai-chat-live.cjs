@@ -1,3 +1,4 @@
+const manualOutput = (name) => require('../../../tools/artifacts/paths.cjs').outputPath('runs', 'manual', process.env.HARNESS_RUN_ID || 'legacy', name);
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -7,7 +8,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '../../..');
 const API = process.env.HARNESS_API_URL || 'http://127.0.0.1:5010';
 const CAMPAIGN_NAME = 'MCP-Live-20260921';
-const EVIDENCE = path.join(ROOT, '.planning/evidence/autodial-mcp-live-2026-09-21.json');
+const EVIDENCE = manualOutput('autodial-mcp-live-2026-09-21.json');
 
 for (const line of fs.readFileSync(path.join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
   const match = line.match(/^([A-Z0-9_]+)=(.*)$/);

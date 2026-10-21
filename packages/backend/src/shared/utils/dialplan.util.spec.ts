@@ -838,14 +838,14 @@ describe('AsteriskDialplanUtils.actionToDialplan', () => {
         { type: 'ai_voice_robot', params: { deployment_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0099' }, condition: {} },
         vpbx,
       );
-      expect(dp).toBe('Stasis(krasterisk_ai_voice,aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0099)');
+      expect(dp).toBe('Stasis(krasterisk_ai_voice,aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0099)\nsame => n,ExecIf($["${AI_ROBOT_OUTCOME}" = ""]?Set(AI_ROBOT_OUTCOME=failed))');
     });
 
     it('ai_voice_robot emits a catalog robot reference while retaining legacy deployment support', () => {
       const dp = AsteriskDialplanUtils.actionToDialplan(
         { type: 'ai_voice_robot', params: { robot_uid: 12 }, condition: {} }, vpbx,
       );
-      expect(dp).toBe('Stasis(krasterisk_ai_voice,robot:12)');
+      expect(dp).toBe('Stasis(krasterisk_ai_voice,robot:12)\nsame => n,ExecIf($["${AI_ROBOT_OUTCOME}" = ""]?Set(AI_ROBOT_OUTCOME=failed))');
     });
 
     it('voicerobot Stasis app name follows ARI_APP_NAME', () => {

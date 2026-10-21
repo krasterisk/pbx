@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, LayoutGrid } from 'lucide-react';
 import { Button, Text, Flex, NavItem, Tooltip } from '@/shared/ui';
 import { filterPagesByLevel, isHubModuleShown } from '@/features/modules/lib/moduleRegistry';
-import { moduleHubPath, resolveNavigation } from '@/features/modules/lib/navigation';
+import { resolveNavigation } from '@/features/modules/lib/navigation';
 import type { HubModuleRow } from '@/features/modules/types';
 import type { UserLevel } from '@krasterisk/shared';
 import { CompactModuleFlyout } from './CompactModuleFlyout';
@@ -21,13 +21,15 @@ interface ModuleNavigationProps {
   isLoading?: boolean;
   isError?: boolean;
   refetch?: () => unknown;
+  freshCodes?: string[];
 }
 
-export function ModuleNavigation({ rows, level, compact = false, onNavigate, testIdPrefix, includeHub = true, className, isLoading, isError, refetch }: ModuleNavigationProps) {
+export function ModuleNavigation({ rows, level, compact = false, onNavigate, testIdPrefix, includeHub = true, className, isLoading, isError, refetch, freshCodes = [] }: ModuleNavigationProps) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const groupId = useId();
   const modules = useMemo(() => rows.filter(isHubModuleShown)
+    .filter((row) => row.licenseStatus === 'active')
     .map((row) => ({ ...row, pages: filterPagesByLevel(row.pages, level) }))
     .filter((row) => row.pages.length > 0), [rows, level]);
   const current = resolveNavigation(pathname, modules.filter((row) => row.licenseStatus === 'active'));
@@ -46,29 +48,16 @@ export function ModuleNavigation({ rows, level, compact = false, onNavigate, tes
     aria-label={t('hub.catalog')} data-testid={testIdPrefix + '-navigation'} onScroll={() => setFlyoutCode(null)}>
     {isLoading && <Text role='status' variant='muted'>{t('common.loading')}</Text>}
     {isError && <Button variant='ghost' onClick={() => refetch?.()}>{t('common.retry')}</Button>}
-        {[true, false].map((available) => <Flex key={String(available)} direction='column' align='stretch' gap='4' className={cls.group}>
-          {!available && modules.some((row) => row.licenseStatus !== 'active') && <Text className={cls.groupLabel}>{t('hub.unavailableSections')}</Text>}
-          {modules.filter((row) => (row.licenseStatus === 'active') === available).map((row) => {
+        <Flex direction='column' align='stretch' gap='4' className={cls.group}>
+          {modules.map((row) => {
             const Icon = row.pages[0]?.icon ?? LayoutGrid;
-            if (!available) {
-              const statusLabel = isLoading ? t('common.loading') : isError ? t('common.statusUnavailable', 'Status unavailable') : t(row.licenseStatus === 'locked' ? 'hub.notConnected' : 'license.disabled');
-              const label = t(row.labelKey) + ' - ' + statusLabel;
-              const link = <NavItem key={row.code} to={moduleHubPath(row.code)} className={cls.row + ' ' + cls.unavailable} aria-label={compact ? label : undefined} title={compact ? undefined : t(row.labelKey)}
-              data-testid={testIdPrefix + '-' + row.code} onClick={closeAfterNavigation}>
-              <Icon key="icon" size={18} aria-hidden />
-              <Flex key="label" direction='column' align='start' className={cls.label}>
-                <Text key="name" as='span' className={cls.sectionLabel}>{t(row.labelKey)}</Text>
-                <Text key="status" as='span' className={cls.status}>{statusLabel}</Text>
-              </Flex>
-              </NavItem>;
-              return compact ? <Tooltip key={row.code} content={label} side="right">{link}</Tooltip> : link;
-            }
+            const fresh = freshCodes.includes(row.code) ? <Text as='span' className={cls.fresh}>{t('hub.new')}</Text> : null;
             if (row.pages.length === 1) {
               const link = <NavItem key={row.code} to={row.pages[0].path}
               className={cls.row + (current?.module.code === row.code ? ' ' + cls.current : '')}
               data-testid={testIdPrefix + '-' + row.code} title={compact ? undefined : t(row.labelKey)} aria-label={t(row.labelKey)}
               aria-current={current?.module.code === row.code ? 'page' : undefined} onClick={closeAfterNavigation}>
-              <Icon key="icon" size={18} aria-hidden /><Text key="label" as='span' className={cls.label}>{t(row.labelKey)}</Text>
+              <Icon key="icon" size={18} aria-hidden /><Text key="label" as='span' className={cls.label}>{t(row.labelKey)}{fresh}</Text>
               </NavItem>;
               return compact ? <Tooltip key={row.code} content={t(row.labelKey)} side="right">{link}</Tooltip> : link;
             }
@@ -83,7 +72,7 @@ export function ModuleNavigation({ rows, level, compact = false, onNavigate, tes
               <Button type='button' variant='ghost' className={cls.row + (current?.module.code === row.code ? ' ' + cls.currentSection : '')}
                 data-testid={testIdPrefix + '-' + row.code} title={t(row.labelKey)} aria-label={t(row.labelKey)} aria-expanded={!compact && expanded} aria-controls={pagesId}
                 onClick={() => toggleSection(row.code)}>
-                <Icon size={18} aria-hidden /><Text as='span' className={cls.label}>{t(row.labelKey)}</Text>
+                <Icon size={18} aria-hidden /><Text as='span' className={cls.label}>{t(row.labelKey)}{fresh}</Text>
                 <ChevronDown size={16} aria-hidden className={cls.chevron + (expanded ? ' ' + cls.expandedChevron : '')} />
               </Button>
               <Flex id={pagesId} hidden={compact || !expanded} direction='column' align='stretch' className={cls.pages}>
@@ -98,7 +87,7 @@ export function ModuleNavigation({ rows, level, compact = false, onNavigate, tes
               </Flex>
             </Flex>;
           })}
-        </Flex>)}
+        </Flex>
         {includeHub && <Tooltip content={compact ? t('hub.title') : undefined} side="right"><NavItem to='/modules' className={cls.row + ' ' + cls.hubRow + (pathname === '/modules' ? ' ' + cls.current : '')} data-testid={testIdPrefix + '-hub'} aria-label={t('hub.title')} aria-current={pathname === '/modules' ? 'page' : undefined} onClick={closeAfterNavigation}>
           <LayoutGrid key="icon" size={18} aria-hidden /><Text key="label" as='span' className={cls.label}>{t('hub.title')}</Text>
         </NavItem></Tooltip>}

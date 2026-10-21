@@ -1,3 +1,4 @@
+const manualOutput = (name) => require('../../../tools/artifacts/paths.cjs').outputPath('runs', 'manual', process.env.HARNESS_RUN_ID || 'legacy', name);
 /**
  * UAT live: two agentless campaigns (debt + appointment) over a local
  * PJSIP loopback. Isolated numbers 000301-000303 / 000401-000402 only.
@@ -12,7 +13,7 @@ const mysql = require('mysql2/promise');
 
 const ROOT = path.resolve(__dirname, '../../..');
 const API = process.env.HARNESS_API_URL || 'http://127.0.0.1:5010';
-const EVIDENCE = path.join(ROOT, '.planning/evidence/autodial-uat-live-2026-09-21.json');
+const EVIDENCE = manualOutput('autodial-uat-live-2026-09-21.json');
 const SSH_KEY = path.join(process.env.USERPROFILE || process.env.HOME, '.ssh', 'krasterisk_ipbx_agent');
 const PBX = 'root@ipbx.krasterisk.ru';
 const TRUNK_ID = 't_uat_ac_loop_20260921';

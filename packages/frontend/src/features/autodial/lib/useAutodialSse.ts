@@ -25,6 +25,7 @@ export interface UseAutodialSseResult extends AutodialLiveState {
   status: AutodialSseStatus;
   health?: IAutodialMonitorHealth;
   healthError?: boolean;
+  snapshotReceivedAt?: number;
   recent?: Array<{ at: string; type: string; campaignUid: number; disposition?: string }>;
 }
 
@@ -38,11 +39,13 @@ export function useAutodialSse(enabled = true): UseAutodialSseResult {
   const [status, setStatus] = useState<AutodialSseStatus>('connecting');
   const [health, setHealth] = useState<IAutodialMonitorHealth>();
   const [healthError, setHealthError] = useState(false);
+  const [snapshotReceivedAt, setSnapshotReceivedAt] = useState<number>();
   const [recent, setRecent] = useState<NonNullable<UseAutodialSseResult['recent']>>([]);
 
   useEffect(() => {
     if (!enabled) {
       setLive(emptyAutodialLiveState);
+      setSnapshotReceivedAt(undefined);
       setStatus('disconnected');
       return undefined;
     }
@@ -70,6 +73,7 @@ export function useAutodialSse(enabled = true): UseAutodialSseResult {
         return;
       }
       setStatus('open');
+      if (event.type === 'snapshot') setSnapshotReceivedAt(Date.now());
       setLive((prev) => reduceAutodialEvent(prev, event));
       if (['channel_started', 'channel_answered', 'channel_ended'].includes(event.type)) {
         const campaignUid = 'campaignUid' in event ? event.campaignUid : 'channel' in event ? event.channel.campaignUid : 0;
@@ -89,5 +93,5 @@ export function useAutodialSse(enabled = true): UseAutodialSseResult {
     };
   }, [enabled]);
 
-  return { ...live, status, health, healthError, recent };
+  return { ...live, status, health, healthError, recent, snapshotReceivedAt };
 }

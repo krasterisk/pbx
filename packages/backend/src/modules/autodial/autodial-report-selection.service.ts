@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import type { Transaction } from 'sequelize';
 import { AutodialAnalyticsService, autodialAnalyticsSchema } from './autodial-analytics.service';
 import { AutodialBasesService } from './autodial-bases.service';
 import { AutodialCampaignsService } from './autodial-campaigns.service';
@@ -29,12 +30,14 @@ export class AutodialReportSelectionService {
     return { campaign_uid: campaign.uid, base_uid: base.uid, contact_count: ids.length, preview_hash: hash, dnc_preserved: true };
   }
 
-  async createBase(tenant: number, role: number, raw: unknown) {
+  async createBase(tenant: number, role: number, raw: unknown, transaction?: Transaction) {
     if (![0, 1, 3].includes(role)) throw new ForbiddenException({ code: 'AC_WRITE_FORBIDDEN' });
     const parsed = inputSchema.safeParse(raw);
     if (!parsed.success) throw new BadRequestException({ code: 'AC_SELECTION_INVALID' });
     const snapshot = await this.snapshot(tenant, parsed.data.filter);
     if (snapshot.hash !== parsed.data.preview_hash) throw new ConflictException({ code: 'AC_SELECTION_CHANGED' });
+    if (transaction) return this.bases.cloneContactsInTransaction(tenant, snapshot.base.uid, snapshot.ids, parsed.data.name,
+      snapshot.base.revision, snapshot.campaign.uid, transaction);
     return this.bases.cloneContacts(tenant, snapshot.base.uid, snapshot.ids, parsed.data.name,
       snapshot.base.revision, snapshot.campaign.uid);
   }

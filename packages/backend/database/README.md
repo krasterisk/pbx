@@ -222,7 +222,7 @@ manual scripts, not inputs to this runner. Existing `db:setup:*`, module-local
 `migrate-*` and superadmin seeds are legacy, **unsupported as a PostgreSQL install
 or canonical upgrade path**; they are not auto-executed. The complete observed
 inventory and DB-02/03 ownership are in
-[SQL-PORTABILITY-INVENTORY](../../../.planning/initiatives/ai-products/SQL-PORTABILITY-INVENTORY.md).
+[SQL-PORTABILITY-INVENTORY](../../../docs/plans/initiatives/ai-products/SQL-PORTABILITY-INVENTORY.md).
 
 The application checks the selected engine's complete, clean versioned history
 before Sequelize connects or module startup hooks run. A missing/dirty/unknown

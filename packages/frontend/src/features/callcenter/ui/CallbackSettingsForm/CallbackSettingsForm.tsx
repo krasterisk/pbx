@@ -89,8 +89,8 @@ export function CallbackSettingsForm() {
   if (isLoading) {
     return (
       <div className={styles.wrap} data-testid="callback-settings-form">
-        <Skeleton className="h-8 w-48 mb-4" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="6rem" width="100%" />
       </div>
     );
   }
@@ -105,16 +105,6 @@ export function CallbackSettingsForm() {
 
   return (
     <div className={styles.wrap} data-testid="callback-settings-form">
-      <Text className={styles.title}>
-        {t('callcenter.settings.callback.title', 'Callback')}
-      </Text>
-      <Text variant="muted" className={styles.hint}>
-        {t(
-          'callcenter.settings.callback.hint',
-          'How callers request a callback and in which order the system connects them to an agent',
-        )}
-      </Text>
-
       {!canEdit && (
         <Text variant="muted" className={styles.readOnly}>
           {t(
@@ -222,12 +212,12 @@ export function CallbackSettingsForm() {
         )}
       </Text>
 
-      <Link to="/routes" className="text-primary underline">
+      <Link to="/routes" className={styles.link}>
         {t('callcenter.openCallbackRoutes', 'Open routes to configure callback attempts and calling hours')}
       </Link>
 
       {canEdit && (
-        <FormSaveBar dirty={dirty} saving={isSaving} onSave={handleSave} onCancel={revert} testId="callback-save-bar" />
+        <FormSaveBar placement="footer" dirty={dirty} saving={isSaving} onSave={handleSave} onCancel={revert} testId="callback-save-bar" />
       )}
     </div>
   );

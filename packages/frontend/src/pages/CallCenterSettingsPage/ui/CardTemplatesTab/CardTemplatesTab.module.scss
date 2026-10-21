@@ -1,0 +1,14 @@
+.empty {
+  padding: 2rem 0;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.card {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}

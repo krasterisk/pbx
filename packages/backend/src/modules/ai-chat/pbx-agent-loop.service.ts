@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { validatedAutodialPageContext } from './autodial-page-context';
 import { autodialActionFromTool } from './agent-timeline.util';
 import { ConfigService } from '@nestjs/config';
+import { isCdrAnswerTool, normalizeCdrAnswerLinks, type CdrToolOutput } from './cdr-answer-links';
 import {
   looksLikeUserConfirm,
   scrubToolIdsFromPublicText,
@@ -187,6 +188,7 @@ export class PbxAgentLoopService {
     let registered: RegisteredTool[];
     let tools: AgentToolSpec[];
     const evidenceTools = new Set<string>();
+    const currentCdrOutputs: CdrToolOutput[] = [];
     let steps = 0;
     let incompleteContinues = 0;
     let forceToolChoice = /(?:создай|создать|настрой|проверь|диагност|create |configure |diagnose )/i.test(message);
@@ -608,6 +610,7 @@ export class PbxAgentLoopService {
             });
           }
           const proposal = this.asProposalView(resultText);
+          if (isCdrAnswerTool(normalizedCall.name)) currentCdrOutputs.push({name: normalizedCall.name, content: resultText});
           if (EVIDENCE_TOOLS.has(normalizedCall.name)) evidenceTools.add(normalizedCall.name);
           resultText = this.truncateToolResult(normalizedCall.name, resultText);
 
@@ -774,9 +777,9 @@ export class PbxAgentLoopService {
       }
 
       const closeKind: AgentTurnCloseKind = close;
-      const closing = scrubToolIdsFromPublicText(
+      const closing = normalizeCdrAnswerLinks(scrubToolIdsFromPublicText(
         text || forcedTurnStatus({ locale: ctx.locale, hadProposal, lastAssistant }),
-      );
+      ), currentCdrOutputs, ctx.locale);
       await this.threads.appendMessage(threadUid, tenantUid, authorUid, {
         role: 'assistant',
         content: closing,

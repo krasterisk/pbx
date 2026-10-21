@@ -26,6 +26,13 @@ describe('PBX logical call semantics', () => {
     expect(classifyDashboardCall(42, 'node', [leg({ channel: 'PJSIP/e100_42-01', dstchannel: 'PJSIP/ew101_42-02', dcontext: '', dialednum: '', usrc: '100', src: '100' })]).direction).toBe('internal');
     expect(classifyDashboardCall(42, 'node', [leg({ channel: 'PJSIP/e100_42-01', dstchannel: 'PJSIP/t_provider_42-02', dcontext: 'sip-out42', dialednum: '', userfield: 'autodial' })])).toMatchObject({ direction: 'out', origin: 'autodial' });
   });
+  it('keeps a WebRTC-to-desk call internal when both endpoints share sip-out0', () => {
+    const native: DashboardLeg = {uniqueid:'1792554194.10',linkedid:'1792554194.10',calldate:'2026-10-21 06:43:14',
+      channel:'PJSIP/ew202_0-00000007',dstchannel:'PJSIP/e201_0-00000008',dcontext:'sip-out0',src:'202',dst:'201',
+      disposition:'ANSWERED',lastapp:'Dial',duration:21,billsec:10};
+    expect(classifyDashboardCall(0,'node',[native],{complete:true},'Europe/Moscow'))
+      .toMatchObject({direction:'internal',outcome:'accepted',startedAt:'2026-10-21T03:43:14.000Z',endedAt:'2026-10-21T03:43:35.000Z'});
+  });
   it('uses uniqueid when linkedid is empty and separates tenant and node', () => {
     const first = classifyDashboardCall(42, 'node', [leg({ linkedid: '' })]);
     const ids = [first.id, classifyDashboardCall(42, 'node', [leg({ linkedid: '', uniqueid: '1.2' })]).id, classifyDashboardCall(43, 'node', [leg({ linkedid: '' })]).id, classifyDashboardCall(42, 'other', [leg({ linkedid: '' })]).id];
@@ -36,6 +43,11 @@ describe('PBX logical call semantics', () => {
     expect(scopeAllows(tokens, { operators: ['101', '102'], queues: ['700'], ownExten: '102' })).toBe(true);
     expect(scopeAllows(tokens, { operators: ['999'], queues: ['999'], ownExten: null })).toBe(false);
     expect(tokens.filter((p) => p.kind === 'extension' && p.value === '101')).toHaveLength(1);
+  });
+  it('does not grant employee scope through a caller ID or dialed number', () => {
+    const tokens = participantTokens([leg({ channel: 'PJSIP/t_incoming_42-1', dstchannel: '', usrc: '999', dst: '999', dialednum: '999' })], 42);
+    expect(scopeAllows(tokens, { operators: ['999'], queues: [], ownExten: '999' })).toBe(false);
+    expect(participantTokens([leg({ channel: 'SIP/201-00001', dstchannel: '' })], 42)).toContainEqual({ kind: 'extension', value: '201' });
   });
   it('rejects malformed dates and interprets legacy CDR using explicit PBX timezone', () => {
     expect(new Date(parseDashboardTimestamp('2026-10-11 10:00:00', 'Asia/Krasnoyarsk')).toISOString()).toBe('2026-10-11T03:00:00.000Z');

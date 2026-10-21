@@ -34,10 +34,12 @@ addDir('packages/backend/database', (name) => /\.(cjs|sql|json)$/.test(name) && 
 addDir('packages/backend/src/database', (name) => name.endsWith('.cjs'));
 addFile('packages/shared/package.json');
 addDir('packages/shared/dist', (name) => name.endsWith('.js') || name.endsWith('.d.ts'));
-addFile('.planning/initiatives/ai-products/AI-11-11M-MATRIX.md');
+addFile('tools/artifacts/paths.cjs');
+addFile('tools/artifacts/policy.json');
+addFile('docs/plans/initiatives/ai-products/AI-11-11M-MATRIX.md');
 // Bundle prior evidence REMOTE-MATRIX files so remote aggregate can verify presence.
 for (const slice of ['11l', '11f', '11o', '11a', '11r']) {
-  addFile(`.planning/initiatives/ai-products/evidence/${slice}/REMOTE-MATRIX.md`);
+  addFile(`docs/plans/initiatives/ai-products/evidence/${slice}/REMOTE-MATRIX.md`);
 }
 
 fs.writeFileSync(path.join(stage, 'package.json'), `${JSON.stringify({

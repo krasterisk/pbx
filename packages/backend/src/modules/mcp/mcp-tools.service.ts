@@ -135,6 +135,12 @@ export class McpToolsService implements OnApplicationBootstrap {
         if (tool.mutation) {
             return this.dispatchMutation(name, tool, cleanArgs, proposalCtx);
         }
+        const readCtx = proposalCtx.userUid
+            ? { userUid: proposalCtx.userUid, role: proposalCtx.role, threadUid: proposalCtx.threadUid ?? 0 }
+            : undefined;
+        const runRead = () => readCtx
+            ? tool.handler(cleanArgs, vpbxUserUid, readCtx)
+            : tool.handler(cleanArgs, vpbxUserUid);
 
         if (tool.proposes) {
             try {
@@ -152,7 +158,7 @@ export class McpToolsService implements OnApplicationBootstrap {
 
         if (LIVE_OPS_TOOLS.has(name)) {
             try {
-                const result = await tool.handler(cleanArgs, vpbxUserUid);
+                const result = await runRead();
                 this.logToolCall(name, tool, cleanArgs, vpbxUserUid, 'success');
                 return this.asTextParts(result);
             } catch (err: any) {
@@ -167,7 +173,7 @@ export class McpToolsService implements OnApplicationBootstrap {
         }
 
         try {
-            const result = await tool.handler(cleanArgs, vpbxUserUid);
+            const result = await runRead();
             this.logToolCall(name, tool, cleanArgs, vpbxUserUid, 'success');
             return this.asTextParts(result);
         } catch (err: any) {

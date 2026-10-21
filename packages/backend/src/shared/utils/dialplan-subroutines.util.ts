@@ -122,8 +122,9 @@ export class DialplanSubroutinesUtil {
     //   ${KRSK_CTC_CONTEXT} — endpoint dialplan context (sip-outN / from-internalN)
     //   ${KRSK_CTC_OP_NUM}  — operator short extension for outbound CID num
     lines.push('[krsk-click-to-call]');
-    // Asterisk warns against `_!` (match-anything); `_X!` = leading digit + rest (numbers / extensions).
-    lines.push('exten => _X!,1,NoOp(Krasterisk click-to-call → ${EXTEN} via ${KRSK_CTC_CONTEXT})');
+    // Constrain the first character; numbers may include an international + or a PBX feature prefix.
+    // Originate callers must still validate the entire destination before passing it to AMI.
+    lines.push('exten => _[+*#0-9]!,1,NoOp(Krasterisk click-to-call → ${EXTEN} via ${KRSK_CTC_CONTEXT})');
     lines.push('same => n,GotoIf($["${KRSK_CTC_CONTEXT}" = ""]?fail)');
     lines.push('same => n,Set(CALLERID(name)=)');
     lines.push('same => n,ExecIf($["${KRSK_CTC_OP_NUM}" != ""]?Set(CALLERID(num)=${KRSK_CTC_OP_NUM}))');

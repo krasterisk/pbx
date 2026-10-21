@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ContactFormModal } from './ContactFormModal';
 
 const mocks = vi.hoisted(() => ({
@@ -12,6 +12,8 @@ vi.mock('@/shared/hooks/useAppStore', () => ({
   useAppSelector: (selector: (state: typeof mocks.state) => unknown) => selector(mocks.state),
 }));
 vi.mock('@/shared/api/endpoints/autodialApi', () => ({
+  useGetAutodialContactHistoryQuery: () => ({ currentData: { attempts: [], tasks: [], limit: 50, truncated: false } }),
+  useGetAutodialReportContextQuery: () => ({ currentData: { timezone: 'UTC' } }),
   useGetAutodialBaseQuery: mocks.base,
   useGetAutodialContactQuery: mocks.contact,
   useCreateAutodialContactMutation: () => [mocks.create, { isLoading: false }],
@@ -37,6 +39,18 @@ beforeEach(() => {
 });
 
 describe('ContactFormModal request and draft boundaries', () => {
+  it('preserves an edited customer when closing is cancelled and never saves implicitly', async () => {
+    render(<ContactFormModal baseUid={1} />);
+    fireEvent.change(await screen.findByDisplayValue('Alice'), { target: { value: 'Unsaved customer' } });
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
+    const confirmation = await screen.findByRole('dialog', { name: 'common.confirm' });
+    expect(within(confirmation).getByText('autodial.workspace.discard')).toBeInTheDocument();
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'common.cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'common.confirm' })).not.toBeInTheDocument());
+    expect(screen.getByDisplayValue('Unsaved customer')).toBeInTheDocument();
+    expect(mocks.dispatch).not.toHaveBeenCalled(); expect(mocks.update).not.toHaveBeenCalled();
+  });
+
   it('loads an individual contact and preserves phone UID when clearing text', async () => {
     render(<ContactFormModal baseUid={1} />);
     expect(await screen.findByDisplayValue('Alice')).toBeInTheDocument();

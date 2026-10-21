@@ -1,0 +1,7 @@
+.page { padding: 24px; min-width: 0; }
+.tabs { width: 100%; min-width: 0; }
+.tabList { max-width: 100%; overflow-x: auto; justify-content: flex-start; }
+.scenarioGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.scenarioGrid > * { min-width: 0; }
+@media (min-width: 1200px) { .scenarioGrid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }
+@media (max-width: 600px) { .page { padding: 12px; } }

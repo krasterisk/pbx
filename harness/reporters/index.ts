@@ -1,14 +1,15 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { outputPath } from '../../tools/artifacts/paths.cjs';
+import { join } from 'node:path';
+
 import type { RunSummary } from '../metrics/index.js';
 import { buildJsonReport } from './json.js';
 import { collectJunitPaths, mergePartialJunitReports } from './junit-merge.js';
 import { buildMarkdownReport } from './markdown.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const harnessRoot = join(__dirname, '..');
-const reportsDir = join(harnessRoot, 'reports');
+
+
+const reportsDir = outputPath('legacy', 'harness', 'reports');
 
 export interface AggregateReporterOptions {
   junitPaths?: string[];
@@ -29,7 +30,7 @@ export function aggregateReporters(
 
   const reporterOptions = {
     junitPaths,
-    playwrightReportPath: options.playwrightReportPath ?? 'playwright-report/index.html',
+    playwrightReportPath: options.playwrightReportPath ?? outputPath('legacy', 'harness', 'playwright-report', 'index.html'),
     gitSha: options.gitSha ?? process.env.GITHUB_SHA,
   };
 

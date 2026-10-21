@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { appBuildDefines } from './app-build-defines';
 const configDirectory = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
     plugins: [react(), tailwindcss()],
@@ -16,6 +17,7 @@ export default defineConfig({
         },
     },
     define: {
+        ...appBuildDefines(),
         // @react-pdf/renderer needs process.env
         'process.env': {},
         'process.browser': true,
@@ -25,8 +27,8 @@ export default defineConfig({
         include: ['@react-pdf/renderer'],
     },
     build: {
-        // Keep this generated config in sync with vite.config.ts until the build
-        // loads the TypeScript config explicitly.
+        // The default esbuild minifier produces a bundle that Vite's import analysis
+        // cannot parse with the current dependency graph. Terser builds it reliably.
         minify: 'terser',
         rollupOptions: {
             input: {

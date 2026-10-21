@@ -44,8 +44,19 @@ speech-analytics-samples/
 
 
 # Local release captures and generated standalone builds
-artifacts/
+/artifacts/
 .codex-remote-attachments/
 dist-voice-robots/
 dist-mpbx-standalone/
 *.tsbuildinfo
+
+# Local agent workspaces and generated evidence (see docs/development/REPOSITORY-LAYOUT.md)
+/.planning/
+/.artifacts/
+__pycache__/
+*.pyc
+/harness/reports/
+/harness/playwright-report/
+/harness/test-results/
+/e2e/test-results/
+/e2e/playwright-report/

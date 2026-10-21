@@ -17,6 +17,8 @@ export interface AutodialLiveChannel {
   number: string;
   trunkId: string;
   startedAt: number;
+  /** Frozen for this outgoing leg, independent of subsequent campaign edits. */
+  dialTimeoutSec?: number;
   answeredAt: number | null;
   contactUid?: number;
   customerName?: string;

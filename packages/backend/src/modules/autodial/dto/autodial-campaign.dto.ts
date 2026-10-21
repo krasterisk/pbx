@@ -1,5 +1,6 @@
 import {
   IsArray,
+  ArrayMaxSize,
   IsBoolean,
   IsIn,
   IsInt,
@@ -15,6 +16,8 @@ import {
 import { Type } from "class-transformer";
 import {
   AUTODIAL_DIAL_MODES,
+  AUTODIAL_BUSINESS_GOALS,
+  type AutodialBusinessGoal,
   AUTODIAL_DISPOSITIONS,
   AUTODIAL_SCHEDULE_KINDS,
   type AutodialDialMode,
@@ -238,7 +241,24 @@ export class AutodialScheduleDraftDto {
   enabled?: boolean;
 }
 
+export class AutodialSchedulePreviewDto {
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => AutodialScheduleDraftDto)
+  schedules!: AutodialScheduleDraftDto[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(-840)
+  @Max(840)
+  tz_offset_min?: number;
+}
+
 export class CreateAutodialCampaignDto {
+  @IsOptional()
+  @IsIn(AUTODIAL_BUSINESS_GOALS)
+  business_goal?: AutodialBusinessGoal;
   @IsString()
   @MaxLength(255)
   name!: string;
@@ -303,6 +323,9 @@ export class CreateAutodialCampaignDto {
 }
 
 export class UpdateAutodialCampaignDto {
+  @IsOptional()
+  @IsIn(AUTODIAL_BUSINESS_GOALS)
+  business_goal?: AutodialBusinessGoal;
   @IsInt()
   @Min(0)
   expected_revision!: number;
@@ -374,6 +397,16 @@ export class UpdateAutodialCampaignDto {
 
 /** D-19: filter contacts by prior task dispositions when (re)starting. */
 export class StartAutodialCampaignDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expected_revision?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expected_base_revision?: number;
+
   @IsOptional()
   @IsArray()
   @IsIn([...AUTODIAL_DISPOSITIONS], { each: true })

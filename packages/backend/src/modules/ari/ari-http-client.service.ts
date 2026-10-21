@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ariHttpPrefix } from './ari-http-prefix';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { resolveAriApplicationNames } from './ari-app-name';
+import { resolveAiVoiceAriAppName } from './ari-event-classifier';
 
 /**
  * Compact error thrown by ARI HTTP requests.
@@ -334,7 +335,8 @@ export class AriHttpClientService implements OnModuleInit {
 
   /** The single inbound WebSocket subscribes to each currently active owner. */
   getEventAppNames(): readonly string[] {
+    const aiVoice = resolveAiVoiceAriAppName(this.configService.get<string>('ARI_AI_VOICE_APP_NAME'));
     return this.configService.get<string>('ARI_SCRIPTED_ONLY') === 'true'
-      ? [this.appName] : [this.appName, this.autodialAppName];
+      ? [this.appName] : [this.appName, this.autodialAppName, aiVoice];
   }
 }

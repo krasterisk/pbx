@@ -1,6 +1,24 @@
 import { AutodialOriginatorService } from './autodial-originator.service';
 
 describe('AutodialOriginatorService', () => {
+  it.each([true, false])('uses frozen live dial evidence and retains raw ARI cause (live=%s)', async (hasLiveClock) => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-18T15:54:00.022Z'));
+    const originator = Object.create(AutodialOriginatorService.prototype) as AutodialOriginatorService;
+    const channelId = 'ac-14-13-1';
+    originator['attemptByChannel'] = new Map([[channelId, 44]]);
+    originator['handedOffChannels'] = new Set();
+    const finalize = jest.fn().mockResolvedValue(hasLiveClock ? 'no_answer' : 'failed');
+    originator['attempts'] = { finalize, findOpenByChannelId: jest.fn().mockResolvedValue({ uid: 44, answered_at: null }) } as unknown as AutodialOriginatorService['attempts'];
+    originator['state'] = { getChannel: jest.fn().mockReturnValue(hasLiveClock ? { attemptUid: 44, answeredAt: null, startedAt: Date.now() - 5008, dialTimeoutSec: 5 } : undefined), removeChannel: jest.fn() } as unknown as AutodialOriginatorService['state'];
+    originator['campaignModel'] = { findByPk: jest.fn() } as unknown as AutodialOriginatorService['campaignModel'];
+    await originator.onChannelDestroyed({ channel: { id: channelId, state: 'Ringing' }, cause: 0, cause_txt: 'Unknown' });
+    expect(finalize).toHaveBeenCalledWith(expect.objectContaining({ attemptUid: 44, disposition: hasLiveClock ? 'no_answer' : 'failed', hangupCause: 'Unknown', billsec: 0 }));
+    expect(originator['campaignModel'].findByPk).not.toHaveBeenCalled();
+    if (hasLiveClock) expect(finalize.mock.calls[0][0].scenarioResult).toEqual({ unanswered_evidence: { source: 'ari_ringing_dial_timeout', cause: 0, cause_text: 'Unknown', channel_state: 'Ringing', elapsed_ms: 5008, dial_timeout_sec: 5 } });
+    else expect(finalize.mock.calls[0][0].scenarioResult).toBeUndefined();
+  });
+
+  afterEach(() => jest.useRealTimers());
   it('completes a leased task as DNC before creating an attempt or ARI channel', async () => {
     const originator = Object.create(
       AutodialOriginatorService.prototype,
@@ -39,6 +57,7 @@ describe('AutodialOriginatorService', () => {
   });
 
   it('defers an out-of-hours subscriber without burning the attempt', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-18T12:00:00Z'));
     const originator = Object.create(
       AutodialOriginatorService.prototype,
     ) as AutodialOriginatorService;
@@ -197,6 +216,9 @@ describe('AutodialOriginatorService', () => {
     expect(createParams.appArgs).toBe('autodial-v1,11,22');
     expect(createParams.variables).not.toHaveProperty('CALLERID(num)');
     expect(createParams.endpoint).toBe('PJSIP/79991234567@trunk-1');
+    expect(openAttempt).toHaveBeenCalledWith(expect.objectContaining({
+      scenarioSnapshot: expect.objectContaining({ dialled_phone: '79991234567' }),
+    }));
   });
 
   it('does not originate when the lease was reassigned before the ARI handoff', async () => {

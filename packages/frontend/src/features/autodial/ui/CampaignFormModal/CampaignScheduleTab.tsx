@@ -20,6 +20,8 @@ import type {
 } from "../../model/campaignDraft";
 import cls from "./CampaignTabs.module.scss";
 import { TimeZoneSelect } from "../TimeZoneSelect";
+import { SchedulePreview } from './SchedulePreview';
+import { scheduleDraftError } from '../../model/scheduleDraft';
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
@@ -55,10 +57,19 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
 
   return (
     <VStack gap="16" max>
-      <HStack gap="4" align="center">
-        <Text className={cls.sectionTitle}>{t("autodial.schedule.title")}</Text>
-        <InfoTooltip text={t("autodial.schedule.intro")} />
-      </HStack>
+      <VStack gap="8" max>
+        <HStack gap="4" align="center">
+          <Label htmlFor="autodial-schedule-policy">{t('autodial.schedule.title')}</Label>
+          <InfoTooltip text={t('autodial.schedule.intro')} />
+        </HStack>
+        <Select id="autodial-schedule-policy" value={draft.schedules.length ? 'windows' : 'always'}
+          onChange={(event) => setSchedules(event.target.value === 'always' ? [] : [blankSchedule()])}>
+          <option value="always">{t('autodial.workspace.scheduleAlways')}</option>
+          <option value="windows">{t('autodial.workspace.scheduleWindows')}</option>
+        </Select>
+        {draft.schedules.length > 0 && <Text variant="muted">{t('autodial.workspace.scheduleClockHint')}</Text>}
+        {!draft.schedules.length && <Text>{t('autodial.workspace.scheduleAlwaysHint')}</Text>}
+      </VStack>
 
       <VStack gap="8" max>
         {draft.schedules.map((schedule, index) => (
@@ -75,6 +86,7 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
                     updateSchedule(index, {
                       ...schedule,
                       kind: e.target.value as AutodialScheduleDraft["kind"],
+                      ...(e.target.value === 'one_off' ? { date_to: null } : {}),
                     })
                   }
                 >
@@ -186,6 +198,9 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
               </HStack>
             </div>
 
+            {schedule.time_from > schedule.time_to && <Text variant="muted">{t('autodial.workspace.scheduleNight')}</Text>}
+            {scheduleDraftError(schedule) && <Text role="alert">{t(`autodial.workspace.scheduleErrors.${scheduleDraftError(schedule)}`)}</Text>}
+
             <VStack gap="8" max className={cls.timezoneRow}>
               <HStack gap="4" align="center">
                 <Label htmlFor={`autodial-sched-tz-${index}`} className={cls.fieldLabel}>
@@ -223,9 +238,6 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
           </div>
         ))}
 
-        {draft.schedules.length === 0 && (
-          <Text className={cls.hint}>{t("autodial.schedule.empty")}</Text>
-        )}
         {allSchedulesDisabled && (
           <Text className={cls.warning}>{t("autodial.schedule.allDisabled")}</Text>
         )}
@@ -240,6 +252,7 @@ export const CampaignScheduleTab = memo(({ draft, onChange }: Props) => {
           {t("autodial.schedule.add")}
         </Button>
       </HStack>
+      <SchedulePreview schedules={draft.schedules} />
     </VStack>
   );
 });

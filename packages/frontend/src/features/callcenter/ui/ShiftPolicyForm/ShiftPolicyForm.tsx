@@ -80,8 +80,8 @@ export function ShiftPolicyForm() {
   if (isLoading) {
     return (
       <div className={styles.wrap} data-testid="shift-policy-form">
-        <Skeleton className="h-8 w-48 mb-4" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="6rem" width="100%" />
       </div>
     );
   }
@@ -94,16 +94,6 @@ export function ShiftPolicyForm() {
 
   return (
     <div className={styles.wrap} data-testid="shift-policy-form">
-      <Text className={styles.title}>
-        {t('callcenter.settings.shifts.title', 'Shift persistence')}
-      </Text>
-      <Text variant="muted" className={styles.hint}>
-        {t(
-          'callcenter.settings.shifts.hint',
-          'When open shifts may be closed automatically and whether the operator extension is freed on any shift end.',
-        )}
-      </Text>
-
       {!canEdit && (
         <Text variant="muted" className={styles.readOnly}>
           {t('callcenter.settings.shifts.readOnly', 'Only supervisors and admins can edit')}
@@ -233,7 +223,7 @@ export function ShiftPolicyForm() {
       </div>
 
       {canEdit && (
-        <FormSaveBar dirty={dirty} saving={isSaving} onSave={handleSave} onCancel={revert} testId="shift-save-bar" />
+        <FormSaveBar placement="footer" dirty={dirty} saving={isSaving} onSave={handleSave} onCancel={revert} testId="shift-save-bar" />
       )}
     </div>
   );

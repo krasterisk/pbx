@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   ParseIntPipe,
   Post,
@@ -23,6 +24,7 @@ import { AutodialImportService } from './autodial-import.service';
 import { AutodialImportUploadDto } from './dto/autodial-import.dto';
 import { AutodialWriteGuard } from './autodial-write.guard';
 import { AutodialSchemaService } from './autodial-schema.service';
+import { AutodialUiCommandService } from './autodial-ui-command.service';
 import {
   CreateAutodialBaseDto,
   CreateAutodialContactDto,
@@ -43,6 +45,7 @@ export class AutodialBasesController {
     private readonly basesService: AutodialBasesService,
     private readonly importService: AutodialImportService,
     private readonly schema: AutodialSchemaService,
+    private readonly commands: AutodialUiCommandService,
   ) {}
 
   @Get()
@@ -51,7 +54,12 @@ export class AutodialBasesController {
   }
 
   @Post()
-  create(@Req() req: AuthedRequest, @Body() body: CreateAutodialBaseDto) {
+  async create(@Req() req: AuthedRequest, @Body() body: CreateAutodialBaseDto, @Headers('idempotency-key') key?: string) {
+    if (key !== undefined) {
+      const uid = await this.commands.run(req.user.vpbx_user_uid, req.user.sub, key, 'create_base', body,
+        (transaction) => this.basesService.createInTransaction(req.user.vpbx_user_uid, body, transaction));
+      return this.basesService.findOne(req.user.vpbx_user_uid, uid);
+    }
     return this.basesService.create(req.user.vpbx_user_uid, body);
   }
 
@@ -68,6 +76,11 @@ export class AutodialBasesController {
   @Get(':base_uid/field-usage')
   fieldUsage(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number) {
     return this.schema.usage(req.user.vpbx_user_uid, baseUid);
+  }
+
+  @Get(':base_uid/import-runs')
+  importRuns(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number) {
+    return this.importService.listRuns(req.user.vpbx_user_uid, baseUid);
   }
 
   @Post(':base_uid/schema-preview')
@@ -113,11 +126,17 @@ export class AutodialBasesController {
   }
 
   @Post(':base_uid/contacts')
-  createContact(
+  async createContact(
     @Req() req: AuthedRequest,
     @Param('base_uid', ParseIntPipe) baseUid: number,
     @Body() body: CreateAutodialContactDto,
+    @Headers('idempotency-key') key?: string,
   ) {
+    if (key !== undefined) {
+      const uid = await this.commands.run(req.user.vpbx_user_uid, req.user.sub, key, 'create_contact', { base_uid: baseUid, ...body },
+        (transaction) => this.basesService.createContactInTransaction(req.user.vpbx_user_uid, baseUid, body, transaction));
+      return this.basesService.findContact(req.user.vpbx_user_uid, baseUid, uid);
+    }
     return this.basesService.createContact(req.user.vpbx_user_uid, baseUid, body);
   }
 
@@ -128,6 +147,13 @@ export class AutodialBasesController {
     @Param('contact_uid', ParseIntPipe) contactUid: number,
   ) {
     return this.basesService.findContact(req.user.vpbx_user_uid, baseUid, contactUid);
+  }
+
+  @Get(':base_uid/contacts/:contact_uid/history')
+  contactHistory(@Req() req: AuthedRequest, @Param('base_uid', ParseIntPipe) baseUid: number,
+    @Param('contact_uid', ParseIntPipe) contactUid: number, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.basesService.contactHistory(req.user.vpbx_user_uid, baseUid, contactUid);
   }
 
   @Put(':base_uid/contacts/:contact_uid')

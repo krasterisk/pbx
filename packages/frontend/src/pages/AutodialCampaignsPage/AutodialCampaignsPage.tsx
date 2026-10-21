@@ -9,7 +9,8 @@ import { CampaignsTable } from '@/features/autodial/ui/CampaignsTable/CampaignsT
 import { CampaignFormModal } from '@/features/autodial/ui/CampaignFormModal/CampaignFormModal';
 import cls from './AutodialCampaignsPage.module.scss';
 import { AutodialIncomingChanges } from '@/features/autodial/ui/CampaignWorkspace/AutodialIncomingChanges';
-import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
+import { AutodialAiAction } from '@/features/autodial/ui/AutodialAiAction/AutodialAiAction';
+import { AutodialOverview } from '@/features/autodial/ui/Overview/AutodialOverview';
 
 export const AutodialCampaignsPage = memo(() => {
   const { t } = useTranslation();
@@ -26,20 +27,22 @@ export const AutodialCampaignsPage = memo(() => {
             <Text variant="h1" as="h1" className={cls.title}>
               {t('autodial.campaigns.title')}
             </Text>
-            <Text variant="muted">{t('autodial.campaigns.subtitle')}</Text>
+            <Text variant="muted">{t('autodial.workspace.campaignListHint')}</Text>
           </VStack>
         </HStack>
-        <HStack gap="8" wrap="wrap"><Button variant="secondary" onClick={() => dispatch(aiChatActions.openWithSeed('Помоги создать автообзвон. Прочитай возможности модуля, уточни цель и подготовь общий план базы и кампании без запуска звонков.'))}>{t('autodial.workspace.askAi')}</Button><Button
+        <Button
           className={cls.createBtn}
           data-testid="autodial-create-campaign"
           onClick={() => dispatch(autodialPageActions.openCreateCampaign())}
         >
           <Plus size={16} className={cls.createBtnIcon} />
           <Text as="span">{t('autodial.campaigns.create')}</Text>
-        </Button></HStack>
+        </Button>
       </Flex>
 
+      <AutodialAiAction seed={t('autodial.workspace.aiCreateSeed')} />
       <AutodialIncomingChanges />
+      <AutodialOverview />
       <Flex direction="column" align="stretch" max className={cls.tableWrap}>
         <CampaignsTable />
       </Flex>

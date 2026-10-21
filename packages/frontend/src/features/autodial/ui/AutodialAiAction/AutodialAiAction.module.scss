@@ -1,0 +1,4 @@
+.action { width: 100%; min-width: 0; }
+.hint { flex: 1 1 20rem; }
+.configuredHint { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; white-space: nowrap; clip-path: inset(50%); }
+@media(max-width: 640px) { .action { width: 100%; max-width: 100%; } }

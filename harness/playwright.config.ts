@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { outputPath } from '../tools/artifacts/paths.cjs';
 
 /**
  * Krasterisk v4 — Harness Playwright config (absorbed from e2e/).
@@ -10,6 +11,7 @@ const liveLlm = process.env.HARNESS_LIVE_LLM === '1';
 
 export default defineConfig({
   testDir: './scenarios/ui',
+  outputDir: outputPath('legacy', 'harness', 'test-results'),
   testIgnore: liveLlm ? [] : ['**/*.live.spec.ts'],
   timeout: 60_000,
   expect: { timeout: 10_000 },
@@ -17,8 +19,8 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['junit', { outputFile: 'reports/junit-ui.xml' }],
+    ['html', { outputFolder: outputPath('legacy', 'harness', 'playwright-report'), open: 'never' }],
+    ['junit', { outputFile: outputPath('legacy', 'harness', 'reports', 'junit-ui.xml') }],
   ],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3010',

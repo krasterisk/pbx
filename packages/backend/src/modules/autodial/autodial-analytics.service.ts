@@ -8,11 +8,11 @@ import { autodialSqlDate } from './autodial-sql-time.util';
 
 export const autodialAnalyticsSchema = z.strictObject({ from: z.iso.date(), to: z.iso.date(),
   campaign_uids: z.array(z.number().int().positive()).max(50).optional(),
-  dimension: z.enum(['attempt', 'hour', 'heatmap', 'segment', 'hangup', 'operator', 'business_outcome', 'disposition']),
+  dimension: z.enum(['attempt', 'hour', 'heatmap', 'segment', 'hangup', 'operator', 'business_outcome', 'business_goal', 'outcome_category', 'disposition']),
   field_uid: z.number().int().positive().optional(), value: z.string().max(10000).optional() });
 type AnalyticsInput = z.infer<typeof autodialAnalyticsSchema>;
-export interface AutodialBreakdownRow { value: string; dials: number; answered: number; success: number; talk_sec: number; contact_rate: number }
-interface AggregateRow { value: string | number | null; dials: string | number; answered: string | number; success: string | number; talk_sec: string | number }
+export interface AutodialBreakdownRow { value: string; dials: number; answered: number; success: number; talk_sec: number; contact_rate: number; contacts: number | null }
+interface AggregateRow { value: string | number | null; dials: string | number; answered: string | number; success: string | number; talk_sec: string | number; contacts: string | number }
 const hourFormatters = new Map<string, Intl.DateTimeFormat>();
 
 export function autodialHourGroup(epochBucket: number, timezone: string, heatmap: boolean): string {
@@ -51,6 +51,11 @@ export class AutodialAnalyticsService {
       case 'disposition': expression = 'a.disposition'; break;
       case 'business_outcome': replacements.outcomePath = pg ? 'business_outcome' : '$.business_outcome';
         expression = `COALESCE(${json('a.scenario_result', 'outcomePath')}, '—')`; break;
+      case 'business_goal': case 'outcome_category': {
+        const field = input.dimension === 'business_goal' ? 'business_goal_relation' : 'business_outcome_category';
+        replacements.outcomePath = pg ? field : `$.${field}`;
+        expression = `COALESCE(${json('a.scenario_result', 'outcomePath')}, 'unknown')`; break;
+      }
       case 'segment': {
         if (!input.field_uid) throw new BadRequestException({ code: 'AC_REPORT_FIELD_REQUIRED' });
         const [field] = await this.db.query<{ uid: number; base_uid: number; field_key: string }>(
@@ -81,7 +86,7 @@ export class AutodialAnalyticsService {
   async breakdown(tenant: number, raw: unknown) {
     const input = this.parse(raw), { expression, replacements, source, timezone } = await this.queryParts(tenant, input);
     const timeDimension = input.dimension === 'hour' || input.dimension === 'heatmap';
-    const rows = await this.db.query<AggregateRow>(`SELECT ${expression} AS value, COUNT(*) AS dials,
+    const rows = await this.db.query<AggregateRow>(`SELECT ${expression} AS value, COUNT(*) AS dials, COUNT(DISTINCT t.contact_uid) AS contacts,
       SUM(CASE WHEN a.answered_at IS NOT NULL THEN 1 ELSE 0 END) AS answered,
       SUM(CASE WHEN a.disposition = 'success' THEN 1 ELSE 0 END) AS success, COALESCE(SUM(a.talk_sec), 0) AS talk_sec
       ${source} GROUP BY ${expression} ORDER BY dials DESC LIMIT ${timeDimension ? 40000 : 2001}`,
@@ -89,7 +94,7 @@ export class AutodialAnalyticsService {
     const groups = new Map<string, AutodialBreakdownRow>();
     for (const row of rows.slice(0, timeDimension ? 40000 : 2000)) {
       const value = timeDimension ? autodialHourGroup(Number(row.value), timezone, input.dimension === 'heatmap') : String(row.value ?? '—');
-      const group = groups.get(value) ?? { value, dials: 0, answered: 0, success: 0, talk_sec: 0, contact_rate: 0 };
+      const group = groups.get(value) ?? { value, dials: 0, answered: 0, success: 0, talk_sec: 0, contact_rate: 0, contacts: timeDimension ? null : Number(row.contacts) };
       group.dials += Number(row.dials); group.answered += Number(row.answered); group.success += Number(row.success); group.talk_sec += Number(row.talk_sec);
       group.contact_rate = group.dials ? Math.round(group.answered / group.dials * 10000) / 100 : 0;
       groups.set(value, group);

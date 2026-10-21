@@ -1,3 +1,4 @@
+import { useAutodialConfirmation } from '../AutodialConfirmation/useAutodialConfirmation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AUTODIAL_DIAL_MODES } from '@krasterisk/shared';
@@ -19,6 +20,7 @@ export function CampaignConfiguration({ campaign, scenario = false, onDirtyChang
   campaign: AutodialCampaignWithSchedules; scenario?: boolean; onDirtyChange: (dirty: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const { confirm, confirmationDialog } = useAutodialConfirmation();
   const [draft, setDraft] = useState(() => campaignToDraft(campaign));
   const [baseline, setBaseline] = useState(() => JSON.stringify(campaignToDraft(campaign)));
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +29,14 @@ export function CampaignConfiguration({ campaign, scenario = false, onDirtyChang
   const dirty = JSON.stringify(draft) !== baseline;
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
+  useEffect(() => {
+    // A clean editor can follow a successful re-apply/refetch; retain local edits
+    // and the conflict explanation when there is unsaved input.
+    if (!dirtyRef.current && draft.revision !== campaign.revision) {
+      const next = campaignToDraft(campaign);
+      setDraft(next); setBaseline(JSON.stringify(next)); setError(null);
+    }
+  }, [campaign, draft.revision]);
   useEffect(() => { onDirtyChange(dirty); return () => onDirtyChange(false); }, [dirty, onDirtyChange]);
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => { if (dirtyRef.current) { event.preventDefault(); event.returnValue = ''; } };
@@ -42,10 +52,11 @@ export function CampaignConfiguration({ campaign, scenario = false, onDirtyChang
     } catch (cause) { setError(t(autodialErrorKey(cause, 'autodial.form.saveFailed'))); }
   };
   return <VStack gap="16" max>
+    {confirmationDialog}
     {(campaign.status === 'running' || campaign.status === 'paused') && <Text role="status">{t('autodial.workspace.liveEdit')}</Text>}
     {draft.revision !== campaign.revision && <VStack gap="8"><Text role="alert">{t('autodial.errors.AC_CAMPAIGN_REVISION_CONFLICT')}</Text>
-      <Button variant="outline" onClick={() => {
-        if (dirty && !window.confirm(t('autodial.workspace.discard'))) return;
+      <Button variant="outline" onClick={async () => {
+        if (dirty && !(await confirm(t('autodial.workspace.discard')))) return;
         const next = campaignToDraft(campaign); setDraft(next); setBaseline(JSON.stringify(next)); setError(null);
       }}>{t('autodial.workspace.reloadSettings')}</Button></VStack>}
     {scenario ? <CampaignScenarioTab draft={draft} onChange={setDraft} errors={errors} /> :

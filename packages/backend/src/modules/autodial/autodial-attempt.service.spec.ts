@@ -80,6 +80,22 @@ describe('AutodialAttemptService', () => {
     await service.finalize({ attemptUid: 41, disposition: 'success', billsec: 13 });
     expect(update.mock.calls[0][0]).not.toHaveProperty('billsec');
   });
+  it.each([false, true])('retains admission evidence and CDR billsec with callback-first=%s', async (callbackFirst) => {
+    const { service, update } = serviceWith([1]);
+    const attempt = await service['attemptModel'].findByPk(41);
+    const snapshot = { revision: 3, variables: [{ name: 'AC_NAME', value: 'Original' }] };
+    Object.assign(attempt!, { scenario_result: { _evidence_version: 1, snapshot },
+      update: jest.fn(async (patch) => Object.assign(attempt!, patch)) });
+    const callback = () => service.applyScenarioResult(41, { billsec: 12, scenarioResult: { dtmf: '1', business_outcome: 'confirmed' } });
+    if (callbackFirst) await callback();
+    await service.finalize({ attemptUid: 41, disposition: 'success', billsec: 13 });
+    if (!callbackFirst) {
+      expect(update.mock.calls[0][0].billsec).toBe(13);
+      await callback();
+    } else expect(update.mock.calls[0][0]).not.toHaveProperty('billsec');
+    expect(attempt).toMatchObject({ billsec: 12, scenario_result: { _evidence_version: 1, snapshot,
+      _facts: { billsec_source: 'dialplan' }, business_outcome: 'confirmed' } });
+  });
 
   it('retains a leave-message classification as voicemail disposition', async () => {
     const { service, update } = serviceWith([1]);

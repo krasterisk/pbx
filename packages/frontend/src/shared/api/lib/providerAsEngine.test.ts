@@ -19,6 +19,13 @@ function provider(partial: Partial<IAiProvider>): IAiProvider {
 }
 
 describe('providerAsEngine', () => {
+  it('retains disabled status without rewriting provider or legacy engine identifiers', () => {
+    const engine = providerAsEngine(provider({ uid: 33, enabled: false, defaults: { legacyEngine: { kind: 'tts', uid: 4 } } }));
+    expect(engine.uid).toBe(33);
+    expect(engine.enabled).toBe(false);
+    expect(engine.settings).not.toHaveProperty('legacyEngine');
+  });
+
   it('maps vendor and defaults and drops catalog bookkeeping', () => {
     const engine = providerAsEngine(provider({
       defaults: { voice: 'alena', customHeaders: { 'X-Folder': '1' }, legacyEngine: { kind: 'tts', uid: 4 } },

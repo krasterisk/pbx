@@ -1,13 +1,14 @@
 import { DialplanSubroutinesUtil } from './dialplan-subroutines.util';
 
 describe('DialplanSubroutinesUtil', () => {
-  it('emits a single _X! extension in krsk-click-to-call', () => {
+  it('accepts numeric, international and feature-code prefixes through a single bounded entry', () => {
     const content = DialplanSubroutinesUtil.generate('http://127.0.0.1:5010/api');
-    const matches = content.match(/exten\s*=>\s*_X!/g) ?? [];
+    const matches = content.match(/exten\s*=>\s*_\[\+\*#0-9\]!/g) ?? [];
     expect(matches).toHaveLength(1);
 
     const clickToCall = content.split('[krsk-click-to-call]')[1] ?? '';
     expect((clickToCall.match(/Hangup\(\)/g) ?? []).length).toBe(1);
+    expect(clickToCall).not.toContain('exten => _!,');
   });
 
   it('skips ffmpeg hangup conversion when durable capture is set and stops one recorder', () => {

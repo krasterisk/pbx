@@ -6,7 +6,10 @@ import { RobotEditor } from './RobotEditor';
 const { save, unwrap } = vi.hoisted(() => ({ save: vi.fn(), unwrap: vi.fn() }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('react-toastify', () => ({ toast: { success: vi.fn() } }));
-vi.mock('@/shared/api/endpoints/aiVoiceRobotsApi', () => ({ useSaveAiVoiceRobotMutation: () => [save, { isLoading: false }] }));
+vi.mock('@/shared/api/endpoints/aiVoiceRobotsApi', () => ({
+  useSaveAiVoiceRobotMutation: () => [save, { isLoading: false }],
+  usePlayAiVoiceRobotMutation: () => [vi.fn(), { isLoading: false }],
+}));
 vi.mock('../RobotSettingsForm', () => ({ RobotSettingsForm: ({ value, onChange }: {
   value: AiVoiceRobotConfig; onChange: (value: AiVoiceRobotConfig) => void;
 }) => <input aria-label="name" value={value.name} onChange={event => onChange({ ...value, name: event.target.value })} /> }));

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const docs = fs.readFileSync(path.join(
-  __dirname, '../../.planning/initiatives/ai-products/AI-10-10A-PUBLIC-ANALYSIS.md',
+  __dirname, '../../docs/plans/initiatives/ai-products/AI-10-10A-PUBLIC-ANALYSIS.md',
 ), 'utf8');
 
 test('public analysis curl grants upload and read and publishes the project', () => {

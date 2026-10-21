@@ -85,10 +85,12 @@ describe('scheduleAllows', () => {
     expect(scheduleAllows(row, new Date('2026-09-19T12:00:00Z'))).toBe(true);
   });
 
-  it('rejects an inverted window rather than dialing all day', () => {
+  it('treats an overnight window as night hours, not as an all-day exception', () => {
     expect(
       scheduleAllows(schedule({ time_from: '18:00', time_to: '09:00' }), new Date('2026-09-17T20:00:00Z')),
-    ).toBe(false);
+    ).toBe(true);
+    expect(scheduleAllows(schedule({ time_from: '18:00', time_to: '09:00' }), new Date('2026-09-17T12:00:00Z'))).toBe(false);
+    expect(scheduleAllows(schedule({ time_from: '18:00', time_to: '18:00' }), new Date('2026-09-17T20:00:00Z'))).toBe(false);
   });
 
   it('evaluates the window in the row timezone, not the server one', () => {
@@ -100,6 +102,23 @@ describe('scheduleAllows', () => {
 });
 
 describe('campaignWindowOpen', () => {
+  it('anchors an overnight window to its start weekday and date for both campaign and subscriber clocks', () => {
+    const row = schedule({ weekday: 0, time_from: '22:00', time_to: '02:00', date_to: '2026-10-18' });
+    for (const at of ['2026-10-18T23:00:00Z', '2026-10-19T01:59:00Z']) {
+      expect(campaignWindowOpen([row], new Date(at))).toBe(true);
+      expect(subscriberHoursAllowForSchedules(0, new Date(at), [row])).toBe(true);
+    }
+    for (const at of ['2026-10-18T21:59:00Z', '2026-10-19T02:00:00Z', '2026-10-19T23:00:00Z']) {
+      expect(campaignWindowOpen([row], new Date(at))).toBe(false);
+      expect(subscriberHoursAllowForSchedules(0, new Date(at), [row])).toBe(false);
+    }
+  });
+  it('evaluates both repeated DST hours in the IANA zone without extending the end boundary', () => {
+    const row = schedule({ weekday: 6, timezone: 'America/New_York', time_from: '22:00', time_to: '02:00' });
+    expect(scheduleAllows(row, new Date('2026-11-01T05:30:00Z'))).toBe(true);
+    expect(scheduleAllows(row, new Date('2026-11-01T06:30:00Z'))).toBe(true);
+    expect(scheduleAllows(row, new Date('2026-11-01T07:00:00Z'))).toBe(false);
+  });
   it('dials around the clock when no schedule is configured', () => {
     expect(campaignWindowOpen([], new Date('2026-09-17T03:00:00Z'))).toBe(true);
   });

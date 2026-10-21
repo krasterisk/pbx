@@ -100,9 +100,9 @@ const COPY: Record<ActionType, DialplanAppCopy> = {
   },
   ai_voice_robot: {
     title: 'AI-робот',
-    summary: 'Передаёт канал в опубликованное cascade-развёртывание AI-робота. Не сценарий voicerobot.',
-    when: 'Маршрут или autodial на versioned AI deployment, не scripted robot_uid.',
-    need: ['deployment_id'],
+    summary: 'Передаёт канал LLM-роботу тенанта. После разговора в канале есть AI_ROBOT_OUTCOME и переменные AI_*. Это не сценарный voicerobot.',
+    when: 'Разговорный робот вместо меню, очереди или оператора.',
+    need: ['robot_uid'],
   },
   webhook: {
     title: 'Webhook',

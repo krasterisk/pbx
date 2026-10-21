@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Phone } from 'lucide-react';
 import type { HubModuleRow } from '@/features/modules/types';
@@ -467,9 +468,10 @@ describe('r4 route orientation and global search',()=>{
   const input=screen.getByRole('combobox');fireEvent.change(input,{target:{value:'nav.trunks'}});expect(screen.getByRole('option')).toHaveTextContent('nav.trunks');
   fireEvent.change(input,{target:{value:'endpoints.title'}});expect(screen.getByRole('option')).toHaveTextContent('endpoints.title');
  });
- it('gives desktop icon actions an accessible name',()=>{
+ it('gives desktop icon actions an accessible name', async () => {
   vi.mocked(useHubModules).mockReturnValue({active:[coreRow],marketplace:[],isLoading:false,suppressedCodes:[],favoriteCodes:[],toggleFavorite:vi.fn(),isFavorite:()=>false});
   render(<MemoryRouter initialEntries={['/endpoints']}><ModuleShell/></MemoryRouter>);
+  await userEvent.setup().click(document.getElementById('user-block-trigger')!);
   expect(document.getElementById('shell-theme-toggle')).toHaveAttribute('aria-label','auth.themeToLight');expect(document.getElementById('shell-lang-toggle')).toHaveAttribute('aria-label','auth.switchLanguage');
  });
 });

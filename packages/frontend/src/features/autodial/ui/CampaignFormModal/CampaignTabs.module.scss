@@ -157,3 +157,10 @@
   font-weight: 600;
   color: var(--color-foreground);
 }
+
+.builderDetails { width: 100%; min-width: 0; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.builderDetails > summary { cursor: pointer; font-weight: 600; }
+.builderDetails[open] > summary { margin-bottom: 0.75rem; }
+
+.outcomeRow { padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.outcomeRow > div > div { flex: 1 1 12rem; min-width: 0; }

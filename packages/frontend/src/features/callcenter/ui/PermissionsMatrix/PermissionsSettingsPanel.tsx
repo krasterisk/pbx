@@ -107,7 +107,7 @@ export function PermissionsSettingsPanel() {
 
   return (
     <VStack gap="24" max>
-      <div>
+      <VStack gap="8" max>
         <Text className={styles.sectionTitle}>
           {t('callcenter.settings.permissions.matrixTitle', 'Operator permissions')}
         </Text>
@@ -122,7 +122,7 @@ export function PermissionsSettingsPanel() {
           isError={matrixQuery.isError}
           onRetry={() => void matrixQuery.refetch()}
         />
-      </div>
+      </VStack>
 
       <RolePermissionsDefaultsForm
         data={defaultsQuery.data}

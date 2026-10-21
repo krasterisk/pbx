@@ -3,6 +3,14 @@ import { CONDITION_OPS, CONDITION_SOURCES } from './types/dialplan-condition.typ
 import { PLAYBACK_MODES } from './types/dialplan-params.types';
 import { AUTODIAL_FIELD_TYPES, AUTODIAL_DIAL_MODES, AUTODIAL_DISPOSITIONS } from './types/autodial.types';
 
+export const AUTODIAL_OUTCOME_CATEGORIES = ['positive', 'negative', 'callback', 'neutral', 'technical'] as const;
+export const AUTODIAL_GOAL_RELATIONS = ['achieved', 'not_achieved', 'unknown'] as const;
+export const autodialOutcomeDefinitionSchema = z.strictObject({ label: z.string().trim().min(1).max(120),
+  category: z.enum(AUTODIAL_OUTCOME_CATEGORIES), goal_relation: z.enum(AUTODIAL_GOAL_RELATIONS) });
+export type AutodialOutcomeDefinition = z.infer<typeof autodialOutcomeDefinitionSchema>;
+export const autodialCompletionOutcomeSchema = z.strictObject({ code: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+  ...autodialOutcomeDefinitionSchema.shape });
+
 export const autodialFieldSchema = z.strictObject({
   uid: z.number().int().positive().optional(),
   key: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/),
@@ -69,8 +77,10 @@ export const autodialScenarioActionSchema = z.discriminatedUnion('type', [
     digitExit: z.boolean().optional(), digit: z.string().optional(), digitExitDest: z.string().optional(),
   }).default({})),
   step('text2speech', z.strictObject({ text: z.string().trim().min(1).max(10000), engine: z.union([z.string(), z.number().int()]).optional(),
-    settings: ttsSettings.optional(), options: mediaOptions.optional(), langoverride: z.string().optional(), digittimeout: z.number().int().optional() })),
+    settings: ttsSettings.optional(), options: mediaOptions.optional(), langoverride: z.string().optional(), digittimeout: z.number().int().optional(),
+    onFailure: z.enum(['hangup', 'continue']).optional(), completionOutcome: autodialCompletionOutcomeSchema.optional() })),
   step('toqueue', z.strictObject({ target: fixedTarget.optional(), queue: z.string().optional(), queue_name: z.string().optional(),
+    connectionOutcome: autodialCompletionOutcomeSchema.optional(),
     timeout: integerOrString.optional(), options: z.string().regex(/^[A-Za-z]*$/).optional(),
     announceoverride: optionalMediaFile, priority: z.union([z.number().int(), fixedTarget]).optional() }).default({})),
   step('toexten', z.strictObject({ target: fixedTarget.optional(), exten: z.string().optional(), extension: z.string().optional(),
@@ -83,6 +93,7 @@ export const autodialScenarioActionSchema = z.discriminatedUnion('type', [
     timeout: z.number().int().min(1).max(3600).optional(), attempts: z.number().int().min(1).max(100).optional(),
     mode: z.literal('digits').optional(),
     outcomeMap: z.record(z.string().regex(/^[0-9*#]{1,32}$/), z.string().regex(/^[a-z][a-z0-9_]{0,63}$/)).optional(),
+    outcomeDefinitions: z.record(z.string().regex(/^[a-z][a-z0-9_]{0,63}$/), autodialOutcomeDefinitionSchema).optional(),
   }).default({})),
   step('label', z.strictObject({ label_name: label.optional(), name: label.optional() })),
   step('goto', z.strictObject({ label_name: label.optional(), label: label.optional(), condition: branch.optional(), false_label: label.optional() })),
@@ -92,6 +103,23 @@ export const autodialScenarioActionSchema = z.discriminatedUnion('type', [
 export const autodialScenarioSchema = z.array(autodialScenarioActionSchema).max(100);
 export type AutodialScenarioAction = z.infer<typeof autodialScenarioActionSchema>;
 export const AUTODIAL_CONTRACT_VERSION = 'autodial-scenario-2';
+
+/** Stable codes may be reused by several input steps only with one meaning. */
+export function autodialOutcomeDefinitionError(actions: Array<{ type: string; enabled?: boolean; params?: Record<string, unknown> }>): { index: number; field: string } | null {
+  const known = new Map<string, string>();
+  for (const [index, action] of actions.entries()) {
+    if (action.type !== 'collect_input' || action.enabled === false) continue;
+    const codes = new Set(Object.values(action.params?.outcomeMap as Record<string, string> ?? {}));
+    for (const [code, raw] of Object.entries(action.params?.outcomeDefinitions as Record<string, unknown> ?? {})) {
+      const parsed = autodialOutcomeDefinitionSchema.safeParse(raw);
+      if (!codes.has(code) || !parsed.success) return { index, field: `params.outcomeDefinitions.${code}` };
+      const meaning = JSON.stringify(parsed.data);
+      if (known.has(code) && known.get(code) !== meaning) return { index, field: `params.outcomeDefinitions.${code}` };
+      known.set(code, meaning);
+    }
+  }
+  return null;
+}
 
 export function autodialScenarioJsonSchema(): Record<string, unknown> {
   return z.toJSONSchema(autodialScenarioActionSchema, { target: 'draft-7' });

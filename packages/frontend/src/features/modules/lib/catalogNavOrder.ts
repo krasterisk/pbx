@@ -11,6 +11,8 @@ export interface CatalogModuleOrder {
   code: string;
   sort_order?: number;
   pages?: CatalogPageOrder[];
+  /** Empty pages mean "none granted", not "catalog has no page list". */
+  accessFiltered?: boolean;
 }
 
 function normalizePath(path: string): string {
@@ -73,7 +75,9 @@ export function applyCatalogNav<T extends ModuleDef>(
   modules: T[],
   catalog: CatalogModuleOrder[] | undefined,
 ): T[] {
-  if (!catalog?.some((item) => (item.pages?.length ?? 0) > 0)) return modules;
+  if (!catalog) return modules;
+  const grantsApplied = catalog.some((item) => item.accessFiltered);
+  if (!grantsApplied && !catalog.some((item) => (item.pages?.length ?? 0) > 0)) return modules;
 
   const index = indexPages(modules);
   const assignedIds = new Set<string>();

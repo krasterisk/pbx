@@ -1,8 +1,8 @@
 {
   "name": "krasterisk-v4",
-  "version": "4.7.1",
+  "version": "4.7.2",
   "krasterisk": {
-    "version": "4.7.1.1"
+    "version": "4.7.2.0"
   },
   "description": "AI PBX Krasterisk — Modern Web Interface",
   "private": true,
@@ -13,6 +13,9 @@
     "harness"
   ],
   "scripts": {
+    "artifacts:root": "node tools/artifacts/paths.cjs",
+    "artifacts:setup": "node tools/artifacts/setup.cjs",
+    "test:artifacts": "node --test tools/artifacts/paths.test.cjs",
     "dev:backend": "npm run build -w @krasterisk/shared && npm run start:dev -w @krasterisk/backend",
     "dev:frontend": "npm run dev -w @krasterisk/frontend",
     "build": "npm run build -w @krasterisk/shared && npm run build -w @krasterisk/backend && npm run build -w @krasterisk/frontend",

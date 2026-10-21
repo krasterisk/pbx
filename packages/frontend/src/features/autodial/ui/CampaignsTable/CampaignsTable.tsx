@@ -1,3 +1,5 @@
+import { useAutodialDialogFocus } from '../AutodialConfirmation/useAutodialDialogFocus';
+import { useAutodialConfirmation } from '../AutodialConfirmation/useAutodialConfirmation';
 import {
   useDeleteAutodialCampaignMutation,
   useGetAutodialBasesQuery,
@@ -21,6 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
   TableCard,
+  Table,
+  Select,
   TableRowAction,
   TableRowActions,
   TableToolbar,
@@ -31,7 +35,8 @@ import { Flex, HStack, VStack } from "@/shared/ui/Stack";
 import type { IAutodialBase } from "@krasterisk/shared";
 import { Loader2, Pause, PhoneOutgoing, Play, Square } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import type { ColumnDef } from '@tanstack/react-table';
 import { useTranslation } from "react-i18next";
 import {
   autodialDialModeLabel,
@@ -43,22 +48,31 @@ import { autodialErrorKey } from "../../lib/mutationError";
 import { useAutodialSse } from "../../lib/useAutodialSse";
 import { autodialPageActions } from "../../model/slice/autodialPageSlice";
 import { StartCampaignDialog } from "../StartCampaignDialog/StartCampaignDialog";
+import { campaignCanStop, campaignPrimaryAction, orderCampaignsForSupervisor } from '../../model/campaignLifecycle';
 import cls from "./CampaignsTable.module.scss";
 
 export const CampaignsTable = memo(() => {
   const { t } = useTranslation();
+  const dialogFocus = useAutodialDialogFocus();
+  const { confirm, confirmationDialog } = useAutodialConfirmation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useGetAutodialCampaignsQuery();
   const { data: bases } = useGetAutodialBasesQuery();
-  const { data: stats } = useGetAutodialMonitorQuery(undefined, { pollingInterval: 15000 });
+  const { data: stats, isError: statsError } = useGetAutodialMonitorQuery(undefined, { pollingInterval: 15000 });
   const [deleteCampaign, { isLoading: isDeleting }] =
     useDeleteAutodialCampaignMutation();
   const [setState, { isLoading: isSwitching }] =
     useSetAutodialCampaignStateMutation();
   const live = useAutodialSse();
 
-  const [query, setQuery] = useState("");
+  const query = searchParams.get('ac_search') ?? '';
+  const view = ['all', 'active', 'draft', 'issues'].includes(searchParams.get('ac_view') ?? '') ? searchParams.get('ac_view')! : 'all';
+  const setFilter = (key: string, value: string) => setSearchParams((current) => {
+    const next = new URLSearchParams(current); if (value) next.set(key, value); else next.delete(key); return next;
+  }, { replace: true });
+  const setQuery = (value: string) => { selection.clearSelection(); setFilter('ac_search', value); };
   const [pendingDelete, setPendingDelete] = useState<
     AutodialCampaignWithSchedules[] | null
   >(null);
@@ -68,7 +82,7 @@ export const CampaignsTable = memo(() => {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const selection = useCrossPageRowSelection({ globalFilter: query });
 
-  const campaigns = useMemo(() => data ?? [], [data]);
+  const campaigns = useMemo(() => orderCampaignsForSupervisor(data ?? []), [data]);
   const baseNames = useMemo(
     () => new Map((bases ?? []).map((b: IAutodialBase) => [b.uid, b.name])),
     [bases],
@@ -76,17 +90,17 @@ export const CampaignsTable = memo(() => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return campaigns;
     return campaigns.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (baseNames.get(c.base_uid) ?? "").toLowerCase().includes(q),
+        (!q || c.name.toLowerCase().includes(q) || (baseNames.get(c.base_uid) ?? "").toLowerCase().includes(q))
+        && (view === 'all' || view === 'draft' && c.status === 'draft' || view === 'active' && ['running', 'paused', 'scheduled'].includes(c.status)
+          || view === 'issues' && Boolean(c.apply_error || c.applied_revision != null && c.applied_revision !== c.revision)),
     );
-  }, [campaigns, query, baseNames]);
+  }, [campaigns, query, baseNames, view]);
 
   const onAction = useCallback(
-    (uid: number, action: "pause" | "resume" | "stop") => {
-      if (action === 'stop' && !window.confirm(t('autodial.workspace.confirmStop'))) return;
+    async (uid: number, action: "pause" | "resume" | "stop") => {
+      if (action === 'stop' && !(await confirm(t('autodial.workspace.confirmStop')))) return;
       setActionError(null);
       void setState({ uid, action })
         .unwrap()
@@ -97,8 +111,27 @@ export const CampaignsTable = memo(() => {
           );
         });
     },
-    [setState, t],
+    [setState, t, confirm],
   );
+
+  const columns: ColumnDef<AutodialCampaignWithSchedules>[] = [
+    { accessorKey: 'name', header: t('autodial.workspace.campaignName'), cell: ({ row }) => <VStack gap="4" align="start"><Button variant="link" onClick={() => navigate(`/autodial/campaigns/${row.original.uid}`)}>{row.original.name}</Button>
+      <Text variant="muted">{t(`autodial.workspace.library.goals.${row.original.business_goal ?? 'custom'}`)}</Text></VStack> },
+    { accessorKey: 'status', header: t('autodial.workspace.campaignStatus'), cell: ({ row }) => <VStack gap="4"><Badge variant={autodialStatusTone(row.original.status)}>{autodialStatusLabel(row.original.status, t)}</Badge>
+      {row.original.apply_error && <Badge variant="destructive">{t('autodial.campaigns.applyFailed')}</Badge>}</VStack> },
+    { accessorKey: 'dial_mode', header: t('autodial.workspace.wizard.mode'), cell: ({ row }) => autodialDialModeLabel(row.original.dial_mode, t) },
+    { accessorKey: 'base_uid', header: t('autodial.workspace.wizard.audience'), cell: ({ row }) => baseNames.get(row.original.base_uid) ?? '—' },
+    { id: 'remaining', header: t('autodial.campaigns.remaining'), accessorFn: (row) => row.tasks_pending ?? null, cell: ({ row }) => row.original.tasks_pending ?? '—' },
+    { id: 'today', header: t('autodial.campaigns.dialsToday'), cell: ({ row }) => stats?.find((item) => item.campaign_uid === row.original.uid)?.dials_today ?? '—' },
+    { id: 'limit', header: t('autodial.workspace.mainConstraint'), cell: ({ row }) => live.runtimes[row.original.uid] ? autodialLimitedByLabel(live.runtimes[row.original.uid].limitedBy, t) : '—' },
+    { id: 'actions', header: t('autodial.workspace.actions'), enableSorting: false, cell: ({ row }) => <TableRowActions>
+      <TableRowAction title={t(`autodial.campaigns.${campaignPrimaryAction(row.original.status)}`)}
+        disabled={isSwitching} onClick={() => { const action = campaignPrimaryAction(row.original.status); if (action === 'start') setPendingStart(row.original); else void onAction(row.original.uid, action); }}>
+        {campaignPrimaryAction(row.original.status) === 'pause' ? <Pause /> : <Play />}
+      </TableRowAction>
+      <TableRowAction title={t('autodial.campaigns.stop')} disabled={isSwitching || !campaignCanStop(row.original.status)} onClick={() => onAction(row.original.uid, 'stop')}><Square /></TableRowAction>
+    </TableRowActions> },
+  ];
 
   const toolbar = (
     <Flex justify="between" align="center" className={cls.toolbar} max>
@@ -130,10 +163,10 @@ export const CampaignsTable = memo(() => {
         }}
         deleteDisabled={isDeleting}
         exportTable={{
-          data: campaigns,
+          data: filtered,
           columns: [
-            { accessorKey: "name", header: t("common.name") },
-            { accessorKey: "status", header: t("common.status") },
+            { accessorKey: "name", header: t("autodial.workspace.campaignName") },
+            { accessorKey: "status", header: t("autodial.workspace.campaignStatus") },
           ],
           getRowId: (campaign) => String(campaign.uid),
           rowSelection: selection.rowSelection,
@@ -141,6 +174,9 @@ export const CampaignsTable = memo(() => {
           filename: "autodial-campaigns",
         }}
       />
+      <Select aria-label={t('autodial.workspace.campaignView')} value={view} onChange={(event) => { selection.clearSelection(); setFilter('ac_view', event.target.value); }}>
+        {['all', 'active', 'draft', 'issues'].map((value) => <option key={value} value={value}>{t(`autodial.workspace.campaignViews.${value}`)}</option>)}
+      </Select>
     </Flex>
   );
 
@@ -174,6 +210,7 @@ export const CampaignsTable = memo(() => {
 
   return (
     <>
+      {confirmationDialog}
       <Card className={cls.card}>
         <CardHeader>{toolbar}</CardHeader>
         <CardContent className={cls.cardContent}>
@@ -181,33 +218,35 @@ export const CampaignsTable = memo(() => {
           {actionMessage && <Text role="status">{actionMessage}</Text>}
           {filtered.length === 0 ? (
             <VStack gap="12" align="center" className={cls.empty}>
-              <Text>{t("autodial.campaigns.empty")}</Text>
-              <Text variant="muted">{t("autodial.campaigns.emptyHint")}</Text>
-              <Button
+              <Text>{t(campaigns.length ? 'autodial.workspace.campaignViewEmpty' : 'autodial.campaigns.empty')}</Text>
+              <Text variant="muted">{t(campaigns.length ? 'autodial.workspace.campaignViewEmptyHint' : 'autodial.workspace.campaignListEmptyHint')}</Text>
+              {campaigns.length ? <Button variant="outline" onClick={() => { selection.clearSelection(); setSearchParams((current) => { const next = new URLSearchParams(current); next.delete('ac_view'); next.delete('ac_search'); return next; }, { replace: true }); }}>{t('autodial.workspace.resetFilters')}</Button> : <Button variant="outline"
                 onClick={() =>
                   dispatch(autodialPageActions.openCreateCampaign())
                 }
               >
                 {t("autodial.campaigns.create")}
-              </Button>
+              </Button>}
             </VStack>
           ) : (
-            <VStack gap="12" max className={cls.list}>
+            <><div className={cls.desktopView}><Table data={filtered} columns={columns} surface={false} showSearch={false} showExport={false}
+              ref={selection.tableRef} selectable getRowId={(row) => String(row.uid)} rowSelection={selection.rowSelection} onRowSelectionChange={selection.onRowSelectionChange}
+              onRowClick={(row) => navigate(`/autodial/campaigns/${row.uid}`)} getRowTestId={(row) => `autodial-campaign-row-${row.uid}`} />
+            </div><VStack gap="12" max className={cls.mobileView}>
               {filtered.map((campaign) => {
-                const runtime = live.runtimes[campaign.uid];
-                const metrics = stats?.find((row) => row.campaign_uid === campaign.uid);
+                const runtime = live.status === 'open' && campaign.status === 'running' ? live.runtimes[campaign.uid] : undefined;
+                const metrics = !statsError ? stats?.find((row) => row.campaign_uid === campaign.uid) : undefined;
                 const total = campaign.tasks_total ?? 0;
                 const done = campaign.tasks_processed ?? campaign.tasks_done ?? 0;
                 const pending =
                   campaign.tasks_pending ?? Math.max(0, total - done);
                 const progress =
                   total > 0 ? Math.round((done / total) * 100) : 0;
-                const isRunning = campaign.status === "running";
+                const canPause = campaignPrimaryAction(campaign.status) === 'pause';
                 const isPaused = campaign.status === "paused";
 
                 return (
                   <TableCard
-                    onActivate={() => navigate(`/autodial/campaigns/${campaign.uid}`)}
                     key={campaign.uid}
                     selection={selection.cardSelection(
                       String(campaign.uid),
@@ -218,12 +257,13 @@ export const CampaignsTable = memo(() => {
                     className={cls.row}
                     data-testid="autodial-campaign-card"
                   >
-                    <HStack justify="between" align="start" max gap="12">
+                    <VStack align="stretch" max gap="12">
                       <VStack gap="4" className={cls.rowMain}>
+                        <Text variant="muted">{t(`autodial.workspace.library.goals.${campaign.business_goal ?? 'custom'}`)}</Text>
                         <HStack gap="8" align="center" wrap="wrap">
-                          <Text as="span" className={cls.name}>
+                          <Button variant="link" className={cls.campaignLink} onClick={() => navigate(`/autodial/campaigns/${campaign.uid}`)}>
                             {campaign.name}
-                          </Text>
+                          </Button>
                           <Badge variant={autodialStatusTone(campaign.status)}>
                             {autodialStatusLabel(campaign.status, t)}
                           </Badge>
@@ -247,9 +287,9 @@ export const CampaignsTable = memo(() => {
                         </Text>
                       </VStack>
 
-                      <TableRowActions>
-                        {isRunning ? (
-                          <TableRowAction
+                      <HStack gap="8" wrap="wrap" className={cls.lifecycleActions}>
+                        {canPause ? (
+                          <Button variant="outline"
                             className={cls.lifecycleAction}
                             title={t("autodial.campaigns.pause")}
                             aria-label={t("autodial.campaigns.pause")}
@@ -258,9 +298,9 @@ export const CampaignsTable = memo(() => {
                           >
                             <Pause />
                             <span>{t('autodial.campaigns.pause')}</span>
-                          </TableRowAction>
+                          </Button>
                         ) : (
-                          <TableRowAction
+                          <Button variant="outline"
                             className={cls.lifecycleAction}
                             title={
                               isPaused
@@ -281,22 +321,22 @@ export const CampaignsTable = memo(() => {
                           >
                             <Play />
                             <span>{t(isPaused ? 'autodial.campaigns.resume' : 'autodial.campaigns.start')}</span>
-                          </TableRowAction>
+                          </Button>
                         )}
-                        <TableRowAction
+                        <Button variant="outline"
                           className={cls.lifecycleAction}
                           title={t("autodial.campaigns.stop")}
                           aria-label={t("autodial.campaigns.stop")}
                           disabled={
-                            isSwitching || !['running', 'paused', 'scheduled'].includes(campaign.status)
+                            isSwitching || !campaignCanStop(campaign.status)
                           }
                           onClick={() => onAction(campaign.uid, "stop")}
                         >
                           <Square />
                           <span>{t('autodial.campaigns.stop')}</span>
-                        </TableRowAction>
-                      </TableRowActions>
-                    </HStack>
+                        </Button>
+                      </HStack>
+                    </VStack>
 
                     <VStack gap="4" max>
                       <Flex
@@ -315,17 +355,8 @@ export const CampaignsTable = memo(() => {
                         </Flex>
                       </Flex>
                       <HStack gap="16" wrap="wrap" className={cls.metrics}>
-                        {metrics && <>
-                          <Text as="span">{t('autodial.workspace.successRate')}: {metrics.dials_today ? (metrics.success_today * 100 / metrics.dials_today).toFixed(1) : '0'}%</Text>
-                          <Text as="span">Contact rate: {metrics.contact_rate.toFixed(1)}%</Text>
-                          <Text as="span" title={t('autodial.workspace.etaHint')}>ETA: {metrics.eta_seconds == null ? '—' : `${Math.ceil(metrics.eta_seconds / 60)} ${t('autodial.workspace.minuteShort')}`}</Text>
-                          <Text as="span">{t('autodial.campaigns.dialsToday')}: {metrics.dials_today}</Text>
-                        </>}
                         <Text as="span" className={cls.metric}>
-                          {t("autodial.campaigns.processed")}:{" "}
-                          <Text as="span" className={cls.metricValue}>
-                            {done}
-                          </Text>
+                          {t('autodial.workspace.progress', { done, total })}
                         </Text>
                         <Text as="span" className={cls.metric}>
                           {t("autodial.campaigns.remaining")}:{" "}
@@ -334,9 +365,9 @@ export const CampaignsTable = memo(() => {
                           </Text>
                         </Text>
                         <Text as="span" className={cls.metric}>
-                          {t("autodial.campaigns.totalTasks")}:{" "}
+                          {t("autodial.campaigns.dialsToday")}:{" "}
                           <Text as="span" className={cls.metricValue}>
-                            {total}
+                            {metrics?.dials_today ?? '—'}
                           </Text>
                         </Text>
                         {runtime && (
@@ -357,7 +388,7 @@ export const CampaignsTable = memo(() => {
                   </TableCard>
                 );
               })}
-            </VStack>
+            </VStack></>
           )}
         </CardContent>
       </Card>
@@ -366,7 +397,7 @@ export const CampaignsTable = memo(() => {
         open={Boolean(pendingDelete)}
         onOpenChange={(open) => !open && !isDeleting && setPendingDelete(null)}
       >
-        <DialogContent>
+        <DialogContent {...dialogFocus}>
           <DialogHeader>
             <DialogTitle>
               {t("autodial.campaigns.confirmDelete", {

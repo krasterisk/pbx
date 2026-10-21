@@ -1,5 +1,6 @@
 import { AiAgentsModule } from '../modules/ai-agents/ai-agents.module';
 import { AiVoiceModule } from '../modules/ai-voice/ai-voice.module';
+import { AiVoiceRuntimeModule } from '../modules/ai-voice/ai-voice-runtime.module';
 import { SpeechAnalyticsModule } from '../modules/speech-analytics/speech-analytics.module';
 import { AiToolConnectivityModule } from '../modules/ai-tool-connectivity/ai-tool-connectivity.module';
 import { KnowledgeModule } from '../modules/knowledge/knowledge.module';
@@ -11,7 +12,7 @@ import { CcAiInvoice } from '../modules/ai-agents/models/ai-invoice.model';
 
 /** New commercial AI product runtime. Community-pbx must not import this file. */
 export const COMMERCIAL_AI_NEST_MODULES = [
-  AiAgentsModule, AiVoiceModule, SpeechAnalyticsModule, AiToolConnectivityModule, KnowledgeModule,
+  AiAgentsModule, AiVoiceModule, AiVoiceRuntimeModule, SpeechAnalyticsModule, AiToolConnectivityModule, KnowledgeModule,
 ] as const;
 export const COMMERCIAL_AI_MODELS = [
   CcAiAgent, CcAiToolset, CcAiCdr, CcAiBilling, CcAiInvoice,

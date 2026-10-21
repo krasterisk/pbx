@@ -5,14 +5,16 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { ru } from './locales/ru';
 import { en } from './locales/en';
 import { trunkRegistrationRu, trunkRegistrationEn } from './locales/trunkRegistration';
+import { syncDocumentLanguage } from './documentLanguage';
+import { phoneNumberRu, phoneNumberEn } from './locales/phone';
 
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
-      ru: { translation: { ...ru, helpdeskChat: helpdeskChatRu, trunks: { ...ru.trunks, ...trunkRegistrationRu } } },
-      en: { translation: { ...en, helpdeskChat: helpdeskChatEn, trunks: { ...en.trunks, ...trunkRegistrationEn } } },
+      ru: { translation: { ...ru, phoneNumber: phoneNumberRu, helpdeskChat: helpdeskChatRu, trunks: { ...ru.trunks, ...trunkRegistrationRu } } },
+      en: { translation: { ...en, phoneNumber: phoneNumberEn, helpdeskChat: helpdeskChatEn, trunks: { ...en.trunks, ...trunkRegistrationEn } } },
     },
     fallbackLng: 'ru',
     interpolation: {
@@ -24,9 +26,18 @@ i18n
     },
   });
 
+syncDocumentLanguage(i18n.resolvedLanguage ?? i18n.language);
+i18n.on('languageChanged', syncDocumentLanguage);
+
 // Refresh the existing i18next instance when Vite replaces a locale module.
 // React components can otherwise keep using the dictionary from initial startup.
 if (import.meta.hot) {
+  import.meta.hot.accept('./locales/phone', (module) => {
+    if (!module) return;
+    i18n.addResourceBundle('ru', 'translation', { phoneNumber: module.phoneNumberRu }, true, true);
+    i18n.addResourceBundle('en', 'translation', { phoneNumber: module.phoneNumberEn }, true, true);
+    void i18n.changeLanguage(i18n.language);
+  });
   import.meta.hot.accept(['./locales/ru', './locales/en'], (modules) => {
     const [ruModule, enModule] = modules;
     if (ruModule) i18n.addResourceBundle('ru', 'translation', ruModule.ru, true, true);

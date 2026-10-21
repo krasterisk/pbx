@@ -62,7 +62,7 @@ export const CdrLegsModal = memo(({ linkedid, isOpen, onClose }: CdrLegsModalPro
                       <TableCell>{leg.dstDisplay || leg.dst || '-'}</TableCell>
                       <TableCell>{leg.lastapp || '-'}</TableCell>
                       <TableCell>{CDR_DISPOSITION_LABELS[leg.disposition] || leg.disposition}</TableCell>
-                      <TableCell><RecordingButton uniqueid={leg.uniqueid} record={leg.record} /></TableCell>
+                      <TableCell>{leg.hasRecording && <RecordingButton uniqueid={leg.uniqueid} />}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

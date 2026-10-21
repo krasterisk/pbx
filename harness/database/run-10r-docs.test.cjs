@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const docs = fs.readFileSync(path.join(
-  __dirname, '../../.planning/initiatives/ai-products/AI-10-10R-AI-VOICE.md',
+  __dirname, '../../docs/plans/initiatives/ai-products/AI-10-10R-AI-VOICE.md',
 ), 'utf8');
 
 test('robots curl publishes a version before browser_test deployment', () => {

@@ -9,7 +9,7 @@ import {
   type SaProjectMetric,
 } from '@krasterisk/shared';
 
-export const PROMPT_VERSION = '2026-09-22.1';
+export const PROMPT_VERSION = '2026-10-20.2';
 
 const GLOBAL_SCORING = [
   'Scores: 0|25|50|75|100 only (0=absent, 25=poor, 50=adequate, 75=good, 100=all checklist items present).',
@@ -17,9 +17,19 @@ const GLOBAL_SCORING = [
   'PROCESS vs OUTCOME: Score checklist behavior, not whether the customer got their preferred outcome.',
   'CSAT and sentiment rate the customer reaction to the OPERATOR, not to a business limit.',
   'LANGUAGE: prose in the transcript language. JSON keys and enums Positive/Neutral/Negative stay English.',
+  'PRIVACY: [PERSON_n], [ORGANIZATION_n] and other typed placeholders replace real identifying data. They are present information, not missing or unrecognized speech. An employee saying "оператор [PERSON_1]" or "меня зовут [PERSON_1]" HAS introduced their name. Never penalize the employee because the literal name is hidden; score the remaining greeting checklist normally.',
+  'EVIDENCE: rationale must agree with the transcript and its quoted evidence. Do not invent missing checklist items, thanks, satisfaction or objections. Explain insufficient or inapplicable evidence explicitly and follow the project rubric; absence of objections alone does not prove perfect objection handling.',
+  'APPLICABILITY: for EVERY metric and insight, set assessments[id].status to assessed, not_applicable, or insufficient_evidence. Return null as its value for the last two states. No objections => objection_handling is not_applicable, never 100. Text alone cannot establish acoustic speech clarity or pace. A neutral acknowledgement ("всё поняла") does not establish satisfaction or thanks: CSAT is insufficient_evidence unless the customer reaction supports its score.',
+  'SOURCE CHECK: before returning JSON, check every factual clause in each rationale against the source and speaker. A phrase assigned to the customer does NOT count as an operator behavior. Only say the customer thanked the operator if their actual words contain thanks. Greeting with company and operator name proves these items, not an offer of help; an offer must be explicit in an operator turn. Do not infer courtesy or satisfaction from a successful factual answer.',
+  'CITATIONS: each assessed metric needs a short verbatim quote present in TRANSCRIPTION, with the original placeholders unchanged. Do not rewrite, concatenate disjoint fragments or invent quotes. Evidence that cannot support a score => insufficient_evidence and null; include the reason, do not invent a numeric fallback.',
 ].join('\n');
 
 export type AnalysisMetricValue = number | boolean | string | string[] | null;
+export type AssessmentStatus = 'assessed' | 'not_applicable' | 'insufficient_evidence';
+type AssessmentNote = { rationale?: string; quote?: string; status?: AssessmentStatus };
+function assessmentStatus(value: unknown): AssessmentStatus | undefined {
+  return value === 'assessed' || value === 'not_applicable' || value === 'insufficient_evidence' ? value : undefined;
+}
 
 function flattenMetricValue(raw: unknown): unknown {
   if (raw == null) return null;
@@ -58,6 +68,7 @@ export type AnalysisMetricRow = {
   value: AnalysisMetricValue;
   rationale: string;
   quote: string;
+  status?: AssessmentStatus;
 };
 
 export type AnalysisScore = {
@@ -67,7 +78,7 @@ export type AnalysisScore = {
   success: boolean;
   metrics: AnalysisMetricRow[];
   topicTagIds: string[];
-  assessments: Record<string, { rationale?: string; quote?: string }>;
+  assessments: Record<string, AssessmentNote>;
 };
 
 function customAsMetric(metric: SaCustomMetricDef): SaProjectMetric {
@@ -179,13 +190,13 @@ export function buildAnalysisPrompt(config: SaProjectConfigV1, transcript: strin
     ...required,
     tones,
     assessmentKeys.length
-      ? `assessments.${assessmentKeys.join(', assessments.')} are {rationale, quote}.`
+      ? `assessments.${assessmentKeys.join(', assessments.')} MUST each include {status, value, rationale, quote}, including CSAT, sentiment and success. If the reaction only establishes understanding, set csat=null and assessments.csat.status="insufficient_evidence"; do not estimate satisfaction from that acknowledgement.`
       : '',
     'PROJECT METRICS:',
     lines.join('\n') || '- none',
     'Do not add metrics that are not listed above.',
-    'For every listed metric the JSON must contain a top-level key equal to the metric id, and assessments[id] = {"value": the same score, "rationale": "...", "quote": "..."}.',
-    'Number metrics use 0|25|50|75|100 unless a range is given. Never omit value. Never put the score only in the rationale text.',
+    'For every listed metric the JSON must contain a top-level key equal to the metric id, and assessments[id] = {"status":"assessed|not_applicable|insufficient_evidence", "value": the same score or null, "rationale": "...", "quote": "..."}.',
+    'Number metrics use 0|25|50|75|100 unless a range is given, but use null when status is not_applicable or insufficient_evidence. Never omit the key. Never put the score only in the rationale text.',
     topicSkill(config.callTaxonomy ?? []),
     'TRANSCRIPTION:',
     transcript,
@@ -212,19 +223,20 @@ function asSentiment(value: unknown, allowed: Set<string>): string {
 }
 
 function assessmentNote(
-  assessments: Record<string, { rationale?: string; quote?: string }>,
+  assessments: Record<string, AssessmentNote>,
   id: string,
-): { rationale: string; quote: string } {
+): { rationale: string; quote: string; status?: AssessmentStatus } {
   const row = assessments[id] ?? {};
   return {
     rationale: String(row.rationale ?? ''),
     quote: String(row.quote ?? ''),
+    ...(assessmentStatus(row.status) ? { status: row.status } : {}),
   };
 }
 
 export function analysisToMetricRows(
   score: AnalysisScore,
-  assessments: Record<string, { rationale?: string; quote?: string }> = {},
+  assessments: Record<string, AssessmentNote> = {},
   insights = resolveProjectInsights(null),
 ): AnalysisMetricRow[] {
   const rows: AnalysisMetricRow[] = [...score.metrics];
@@ -250,7 +262,7 @@ export function analysisToMetricRows(
     });
   }
   rows.push({ id: 'topics', value: score.topicTagIds, rationale: '', quote: '' });
-  return rows;
+  return rows.map(row => row.status && row.status !== 'assessed' ? { ...row, value: null } : row);
 }
 
 /** First balanced object that parses. Skips prose fragments such as {rationale, quote}. */
@@ -336,7 +348,7 @@ export function parseAnalysisResponse(raw: string, config: SaProjectConfigV1): A
     .filter((id): id is string => typeof id === 'string' && allowedTags.has(id))
     .slice(0, 10);
   const assessments = (body.assessments && typeof body.assessments === 'object')
-    ? body.assessments as Record<string, { value?: unknown; score?: unknown; rationale?: string; quote?: string }>
+    ? body.assessments as Record<string, AssessmentNote & { value?: unknown; score?: unknown }>
     : {};
   const custom = (body.custom_metrics && typeof body.custom_metrics === 'object')
     ? body.custom_metrics as Record<string, unknown>
@@ -360,18 +372,24 @@ export function parseAnalysisResponse(raw: string, config: SaProjectConfigV1): A
     const noteObj = note && typeof note === 'object' ? note : {};
     const candidates = [fromCustom, fromTop, fromScores, fromList?.value, note];
     let value: AnalysisMetricValue = null;
+    let valueNote: { rationale?: unknown; quote?: unknown; status?: unknown } | undefined;
     for (const candidate of candidates) {
       const coerced = coerceMetricValue(candidate, m.type);
       if (coerced != null) {
         value = coerced;
+        if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+          valueNote = candidate as { rationale?: unknown; quote?: unknown; status?: unknown };
+        }
         break;
       }
     }
+    const status = assessmentStatus(noteObj.status ?? valueNote?.status);
     return {
       id: m.id,
-      value,
-      rationale: String(noteObj.rationale ?? fromList?.rationale ?? ''),
-      quote: String(noteObj.quote ?? fromList?.quote ?? ''),
+      value: status && status !== 'assessed' ? null : value,
+      ...(status ? { status } : {}),
+      rationale: String(noteObj.rationale ?? fromList?.rationale ?? valueNote?.rationale ?? ''),
+      quote: String(noteObj.quote ?? fromList?.quote ?? valueNote?.quote ?? ''),
     };
   });
   const csatNum = Number(body.csat);

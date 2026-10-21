@@ -64,6 +64,9 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
   created_at DATETIME NOT NULL,
   ended_at DATETIME NULL,
   cleanup_done TINYINT(1) NOT NULL DEFAULT 0,
+  snapshot_json JSON NULL,
+  result_json JSON NULL,
+  deadline_at DATETIME NULL,
   UNIQUE KEY uq_ac_test_idempotency (vpbx_user_uid, actor_uid, idempotency_key),
   KEY idx_ac_test_rate (vpbx_user_uid, actor_uid, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -186,6 +189,7 @@ export const AUTODIAL_SCHEMA_STATEMENTS: string[] = [
     \`uid\` INT NOT NULL AUTO_INCREMENT,
     \`vpbx_user_uid\` INT NOT NULL,
     \`name\` VARCHAR(255) NOT NULL,
+    \`business_goal\` VARCHAR(32) NOT NULL DEFAULT 'custom',
     \`status\` VARCHAR(16) NOT NULL DEFAULT 'draft',
     \`dial_mode\` VARCHAR(16) NOT NULL DEFAULT 'progressive',
     \`base_uid\` INT NOT NULL,

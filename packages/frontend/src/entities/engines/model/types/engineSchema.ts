@@ -1,4 +1,6 @@
 export interface ITtsEngine {
+  /** Legacy engine responses may omit availability metadata. */
+  enabled?: boolean;
   uid: number;
   name: string;
   type: 'google' | 'yandex' | 'custom';
@@ -11,6 +13,7 @@ export interface ITtsEngine {
 }
 
 export interface ISttEngine {
+  enabled?: boolean;
   uid: number;
   name: string;
   type: 'google' | 'yandex' | 'custom';

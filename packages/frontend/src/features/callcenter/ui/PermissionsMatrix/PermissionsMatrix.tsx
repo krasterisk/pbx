@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TranslateFn } from '@/shared/lib/translateFn';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
-  Button, Label, Switch, Tooltip, Skeleton, Text,
+  Button, Label, Switch, Tooltip, Skeleton, Text, Flex,
 } from '@/shared/ui';
 import type {
   IEffectivePermissions,
@@ -64,8 +64,8 @@ export function PermissionsMatrix({
   if (isLoading) {
     return (
       <div className={styles.wrap}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="10rem" width="100%" />
       </div>
     );
   }
@@ -90,7 +90,7 @@ export function PermissionsMatrix({
             <TableRow>
               <TableHead>{t('callcenter.settings.permissions.operatorColumn', 'Operator')}</TableHead>
                   {PERMISSION_BOOL_KEYS.map((key) => (
-                <TableHead key={key} className="text-center">
+                <TableHead key={key} className={styles.center}>
                   {t(`callcenter.settings.permissions.rights.${key}`, key)}
                 </TableHead>
               ))}
@@ -113,7 +113,7 @@ export function PermissionsMatrix({
                       >
                         {row.name || `#${row.operator_user_id}`}
                       </Button>
-                      <span className={styles.level}>{levelLabel(row.level, t)}</span>
+                      <Text as="span" className={styles.level}>{levelLabel(row.level, t)}</Text>
                     </div>
                   </TableCell>
                   {PERMISSION_BOOL_KEYS.map((key) => {
@@ -128,10 +128,10 @@ export function PermissionsMatrix({
                       />
                     );
                     return (
-                      <TableCell key={key} className="text-center">
+                      <TableCell key={key} className={styles.center}>
                         {locked ? (
                           <Tooltip content={t('callcenter.settings.lockedHint', 'Set by administrator')}>
-                            <span>{switchEl}</span>
+                            <Flex as="span">{switchEl}</Flex>
                           </Tooltip>
                         ) : (
                           switchEl
@@ -162,10 +162,10 @@ export function PermissionsMatrix({
                             key={mode}
                             content={t('callcenter.settings.lockedHint', 'Set by administrator')}
                           >
-                            <span>{chip}</span>
+                            <Flex as="span">{chip}</Flex>
                           </Tooltip>
                         ) : (
-                          <span key={mode}>{chip}</span>
+                          <Flex as="span" key={mode}>{chip}</Flex>
                         );
                       })}
                     </div>

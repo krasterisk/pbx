@@ -18,6 +18,8 @@ import { RedisModule } from '../modules/redis/redis.module';
 import { AuthModule } from '../modules/auth/auth.module';
 import { UsersModule } from '../modules/users/users.module';
 import { EndpointsModule } from '../modules/endpoints/endpoints.module';
+import { PhoneSessionModule } from '../modules/phone-session/phone-session.module';
+import { PhoneSession } from '../modules/phone-session/phone-session.model';
 import { ContextsModule } from '../modules/contexts/contexts.module';
 import { RolesModule } from '../modules/roles/roles.module';
 import { NumbersModule } from '../modules/numbers/numbers.module';
@@ -218,7 +220,7 @@ import {
 
 /** Existing open PBX nest modules. Commercial robot/analytics product modules are not listed. */
 export const PBX_CORE_NEST_MODULES = [
-  RedisModule, HealthModule, DashboardModule, AuthModule, UsersModule, EndpointsModule, ContextsModule,
+  RedisModule, HealthModule, DashboardModule, AuthModule, UsersModule, EndpointsModule, PhoneSessionModule, ContextsModule,
   RolesModule, NumbersModule, AmiModule, DiagnosticsModule, TrunksModule, RoutesModule,
   IvrsModule, PromptsModule, TtsEnginesModule, SttEnginesModule, MohModule,
   SystemSettingsModule, TenantSettingsModule, VoiceRobotsModule, ReportsCdrModule,
@@ -231,6 +233,7 @@ export const PBX_CORE_NEST_MODULES = [
 ] as const;
 
 export const PBX_CORE_MODELS = [
+  PhoneSession,
   User, Role, NumberList, ActionLog, UserSession, Context,
   PsEndpoint, PsAuth, PsAor, PsContact, PickupGroup, ProvisionTemplate,
   PsRegistration, PsEndpointIdIp, Route, ContextInclude, WebhookFailure, Ivr,

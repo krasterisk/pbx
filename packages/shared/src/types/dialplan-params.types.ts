@@ -251,6 +251,11 @@ export interface IVoiceRobotParams {
 export interface IAiVoiceRobotParams {
   robot_uid?: number;
   deployment_id?: string;
+  greeting_override?: string;
+  on_completed?: string;
+  on_transferred?: string;
+  on_failed?: string;
+  on_no_input?: string;
 }
 
 export interface IRecordParams {

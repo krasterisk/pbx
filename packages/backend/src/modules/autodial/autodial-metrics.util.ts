@@ -24,13 +24,13 @@ export interface AutodialKpiInput {
 export interface AutodialKpi {
   /** Answered / dials */
   contact_rate: number;
-  /** Successful contacts / dials — "right party connect" */
+  /** Legacy key: technical-success attempts / dials. Does NOT establish the right party. */
   rpc: number;
   /** Answer-seizure ratio: answered / dials, expressed as a percentage */
   asr: number;
-  /** Average handle time over answered calls */
+  /** Legacy key: talk seconds / answered calls. No ACW/hold handling time is collected. */
   aht: number;
-  /** Average call duration over all dials */
+  /** Legacy key: billable seconds / all dials, including unanswered attempts. */
   acd: number;
   /** Abandoned / answered — the number regulators care about */
   abandon_rate: number;
@@ -38,7 +38,7 @@ export interface AutodialKpi {
   list_penetration: number;
   /** Dials spent per contact reached */
   dials_per_contact: number;
-  /** Dials per hour of active dialing */
+  /** Attempts per hour across the first-to-last event span, including pauses. */
   calls_per_hour: number;
 }
 

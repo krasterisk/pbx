@@ -3,6 +3,8 @@ import { DialplanApplyService } from '../ami/dialplan-apply.service';
 import { AmiService } from '../ami/ami.service';
 import { PromptsService } from '../prompts/prompts.service';
 import { AcCampaign } from './models/ac-campaign.model';
+import type { IRouteAction } from '@krasterisk/shared';
+import { AUTODIAL_INPUT_SIGNAL, autodialInputSignalWav } from './autodial-input-signal.util';
 import {
   autodialCampaignContextName,
   autodialConfigFile,
@@ -66,6 +68,12 @@ export class AutodialDialplanService {
   }
 
   /** Regenerate one campaign context plus the shared finalize handler. */
+  async prepareScenarioMedia(tenant: number, actions: IRouteAction[]): Promise<void> {
+    if (actions.some((action) => action.enabled !== false && action.type === 'collect_input' && !action.params?.promptFile)) {
+      await this.prompts.savePromptAudio(tenant, AUTODIAL_INPUT_SIGNAL, autodialInputSignalWav(), '.wav');
+    }
+  }
+
   async applyCampaign(campaign: AcCampaign): Promise<boolean> {
     const vpbx = campaign.user_uid;
     const category = withMachineTail(
@@ -84,6 +92,7 @@ export class AutodialDialplanService {
     );
 
     try {
+      await this.prepareScenarioMedia(vpbx, campaign.scenario_actions ?? []);
       const filename = autodialConfigFile(vpbx);
       await this.dialplanApply.applyCategories(
         filename,

@@ -59,6 +59,11 @@ interface SqlParts {
   replacements: Record<string, unknown>;
 }
 
+const RECORDING_CONTENT_TYPES: Readonly<Record<string, string>> = {
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+};
+
 @Injectable()
 export class CdrService {
   constructor(
@@ -262,6 +267,7 @@ export class CdrService {
       SUM(c.duration) AS duration,
       MAX(c.billsec) AS billsec,
       MAX(c.record) AS record,
+      MAX(CASE WHEN c.record IS NOT NULL AND c.record <> '' THEN c.uniqueid END) AS record_uniqueid,
       MAX(c.transid) AS transid,
       MAX(CASE WHEN c.rn_first = 1 THEN c.dcontext END) AS dcontext,
       COUNT(*) AS leg_count,
@@ -313,12 +319,35 @@ export class CdrService {
   }
 
   private safeRecordFilePath(basePath: string, record: string): string | null {
-    const rel = record.replace(/^\/+/, '').replace(/\\/g, '/');
-    if (!rel || rel.includes('..')) return null;
+    if (typeof record !== 'string' || !record || record.includes('\0')) return null;
+    const given = record.replace(/\\/g, '/');
     const baseResolved = path.resolve(basePath);
-    const fileResolved = path.resolve(baseResolved, `${rel}.mp3`);
-    if (!fileResolved.startsWith(baseResolved)) return null;
-    return fs.existsSync(fileResolved) ? fileResolved : null;
+    const inside = (base: string, target: string): boolean => {
+      const relative = path.relative(base, target);
+      return relative !== '' && relative !== '..' &&
+        !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
+    };
+    let rel = given.replace(/^\/+/, '');
+    if (path.isAbsolute(given) && inside(baseResolved, path.resolve(given))) {
+      rel = path.relative(baseResolved, path.resolve(given));
+    } else if (/^[A-Za-z]:/.test(given) || given.startsWith('//')) {
+      return null;
+    }
+    if (!rel || rel.includes('..') || path.isAbsolute(rel)) return null;
+    // Preserve the old converted layout, including stems containing a decimal uniqueid.
+    // An explicit WAV/MP3 is also valid; never turn it into a required double suffix.
+    const candidates = [`${rel}.mp3`];
+    if (RECORDING_CONTENT_TYPES[path.extname(rel).toLowerCase()]) candidates.push(rel);
+    let realBase: string;
+    try { realBase = fs.realpathSync(baseResolved); } catch { return null; }
+    for (const candidate of candidates) {
+      const resolved = path.resolve(baseResolved, candidate);
+      if (!inside(baseResolved, resolved)) continue;
+      try {
+        if (fs.statSync(resolved).isFile() && inside(realBase, fs.realpathSync(resolved))) return resolved;
+      } catch { /* A missing/unavailable file must not advertise a playable recording. */ }
+    }
+    return null;
   }
 
   async resolveRecordingFile(
@@ -462,11 +491,12 @@ export class CdrService {
 
     const download = req?.query?.download === '1' || req?.query?.download === 'true';
     const safeName = String(uniqueid).replace(/[^\w.-]+/g, '_');
+    const extension = path.extname(filePath).toLowerCase();
     const disposition = download
-      ? `attachment; filename="${safeName}.mp3"`
+      ? `attachment; filename="${safeName}${extension}"`
       : 'inline';
 
-    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Type', RECORDING_CONTENT_TYPES[extension] || 'application/octet-stream');
     res.setHeader('Content-Disposition', disposition);
     res.setHeader('Accept-Ranges', 'bytes');
 
@@ -553,7 +583,7 @@ export class CdrService {
         const filePath = this.safeRecordFilePath(basePath, record);
         if (filePath) {
           hasRecording = true;
-          recordingUrl = this.recordingStreamPath(row.uniqueid as string);
+          recordingUrl = this.recordingStreamPath((row.record_uniqueid || row.uniqueid) as string);
         }
       }
 
@@ -632,7 +662,8 @@ export class CdrService {
     const tenant = tenantLegFilter(vpbxUserUid);
     const sql = `
       SELECT id, linkedid, calldate, usrc, src, clid, dst, channel, dstchannel, disposition,
-             duration, billsec, uniqueid, transid, record, dcontext, lastapp
+             duration, billsec, uniqueid, transid, record, dcontext, lastapp,
+             CASE WHEN record IS NOT NULL AND record <> '' THEN 1 ELSE 0 END AS has_recording
       FROM cdr c
       WHERE ${tenant.sql}
         AND (c.linkedid = :linkedid OR c.uniqueid = :linkedid OR c.transid = :linkedid)
@@ -654,6 +685,7 @@ export class CdrService {
         extractExtension(row.dst, vpbxUserUid) ||
         row.dst,
       answered: isAnswered(row.disposition, row.dstchannel),
+      hasRecording: Number(row.has_recording) === 1,
     }));
   }
 

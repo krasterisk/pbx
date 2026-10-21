@@ -91,10 +91,10 @@ export function UserBlock({ displayName, secondaryLine, className, preferences }
         </DropdownMenuItem>
         {preferences && <>
           <DropdownMenuSeparator />
-          <DropdownMenuItem id='shell-lang-toggle' onSelect={preferences.onLanguageChange}>
+          <DropdownMenuItem id='shell-lang-toggle' aria-label={preferences.languageLabel} onSelect={preferences.onLanguageChange}>
             <Languages size={16} className={styles.menuIcon} aria-hidden />{preferences.languageLabel}
           </DropdownMenuItem>
-          <DropdownMenuItem id='shell-theme-toggle' onSelect={preferences.onThemeChange}>
+          <DropdownMenuItem id='shell-theme-toggle' aria-label={preferences.themeLabel} onSelect={preferences.onThemeChange}>
             <Palette size={16} className={styles.menuIcon} aria-hidden />{preferences.themeLabel}
           </DropdownMenuItem>
         </>}

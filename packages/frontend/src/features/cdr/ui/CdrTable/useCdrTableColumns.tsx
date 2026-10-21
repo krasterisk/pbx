@@ -83,8 +83,7 @@ export const useCdrTableColumns = ({
       header: t('cdr.table.recording', 'Запись'),
       cell: ({ row }) => (
         <FlexRecording
-          uniqueid={row.original.uniqueid}
-          record={row.original.record}
+          uniqueid={row.original.recordingUrl ? row.original.uniqueid : undefined}
           recordingUrl={row.original.recordingUrl}
           hasVoicemail={!!row.original.hasVoicemail}
           onVoicemailClick={() => onVoicemailClick?.(row.original.uniqueid)}
@@ -136,7 +135,6 @@ export const useCdrTableColumns = ({
 
 function FlexRecording({
   uniqueid,
-  record,
   recordingUrl,
   hasVoicemail,
   onVoicemailClick,
@@ -152,8 +150,7 @@ function FlexRecording({
   onOpenAnalytics,
   onRequestGetAnalytics,
 }: {
-  uniqueid: string;
-  record?: string | null;
+  uniqueid?: string;
   recordingUrl?: string | null;
   hasVoicemail: boolean;
   onVoicemailClick: () => void;
@@ -176,7 +173,7 @@ function FlexRecording({
   return (
     <VStack gap="4" className={cls.recordingStack}>
       <Flex align="center" className={cls.recordingCell}>
-        <RecordingButton uniqueid={uniqueid} record={record} recordingUrl={recordingUrl} />
+        <RecordingButton uniqueid={uniqueid} recordingUrl={recordingUrl} />
         {showOpenAnalytics ? (
           <Button
             type="button"

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { IIvrPhraseTtsSettings } from '@krasterisk/shared';
 import { useGetTtsEnginesQuery } from '@/shared/api/endpoints/ttsEnginesApi';
 import { TtsSettingsFields } from '@/entities/engines/ui/TtsSettingsFields/TtsSettingsFields';
-import type { FieldSchema } from '../schema.types';
+import type { FieldSchema, SchemaCatalogRef } from '../schema.types';
 
 type TFn = (...args: [key: string] | [key: string, fallback: string]) => string;
 
@@ -10,18 +11,22 @@ function TtsSettingsBlock({
   engineUid,
   settings,
   onChange,
+  ttsEngines,
 }: {
   engineUid: unknown;
   settings: IIvrPhraseTtsSettings;
   onChange: (settings: IIvrPhraseTtsSettings) => void;
+  ttsEngines?: SchemaCatalogRef['ttsEngines'];
 }) {
-  const { data: engines = [] } = useGetTtsEnginesQuery();
+  const { t } = useTranslation();
+  const { data: engines = [] } = useGetTtsEnginesQuery(undefined, { skip: ttsEngines !== undefined });
   const engine = useMemo(
-    () => engines.find((row) => String(row.uid) === String(engineUid ?? '')) ?? null,
-    [engines, engineUid],
+    () => (ttsEngines ?? engines).find((row) => String(row.uid) === String(engineUid ?? '')) ?? null,
+    [engines, engineUid, ttsEngines],
   );
 
-  return <TtsSettingsFields engine={engine} settings={settings} onChange={onChange} />;
+  return <TtsSettingsFields engine={engine} settings={settings} onChange={onChange}
+    customSpeedLabel={ttsEngines !== undefined ? t('ttsEngines.yandex.speed', 'Скорость') : undefined} />;
 }
 
 export function buildText2SpeechSchema(t: TFn): FieldSchema[] {
@@ -48,9 +53,10 @@ export function buildText2SpeechSchema(t: TFn): FieldSchema[] {
       group: 'params',
       labelKey: 'routes.chain.tts.settings',
       label: t('routes.chain.tts.settings', 'Голос и параметры синтеза'),
-      render: ({ params, onChange }) => (
+      render: ({ params, onChange, ttsEngines }) => (
         <TtsSettingsBlock
           engineUid={params.engine}
+          ttsEngines={ttsEngines}
           settings={(params.settings ?? {}) as IIvrPhraseTtsSettings}
           onChange={(settings) => onChange({ settings })}
         />

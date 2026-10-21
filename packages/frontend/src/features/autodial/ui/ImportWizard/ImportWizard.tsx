@@ -1,3 +1,5 @@
+import { useAutodialConfirmation } from '../AutodialConfirmation/useAutodialConfirmation';
+import { useAutodialDialogFocus } from '../AutodialConfirmation/useAutodialDialogFocus';
 import { Switch } from '@/shared/ui';
 import { ModalBody } from '@/shared/ui';
 import { memo, useEffect, useRef, useState } from 'react';
@@ -46,6 +48,7 @@ import {
 import { buildAutoColumnMap, SPECIAL_IMPORT_TARGETS } from '../../model/importMapping';
 import cls from './ImportWizard.module.scss';
 import { autodialErrorKey } from '../../lib/mutationError';
+import { autodialImportErrorKey } from '../../lib/importError';
 import { downloadBlob } from '@/shared/lib/csv';
 import { baseDraftToPayload, baseToDraft, AUTODIAL_FIELD_KEY_PATTERN, suggestFieldKey, suggestVarName } from '../../model/baseDraft';
 
@@ -70,6 +73,8 @@ function readAsBase64(file: File): Promise<string> {
 
 export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
   const { t } = useTranslation();
+  const { confirm, confirmationDialog } = useAutodialConfirmation();
+  const dialogFocus = useAutodialDialogFocus();
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector(selectAutodialImportOpen);
 
@@ -125,8 +130,8 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
     return () => { generation.current += 1; };
   }, [isOpen, baseUid]);
 
-  const close = () => {
-    if (content && step !== 'done' && !window.confirm(t('autodial.workspace.discard'))) return;
+  const close = async () => {
+    if (content && step !== 'done' && !(await confirm(t('autodial.workspace.discard')))) return;
     dispatch(autodialPageActions.closeImport());
   };
 
@@ -197,12 +202,20 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
     setColumnMap((prev) => {
       const previous = prev.find((mapping) => matchesColumn(mapping, column, index));
       const without = prev.filter((mapping) => !matchesColumn(mapping, column, index));
-      return field_key ? [...without, { ...previous, column, column_index: index, field_key }] : without;
+      const phone = field_key === '__phone' || base?.fields.some((field) => field.key === field_key && (field.is_phone || field.type === 'phone'));
+      const transform = previous?.field_key === field_key ? previous.transform : phone ? 'phone_normalize' : 'trim';
+      return field_key ? [...without, { column, column_index: index, field_key, transform }] : without;
     });
   };
 
   const targetFor = (column: string, index: number) =>
     columnMap.find((mapping) => matchesColumn(mapping, column, index))?.field_key ?? '';
+  const transformFor = (column: string, index: number) =>
+    columnMap.find((mapping) => matchesColumn(mapping, column, index))?.transform ?? '';
+  const setTransform = (column: string, index: number, transform: string) => {
+    setColumnMap((previous) => previous.map((mapping) => matchesColumn(mapping, column, index)
+      ? { ...mapping, transform: (transform || undefined) as IAutodialColumnMap['transform'] } : mapping));
+  };
 
   const uploadArgs = () => ({ baseUid, filename, source, content_base64: content, column_map: columnMap,
     delimiter, has_header: hasHeader, replace, expected_revision: previewData?.base_revision,
@@ -228,7 +241,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
       setError(t('autodial.import.phoneColumnRequired'));
       return;
     }
-    if (replace && !window.confirm(t('autodial.import.confirmReplace', { name: base?.name ?? '', count: base?.contact_count ?? 0 }))) return;
+    if (replace && !(await confirm(t('autodial.import.confirmReplace', { name: base?.name ?? '', count: base?.contact_count ?? 0 })))) return;
     const request = generation.current;
     try {
       const res = await runImport(uploadArgs()).unwrap();
@@ -295,10 +308,16 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
       label: field.label || field.key,
     })),
   ];
+  const importIssue = (row: { code: string; message: string; field?: string }) => {
+    const label = row.field === 'phones' ? t('autodial.import.special.__phone')
+      : fieldTargets.find((target) => target.value === row.field)?.label;
+    return [label, t(autodialImportErrorKey(row.code, row.message))].filter(Boolean).join(': ');
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isBusy && close()}>
-      <FormDialogContent size="large" className={cls.dialog} data-testid="autodial-import-wizard" aria-describedby={undefined}>
+      {confirmationDialog}
+      <FormDialogContent {...dialogFocus} size="large" className={cls.dialog} data-testid="autodial-import-wizard" aria-describedby={undefined}>
         <DialogHeader className={cls.header}>
           <DialogTitle>{t('autodial.import.title')}</DialogTitle>
         </DialogHeader>
@@ -417,6 +436,19 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
                                 </option>
                               ))}
                             </Select>
+                            {targetFor(header, index) && <Select
+                              aria-label={t('autodial.workspace.columnTransform', { column: header })}
+                              value={transformFor(header, index)} disabled={isBusy}
+                              onChange={(event) => setTransform(header, index, event.target.value)}>
+                              <option value="">{t('autodial.workspace.transformNone')}</option>
+                              <option value="trim">{t('autodial.workspace.transformTrim')}</option>
+                              <option value="phone_normalize">{t('autodial.workspace.transformPhone')}</option>
+                              <option value="date_iso">{t('autodial.workspace.transformDate')}</option>
+                              <option value="money_cents">{t('autodial.workspace.transformCents')}</option>
+                            </Select>}
+                            {transformFor(header, index) === 'money_cents' && <Text className={cls.hint}>
+                              {t('autodial.workspace.transformCentsWarning')}
+                            </Text>}
                             <Button variant="ghost" size="sm" disabled={isBusy} onClick={() => setNewField({ column: header, index,
                               key: suggestFieldKey(header, (base?.fields?.length ?? 0) + index), label: header, type: 'string' })}>
                               {t('autodial.workspace.createColumnField')}
@@ -470,7 +502,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
               {replace && <Text>{t('autodial.import.confirmReplace', { name: base?.name ?? '', count: base?.contact_count ?? 0 })}</Text>}
               {!currentValidation && <Text role="alert">{t('autodial.workspace.checkImportAgain')}</Text>}
               {validation.rejected_rows.slice(0, 50).map((row, index) => (
-                <Text key={index}>{t('autodial.import.errorRow', { row: row.row })}: {row.message}</Text>
+                <Text key={index}>{t('autodial.import.errorRow', { row: row.row })}: {importIssue(row)}</Text>
               ))}
               {validation.warnings.slice(0, 50).map((warning, index) => (
                 <Text key={`warning-${index}`} variant="muted">{t('autodial.import.optionalWarning', { ...warning })}</Text>
@@ -493,7 +525,7 @@ export const ImportWizard = memo(({ baseUid }: ImportWizardProps) => {
                   <Text className={cls.sectionTitle}>{t('autodial.import.errors')}</Text>
                   {result.errors.slice(0, 50).map((err, index) => (
                     <Text key={index} className={cls.errorRow}>
-                      {t('autodial.import.errorRow', { row: err.row })}: {err.message}
+                      {t('autodial.import.errorRow', { row: err.row })}: {importIssue(err)}
                     </Text>
                   ))}
                 </VStack>

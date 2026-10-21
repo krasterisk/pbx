@@ -2,7 +2,7 @@ import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { Button, Input, Label, Select, Switch, Text, Skeleton } from '@/shared/ui';
+import { Button, Flex, Input, Label, Select, Switch, Text, Skeleton } from '@/shared/ui';
 import { UserLevel, selectUserLevel } from '@/entities/User';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import {
@@ -119,9 +119,9 @@ export function AutoPauseRulesForm() {
   if (isLoading) {
     return (
       <div className={styles.skeletonWrap}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="2.5rem" width="100%" />
+        <Skeleton height="2.5rem" width="100%" />
       </div>
     );
   }
@@ -133,15 +133,16 @@ export function AutoPauseRulesForm() {
   }
 
   return (
-    <form
+    <Flex
+      as="form"
+      direction="column"
+      align="stretch"
       className={styles.form}
       onSubmit={(e) => {
         e.preventDefault();
         void handleSave();
       }}
     >
-      <Text className={styles.sectionTitle}>{t('callcenter.settings.autoPause.title')}</Text>
-
       {!canEdit && (
         <Text className={styles.readonlyHint}>{t('callcenter.settings.autoPause.readOnly')}</Text>
       )}
@@ -371,6 +372,7 @@ export function AutoPauseRulesForm() {
       )}
       {canEdit && (
         <FormSaveBar
+          placement="footer"
           dirty={dirty}
           saving={isSaving}
           onSave={handleSave}
@@ -378,6 +380,6 @@ export function AutoPauseRulesForm() {
           testId="autopause-save-bar"
         />
       )}
-    </form>
+    </Flex>
   );
 }

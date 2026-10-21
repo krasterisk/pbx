@@ -1,8 +1,44 @@
 import { AutodialPreflightService } from './autodial-preflight.service';
 
+describe('read-only TTS capability metadata', () => {
+  function serviceWith(rows: unknown[]) {
+    const providers = {
+      findAll: jest.fn(async (_tenant: number, capability: string) => capability === 'tts' ? rows : []),
+      findGlobal: jest.fn(async () => []),
+    };
+    const service = new AutodialPreflightService({} as never, {} as never, {} as never, {} as never,
+      {} as never, {} as never, { query: jest.fn(async () => []) } as never, providers as never);
+    return { service, providers };
+  }
+
+  it('offers usable voice controls without exposing provider credentials or arbitrary defaults', async () => {
+    const { service, providers } = serviceWith([
+      { uid: 7, name: 'Google speech', enabled: true, is_global: false, vendor: 'google',
+        endpoint: 'https://private.example/secret', encrypted_api_key: 'secret-cipher',
+        defaults: { speaking_rate: '1.25', speed: 1.1, voice: 'private-default', apiKey: 'secret-key', customHeaders: { Authorization: 'secret-header' } } },
+      { uid: 8, name: 'Off', enabled: false, is_global: false, vendor: 'yandex', defaults: { speed: 2 } },
+      { uid: 9, name: 'Other vendor', enabled: true, is_global: true, vendor: 'azure', defaults: {} },
+    ]);
+    const result = await service.capabilities(42);
+    expect(result.tts_engines).toEqual([
+      { uid: 7, name: 'Google speech', is_global: false, type: 'google', settings: { speaking_rate: '1.25', speed: 1.1 } },
+      { uid: 9, name: 'Other vendor', is_global: true, type: 'custom', settings: {} },
+    ]);
+    expect(JSON.stringify(result)).not.toMatch(/secret-|private-default|private\.example|customHeaders|encrypted_api_key/);
+    expect(providers.findAll).toHaveBeenCalledWith(42, 'tts');
+  });
+
+  it.each(['secret-value', { nested: 'secret-value' }, true, -1, 0, 11, Infinity])('omits an invalid speed default %p', async (speed) => {
+    const { service } = serviceWith([{ uid: 7, name: 'Speech', enabled: true, is_global: false, vendor: 'yandex', defaults: { speed, speaking_rate: 2 } }]);
+    expect((await service.capabilities(42)).tts_engines).toEqual([
+      { uid: 7, name: 'Speech', is_global: false, type: 'yandex', settings: { speaking_rate: 2 } },
+    ]);
+  });
+});
+
 describe('AutodialPreflightService', () => {
   function setup() {
-    const campaign = { uid: 4, user_uid: 7, revision: 3, base_uid: 8, dial_mode: 'agentless',
+    const campaign = { uid: 4, user_uid: 7, revision: 3, applied_revision: 3, apply_error: null as string | null, base_uid: 8, dial_mode: 'agentless',
       scenario_actions: [{ type: 'hangup', params: {} }], trunk_pool: [{ trunk_id: 't_ip_7' }], amd: { enabled: false } };
     const campaigns = { findOne: jest.fn().mockResolvedValue(campaign), validateConfiguration: jest.fn() };
     const registrations = jest.fn();
@@ -31,6 +67,17 @@ describe('AutodialPreflightService', () => {
     expect(result).toMatchObject({ campaign_uid: 0, revision: 0, ready: true, eligible_numbers: 10 });
     expect(campaigns.findOne).not.toHaveBeenCalled();
     expect(query.mock.calls.every(([sql]) => !/INSERT|UPDATE|DELETE/i.test(sql))).toBe(true);
+  });
+  it('does not present connected AMI and ARI as readiness when the saved scenario was not applied', async () => {
+    const { service, campaign } = setup();
+    campaign.applied_revision = 2;
+    expect(await service.check(7, 4)).toMatchObject({ ready: false, checks: expect.arrayContaining([
+      { id: 'applied_revision', status: 'fail', code: 'dialplan_revision_pending' },
+    ]) });
+    campaign.apply_error = 'AC_DIALPLAN_APPLY_FAILED';
+    expect(await service.check(7, 4)).toMatchObject({ ready: false, checks: expect.arrayContaining([
+      { id: 'applied_revision', status: 'fail', code: 'dialplan_apply_failed' },
+    ]) });
   });
   it('requires an actual tenant engine for TTS before a proposal exists', async () => {
     const { service, providers } = setup();

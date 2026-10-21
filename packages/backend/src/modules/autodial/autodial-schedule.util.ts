@@ -22,11 +22,15 @@ const WEEKDAY_INDEX: Record<string, number> = {
   Fri: 5,
   Sat: 6,
 };
+const zoneFormatters = new Map<string, Intl.DateTimeFormat>();
 
 export function zonedNow(now: Date, timezone: string): ZonedNow {
   let parts: Intl.DateTimeFormatPart[];
   try {
-    parts = new Intl.DateTimeFormat('en-US', {
+    let formatter = zoneFormatters.get(timezone);
+    if (!formatter) {
+      if (zoneFormatters.size >= 128) zoneFormatters.clear();
+      formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: timezone,
       weekday: 'short',
       year: 'numeric',
@@ -35,7 +39,10 @@ export function zonedNow(now: Date, timezone: string): ZonedNow {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-    }).formatToParts(now);
+      });
+      zoneFormatters.set(timezone, formatter);
+    }
+    parts = formatter.formatToParts(now);
   } catch {
     // Unknown zone: fail closed. Substituting UTC would dial at the wrong
     // local time (B03). scheduleAllows treats weekday < 0 as closed.
@@ -60,21 +67,24 @@ export function parseHhMm(value: string): number | null {
   return Number(m[1]) * 60 + Number(m[2]);
 }
 
+/** An overnight window belongs to its start day, including the after-midnight part. */
+function rowAllowsLocal(schedule: IAutodialSchedule, local: ZonedNow): boolean {
+  if (!schedule.enabled || local.weekday < 0 || !Number.isFinite(local.minutes) || !local.date) return false;
+  const from = parseHhMm(schedule.time_from), to = parseHhMm(schedule.time_to);
+  if (from === null || to === null || from === to) return false;
+  const overnight = from > to;
+  if (overnight ? local.minutes < from && local.minutes >= to : local.minutes < from || local.minutes >= to) return false;
+  const previousDay = overnight && local.minutes < to;
+  const weekday = previousDay ? (local.weekday + 6) % 7 : local.weekday;
+  const date = previousDay ? new Date(Date.parse(`${local.date}T12:00:00Z`) - 86400000).toISOString().slice(0, 10) : local.date;
+  if (schedule.kind === 'weekly' && schedule.weekday != null && schedule.weekday !== weekday) return false;
+  if (schedule.kind === 'one_off') return Boolean(schedule.date_from && date === schedule.date_from);
+  return !(schedule.date_from && date < schedule.date_from || schedule.date_to && date > schedule.date_to);
+}
+
 /** Does a single schedule row admit dialing at `now`? */
 export function scheduleAllows(schedule: IAutodialSchedule, now: Date): boolean {
-  if (!schedule.enabled) return false;
-  const from = parseHhMm(schedule.time_from);
-  const to = parseHhMm(schedule.time_to);
-  if (from == null || to == null || from >= to) return false;
-
-  const local = zonedNow(now, schedule.timezone);
-  if (local.weekday < 0 || !Number.isFinite(local.minutes) || !local.date) return false;
-  if (schedule.kind === 'weekly' && schedule.weekday != null && schedule.weekday !== local.weekday) {
-    return false;
-  }
-  if (schedule.date_from && local.date < schedule.date_from) return false;
-  if (schedule.date_to && local.date > schedule.date_to) return false;
-  return local.minutes >= from && local.minutes < to;
+  return rowAllowsLocal(schedule, zonedNow(now, schedule.timezone));
 }
 
 /**
@@ -129,17 +139,7 @@ function subscriberRowAllows(
   tzOffsetMin: number,
   now: Date,
 ): boolean {
-  if (!schedule.enabled) return false;
-  const from = parseHhMm(schedule.time_from);
-  const to = parseHhMm(schedule.time_to);
-  if (from == null || to == null || from >= to) return false;
-  const local = subscriberLocalNow(tzOffsetMin, now);
-  if (schedule.kind === 'weekly' && schedule.weekday != null && schedule.weekday !== local.weekday) {
-    return false;
-  }
-  if (schedule.date_from && local.date < schedule.date_from) return false;
-  if (schedule.date_to && local.date > schedule.date_to) return false;
-  return local.minutes >= from && local.minutes < to;
+  return rowAllowsLocal(schedule, subscriberLocalNow(tzOffsetMin, now));
 }
 
 /**

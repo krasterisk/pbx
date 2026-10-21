@@ -1,7 +1,9 @@
 import {
   AUTODIAL_DISPOSITIONS,
   autodialScenarioActionSchema,
+  autodialOutcomeDefinitionError,
   type AutodialDialMode,
+  type AutodialBusinessGoal,
   type AutodialDisposition,
   type CreateAutodialCampaignInput,
   type IAutodialAmdConfig,
@@ -13,6 +15,7 @@ import {
   type IAutodialTrunkPoolItem,
   type IRouteAction,
 } from "@krasterisk/shared";
+import { scheduleDraftError } from './scheduleDraft';
 
 export type AutodialScheduleDraft = Omit<
   IAutodialSchedule,
@@ -20,6 +23,7 @@ export type AutodialScheduleDraft = Omit<
 >;
 
 export interface AutodialCampaignDraft {
+  business_goal: AutodialBusinessGoal;
   revision?: number;
   name: string;
   dial_mode: AutodialDialMode;
@@ -51,6 +55,7 @@ export const RETRY_INTERVAL_DISPOSITIONS: AutodialDisposition[] = [
 export function emptyCampaignDraft(): AutodialCampaignDraft {
   return {
     name: "",
+    business_goal: 'appointment',
     dial_mode: "progressive",
     base_uid: null,
     pacing: {
@@ -143,6 +148,7 @@ export function campaignToDraft(
   return {
     revision: campaign.revision,
     name: campaign.name,
+    business_goal: campaign.business_goal ?? 'custom',
     dial_mode: campaign.dial_mode,
     base_uid: campaign.base_uid,
     pacing: hydrated,
@@ -167,6 +173,7 @@ export function campaignToDraft(
 }
 
 export interface CampaignDraftErrors {
+  schedules?: string;
   name?: string;
   base_uid?: string;
   trunk_pool?: string;
@@ -188,6 +195,7 @@ export function validateCampaignDraft(
 
   if (!draft.name.trim()) errors.name = "required";
   if (!draft.base_uid) errors.base_uid = "required";
+  if (draft.schedules.some((row) => scheduleDraftError(row))) errors.schedules = 'invalid';
   if (draft.trunk_pool.length === 0) errors.trunk_pool = "required";
   if (draft.pacing.providers.length === 0) errors.pacing = "required";
 
@@ -207,6 +215,8 @@ export function validateCampaignDraft(
       break;
     }
   }
+  const outcomeError = autodialOutcomeDefinitionError(draft.scenario_actions);
+  if (outcomeError) errors.scenario_actions = `contract:${outcomeError.index + 1}:${outcomeError.field}`;
 
   if (
     draft.amd.enabled
@@ -258,6 +268,7 @@ export function draftToPayload(
 
   return {
     name: draft.name.trim(),
+    business_goal: draft.business_goal,
     dial_mode: draft.dial_mode,
     base_uid: draft.base_uid,
     pacing: draft.pacing,

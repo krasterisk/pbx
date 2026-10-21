@@ -15,6 +15,7 @@ import {
 } from "@/shared/api/endpoints/callCenterReportsApi";
 import { useGetNotificationsQuery } from "@/shared/api/endpoints/notificationApi";
 import { useAppSelector } from "@/shared/hooks/useAppStore";
+import { buildBulkDeletePreview } from "@/shared/lib/tableSelection/bulkDeletePreview";
 import { useCrossPageRowSelection } from "@/shared/hooks/useCrossPageRowSelection";
 import {
   Button,
@@ -332,9 +333,9 @@ export function ReportSchedulesManager() {
   if (isLoading) {
     return (
       <div className={styles.skeletonWrap}>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton height="2rem" width="12rem" />
+        <Skeleton height="2.5rem" width="100%" />
+        <Skeleton height="6rem" width="100%" />
       </div>
     );
   }
@@ -352,14 +353,6 @@ export function ReportSchedulesManager() {
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
-        <div>
-          <Text className={styles.title}>
-            {t("callcenter.settings.reportSchedules.title")}
-          </Text>
-          <Text className={styles.hint}>
-            {t("callcenter.settings.reportSchedules.hint")}
-          </Text>
-        </div>
         <Button type="button" onClick={openCreate}>
           {t("callcenter.settings.reportSchedules.add")}
         </Button>
@@ -466,9 +459,9 @@ export function ReportSchedulesManager() {
                     <option value="xlsx">XLSX</option>
                     <option value="csv">CSV</option>
                   </Select>
-                  <span className={styles.formatHint}>
+                  <Text className={styles.formatHint}>
                     {t("callcenter.settings.reportSchedules.formatHint")}
-                  </span>
+                  </Text>
                 </div>
                 <div className={styles.field}>
                   <Label htmlFor="rs-period">
@@ -730,9 +723,22 @@ export function ReportSchedulesManager() {
             </DialogTitle>
           </DialogHeader>
           <Text>
-            {t("callcenter.settings.reportSchedules.deleteConfirm", {
-              name: deleteTarget?.map((row) => row.name).join(", ") ?? "",
-            })}
+            {(() => {
+              const preview = buildBulkDeletePreview({
+                labels: (deleteTarget ?? []).map((row) => row.name),
+                allMatching: false,
+                hasFilter: false,
+                filteredTotal: deleteTarget?.length ?? 0,
+              });
+              return preview.mode === "truncated"
+                ? t("common.confirmBulkDeleteBodyMore", {
+                    labels: preview.previewLabels.join(", "),
+                    remaining: preview.remaining,
+                  })
+                : t("callcenter.settings.reportSchedules.deleteConfirm", {
+                    name: preview.previewLabels.join(", "),
+                  });
+            })()}
           </Text>
           <DialogFooter>
             <Button

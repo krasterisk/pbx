@@ -1,0 +1,1472 @@
+# Roadmap
+
+**Production track 2026-09-17:** [глобальный план и live evidence](../../plans/legacy/PRODUCTION-READINESS-2026-09-17.md), [матрица AI/MCP по 49 модулям](../../plans/legacy/AI-CAPABILITY-AUDIT-2026-09-17.md). Production readiness — pending: 10/50/150 endpoints созданы, полные бизнес-сценарии и все модули ещё не подтверждены.
+
+**Сверка 2026-09-17:** [исправления ревью и результаты живых проверок](../../plans/legacy/REVIEW-REMEDIATION-2026-09-17.md). Статусы implementation, unit verification и live UAT учитываются отдельно.
+
+**Новая инициатива 2026-09-18 (planned):** [AI-роботы и речевая аналитика](../../plans/initiatives/ai-products/README.md), [поэтапный план AI-00…11](../../plans/initiatives/ai-products/ROADMAP.md). Два независимых коммерческих продукта, встроенная и внешняя PBX-интеграция. Глобальные номера фаз назначаются при запуске workstream; текущий production/autodial track продолжается.
+
+Общий foundation инициативы включает выбор PostgreSQL/MySQL для приложения и Asterisk: [контракт двух СУБД](../../plans/initiatives/ai-products/DATABASE-PORTABILITY.md), [первый план DB-01](../../plans/initiatives/ai-products/DB-01-PLAN.md). SaaS, self-hosted и OpenSource core входят в целевые profiles; это planned scope, не готовая поддержка PostgreSQL.
+
+**Canonical refs (все фазы):** см. `docs/CANONICAL_REFS.md`
+Обязательно: `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md`
+
+## Phase 1: MOH playlist migration
+
+**Canonical refs (фаза):** `.docs/MOH_MODULE.md` (локально), `.idea/MOH_MODERN_DELTA_PRD.md`, `packages/backend/src/modules/moh/`, `packages/frontend/src/features/moh/`
+
+**Status:** executed — pending verify  
+**Goal:** `mode=playlist`, validation, tests, docs, UI cleanup.  
+**Requirements:** REQ-001 … REQ-006
+
+---
+
+## Phase 2: Redesign MohPage UI
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md` — **MUST READ** (FSD, Tailwind + shadcn, Stack, i18n, TanStack Table)
+- `packages/frontend/src/pages/MohPage/MohPage.tsx` — orchestrator page (primary target)
+- `packages/frontend/src/features/moh/ui/MohTable/` — table layout/states
+- `packages/frontend/src/features/moh/ui/MohFormModal/` — out of scope unless discuss extends
+- `packages/frontend/src/shared/ui/` — переиспользуемые компоненты (Button, Stack, Dialog…)
+
+**Status:** Executed  
+**Goal:** Предложить **3 визуальных варианта** страницы MOH, после выбора пользователем — внедрить **один** вариант в production-код без смены API/backend.
+
+**Scope (in):**
+
+- Визуальный и layout-редизайн `MohPage` (header, subtitle, CTA, контейнер таблицы, empty/loading при наличии)
+- Адаптивность (mobile / tablet / desktop) по паттернам проекта
+- i18n: все новые/изменённые строки в `ru` + `en` (минимум)
+- Следование ARCHITECTURE: FSD, `shared/ui`, Tailwind + shadcn, Lucide, Motion — без кастомного UI-kit
+
+**Scope (out):**
+
+- Изменения `packages/backend/**`, `mohApi`, бизнес-логики MOH
+- Три параллельные реализации в prod (только sketch → один winner → execute)
+- Редизайн `MohFormModal` / playlist editor — отдельная фаза, если не решено иначе на discuss
+
+**Requirements:** REQ-101 … REQ-106
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 2` |
+| 2 | `/gsd-sketch MohPage redesign per @packages/frontend/.idea/ARCHITECTURE.md — 3 variants` |
+| 3 | Выбор варианта пользователем → `/gsd-sketch --wrap-up` |
+| 4 | `/gsd-ui-phase 2` |
+| 5 | `/gsd-plan-phase 2` |
+| 6 | `/gsd-execute-phase 2` |
+| 7 | `/gsd-ui-review 2` + `npm run test:frontend` |
+| 8 | `/gsd-verify-work 2` → `/gsd-ship 2` |
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:frontend` (если есть/добавлены тесты UI)
+- Manual: `/moh` — header, CTA, таблица, responsive; визуал соответствует выбранному sketch-winner
+
+---
+
+## Phase 3: IVR page & form modal UI alignment
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md` — **MUST READ** (FSD, SCSS modules, Stack, `shared/ui`, design tokens `var(--color-*)`)
+- `packages/frontend/src/pages/IvrsPage/IvrsPage.tsx` — page shell (привести к паттерну MohPage / VoiceRobots)
+- `packages/frontend/src/features/ivrs/ui/IvrFormModal/IvrFormModal.tsx` — табы модалки, layout
+- `packages/frontend/src/features/ivrs/ui/IvrPromptsEditor/` — вкладка «Записи» (контраст с фоном)
+- `packages/frontend/src/features/routes/ui/RouteFormModal/` — **эталон** табов и body (`.module.scss`, одна полоса под табами)
+- `packages/frontend/src/features/ivrs/ui/IvrsTable/` — при необходимости wrapper/states на странице
+
+**Status:** Executed (03-01/03-02 SUMMARY; verify pending)  
+**Depends on:** — (независима от MOH verify; brownfield FE-only)
+
+**Goal:** Рефакторинг `IvrsPage` и `IvrFormModal` под архитектуру проекта: SCSS-модули + токены, без «сливающихся» секций; таб-бар модалки и вкладка «Записи» визуально как `RouteFormModal`.
+
+**Scope (in):**
+
+- `IvrsPage`: header, CTA, карточка/контейнер таблицы по паттерну Phase 2 (MohPage), SCSS-модуль страницы
+- `IvrFormModal`: табы через SCSS как `RouteFormModal` (без дублирующей `border-b` + underline на кнопках)
+- `IvrPromptsEditor` (+ связанные tab-компоненты при необходимости): `var(--color-*)`, читаемый фон секции «Записи»
+- i18n только для новых/изменённых строк (`ru` + `en`)
+- Регрессия: сохранение create/edit/copy IVR, prompts, menu items
+
+**Scope (out):**
+
+- Backend, `ivrsApi`, бизнес-логика IVR
+- Полный редизайн `IvrMenuItemsEditor` / dialplan — только если мешает контрасту на той же вкладке
+- Sketch из 3 вариантов (не требуется — эталон RouteFormModal + MohPage)
+
+**Requirements:** REQ-201 … REQ-206
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 3` |
+| 2 | `/gsd-ui-phase 3` |
+| 3 | `/gsd-plan-phase 3` |
+| 4 | `/gsd-execute-phase 3` |
+| 5 | `/gsd-ui-review 3` + `npm run test:frontend` |
+| 6 | `/gsd-verify-work 3` → `/gsd-ship 3` |
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:frontend` (в т.ч. `IvrsTable.test.tsx` если затронуто)
+- Manual: `/ivrs` — страница в одном стиле с MOH/VoiceRobots; модалка → вкладка «Записи» — секция не сливается с фоном; **одна** линия под табами (как RouteFormModal)
+
+---
+
+## Phase 4: IVR «Фразы»: TTS-текст с движком и голосом на фразу
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md`
+- `packages/frontend/src/features/ivrs/ui/IvrPromptsEditor/` — вкладка «Фразы»
+- `packages/frontend/src/pages/TtsEnginesPage/`, `packages/frontend/src/features/tts-engines/` — справочник движков
+- `packages/backend/src/modules/tts-engines/` — CRUD движков (`tts_engines`)
+- `packages/backend/src/modules/voice-robots/providers/` — `TtsProviderFactory`, Yandex/Google (переиспользовать)
+- `packages/backend/src/modules/ivrs/ivrs.service.ts` — генерация dialplan (`prompts`, legacy `tts:`)
+- `packages/backend/src/modules/prompts/prompts.controller.ts` — `POST /prompts/synthesize` (заглушка — кандидат на реализацию)
+- `docs/archive/gsd/phases/04-ivr-phrases-tab-tts-text-phrases-with-per-phrase-engine-voic/04-CONTEXT.md` — решения (runtime, JSON-only, preview)
+- `docs/archive/gsd/phases/04-ivr-phrases-tab-tts-text-phrases-with-per-phrase-engine-voic/04-RESEARCH.md` — CURL play-phrase, IvrTtsService
+
+**Status:** Executed (verify pending)  
+**Plans:** `04-01` ✓ · `04-02` ✓ · `04-03` ✓  
+**Depends on:** Phase 3 (UI вкладки «Фразы»)
+
+**Goal:** На вкладке «Фразы» в IVR добавлять не только аудиозаписи из справочника, но и **текстовые фразы**, озвучиваемые через выбранный **TTS-движок** из `TtsEnginesPage`; для каждой TTS-фразы — свой **движок** и **переопределяемые параметры голоса** (voice, speed, role и т.д.), не только глобальные `settings` движка.
+
+**Scope (in):**
+
+- Модель `prompts`: **JSON-only** `IIvrPhrase[]` (`audio` | `tts`); legacy `string[]` / `tts:` **убрать** (миграция в плане)
+- UI `IvrPromptsEditor`: «Запись» / «TTS»; движок на фразу; voice/speed overrides как в `TtsEngineFormModal`; **Preview**
+- Backend: **runtime TTS в dialplan** (AGI/мост), merge `engine.settings` + per-phrase overrides; **без WAV** в sounds
+- TTS: **yandex + google + custom** (расширить `TtsProviderFactory` или `IvrTtsService`)
+- Preview API для прослушивания в UI
+- i18n `ru` + `en`, типы `@krasterisk/shared`, тесты
+
+**Scope (out):**
+
+- Редизайн `TtsEnginesPage` / CRUD движков (только consume)
+- Materialize TTS → WAV / запись в справочник Prompts
+- Streaming low-latency как у voice-robots (достаточно batch/AGI для приветствия IVR)
+
+**Requirements:** REQ-301 … REQ-310
+
+**GSD workflow:**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 4` — materialize vs runtime AGI, формат JSON, preview |
+| 2 | `/gsd-ui-phase 4` |
+| 3 | `/gsd-plan-phase 4` |
+| 4 | `/gsd-execute-phase 4` |
+| 5 | `/gsd-verify-work 4` |
+
+**Verification:**
+
+- Manual: `/ivrs` → «Фразы» → добавить TTS с движком и другим голосом → сохранить → звонок/диалплан воспроизводит обе фразы в порядке
+- Automated: `npm run test:backend` (ivrs + synthesis), `npm run test:frontend` (IvrPromptsEditor)
+
+---
+
+## Phase 5: Phonebooks AI: универсальные справочники, MCP tools, chat-bot
+
+**Canonical refs (фаза):**
+
+- `.docs/PHONEBOOKS_MODULE.md` — **MUST READ** (модель данных, lookup CURL, dialplan, vars → `PB_*`)
+- `.docs/AI_CHAT_MODULE.md` — **MUST READ** (ai-tools webhooks, MCP `/api/mcp`, audit log, system prompt)
+- `packages/backend/src/modules/phonebooks/` — CRUD, lookup, dialplan generation
+- `packages/backend/src/modules/ai-chat/` — SSE-прокси, `ai-webhook.controller`, `pbx-context-builder`
+- `packages/backend/src/modules/mcp/` — `mcp-tools.service` (расширение инструментов)
+- `packages/frontend/src/features/phonebooks/` — UI справочников
+- `packages/frontend/src/widgets/AiChatWidget/` — встроенный AI-ассистент
+
+**Status:** In progress — 3/5 plans executed (05-01, 05-05, 05-02)
+**Depends on:** — (brownfield; независима от verify Phase 4)
+
+**Plans:** 5/5 plans complete
+
+Plans:
+
+- [x] 05-01-PLAN.md — DialplanApplyService: консолидация 4 копий AMI UpdateConfig батч-логики (routes.controller, ai-webhook.controller, mcp-tools.service, dialplan-subroutines.service) в общий сервис
+- [x] 05-05-PLAN.md — Bindings backend: таблица route_phonebook_bindings + миграция, чистка invert/actions, bindings CRUD в маршрутах, per-binding dialplan `pb_bind_{uid}_{vpbx}` + прошивка apply + реген-триггеры, lookup-test endpoint
+- [x] 05-02-PLAN.md — AI-платформа: каркас Domain AI Adapter (Tools/State/Knowledge), фикс cross-tenant closure в MCP, аудит MCP в action_logs, per-tenant подтверждения (default OFF, включая update_route), PhonebooksAiAdapter (7 tools + update_route), snapshot summary + KB-блок
+- [x] 05-03-PLAN.md — Frontend: вкладка «Справочники» в RouteFormModal (playlist-паттерн, пресеты + custom DialplanAppsEditor), чистка PhonebookFormModal + демо-тест lookup, подраздел AI Chat в SellerSettingsForm, i18n ru/en
+- [x] 05-04-PLAN.md — E2E/UAT: финальный гейт + документация .docs, checkpoint регистрации tools в aiPBX, checkpoint AI-сценариев D-21 с реальным звонком
+
+**Goal:** Проанализировать текущую реализацию Phonebooks, улучшить её и выделить **универсальные механизмы** для проектирования и настройки справочников через AI: встроенный чат (`AiChatWidget`), webhooks `/api/ai-tools/*` и **MCP-инструменты** — чтобы простой чат-бот по запросу пользователя мог создавать/редактировать справочники, записи, actions и привязки к маршрутам.
+
+**Scope (in):**
+
+- Аудит `phonebooks` backend + frontend vs `.docs/PHONEBOOKS_MODULE.md` (gaps, tech debt)
+- Универсальный контракт «справочник» (schema/metadata для AI: поля vars, actions, invert, patterns)
+- AI tools: `create_phonebook`, `update_phonebook`, `add_phonebook_entries`, `list_phonebooks`, … (webhook + MCP)
+- Расширение `PbxContextBuilderService` / system prompt — snapshot справочников для LLM
+- Регистрация tools в aiPBX + MCP (по паттерну существующих 16 инструментов)
+- Audit log (`action_logs`) для phonebook tool calls
+- E2E-сценарии: «создай чёрный список», «добавь VIP-номера с redirect», «привяжи справочник к маршруту»
+
+**Scope (out):**
+
+- Новые типы справочников beyond phonebook (отдельная фаза после универсального слоя)
+- Полный редизайн `PhonebooksPage` UI (только если audit выявит блокеры)
+- Собственный LLM / замена aiPBX
+
+**Requirements:** D-01 … D-26 (locked decisions в `docs/archive/gsd/phases/05-phonebooks-ai-universal-directory-mechanisms-mcp-tools-and-c/05-CONTEXT.md`; REQ-ID для фазы не заводились)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 5` — универсальный контракт, tool surface, MCP vs webhook |
+| 2 | `/gsd-plan-phase 5` |
+| 3 | `/gsd-execute-phase 5` |
+| 4 | `/gsd-verify-work 5` |
+
+**Verification:**
+
+- Automated: `npm run test:backend` (phonebooks + ai-tools + mcp), `npm run lint`
+- Manual: AI Chat / MCP — создать справочник и записи по текстовому запросу; lookup + dialplan работают
+
+---
+
+## Phase 6: Dialplan Apps: ring groups, multi-channel notifications, UX overhaul
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md`
+- `packages/frontend/src/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor.tsx` — **primary target**
+- `packages/frontend/src/features/routes/ui/RouteFormModal/` — редактор маршрута (возможный host для CRUD групп)
+- Backend dialplan generation для apps (routes / dialplan-apps modules — уточнить на research)
+- Текущие apps: groups, call lists, telegram, email — аудит реальной реализации vs UI
+
+**Status:** Complete — 16/16 plans executed (incl. gap closures 06-15, 06-16)  
+**Depends on:** Phase 5 (DialplanAppsEditor уже используется во вкладке «Справочники»; желательно после стабилизации bindings)
+
+**Goal:** Переработать `DialplanAppsEditor` и набор dialplan-приложений: (1) объединённое гибкое приложение **групп/списков вызовов** с стратегиями ring и CRUD из маршрута; (2) конфигурируемые **multi-channel уведомления** (мессенджеры/соцсети, channel vars, пресеты); (3) аудит текущих apps + UX маршрутизации и предложения дополнительных приложений.
+
+**Scope (in):**
+
+1. **Ring groups / call lists (объединённое app)**
+   - Инструмент создания/редактирования группы вызовов (в т.ч. прямо в редакторе маршрута)
+   - Участники: внутренние и внешние номера
+   - Стратегии: ringall, sequential, progressive, memory/last-answered и др. (best practices телефонии)
+   - Research + варианты решений на discuss; креативные UX-паттерны
+
+2. **Multi-channel notifications**
+   - Замена/расширение отдельных telegram/email apps → единое конфигурируемое приложение
+   - Каналы: мессенджеры, соцсети и т.д.; гибкая настройка интеграций
+   - Шаблоны с любыми переменными канала; пресеты; интуитивный UX
+
+3. **Аудит + UX overhaul DialplanAppsEditor**
+   - Проверка реальной реализации всех текущих приложений
+   - Варианты улучшения редактора маршрутизации (полнофункциональный UX)
+   - Предложения дополнительных dialplan apps
+
+**Scope (out):**
+
+- Полная замена ядра Asterisk dialplan engine
+- Несвязанный редизайн RouteFormModal целиком (только интеграция групп/apps)
+- Собственный LLM / AI Chat tools для dialplan apps (отдельная фаза при необходимости)
+
+**Requirements:** TBD (discuss → REQ / decisions)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 6` — стратегии ring groups, каналы уведомлений, scope UX |
+| 2 | `/gsd-plan-phase 6` |
+| 3 | `/gsd-execute-phase 6` |
+| 4 | `/gsd-verify-work 6` |
+
+**Plans:** 16/16 plans complete
+
+Plans:
+
+- [x] 06-01-PLAN.md — Shared types (call-group/notification) + ActionType + route-action DTO (array dialstatus, time_group_uid, new types) [D-19]
+- [x] 06-02-PLAN.md — dialplan.util: DIALSTATUS OR-join + hangup causecode + notify/callerid/trunk_carousel cases [D-12/14/15/19]
+- [x] 06-03-PLAN.md — routes.service: inline ExecIfTime guard for time_group_uid [D-19]
+- [x] 06-04-PLAN.md — call_group + call_group_member models + migration [D-01/03/06/07]
+- [x] 06-05-PLAN.md — call-group-dialplan.util (TDD): 4 strategies, Gosub/Return semantics [D-05/06/07/08]
+- [x] 06-06-PLAN.md — CallGroupsService (CRUD + apply) + controller + module [D-01/02/03/08]
+- [x] 06-07-PLAN.md — notification_integration store (encrypted credentials) + service + controller [D-10/11]
+- [x] 06-08-PLAN.md — Notification dispatcher + 6 channel providers [D-11/12]
+- [x] 06-09-PLAN.md — /internal/dialplan/notify endpoint (async 200) + module wiring [D-12]
+- [x] 06-10-PLAN.md — Frontend RTK apis (callGroupApi/notificationApi) + tagTypes [D-01/02/10/11]
+- [x] 06-11-PLAN.md — Call Groups page + form modal + members editor [D-02/03/04/05/06/07]
+- [x] 06-12-PLAN.md — Notification Integrations page + channel-driven form modal [D-10/11/13/16]
+- [x] 06-13-PLAN.md — GroupApp + NotifyApp + registry + inline group editor [D-02/12/13/17/18]
+- [x] 06-14-PLAN.md — CallerIdApp (4 modes) + TrunkCarouselApp + registry [D-14/15/16/17/18]
+- [x] 06-15-PLAN.md — Gap closure: AMI CreateConfig before UpdateConfig + CallGroups post-commit rollback fix [D-01/D-08]
+- [x] 06-16-PLAN.md — Gap closure: single-surface hints in CallerIdApp + TrunkCarouselApp [D-16]
+
+**Waves:** W1 {06-01,06-02,06-03} · W2 {06-04,06-05,06-07,06-10} · W3 {06-06,06-08,06-11} · W4 {06-09,06-12} · W5 {06-13} · W6 {06-14} · W7-gap {06-15,06-16}
+
+**Known deferred gap:** per backend ARCHITECTURE §6 new entities (call_group, notification_integration) should get MCP/AI tools; CONTEXT defers this to a later Domain AI Adapter phase (not implemented in Phase 6).
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:backend`, `npm run test:frontend`
+- Manual: RouteFormModal → dialplan apps — создать ring group с стратегией; настроить multi-channel notification с channel vars; проверить dialplan apply
+
+---
+
+## Phase 7: Call Center overhaul: корпоративный колл-центр (workspaces, wallboard, call cards, отчётность, AI-ready)
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md` — **MUST READ**
+- `.idea/call-center/CALLCENTER_MODULE_PLAN.md` — экспертный план модуля (архитектура SSE + in-memory state, фазы CC-1…CC-5)
+- `.idea/call-center/CC_IMPLEMENTATION_CHECKLIST.md` — текущий прогресс (~55%: backend core 100%, панели 55–75%, CC-2…CC-5 = 0%)
+- `.idea/call-center/CC_WORKSPACES_CONCEPT.md` — АРМ оператора (4 зоны) / супервизора (KPI + tabs) / wallboard
+- `.idea/call-center/CC_CALL_CARD_CONCEPT.md` — конфигурируемые карточки звонка (templates, field types, auto-populate)
+- `.idea/call-center/CC_WEBRTC_CONCEPT.md` — WebRTC softphone (SIP.js + PJSIP WSS, двойной режим SIP/WebRTC)
+- `.docs/CALLCENTER_MODULE.md` — документация текущей реализации
+- `packages/backend/src/modules/callcenter/` — state store, AMI, SSE, agent/supervisor API (реализовано)
+- `packages/frontend/src/features/callcenter/`, `pages/CallCenterAgentPage/`, `pages/CallCenterSupervisorPage/` — текущие панели
+
+**Status:** Gap closure executed (07-21, 07-22) — re-UAT / verify remaining
+
+**Depends on:** Phase 6 (dialplan apps / call groups стабилизированы; независимо от verify Phases 1–5)
+
+**Goal:** Переработать и развить начатый модуль колл-центра до уровня современного корпоративного инструмента: экспертный аудит реализованного (~55%) vs концепции, редизайн АРМ оператора/супервизора по CC_WORKSPACES_CONCEPT, wallboard + metrics engine (SLA/AHT/ASA/Occupancy), конфигурируемые карточки звонка, полная отчётность и аналитика, WebRTC softphone — с архитектурным заделом под AI (голосовые ассистенты, речевая аналитика, autonomous agents).
+
+**Scope (in):**
+
+1. **Аудит + rework ядра** — экспертная оценка текущей реализации (backend core, SSE, state store, панели) vs best practices (Genesys, NICE, QueueMetrics); tech debt: graceful SSE disconnect, unit-тесты callcenter-state/service, role-based menu
+2. **АРМ оператора (доработка)** — 4-зонный layout по концепции: client card из phonebook, pick call, drag&drop transfer, missed calls badge, звуковые + browser notifications, расширенная pause modal
+3. **АРМ супервизора (доработка)** — grid↔table toggle, agent detail modal (timeline), queue management modal (add/remove/penalty), bulk actions, live calls actions, internal chat, sparklines
+4. **Wallboard + Metrics engine** — `/callcenter/wallboard`, KPI-карточки, live charts, heatmap очередей, алерты порогов; вычисление SLA/ASR/AHT/ASA/Occupancy/Abandon из AMI событий с накоплением в state
+5. **Call Cards** — конфигурируемые шаблоны (cc_card_templates/fields/data), конструктор (drag&drop), auto-populate из phonebook, привязка к очередям и CDR, авто-карточка при пропущенном, webhook → CRM
+6. **Отчётность + аналитика** — `/callcenter/reports`: сводка очередей, детализация звонков, статистика операторов, отчёт по паузам, почасовая heatmap, agent timeline (визуализация дня), CSV/XLSX экспорт
+7. **WebRTC softphone** — SIP.js + PJSIP WSS, двойной режим (SIP-устройство / браузер), audio devices, DTMF, call quality indicator
+8. **AI-ready foundation** — архитектурные точки расширения: event bus / стриминг аудио под STT-транскрипцию, sentiment, подсказки оператору, auto wrap-up notes; контракты под голосовых ассистентов и autonomous agent (замена человека); MCP/AI tools для CC-сущностей (per backend ARCHITECTURE §6)
+
+**Scope (out):**
+
+- Сама реализация AI-модулей (STT/речевая аналитика/голосовые ассистенты) — отдельные фазы; здесь только архитектурный задел и контракты
+- Полноценный WFM (прогноз нагрузки, расписания смен) — кандидат в backlog
+- Omnichannel (чаты, email, соцсети как каналы очередей) — отдельная фаза
+- Callback / skill-based routing — по итогам discuss (возможно вынести в следующую фазу)
+
+**Requirements:** TBD (discuss → REQ / decisions; ожидается разбиение на подфазы или waves из-за объёма)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 7` — аудит-приоритеты, scope-резка (waves/подфазы), AI-ready контракты |
+| 2 | `/gsd-ui-phase 7` — workspaces/wallboard/call cards UI |
+| 3 | `/gsd-plan-phase 7` |
+| 4 | `/gsd-execute-phase 7` |
+| 5 | `/gsd-ui-review 7` + `npm run test:frontend` |
+| 6 | `/gsd-verify-work 7` → `/gsd-ship 7` |
+
+**Plans:** 22/22 plans executed
+
+Plans:
+
+- [x] 07-01 … 07-12, 07-17 — prior waves (see phase SUMMARY files)
+- [x] 07-13-PLAN.md — Wallboard UI: TV page + display tokens + alert routing [D-27/D-29]
+- [x] 07-14-PLAN.md — WebRTC softphone: sip.js + ShiftLoginModal + ICE config [D-14…D-17]
+- [x] 07-16-PLAN.md — AI-ready foundation: event bus + CallCenterAiAdapter + media PCM skeleton [D-41…D-45]
+- [x] 07-18-PLAN.md — Reports UI: 7 reports + CSV/XLSX/PDF + AgentTimeline reuse [D-33/D-34/D-36]
+- [x] 07-15-PLAN.md — Automated report delivery / schedules via notification_integration [D-35]
+- [x] 07-19-PLAN.md — Gap closure: PauseReasonsManager + operator settings picker [D-40/D-22]
+- [x] 07-20-PLAN.md — Gap closure: track SIP MuteAudio as DEF-07-MUTE-AMI [D-14]
+- [x] 07-21-PLAN.md — Gap closure: setMyAgentInterface on shift login + require ≥1 queue [D-14/D-15]
+- [x] 07-22-PLAN.md — Gap closure: ASTERISK_WSS_URL docs + clear missing-WSS UI [D-14/D-17]
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:backend` (callcenter), `npm run test:frontend`
+- Manual: `/callcenter/agent`, `/callcenter/supervisor`, `/callcenter/wallboard` — сценарий: login → входящий из очереди → карточка авто-открылась с данными phonebook → hold/transfer → wrap-up → отчёты показывают звонок; WebRTC-режим — звонок полностью в браузере
+
+---
+
+## Phase 8: Navigation redesign & Android port foundation
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md` — **MUST READ** (FSD, Tailwind + shadcn, Stack, i18n, design tokens)
+- `packages/frontend/src/widgets/Sidebar/` — текущая навигация (`buildNavigation`, `Sidebar`, `SidebarItem`)
+- `packages/frontend/src/app/layouts/AppLayout.tsx` — shell (sidebar + content)
+- `packages/frontend/src/app/router/router.tsx` — маршруты модулей
+- `packages/frontend/package.json` — стек (React 19 + Vite + Tailwind 4; **нет** Capacitor / RN)
+
+**Status:** Planned  
+**Depends on:** Phase 7 (стабильный App shell / role-based menu; независимо от verify Phases 1–6)
+
+**Goal:** Заменить плоское Tailwind-меню на масштабируемую модульную навигацию (Module Hub 002-E + ModuleShell tabs + marketplace/billing skeleton + platform vs tenant admin + full responsive + Capacitor Android foundation), с современным UX и полноценной mobile-адаптацией.
+
+**Scope (in):**
+
+1. **IA / информационная архитектура** — группировка модулей (workspaces / domains), role-based visibility, deep-link совместимость с текущими routes; поиск по разделам (command palette / omnibox) как first-class способ перехода при росте меню
+2. **Редизайн навигации** — несколько визуальных/функциональных вариантов (sketch → выбор → один winner): collapsible rail + module switcher, dual-rail (domains → pages), mega-menu / flyout, bottom bar (mobile) + drawer; современные паттерны (density, keyboard, recent/favorites, contextual secondary nav)
+3. **Design-system touchpoints** — токены/паттерны shell (AppLayout, nav density, focus rings, motion); без полной смены UI-kit; согласование с `shared/ui` + Tailwind + shadcn
+4. **Mobile-first адаптация** — breakpoints, touch targets, safe areas, drawer/sheet вместо sidebar, сохранение контекста при ротации; smoke на ключевых страницах (dashboard, routes, callcenter agent/supervisor)
+5. **Android port foundation** — выбор оболочки (рекомендуемый baseline: **Capacitor** над существующим Vite/React SPA); gap-анализ стека; scaffold `android/`; env/build pipelines; WebView constraints (auth storage, SSE, WebRTC/mic/camera permissions, deep links, push notifications stub); документация «что добавить / чего не хватает»
+6. **i18n** — все новые строки `ru` + `en`
+
+**Scope (out):**
+
+- Полный редизайн всех внутренних страниц модулей (только shell + navigation + critical mobile breakpoints)
+- Публикация в Google Play / store listing / production signing — только подготовка и checklist
+- Нативный React Native rewrite (если discuss выберет Capacitor — RN out of scope)
+- iOS port (можно заложить в backlog / следующую фазу после Android foundation)
+- Backend API changes кроме минимально необходимых для mobile auth/push (обсуждается на discuss)
+
+**Stack gaps (стартовая гипотеза для research/discuss):**
+
+| Область | Сейчас | Нужно для Android |
+|---------|--------|-------------------|
+| Shell | Vite SPA в браузере | Capacitor 6/7 + `@capacitor/android` |
+| Permissions | browser APIs | Capacitor plugins: Camera/Mic, Push, App, StatusBar, SplashScreen, Keyboard |
+| Softphone | sip.js + WSS в браузере | проверка WebView WebRTC / audio focus / background constraints |
+| Realtime | SSE / socket.io | keep-alive / reconnect политики под mobile network |
+| Auth | JWT / localStorage | Secure storage plugin; refresh UX offline |
+| Build | `vite build` | Gradle wrapper, CI artifact AAB/APK, env flavors |
+
+**Requirements:** NAV-01…NAV-16 (derived; see `08-RESEARCH.md` `<phase_requirements>` — REQUIREMENTS.md has no Phase 8 IDs)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 8` — done |
+| 2 | `/gsd-sketch` — done (winners Hub E, tabs B, mobile B, marketplace B, admin B) |
+| 3 | `/gsd-ui-phase 8` — done (`08-UI-SPEC.md`) |
+| 4 | `/gsd-plan-phase 8` — done |
+| 5 | `/gsd-execute-phase 8` |
+| 6 | `/gsd-ui-review 8` + `npm run test:frontend` |
+| 7 | `/gsd-verify-work 8` → `/gsd-ship 8` |
+
+**Plans:** 15/17 plans executed
+
+Plans:
+
+- [x] `08-01-PLAN.md` — Wave 0a: SUPERADMIN enum + module contracts + registry/roleStart tests
+- [x] `08-12-PLAN.md` — Wave 0b: tokenStorage + CommandPalette filter + locale seeds
+- [x] `08-13-PLAN.md` — Wave 0c: backend Nyquist stubs (SuperAdminGuard / purchase / device-token)
+- [x] `08-02-PLAN.md` — Wave 1: Hub catalog + membership + licenseStatus + role→start API
+- [x] `08-03-PLAN.md` — Wave 2: Module Hub 002-E + ModuleShell 003-B
+- [x] `08-04-PLAN.md` — Wave 3: ⌘K palette, deep-link fallback, legacy redirects
+- [x] `08-05-PLAN.md` — Wave 4: Platform `/platform/*` vs tenant System→Modules
+- [x] `08-06-PLAN.md` — Wave 5: Billing checkout skeleton (charge + activate)
+- [x] `08-07-PLAN.md` — Wave 6: Phone bottom bar 004-B + chip Sheet
+- [x] `08-08-PLAN.md` — Wave 7: Users/Roles/Numbers + role→start admin
+- [x] `08-09-PLAN.md` — Wave 8a: Responsive — Dashboard/Core critical + CC agent sticky softphone
+- [x] `08-14-PLAN.md` — Wave 8b: Responsive — Core rest (Trunks/Contexts/TimeGroups/ProvisionTemplates)
+- [x] `08-15-PLAN.md` — Wave 8c: Responsive — Apps rest (Prompts/CallGroups/Integrations/VoiceRobots)
+- [x] `08-16-PLAN.md` — Wave 8d: Responsive — System rest (Settings/TTS/STT/AuditLog/Modules)
+- [x] `08-17-PLAN.md` — Wave 8e: Responsive — Analytics/AI/CC orphans (CDR/ServiceRequests/AiAgents)
+- [x] `08-10-PLAN.md` — Wave 9: Capacitor 8 + Secure Storage + URL flavors
+- [ ] `08-11-PLAN.md` — Wave 10: FCM foundation + WebRTC notes + ARCHITECTURE/i18n
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:frontend`; Capacitor sync/build smoke (если scaffold в scope execute)
+- Manual: desktop — переключение между доменами/модулями, keyboard/search; mobile — drawer/bottom nav, ключевые сценарии; Android emulator/device — открытие shell, login, 1–2 ключевых экрана, mic permission path для softphone
+
+---
+
+## Phase 9: Call Center Agent Panel: softphone widget & professional call control
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md` — **MUST READ**
+- `.idea/call-center/CC_WORKSPACES_CONCEPT.md` — АРМ оператора (зоны / layout)
+- `.idea/call-center/CC_WEBRTC_CONCEPT.md` — WebRTC softphone
+- `packages/frontend/src/pages/CallCenterAgentPage/CallCenterAgentPage.tsx` — primary target (orchestrator)
+- `packages/frontend/src/features/callcenter/` — softphone, SSE, selectors, UI panels
+- `packages/backend/src/modules/callcenter/` — AMI actions (transfer, chanspy, hangup, pickup), state, metrics
+
+**Status:** Implemented and verified — 17/17 summaries; 09-UAT complete, 09-VERIFICATION passed 16/16. Separate deferred live-call checks remain in WINDOWS.
+**Depends on:** Phase 7 (CC core + WebRTC softphone); Phase 8 agent sticky softphone / mobile shell — желательно после стабилизации layout
+
+**Goal:** Переработать АРМ оператора (`CallCenterAgentPage`): основными становятся вкладки **Коллеги / Очереди / Текущие (ожидающие) звонки**; софтфон — компактный виджет + окно входящего вызова и кнопки управления в верхней статус-панели; статус «Готов» → «Ожидание звонка»; KPI принял/пропустил в статус-строке (все звонки, не только queue); per-queue answered/missed; transfer / ChanSpy / hangup по ролям; pickup из waiting; полный набор call-control по практикам профессиональных колл-центров.
+
+**Scope (in):**
+
+1. **IA / layout АРМ** — primary tabs: Коллеги (Операторы), Очереди, Текущие/ожидающие звонки; софтфон как виджет (не доминирующая «карточка ожидания»)
+2. **Статус-панель оператора** — «Ожидание звонка» вместо «Готов»; counters принял / пропустил (incoming+outgoing answered; любой missed/abandoned); при активном вызове — call controls в статус-баре + окно звонка
+3. **Вкладка Очереди** — все очереди оператора; per-queue answered/missed stats
+4. **Вкладка Коллеги** — активные операторы в очередях; click-to-transfer; ChanSpy modes если включена прослушка; hangup — свой разговор (оператор) / разговоры своих операторов (супервизор)
+5. **Вкладка Текущие/ожидающие** — таблица waiting queue calls + pickup («подобрать»)
+6. **Call-control feature set** — hold, mute, DTMF, blind/attended transfer, conference/chanspy modes, hangup, pickup и прочие best-practice действия (discuss уточняет MVP vs full)
+7. **Backend/AMI** — недостающие actions/events для counters, chanspy, hangup-remote, pickup; KPI semantics (не только queue-missed)
+8. **i18n** — `ru` + `en`
+
+**Scope (out):**
+
+- Полноценный WFM / schedules
+- Omnichannel очереди (chat/email) — отдельная фаза
+- Полный redesign супервизорского АРМ (кроме hangup/chanspy прав, пересекающихся с коллегами)
+
+**Requirements:** TBD (discuss → REQ / decisions)
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 9` — IA вкладок, KPI semantics, call-control MVP vs full, supervisor overlap |
+| 2 | `/gsd-ui-phase 9` — status bar + tabs + softphone widget + call window |
+| 3 | `/gsd-plan-phase 9` |
+| 4 | `/gsd-execute-phase 9` |
+| 5 | `/gsd-ui-review 9` + `npm run test:frontend` / `test:backend` |
+| 6 | `/gsd-verify-work 9` → `/gsd-ship 9` |
+
+**Plans:** 17/17 plans complete
+
+Plans:
+
+- [x] 09-01-PLAN.md — Backend schema/models + Phase-9 migration + push (D-09/10/13/16/17/19/34/35/38/39/41/43)
+- [x] 09-02-PLAN.md — Frontend Tabs primitive + AgentStatus enum + labels/i18n (D-01/04/07/13/44)
+- [x] 09-03-PLAN.md — Backend all-channel AMI listener + dual shift/day KPI (D-08/09/11/12/13/14/31/32)
+- [x] 09-04-PLAN.md — Frontend status bar redesign + KPI + call-control bar (D-03/11/12/13/14/44)
+- [x] 09-05-PLAN.md — Backend PermissionsService + peer ChanSpy + audit (D-21/22/23/24/25/26/38/39)
+- [x] 09-06-PLAN.md — Frontend softphone widget (FAB) + incoming call toast (D-01/02/03/44/46)
+- [x] 09-07-PLAN.md — Backend call-control: park/conference/zombie-reset/warm-transfer (D-25/26/27/28/29/33)
+- [x] 09-08-PLAN.md — Frontend layout/IA rework + Coworkers/Queues/Waiting tabs (D-04/05/07/21/22/23/25/26/31/32/33/44/46)
+- [x] 09-09-PLAN.md — Backend smart missed-calls engine + auto-pause rules (D-10/15/16/17/18/19/20)
+- [x] 09-10-PLAN.md — Frontend missed-calls UI + call-control UI + parked indicator (D-16/17/18/19/27/28/33/44)
+- [x] 09-11-PLAN.md — Backend unified call history + transfer directory + BLF presence (D-34/35/36/37/45)
+- [x] 09-12-PLAN.md — Frontend transfer directory + click-to-call + call-history UI (D-29/34/36/37/44)
+- [x] 09-13-PLAN.md — Backend settings endpoints: permissions/notifications/UI customization (D-05/06/38/39/40/41/42/43)
+- [x] 09-14-PLAN.md — Frontend settings UI + notification engine + mobile rework + i18n (D-38/39/40/41/42/43/44/46)
+- [x] 09-15-PLAN.md — Gap closure: wire orphaned call-control/history components into CallCenterAgentPage — park/retrieve/zombie-reset + directory transfer + call history/click-to-call (D-05/27/28/29/34/35/36/37)
+- [x] 09-16-PLAN.md — UAT gap G-09-1: single global throttler + AI POST route-scoped 10/min (D-41/D-42)
+- [x] 09-17-PLAN.md — UAT gap G-09-2: tenant autopause_rules API + AutoPauseRulesForm Settings UI (D-15)
+
+---
+
+## Phase 10: Full Softphone (WebRTC dial / journal / contacts)
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md` — **MUST READ**
+- `docs/archive/gsd/phases/10-full-softphone/10-BRIEF.md` — product brief (seed from Phase 9 ARM layout)
+- `.idea/call-center/CC_WEBRTC_CONCEPT.md` — WebRTC softphone (если доступен локально)
+- `packages/frontend/src/features/callcenter/ui/SoftphoneWidget/` — chrome softphone shell (Dial / Journal / Contacts tabs)
+- `packages/frontend/src/features/callcenter/lib/useWebRTCPhone.ts` — sip.js + WSS / re-REGISTER
+- `packages/frontend/src/features/callcenter/ui/AgentStatusBar/` — softphone trigger + call controls host
+- `packages/frontend/src/features/callcenter/ui/CallHistoryPanel/`, `TransferDirectory/` — journal / contacts seeds
+- `packages/frontend/src/pages/CallCenterAgentPage/CallCenterAgentPage.tsx` — orchestrator (single SIP session owner)
+- `packages/backend/src/modules/callcenter/` — operator history, transfer directory, BLF presence, click-to-call, WebRTC config
+
+**Status:** Implemented — 9/9 summaries; 10-UAT complete. The old Not planned status was stale.
+**Brief:** `docs/archive/gsd/phases/10-full-softphone/10-BRIEF.md`
+**Depends on:** Phase 9 agent panel (chrome, KPI, TransferDirectory, history API); existing `useWebRTCPhone` + PJSIP WSS; BLF / transfer directory backend
+
+**Goal:** Сделать полнофункциональный WebRTC-софтфон отдельным продуктовым контуром внутри АРМ оператора: набор, журнал, контакты (абоненты / очереди / группы), управление вызовом и качеством связи — вшитый в chrome (status strip / header), без плавающего FAB, перекрывающего UI.
+
+**Scope (in):**
+
+1. **Shell / chrome** — softphone вшит в chrome АРМ (status strip / header); состояния collapsed trigger · expanded panel · mobile sticky + sheet; единый источник правды по активному вызову со status-bar call controls (без дублирования логики)
+2. **Dial** — dialpad, click-to-call bridge, DTMF in-call, redial last; dial buffer / last number в sessionStorage
+3. **Journal** — личный журнал звонков оператора (in/out/missed), фильтры смена/сутки, callback, открытие карточки звонка (реальные данные, не placeholder)
+4. **Contacts** — единый каталог: абоненты (endpoints / phonebook), очереди, группы (ring / dial groups), BLF presence где доступно, поиск + недавно использованные; click-to-call ≤1 клик от строки
+5. **Call features** — Mute / Hold / Transfer (blind + attended) / Conference add; Park / retrieve (если роль разрешает); call quality indicator (MOS / jitter / RTT / loss) + degraded UX; device picker (mic/speaker) без перелогина смены; auto-answer + zip tone до parity с softphone UX
+6. **Resilience** — переподключение WSS / re-REGISTER после рестарта backend / Asterisk без потери смены; явный UI «регистрируюсь… / offline» в trigger; recover path без повторного Start shift (или одна явная кнопка Recover)
+7. **i18n / a11y** — `ru` + `en`; keyboard dial + ARIA tabs
+
+**Scope (out):**
+
+- Video softphone
+- Embedded CRM screen-pop beyond existing CallCard
+- Multi-line / multi-call UI (park + switch) — только если появится в discuss
+- Native mobile app softphone (Capacitor) — отдельный трек (Phase 8 Android)
+
+**Requirements:** TBD (discuss → REQ / decisions)
+
+**Success criteria (draft):**
+
+1. Оператор набирает, принимает и переводит звонок только из softphone chrome — FAB нигде не перекрывает таблицы
+2. Вкладки Journal и Contacts показывают реальные данные (не placeholder)
+3. После F5 / смены вкладки / краткого рестарта backend смена и регистрация WebRTC восстанавливаются без повторного «Start shift», либо с одной явной кнопкой Recover
+4. Контакты: поиск ≤300ms perceived; click-to-call ≤1 клик от строки
+5. i18n ru/en; a11y: keyboard dial + ARIA tabs
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | `/gsd-discuss-phase 10` — journal source, contact sources, multi-call, quality metrics MVP |
+| 2 | `/gsd-ui-phase 10` — chrome softphone surfaces (Dial / Journal / Contacts) |
+| 3 | `/gsd-plan-phase 10` |
+| 4 | `/gsd-execute-phase 10` |
+| 5 | `/gsd-ui-review 10` + `npm run test:frontend` / `test:backend` |
+| 6 | `/gsd-verify-work 10` → `/gsd-ship 10` |
+
+**Requirements:** D-01 … D-35 (locked decisions in `docs/archive/gsd/phases/10-full-softphone/10-CONTEXT.md`; no REQ-IDs, same convention as Phases 5-9)
+
+**Plans:** 9/9 plans executed
+
+Plans:
+
+- [x] 10-01-PLAN.md — cc_contacts backend: new table + model + migration + DTO + tenant/ownership-gated CRUD (D-11…D-15)
+- [x] 10-02-PLAN.md — Journal SSE emit (historyRow) on history writer + journal_depth tenant setting (D-04/D-05)
+- [x] 10-03-PLAN.md — SIP backend: AMI PlayDTMF + validated sendDtmf + my-endpoint registration-state (D-32/D-33/D-35)
+- [x] 10-04-PLAN.md — Frontend foundation: RTK endpoints/types/tags + historyRow prepend + shiftSession dial buffer + full ru/en copy (D-04/D-05/D-11…D-14/D-16/D-18/D-19/D-32/D-35)
+- [x] 10-05-PLAN.md — SoftphoneJournal live blended feed (callback/open-card, N cap, empty+error) + journal_depth settings UI (D-01…D-05)
+- [x] 10-06-PLAN.md — SoftphoneContacts 5-section unified catalog + ContactBookForm inline CRUD (ownership-gated) (D-11…D-14/D-25)
+- [x] 10-07-PLAN.md — ARM CallHistoryPanel: Queue/Outbound/Personal segments + per-segment search (D-06…D-10)
+- [x] 10-08-PLAN.md — SoftphoneWidget shell rework: remove fab + Tabs + mode prop + mount Journal/Contacts + redial/restore + registration/Recover + quality/devices (D-16…D-24/D-26/D-27/D-34)
+- [x] 10-09-PLAN.md — Dual-mode SIP: useSipPhoneAmi facade + CallCenterAgentPage isSip branch + live-Asterisk checkpoint (D-24/D-31…D-35)
+
+**Waves:** W1 {10-01, 10-02} · W2 {10-03} · W3 {10-04} · W4 {10-05, 10-06, 10-07} · W5 {10-08} · W6 {10-09}
+
+---
+
+## Phase 11: Harness Layer (external black-box infrastructure)
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md`, `packages/backend/.idea/ARCHITECTURE.md` — MUST READ (public API / auth / multi-tenant conventions)
+- Existing seed: `e2e/` (Playwright operator happy-path) + `.github/workflows/e2e.yml`
+- Public surfaces only: HTTP `/api/*`, SSE `/api/callcenter/events`, Socket.IO AMI gateway, UI routes — **no** imports from `packages/*/src`
+
+**Status:** Implemented, live gates open — 8/8 summaries; verification passed; UAT has 1 pass and 8 skipped live scenarios. First green remote CI run and e2e retirement remain open.
+**Depends on:** — (независима от product-фаз; может идти параллельно с Phase 10 verify)
+
+**Goal:** Построить отдельный каталог `/harness` вокруг production-приложения: Runner, Environment, Scenarios, Assertions, Metrics, Reporter, Observability. Harness работает как внешний пользователь (HTTP/UI/SSE/AMI), не меняет бизнес-логику, минимально трогает `packages/*`.
+
+**Locked (D-H01…D-H06):** absorb `e2e/`; assertions API+SSE+UI (SQL точечно); Asterisk/realtime in plan; Vitest@harness / Jest@backend; harness-only OTel v1; minimal `GET /api/health`.
+
+**Scope (in):**
+
+- Корневой пакет `harness/` (TypeScript, npm workspace или standalone package)
+- Backend black-box: API scenarios + Testcontainers/Compose environment + fixtures via public API
+- Frontend black-box: Playwright scenarios (миграция/абсорбция существующего `e2e/`)
+- Metrics + reporters (markdown / JSON / JUnit)
+- Harness-side OpenTelemetry + structured logging
+- CI wiring (эволюция `.github/workflows/e2e.yml`)
+
+**Scope (out):**
+
+- Переписывание unit/integration тестов внутри `packages/*`
+- Миграция Jest → Vitest в backend package
+- Внедрение OTel SDK внутрь NestJS/React без отдельного approval (только harness-side в v1; app OTel — v2)
+
+**Asterisk / realtime (in scope for planning, staged delivery):**
+
+- Environment profile `asterisk` (AMI/ARI/WSS endpoints via env)
+- Scenarios gated by `requires: ['asterisk']` — skip when unreachable, run when `HAS_ASTERISK=1` / live lab
+- SSE + Socket.IO `/ami-events` assertions as first-class (not deferred out of roadmap)
+- Delivery still staged: PR env stub → PR live-lab scenarios (после доступа к подготовленному Asterisk)
+
+**Requirements:** TBD (discuss → ADR / REQ после утверждения архитектуры)
+
+**GSD workflow:**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | Утверждение архитектуры (этот чат) |
+| 2 | `/gsd-discuss-phase 11` — сценарии MVP, env strategy, CI |
+| 3 | `/gsd-plan-phase 11` |
+| 4 | `/gsd-execute-phase 11` — по PR-этапам |
+| 5 | `/gsd-verify-work 11` |
+
+**Status:** Complete (2026-09-02) — 8/8 plans; live API/UI/Asterisk and e2e absorb deferred (WINDOWS 2–4)
+
+**Plans:** 8/8 plans complete
+
+Plans:
+
+- [x] 11-01-PLAN.md — PR-1 Scaffold: harness workspace, Runner/registry, GET /api/health (D-H06, D-21)
+- [x] 11-02-PLAN.md — PR-2 Environment: Testcontainers MySQL, readiness, API seed/teardown (D-08, D-15, D-16)
+- [x] 11-03-PLAN.md — PR-3 Backend scenarios: auth + MOH CRUD + http assertions (D-01, D-02)
+- [x] 11-04-PLAN.md — PR-4 Frontend absorb: e2e→harness UI + SSE heartbeat; keep e2e/ until CI green (D-H01, D-03, D-04)
+- [x] 11-05-PLAN.md — PR-5 Metrics + Reporter: md/json/junit triad (D-11)
+- [x] 11-06-PLAN.md — PR-6 Observability: harness-side OTel + structured logs (D-H05)
+- [x] 11-07-PLAN.md — PR-7 Asterisk/realtime: gated originate, ami-events, sql opt-in, harness-asterisk.yml (D-05–D-07, D-H03)
+- [x] 11-08-PLAN.md — PR-8 CI harden: harness.yml Node 22, workers=1, artifacts; then delete e2e/ (D-09, D-12, D-23, D-24)
+
+**Waves:** W1 {11-01} · W2 {11-02} · W3 {11-03} · W4 {11-04} · W5 {11-05} · W6 {11-06} · W7 {11-07} · W8 {11-08}
+
+---
+
+## Phase 12: DialplanAppsEditor refactor: reusable route-chain builder
+
+**Canonical refs (фаза):**
+
+- `packages/frontend/.idea/ARCHITECTURE.md` — **MUST READ** (FSD, SCSS-модули + токены `var(--color-*)`, `shared/ui`, Optimistic toggles, i18n)
+- `packages/frontend/src/features/dialplan-apps/ui/DialplanAppsEditor/DialplanAppsEditor.tsx` — **primary target** (orchestrator: add/remove/update/reorder)
+- `packages/frontend/src/features/dialplan-apps/ui/SortableActionItem/SortableActionItem.tsx` — строка действия (сейчас все параметры inline)
+- `packages/frontend/src/features/dialplan-apps/model/registry.ts`, `model/types.ts` — реестр приложений (`IDialplanAppConfig`, `defaultParams`)
+- `packages/frontend/src/features/dialplan-apps/ui/apps/*` — 13 app-компонентов (Group, Notify, CallerId, TrunkCarousel, Queue, Ivr, Prompt, ToRoute, Trunk, Exten, VoiceRobot, Hangup, Generic)
+- `packages/frontend/src/features/dialplan-apps/ui/ActionTypeSelect/`, `ActionConditionFilters/`, `DialstatusSelect/`, `TimeGroupSelect/`
+- **Consumers (все 3 host-а):** `features/routes/ui/RouteFormModal/RouteActionsTab.tsx`, `features/routes/ui/RouteFormModal/RoutePhonebooksTab.tsx`, `features/ivrs/ui/IvrMenuItemsEditor/IvrMenuItemsEditor.tsx`
+- `packages/shared` — `IRouteAction`, `ActionType`, `DialStatus`
+- `packages/frontend/src/features/routes/ui/RouteFormModal/` — эталон табов/модалок (Phase 3)
+- Предыдущая фаза по этой области: Phase 6 (`06-13`/`06-14`/`06-16` — apps + registry + inline group editor)
+
+**Status:** Complete — 2026-08-31 — 17 планов, waves 0…13 (`12-01`…`12-17`)
+**Plans:** 17/17 plans complete
+
+- [x] 12-01-PLAN.md
+- [x] 12-02-PLAN.md
+- [x] 12-03-PLAN.md
+- [x] 12-04-PLAN.md
+- [x] 12-05-PLAN.md
+- [x] 12-06-PLAN.md
+- [x] 12-07-PLAN.md
+- [x] 12-08-PLAN.md
+- [x] 12-09-PLAN.md
+- [x] 12-10-PLAN.md
+- [x] 12-11-PLAN.md
+- [x] 12-12-PLAN.md
+- [x] 12-13-PLAN.md
+- [x] 12-14-PLAN.md
+- [x] 12-15-PLAN.md
+- [x] 12-16-PLAN.md
+- [x] 12-17-PLAN.md
+
+**Depends on:** Phase 6 (registry + apps + call groups / notifications стабилизированы) — brownfield, не блокируется verify Phases 1–11
+
+> **Граница фазы расширена в ходе `/gsd-discuss-phase 12` (2026-08-18).**
+> Исходно фаза была FE-only. Пользователь явно включил бэкенд в scope и добавил две крупные темы:
+> типизацию/валидацию `params` через весь стек и подсистему тенантных настроек. Полный список
+> зафиксированных решений (D-01…D-59) — в `.planning/phases/12-.../12-CONTEXT.md`.
+
+> **Граница сужена в ходе `/gsd-plan-phase 12` (2026-08-18).**
+> Планировщик вернул `PHASE SPLIT RECOMMENDED`: 59 решений не помещаются в бюджет одного набора планов.
+> Независимо к тому же выводу пришёл research (`12-RESEARCH.md` § `Phase Sizing Assessment`).
+> Пользователь подтвердил разделение, отменив тем самым своё более раннее решение `vm_phase: full_in_12`:
+> - **Кастомная голосовая почта (D-54…D-59) → Phase 13** (исторически 12b; GSD 1.12 не принимает буквенные id). Критический путь в самом конце (зависит от типов,
+>   `RECORD_STATUS` в условиях и `notify`), новый класс данных со своей моделью угроз, плюс два вопроса дизайна
+>   остались нерешёнными.
+> - **D-46 (шаблоны цепочек), D-48 (dry-run), D-50 (обратный звонок) → Phase 14.** Ни одна из 12 поверхностей
+>   утверждённого `12-UI-SPEC.md` их не покрывает — это самостоятельные экраны, а не поля в Sheet. Планировать их
+>   здесь означало бы либо изобрести UI-контракт в обход approved-гейта, либо выпустить backend-only полуфичи.
+> - **D-44, D-45, D-47, D-49 остаются в Phase 12** — это новые типы действий на generic schema-driven поверхности C.
+>
+> Также по итогам research исправлены два фактических дефекта в залоченных решениях: **D-55** (опции `k`
+> недостаточно — нужен `hangup_handler_push` перед `Record()`) и **D-56** (`RECORD_STATUS` имеет 7 значений,
+> пропущено `OPERATOR`). Оба уехали в Phase 13 вместе с голосовой почтой.
+
+**Goal:** Отрефакторить `DialplanAppsEditor` в простой, функциональный и **переиспользуемый** конструктор цепочек маршрутов АТС: параметры приложения переезжают из перегруженной inline-строки в Sheet настройки шага, строка становится сканируемым «summary», редактор получает явный типизированный контракт и конфигурируемость (набор разрешённых действий, read-only, лимиты) для всех host-ов — маршруты, справочники маршрута, IVR-меню. **Плюс** — довести dialplan-приложения до конкурентного уровня: типизировать `params` через весь стек (shared → DTO → генератор), починить найденные баги генерации, обеспечить тенант-скоупинг целей набора и расширить функциональность приложений.
+
+**Известные слабые стороны (гипотезы для research/discuss — подтвердить кодом):**
+
+| # | Проблема | Где |
+|---|----------|-----|
+| W1 | `updateAction(id, field, value: any)` — stringly-typed путь (`params.*` / `condition.*`) вместо типизированного контракта; типы теряются на границе редактор↔app | `DialplanAppsEditor.tsx`, все `apps/*` |
+| W2 | `useCallback` с зависимостью `[actions]` пересоздаёт `updateAction`/`removeAction` при любом изменении → `memo` на `SortableActionItem` не работает, перерисовываются все строки на каждое нажатие клавиши | `DialplanAppsEditor.tsx` |
+| W3 | Все параметры приложения inline в строке → горизонтальный `overflow-x-auto`, `max-sm:` костыли, тесно на планшете/мобиле | `SortableActionItem.tsx` |
+| W4 | Строку нельзя «прочитать»: нет summary шага (что реально делает действие), нет свёрнутого/развёрнутого состояния | `SortableActionItem.tsx`, `registry.ts` |
+| W5 | Fallback `registry[action.type] \|\| registry.hangup` — неизвестный/новый тип молча рендерится как Hangup (риск порчи данных вместо явной ошибки) | `DialplanAppsEditor.tsx` |
+| W6 | Нет валидации: пустой `type: ''` и незаполненные обязательные params сохраняются молча; нет per-step ошибок | editor + hosts |
+| W7 | Хардкод Tailwind `bg-black/20` / `border-white/10` вместо design-токенов `var(--color-*)` — расхождение с ARCHITECTURE и Phase 3 | `SortableActionItem.tsx` |
+| W8 | Нулевая конфигурируемость под host: нельзя ограничить набор действий (IVR-меню ≠ маршрут), нет read-only, нет `maxSteps`, нет override заголовков/i18n | props = только `{ actions, onChange }` |
+| W9 | Нет операций продуктивности: дублировать шаг, вкл/выкл шаг, копировать/вставить, undo удаления | editor |
+| W10 | DnD без `DragOverlay` / ограничения по вертикальной оси и без a11y-анонсов; `id` через `Date.now()+Math.random()` вместо `crypto.randomUUID()` | `DialplanAppsEditor.tsx` |
+| W11 | Нет тестов на сам editor и на `SortableActionItem` (тесты есть только у части `apps/*`) | `features/dialplan-apps` |
+
+**Scope (in):**
+
+1. **Модалка настройки шага** — параметры приложения и условия (`dialstatus`, `time_group_uid`) переносятся в модалку/Sheet на базе `shared/ui/Dialog`; строка в списке остаётся компактной: номер, drag-handle, тип, summary, badges условий, действия строки
+2. **Summary-контракт в registry** — расширение `IDialplanAppConfig`: человекочитаемый `summarize(action)` (i18n) + `validate(action)` + метаданные полей; строка и модалка питаются из одного источника
+3. **Типизированный контракт редактора** — уход от `(id, field: string, value: any)` к типизированным обновлениям (patch action / patch params / patch condition); стабильные колбэки (`useCallback` без зависимости от всего массива, functional `onChange` или ref-паттерн) → отсутствие каскадных ре-рендеров
+4. **Переиспользуемость** — props: `allowedTypes` / `excludedTypes`, `readOnly`, `maxSteps`, `labels`/i18n-namespace, `emptyState`; все 3 host-а (`RouteActionsTab`, `RoutePhonebooksTab`, `IvrMenuItemsEditor`) переводятся на новый контракт без регрессий
+5. **UX цепочки** — сканируемый список шагов, дублирование шага, вкл/выкл шага, undo удаления, явная валидация с per-step ошибкой и блокировкой сохранения в host-е, понятный empty state, hint про порядок выполнения
+6. **Явная обработка неизвестных типов** — вместо silent-fallback на Hangup: отдельное «unknown action» состояние, сохраняющее исходные `params` без потери данных
+7. **Design tokens + a11y** — `var(--color-*)` / SCSS-модуль по паттерну проекта; `DragOverlay` + вертикальное ограничение, keyboard-reorder с ARIA-анонсами, focus-management при открытии/закрытии модалки
+8. **Тесты + i18n** — unit/RTL на editor (add/remove/reorder/validate/readOnly/allowedTypes) и на summary/validate в registry; `ru` + `en` для всех новых строк
+9. **Типизация `params` через весь стек** (D-08/D-09) — discriminated union в `packages/shared` → per-type DTO-валидация вместо `Record<string, any>` → выравнивание всех действующих `ActionType` с генератором dialplan
+10. **Тенант-скоупинг целей набора** (D-21) — `${EXTEN}` не попадает в `Dial()`/`Queue()`/`Gosub()` напрямую; единая функция нормализации (`q{exten}_{uid}`, `e{exten}_{uid}`, `group_{exten}_{uid}`). Закрывает запрос «вызвать очередь/группу по маске маршрута»
+11. **Фиксы генератора dialplan** (D-42/D-43) — условие в multi-line действиях применяется только к первой строке; битый `label`; отсутствующий time-group guard в IVR/phonebook-биндингах; теряемые params у `setclid_*`; двойной суффикс контекста в `toroute`
+12. **Расширение условий шага** (D-22/D-23) — за пределы `DIALSTATUS`: `QUEUESTATUS`, `DEVICE_STATE`, переменная канала, результат `CURL`; UI = пресеты понятным языком + expert-режим
+13. **Per-app усиление функциональности** (D-32…D-39) — `QUEUE_PRIO` и `announceoverride` у очереди; номер (`exten`) у групп вызова + подтверждение вызова, пропуск занятых, приветствие/MOH; линейная карусель транков; фикс двойного `SHELL()` в CallerID; корректные опции медиа-приложений
+14. **Подсистема тенантных настроек** (D-19) — глобальные (ADMIN-guard) + тенантные, не пересекающиеся; на ней стоят флаги видимости raw-dialplan и блок-схемы (D-16/D-17)
+15. **Чистка legacy** (D-28…D-31) — `tofax`/`asr`/`keywords` hard-remove; `sendmail`/`sendmailpeer`/`telegram` → `notify`; `text2speech` → внутренние TTS; PHP через `SHELL()`/`System()` → `CURL` → Nest
+16. **Единое приложение «Воспроизведение»** (D-51…D-53) — складывает `Playback` + `BackGround` + `ControlPlayback`, приложение Asterisk выбирается по режиму; генератор берёт на себя язык (`langoverride` vs `Set(CHANNEL(language))`) и `Progress()` при `noanswer`; режим «выход по цифре» маркируется как меняющий поток управления. Устраняет инверсию имён `playprompt`/`playback`
+17. **Новые типы действий на generic-поверхности** (D-44, D-45, D-47, D-49) — логические примитивы (метка / переход / ветвление, делает `label` осмысленным), расписание как действие, HTTP-запрос → переменная (результат доступен в условиях по D-22), сбор ввода пользователя (`Read` / `WaitExten`). Все четыре едут на schema-driven поверхность C из UI-SPEC, отдельных экранов не требуют
+
+**Scope (out):**
+
+- **Кастомная голосовая почта (D-54…D-59) — Phase 13** (вынесено при планировании как 12b: критический путь в конце, новый класс данных со своей моделью угроз, два нерешённых вопроса дизайна). Старый тип действия `voicemail` до Phase 13 остаётся как есть
+- **Шаблоны цепочек (D-46), dry-run маршрута (D-48), обратный звонок (D-50) — Phase 14** (нет поверхностей в утверждённом `12-UI-SPEC.md`)
+- Граф-редактор / блок-схема dialplan с печатью и экспортом в PDF — **Phase 14** (в Phase 12 только флаг видимости)
+- MCP-сервер + построение и редактирование маршрутов с помощью LLM — **Phase 14**
+- ConfBridge как полноценный модуль (профили, PIN, admin/marked, запись, DTMF-меню) со своим UI — **отдельная фаза** (D-41)
+- MWI (индикатор нового сообщения на телефоне) и прослушивание голосовой почты с трубки (аналог `VoiceMailMain`) — вне фазы; в проекте отсутствуют и сейчас
+- ~~Тенантный контекст ящиков voicemail~~ — **снято:** `VoiceMail()` удаляется целиком (D-54), тенантность решается по построению
+- Полный редизайн `RouteFormModal` целиком (только вкладки-потребители редактора)
+- Удаление колонки `raw_dialplan` — **отменено** в discuss: колонка и UI остаются, видимость через настройку (D-16)
+
+**Success criteria (draft):**
+
+1. Строка шага читается без открытия: тип + summary параметров + условия; список из 8+ шагов не требует горизонтального скролла на 1280px и не ломается на 375px
+2. Все параметры действия редактируются в модалке; сохранение/отмена модалки не теряет изменения остальных шагов
+3. Ввод в модалке одного шага не вызывает ре-рендер остальных строк (проверяемо тестом/профилем) — W2 закрыт
+4. `DialplanAppsEditor` используется всеми 3 host-ами через один контракт; IVR-меню видит только разрешённый набор действий
+5. Пустой тип и незаполненные обязательные params явно подсвечены и блокируют сохранение в host-е
+6. Неизвестный `action.type` отображается как unknown-шаг с сохранением `params` (не как Hangup)
+7. `npm run lint`, `npm run test:frontend` зелёные; новые тесты покрывают add/remove/reorder/validate/readOnly/allowedTypes
+8. i18n `ru` + `en` для всех новых/изменённых строк
+
+**Requirements:** Locked decisions **D-01…D-53 + D-44, D-45, D-47, D-49** в `docs/archive/gsd/phases/12-dialplan-apps-editor-refactor-reusable-route-chain-builder/12-CONTEXT.md` (**49 отслеживаемых** — уточнено `check.decision-coverage-plan`; ROADMAP ранее указывал 48). Вне фазы: D-46/D-48/D-50 (Phase 14), D-54…D-59 (Phase 13), D-40 (отменено самим CONTEXT), D-41 (сознательно частичное — только перевод действия на схему параметров)
+
+**Plans:**
+
+- [x] `12-01-PLAN.md` — Wave 0: characterization-тесты генератора (22 непокрытые ветви → 29/29)
+- [x] `12-02-PLAN.md` — tracer: «очередь по маске маршрута» сквозь все слои
+- [x] `12-03-PLAN.md` — discriminated union `params` + 30 per-type DTO + реестр DTO
+- [x] `12-04-PLAN.md` — подсистема тенантных настроек (backend + миграция)
+- [x] `12-05-PLAN.md` — ядро генератора: multi-line условия, `label`, 5 call-site, `normalizeTarget`
+- [x] `12-06-PLAN.md` — расширенные условия шага + защита от петель и недостижимые шаги
+- [x] `12-07-PLAN.md` — ядро FE-редактора: reducer, undo, clipboard, unknown-тип
+- [x] `12-08-PLAN.md` — Sheet целиком: schema-поля, опции, условия, проекция ошибок
+- [x] `12-09-PLAN.md` — UI тенантных настроек с optimistic toggle
+- [x] `12-10-PLAN.md` — единое приложение «Воспроизведение» (backend + UI)
+- [x] `12-11-PLAN.md` — чистка legacy: PHP → внутренние endpoint'ы, `notify`, внутренние TTS
+- [x] `12-12-PLAN.md` — миграция данных `params` + hard-remove типов
+- [x] `12-13-PLAN.md` — per-app фиксы: транки, CallerID, очередь, exten, confbridge
+- [x] `12-14-PLAN.md` — `exten` у групп вызова + единая схема контекста с переходным `include`
+- [x] `12-15-PLAN.md` — группы вызова уровня Ring Group: подтверждение, пропуск занятых, MOH
+- [x] `12-16-PLAN.md` — новые типы действий: метка/переход/ветвление, расписание, HTTP, сбор ввода
+- [x] `12-17-PLAN.md` — финальный гейт: ручные проверки M1, M4…M9, M12 + полный прогон
+
+**GSD workflow (рекомендуемый порядок):**
+
+| Шаг | Команда |
+|-----|---------|
+| 1 | ~~`/gsd-discuss-phase 12`~~ — **done 2026-08-18**, решения D-01…D-59 в `12-CONTEXT.md` |
+| 2 | ~~`/gsd-ui-phase 12`~~ — **done 2026-08-18**, `12-UI-SPEC.md` approved (12 поверхностей A…L) |
+| 3 | `/gsd-plan-phase 12` — **done**: research + PATTERNS + VALIDATION + 17 PLAN; checker blockers closed (12-09 Switch loading `checked`, 12-07 local DnD modifier / no `@dnd-kit/modifiers`) |
+| 4 | `/gsd-execute-phase 12` |
+| 5 | `/gsd-ui-review 12` + `npm run test:frontend` |
+| 6 | `/gsd-verify-work 12` → `/gsd-ship 12` |
+
+**Verification:**
+
+- Automated: `npm run lint`, `npm run test:frontend` (editor + SortableActionItem + registry summarize/validate + существующие `apps/*` тесты + `RoutePhonebooksTab.test.tsx`), `npm run test:backend` (per-type DTO-валидация + `dialplan.util.spec.ts` на все ветви генератора — **22 из 29 не покрыты** (уточнено research; ROADMAP ранее указывал 21) + `call-group-dialplan.util`)
+- Manual: `/routes` → маршрут → «Действия» — собрать цепочку из 5+ шагов (queue → group → notify → hangup), настроить параметры в Sheet, переупорядочить drag и клавиатурой, дублировать и выключить шаг, сохранить → dialplan применяется как раньше; «Справочники» маршрута и IVR-меню — тот же редактор без регрессий; проверить 375px / 768px / 1280px
+- Manual (Asterisk): маршрут с маской `_2XX` + действие «очередь по маске» → набор 201 попадает в очередь `q201_{uid}`; то же для группы; условие «очередь переполнена» отрабатывает через `QUEUESTATUS`; `dialplan show` подтверждает, что условие применяется ко всем строкам multi-line действий
+- Manual-only чеклист M1…M12 (живой Asterisk, `packages/harness` отсутствует) — в `12-VALIDATION.md`. В Phase 12 закрываются **M1, M4…M9, M12** (план `12-17`); **M2, M3, M10, M11** относятся к голосовой почте и перенесены в Phase 13
+
+---
+
+## Phase 13: Кастомная голосовая почта вместо `VoiceMail()`
+
+**Canonical refs (фаза):**
+
+- `docs/archive/gsd/phases/12-dialplan-apps-editor-refactor-reusable-route-chain-builder/12-CONTEXT.md` — **залоченные решения D-54…D-59 живут здесь** (не дублируются, чтобы не разошлись)
+- `.planning/phases/12-.../12-RESEARCH.md` — Pitfall по `Record()`/hangup handler, разбор `stt-engines`, `safeRecordFilePath`, WAV→PCM16, Open Questions 2–5
+- `.planning/phases/12-.../12-PATTERNS.md` — scaffold модуля (`modules/notifications/`), `cc_display_tokens` + `DisplayTokenGuard`, AES-паттерн ключей провайдера
+- `.planning/phases/12-.../12-UI-SPEC.md` — **Surface L переносится в эту фазу целиком**
+- `packages/backend/src/modules/reports/cdr/` — `hasRecording`/`streamRecording`/access-scope, на которые садится вкладка сообщений
+- `packages/backend/src/modules/stt-engines/`, `packages/backend/src/modules/ai-agents/`
+
+**Status:** Complete (2026-09-03) — 13/13 plans; verify `passed` 19/19; security SECURED 28/28; live Asterisk notify deferred (как Phase 12 M4/M5/M12)
+
+**Plans:**
+
+13/13 plans complete
+
+- [x] 13-01-PLAN.md — Wave 0: RED D-55 spec + RECORD_STATUS + parseWavPcm16
+- [x] 13-02-PLAN.md — Wave 1: D-72 path gate + types + generator (push/pop/`k`)
+- [x] 13-03-PLAN.md — Wave 1: 7 RECORD_STATUS presets including OPERATOR
+- [x] 13-04-PLAN.md — Wave 2: step schema/DTO, max_duration=120
+- [x] 13-11-PLAN.md — Wave 2: module + migrate + ingest + JWT list
+- [x] 13-05-PLAN.md — Wave 3: opaque 7d token + wav resolver
+- [x] 13-09-PLAN.md — Wave 3: migrate 6 JSON columns
+- [x] 13-12-PLAN.md — Wave 3: CDR tab + shared filter
+- [x] 13-06-PLAN.md — Wave 4: attach &lt; 2 MiB / link fallback
+- [x] 13-07-PLAN.md — Wave 5: @Interval scanner, two status axes, STT/LLM
+- [x] 13-08-PLAN.md — Wave 6: JWT stream + Surface L details
+- [x] 13-10-PLAN.md — Wave 7: VoicemailAiAdapter (read-only)
+- [x] 13-13-PLAN.md — Wave 8: gap-closure D-62 hangup CURL notify + CR-01 `/voicemail/play` route order
+
+**Waves:** W0 {13-01} · W1 {13-02, 13-03} · W2 {13-04, 13-11} · W3 {13-05, 13-09, 13-12} · W4 {13-06} · W5 {13-07} · W6 {13-08} · W7 {13-10} · W8 {13-13}
+**Depends on:** Phase 12 (типизация `params`, `RECORD_STATUS` в расширенных условиях D-22, слияние notify D-28)
+
+**Goal:** Заменить приложение Asterisk `VoiceMail()` собственной голосовой почтой: опциональное приветствие → `Record()` → уведомление через `notify` → расшифровка и саммаризация через `stt-engines` + LLM. Доступ к сообщениям — вкладка/фильтр в CDR-отчёте с кнопкой «Детализация» и плеером. Старый тип действия `voicemail` — hard-remove с миграцией существующих шагов.
+
+**Scope (in):** D-54…D-59.
+
+**Известные ловушки, зафиксированные до планирования:**
+
+| # | Ловушка |
+|---|---------|
+| 1 | Опция `k` у `Record()` сохраняет **файл**, но канал всё равно завершается на отбое. Без `Set(CHANNEL(hangup_handler_push)=…)` **перед** `Record()` уведомление, запись в БД и расшифровка не запустятся ровно в том сценарии, ради которого `k` и вводится (D-55) |
+| 2 | `RECORD_STATUS` имеет **7** значений, включая `OPERATOR` (опция `o`). Без него «нажал 0 для оператора» неотличимо от «нажал `#`» (D-56) |
+| 3 | LLM-клиента в проекте **нет** — `ai-agents` это CRUD-реестр провайдеров, `ai-chat` зовёт внешний aiPBX. Нужен тонкий OpenAI-совместимый клиент с AES-ключом по паттерну `CcAiProvider.encrypted_api_key` |
+| 4 | `safeRecordFilePath` жёстко добавляет `.mp3` и отдаёт `audio/mpeg` — прямой реюз даст 404 на `.wav`. Access-scope и `Range` переиспользуются, резолвер пути — нет |
+| 5 | STT ждёт headerless PCM16 8 kHz — заголовок WAV снимать разбором чанков, не «первыми 44 байтами» |
+| 6 | Для токен-ссылки (D-59) в проекте есть лучший прецедент, чем второй JWT `audience`: `cc_display_tokens` + `DisplayTokenGuard` (opaque-токен с TTL и отзывом, `req.user` без `sub`/`level`). `cdr-public.controller.ts` для голосовой почты **запрещён** |
+
+**Открытые вопросы к discuss:** чем триггерить STT/LLM (очередь против inline); числовой порог «вложение против ссылки»; политика ретраев; формат записи (`wav` рекомендован); подтверждение владельцем инфраструктуры, что сообщения лежат на том же томе, что записи разговоров.
+
+**GSD workflow:** `/gsd-discuss-phase 13` → `/gsd-plan-phase 13` → `/gsd-execute-phase 13` → `/gsd-secure-phase 13` (новый класс персональных данных) → `/gsd-verify-work 13`
+
+---
+
+## Phase 14: Визуальный конструктор маршрутов и автоматизация
+
+**Status:** Complete (2026-09-04) — 11/11 plans (incl. gap 14-11); verify 27/27
+
+**Goal:** Визуальное представление, симуляция и автоматизация построения маршрутов поверх редактора, доведённого в Phase 12.
+
+**Scope (in):**
+
+1. **Блок-схема dialplan** (D-46 → D-01…D-05) — просмотр цепочки с ветвлением отдельной вкладкой «Схема» в модалке маршрута и в IVR-меню, печать и PDF через браузер, по существующему флагу `routes.show_flowchart` (в Phase 12 сделан только флаг видимости, D-18)
+2. **Dry-run** (D-48 → D-29…D-32, уточнён D-43…D-47) — детерминированная симуляция без обращения к Asterisk, **на обоих хостах**: вход «номер + пресеты сценариев» на маршруте и «что сделал абонент» в IVR-меню. Прогон идёт **сквозным обходом графа** через переходы `toivr` / `toroute` / `goto` с защитой от цикла на существующем `DEFAULT_HOP_LIMIT`; пройденный путь подсвечивается на вкладке «Схема» сегментами по сущностям
+3. **Шаблоны цепочек маршрутов** (D-46 → D-33…D-37, уточнён D-51) — встроенные и тенантные, с местами подстановки; кнопки в редакторе действий плюс раздел `/route-templates` с полным CRUD
+4. **Обратный звонок (callback) как действие маршрута** (D-50 → D-38…D-42, уточнён D-49…D-50) — заявки, `@Interval` сканер повторов, окно и попытки на шаге маршрута, режим и порядок набора на странице настроек колл-центра, вкладка в панелях оператора и супервизора
+5. **Индекс ссылок «Где используется»** (D-48 этой фазы) — обобщение существующего `collectDirectoryReferences` на все типы действий: какие маршруты ссылаются на данный IVR, очередь, группу, робота, список, интеграцию, справочник. Один механизм с двумя потребителями — UI «Где используется» (в том числе ответ на «можно ли удалять») и разрешение цели `toivr` в сквозном прогоне
+
+**Scope (out):** **универсальный LLM-агент по АТС вынесен в Phase 15.** В discuss граница пункта «MCP + построение маршрутов с помощью LLM» разрослась до отдельной подсистемы (23 решения против 18 здесь, другой слой кода, своя тема безопасности), поэтому фазы разделены. Зависимость односторонняя: Phase 14 готовит агенту инструменты — dry-run как tool (D-32) и сборку шаблона из описания (D-34) агент подхватывает уже готовыми. Также вне фазы: полный движок соответствия паттернов Asterisk и обход `context_includes` при разрешении адреса `toroute` (в этой фазе только точное совпадение, D-46), и замена `context+extension` на `route_uid` в `toroute` — обсуждена и отклонена, отняла бы прыжок в не-маршрутные контексты и `raw_dialplan`.
+
+**Requirements:** D-46, D-48, D-50 из `12-CONTEXT.md` + решения `14-CONTEXT.md` (D-01…D-05, D-29…D-52).
+
+**Depends on:** Phase 12 (типизированный контракт редактора и корректный генератор `actionToDialplan` — основание и для схемы, и для симуляции)
+
+**Plans:** 11 plans (10 executed + 1 gap closure)
+
+Plans:
+
+- [x] 14-01-PLAN.md
+- [x] 14-02-PLAN.md
+- [x] 14-03-PLAN.md
+- [x] 14-04-PLAN.md
+- [x] 14-05-PLAN.md
+- [x] 14-06-PLAN.md
+- [x] 14-07-PLAN.md
+- [x] 14-08-PLAN.md
+- [x] 14-09-PLAN.md
+- [x] 14-10-PLAN.md
+- [x] 14-11-PLAN.md — Gap G-14-2: template preview slot chips (Surface H / D-33 / D-35)
+- [x] `14-01-PLAN.md` — Wave 0: specs walk/hop/reask + action-reference scaffold
+- [x] `14-02-PLAN.md` — Wave 1: индекс ссылок backend + delete 409 (tracer IVR)
+- [x] `14-03-PLAN.md` — Wave 2: блок-схема route+IVR + react-to-print (tracer Schema tab)
+- [x] `14-04-PLAN.md` — Wave 2: dry-run walker + HTTP + AI tool (tracer linear POST)
+- [x] `14-05-PLAN.md` — Wave 2: шаблоны CRUD + seed + apply (tracer CRUD)
+- [x] `14-06-PLAN.md` — Wave 4: dry-run UI + подсветка на Schema tab (depends 14-08 for callback outcome)
+- [x] `14-07-PLAN.md` — Wave 5: шаблоны FE — footer, dialogs, `/route-templates` + RouteTemplateFormModal (depends 14-06 i18n)
+- [x] `14-08-PLAN.md` — Wave 3: callback ActionType + scanner + cc_settings + operator REST list/claim/cancel
+- [x] `14-09-PLAN.md` — Wave 6: callback UI — настройки CC, operator/supervisor chrome (depends 14-06/14-07 i18n + 14-08 API)
+- [x] `14-10-PLAN.md` — Wave 4: вкладки «Где используется» + delete precheck
+
+**GSD workflow:** `/gsd-discuss-phase 14` ✅ → `/gsd-ui-phase 14` ✅ (`14-UI-SPEC.md`: схема на двух хостах, сквозной прогон сегментами, раздел шаблонов, настройки и заявки callback, «Где используется») → `/gsd-plan-phase 14` ✅ → `/gsd-execute-phase 14` ✅ → `/gsd-verify-work 14` ✅
+
+---
+
+## Phase 15: Универсальный AI-агент по АТС
+
+**Status:** Implemented, stabilization in progress (2026-09-17) — 24/24 summaries; historical verify passed 23/23, UAT complete and SECURITY verified. Review P1 remediation and new live regression evidence tracked in REVIEW-REMEDIATION-2026-09-17.md.
+
+**Goal:** Свой агентный цикл в Nest вместо внешнего проксирования: агент, который видит всю АТС, отвечает человеческим языком на любые связанные с ней вопросы и правит настройки во всех модулях через подтверждаемые диффы — с тенантной изоляцией, доказанной тестами.
+
+**Scope (in):**
+
+1. **Свой агентный цикл + подключаемые провайдеры моделей** (D-06…D-09) — внешний aiPBX становится одним из провайдеров, а не мозгом; провайдеры и ключи заводит только админ платформы; расход по тенанту считается и показывается админу; потолок шагов, прогресс строкой и кнопка «Стоп»
+2. **Скилы как в GSD** (D-10…D-14) — progressive disclosure (в промпте список, тело читается тулом), скилы файлами в репо рядом с кодом вместо gitignore-папки `.docs/`, знания = скилы + живое состояние АТС и CDR + диагностические tools, ответ на языке заданного вопроса
+3. **Покрытие модулей и архитектурная конвенция** (D-15…D-17) — чтение все модули, запись приоритетные домены (маршруты, 7 существующих, справочники, группы и MOH); новый модуль обязан поставляться с AI-адаптером и актуальным скилом; конвенция держится падающим тестом
+4. **Правки, права, тенантность** (D-18…D-22) — черновик-дифф с карточкой подтверждения в чате, применение в БД и reload Asterisk одним шагом, права ровно те же, что у человека в UI, `vpbxUserUid` только из JWT и только параметром вызова + тест кросс-тенантности на каждый tool
+5. **Поверхность UI и история** (D-23…D-26) — кнопка вызова переезжает в топбар шелла рядом с ⌘K (нижний правый угол остаётся софтфону из Phase 9), панель переделывается шире и без наложений, выбор модели уезжает в админские настройки, треды персистятся в БД
+6. **Hard-migrate старого MCP** (D-27, D-28) — 18 рукописных `reg*()` переезжают на реестр адаптеров и скилы, старое удаляется; внешний вход `/api/mcp` остаётся, но тенант определяется только из JWT
+
+**Scope (out):**
+
+- **Ограничения агента и защита от инъекций** («что не должен делать агент») — вынесено отдельной темой, обязательно к закрытию через `/gsd-secure-phase 15` до ship
+- Запись в тенантные настройки и параметры АТС через агента (чтение — да, запись — нет)
+- Жёсткие лимиты токенов и биллинг AI по тенантам (только учёт расхода)
+
+**Requirements:** решения `15-CONTEXT.md` (D-06…D-28).
+
+**Depends on:** Phase 12 (типизированная цепочка — то, что агент правит), Phase 14 (dry-run как tool D-32 и шаблоны из описания D-34 — агент использует готовыми), Phase 5 (эталонный адаптер справочников как форма для остальных)
+
+**Plans:** 24/24 plans complete
+
+Plans:
+
+- [x] 15-01-PLAN.md
+- [x] 15-02-PLAN.md
+- [x] 15-03-PLAN.md
+- [x] 15-04-PLAN.md
+- [x] 15-05-PLAN.md
+- [x] 15-06-PLAN.md
+- [x] 15-07-PLAN.md
+- [x] 15-08-PLAN.md
+- [x] 15-09-PLAN.md
+- [x] 15-10-PLAN.md
+- [x] 15-11-PLAN.md
+- [x] 15-12-PLAN.md
+- [x] 15-13-PLAN.md
+- [x] 15-14-PLAN.md
+- [x] 15-15-PLAN.md
+- [x] 15-16-PLAN.md
+- [x] 15-17-PLAN.md
+- [x] 15-18-PLAN.md
+- [x] 15-19-PLAN.md
+- [x] 15-20-PLAN.md
+- [x] 15-21-PLAN.md
+- [x] 15-22-PLAN.md
+- [x] 15-23-PLAN.md
+- [x] 15-24-PLAN.md
+
+- [ ] `15-01-PLAN.md` — Wave 1: единая точка диспатча, зачистка тенантных аргументов, контракт реестра
+- [ ] `15-02-PLAN.md` — Wave 1: подсистема скилов (каталог + `read_skill`, скилы в сборке)
+- [x] `15-03-PLAN.md` — Wave 1: персистентные треды, сообщения, proposals, миграция
+- [x] `15-04-PLAN.md` — Wave 2: клиент модели, системный промпт, один компактный снимок состояния
+- [x] `15-05-PLAN.md` — Wave 2: proposals + callTool persist + directory mutations + Apply/Reject + прецедентность
+- [x] `15-06-PLAN.md` — Wave 1: триггер в топбаре, хоткей, панель 520px (первый писатель локалей)
+- [x] `15-07-PLAN.md` — Wave 3: legacy read-only (contexts, CDR) + правило приоритета адаптеров + инвентарь 18
+- [x] `15-08-PLAN.md` — Wave 4: агентный цикл, SSE, потолок шагов, отмена, удаление прокси
+- [ ] `15-09-PLAN.md` — Wave 4: миграция абонентов и транков (5 tools) на proposals
+- [x] `15-10-PLAN.md` — Wave 4: миграция IVR и очередей (6 tools) на proposals
+- [x] `15-11-PLAN.md` — Wave 4: маршруты типизированной цепочкой + apply через RouteApplyService (3 tools)
+- [x] `15-12-PLAN.md` — Wave 2: рельса тредов, состояния, удаление с подтверждением (второй писатель локалей)
+- [x] `15-13-PLAN.md` — Wave 4: адаптеры групп вызова и MOH (запись по D-15)
+- [ ] `15-14-PLAN.md` — Wave 3: карточка изменений, пять состояний (третий писатель локалей)
+- [ ] `15-15-PLAN.md` — Wave 5: cutover — удаление 18 `reg*()`, обоих обходных путей, JWT-only `/api/mcp`
+- [x] `15-16-PLAN.md` — Wave 4: read-адаптеры расписаний, номеров, пользователей портала
+- [x] `15-17-PLAN.md` — Wave 4: read-адаптеры настроек тенанта/платформы и каналов сообщений
+- [ ] `15-18-PLAN.md` — Wave 5: стриминг, прогресс, «Стоп», stick-to-bottom (четвёртый писатель локалей)
+- [x] `15-19-PLAN.md` — Wave 6: модуль диагностики (каналы, события, `dialplan show`)
+- [x] `15-20-PLAN.md` — Wave 4: read-адаптеры голосовых роботов и движков синтеза/распознавания
+- [ ] `15-21-PLAN.md` — Wave 4: read-адаптеры уведомлений, аудиофайлов, заявок и претензий
+- [ ] `15-22-PLAN.md` — Wave 6: eval-харнесс fixture-реплея + 10 сценариев
+- [ ] `15-23-PLAN.md` — Wave 7: падающий completeness-тест D-16/D-17 + конвенция в ARCHITECTURE и скил
+- [ ] `15-24-PLAN.md` — Wave 6: админская карточка (модель по умолчанию, расход) + silent-write detector
+
+**GSD workflow:** `/gsd-discuss-phase 15` ✅ → `/gsd-ui-phase 15` ✅ (`15-UI-SPEC.md`: триггер в топбаре, панель 520px, треды, diff-карточка, стриминг) → `/gsd-ai-integration-phase 15` ✅ → `/gsd-plan-phase 15` ✅ → `/gsd-execute-phase 15` → `/gsd-secure-phase 15` (обязательно) → `/gsd-verify-work 15`
+
+---
+
+## Phase 16: Модуль телеконференций — ядро (домен комнат, тенантный диалплан, роли, события)
+
+**Status:** Implemented — 7/7 summaries; subsequent UAT complete 11/11 and SECURITY verified. Earlier VERIFICATION human_needed (14/20) is historical; reconcile its remaining decision coverage separately.
+
+> **Фаза разбита на четыре части** по рекомендации планировщика: при полной точности 41 решение, 47 файлов, 88 краёв и 82 UI-соображения требуют ~19 планов, что не помещается в один планировочный проход. Разбиение — точная партиция: каждое из D-01…D-41 принадлежит ровно одной части, ни одно требование не отброшено.
+>
+> | Часть | Содержание | Требования |
+> |---|---|---|
+> | **Phase 16** (эта) | Ядро: домен комнат, тенантный диалплан, маска и шаг маршрута, роли, состояние и события | D-01…D-09, D-11, D-13…D-17, D-22, D-25, D-34…D-37 |
+> | **Phase 16.1** | Видео, ёмкость комнаты, гостевой вход и приглашения (backend) | D-10, D-12, D-18…D-21, D-23, D-24, D-38, D-39, D-40 |
+> | **Phase 16.2** | Запись встреч и отчётность | D-30…D-33 |
+> | **Phase 16.3** | Фронтенд живой комнаты, гостевая поверхность и AI-адаптер | D-26…D-29, D-41 |
+>
+> Общие артефакты (`16-CONTEXT.md`, `16-RESEARCH.md`, `16-PATTERNS.md`, `16-UI-SPEC.md`, `16-VALIDATION.md`, `16-EDGE-COVERAGE.json`) живут в каталоге Phase 16 и обслуживают все четыре части — они сквозные по построению и не принадлежат ни одной из подфаз в отдельности.
+
+**Goal:** Построить работающий хребет модуля телеконференций: тенантная сущность «комната» с настройками, генерация тенантного диалплан-контекста, резолюция номера комнаты по маске, роли через user-профили ConfBridge и живой поток состояния комнаты в браузер. Всё остальное (видео и ёмкость, запись, фронтенд и AI) наращивается поверх уже работающего хребта в Phase 16.1–16.3.
+
+**Scope (in):**
+
+1. **Модуль комнат: CRUD + применение настроек** (R-01, R-02) — сущность «комната конференции» с настройками (профили bridge/user/menu, PIN, admin/marked-участники, музыка ожидания, объявления входа-выхода, запись, лимит участников). **Уточнено на discuss (D-02):** настройки едут из БД динамическим профилем `CONFBRIDGE()`, а не записью `confbridge.conf` — у ConfBridge нет realtime-бэкенда, поэтому бэкенд генерирует тенантный диалплан-контекст со строками `Set(CONFBRIDGE(...)=...)` через существующий `DialplanApplyService.applyCategories`
+2. **Тенантность комнат** (R-03) — номер комнаты получает скрытый от тенанта префикс по конвенции проекта (`e{exten}_{uid}` у абонентов, `q{exten}_{uid}` у очередей, `group_{exten}_{uid}` у групп). Это закрывает принятый в Phase 12 риск **T-12-03-05 / T-12-13-03**: сейчас аргумент комнаты не скоупится и два тенанта с одинаковым номером попадают в одну конференцию. Тенант везде видит свой короткий номер
+3. **Приложение диалплана «Конференции» поверх модуля** (R-05) — поле `room` в `DialplanAppsEditor` перестаёт быть свободным значением и становится выбором комнаты модуля (плюс value-source для динамических сценариев); второй аргумент `ConfBridge()` перестаёт быть строкой опций пользователя и заполняется именем bridge-профиля комнаты
+4. **Поглощение ad hoc конференции колл-центра** (D-03) — `CallCenterService.addToConference` перестаёт быть отдельной схемой комнат и становится эфемерной комнатой модуля (D-04)
+5. **Роли и права** (D-14, D-15, D-16, D-17) — три фиксированные роли (владелец, модератор, участник) через `admin`/`marked` в персональном user-профиле ConfBridge, постоянные модераторы в настройках комнаты плюс разовая выдача во встрече, аудит входа админа тенанта в чужую живую встречу
+6. **Строгость входа и поведение без модератора** (D-11, D-13) — три уровня строгости как настройка комнаты, `wait_marked` / `end_marked`
+7. **Состояние комнаты и живые события** (D-34, D-35, D-36, D-37) — слушатели `Confbridge*` в `ami.service.ts` (сегодня их нет ни одного), раздача через `EventEmitter2`, транспорт SSE плюс REST на действия, **единый DTO-маппер для своих и гостей** (внутренние имена и channel id не отдаются никому)
+8. **Платформенный статический bridge-профиль** (R-PROFILE, поправка ресёрча к D-02) — `video_mode` динамике не поддаётся, поэтому платформа держит статический профиль в `confbridge.conf` с перезагрузкой `module reload app_confbridge.so`, а тенантные настройки едут поверх через `Set(CONFBRIDGE(bridge,template)=…)`. Ресёрч рекомендует самовосстанавливающийся bootstrap кодом, а не разовый ручной ранбук
+9. **Чистка зависших каналов** (R-STALE) — канал без `BYE` держит слот SFU и лишает живых участников видео задолго до `max_members`
+
+**Ресёрч завершён.** Три обязательных вопроса закрыты экспериментальными спайками 001–004 на живом `ipbx.krasterisk.ru`:
+
+| # | Вопрос | Результат |
+|---|--------|-----------|
+| R-ENGINE | Медиа-ядро комнаты | **ConfBridge + AMI.** Собственный ARI-бридж потребовал бы вручную повторить транскодинг, обслуживание классических телефонов и переговоры о видеопотоках. D-02, D-10, D-34, D-38 фиксируются на ConfBridge |
+| R-VIDEO | Видео сеткой | **Нативный `video_mode=sfu`, кодек VP8.** Внешний SFU не нужен. Гибрид «веб + обычный SIP-абонент в одной комнате» подтверждён, отдельный шлюз не требуется |
+| R-CAPACITY | Метрики ёмкости | **Ёмкость — бюджет полосы, а не число людей.** N·(N−1) потоков по ~800 кбит/с: ~12 участников на 100 Мбит/с, ~36 на 1 Гбит/с. Достоверный признак деградации есть только у клиента |
+
+**Scope (out):**
+
+- Видео, ёмкость комнаты, гостевой вход и приглашения → **Phase 16.1**
+- Запись встреч и отчётность → **Phase 16.2**
+- Фронтенд живой комнаты, гостевая поверхность и AI-адаптер → **Phase 16.3**
+- Биллинг и тарификация конференций
+- AI-саммари и расшифровка записи конференции (переиспользование связки STT + LLM из Phase 13 — кандидат в отдельную фазу)
+- Планировщик конференций с приглашениями по календарю
+- Замена общего softphone-стека Phase 10 — модуль надстраивается над ним, а не форкает его
+
+**Requirements:** D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-11, D-13, D-14, D-15, D-16, D-17, D-22, D-25, D-34, D-35, D-36, D-37 (+ R-PROFILE, R-STALE из ресёрча). Полные формулировки — `16-CONTEXT.md`.
+
+**Plans:** 7/7 plans executed
+
+Plans:
+
+- [x] 16-01-PLAN.md
+- [x] 16-02-PLAN.md
+- [x] 16-03-PLAN.md
+- [x] 16-04-PLAN.md
+- [x] 16-05-PLAN.md
+- [x] 16-06-PLAN.md
+- [x] 16-07-PLAN.md
+
+**Wave 1**
+
+- [x] `16-01-PLAN.md` — Wave 1, tracer: схема и модель комнаты, генератор тенантного контекста, rooms service/controller, платформенный статический bridge-профиль, `Confbridge*`-слушатели, сервис состояния и SSE
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] `16-02-PLAN.md` — Wave 2: полный тенантный CRUD комнат с переприменением и удалением категорий, эфемерные комнаты, поглощение `CallCenterService.addToConference`
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] `16-03-PLAN.md` — Wave 3: тенантный mask-index без сетевых обращений из диалплана, шаг маршрута переходом в комнату, отчёт по унаследованным шагам
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] `16-04-PLAN.md` — Wave 4: селектор комнаты в редакторе шага маршрута (RTK-каталог, схема шага, копирайтинг, UI-state тесты)
+- [x] `16-05-PLAN.md` — Wave 4: три роли через персональные user-профили, постоянные модераторы, живые модераторские действия и разовая выдача
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] `16-06-PLAN.md` — Wave 5: три уровня строгости входа, согласованность PIN, поведение до прихода модератора
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] `16-07-PLAN.md` — Wave 6: единый DTO-маппер состояния для своих и гостей, признак видео от клиента, подметальщик зависших каналов
+
+**Depends on:** Phase 12 (типизированный контракт `DialplanAppsEditor` и генератор `actionToDialplan` — точка, куда встраивается выбор комнаты), Phase 10 (WebRTC-стек софтфона и `GET /callcenter/webrtc/config`), Phase 15 (конвенция «новый модуль = AI-адаптер + скил», completeness-тест)
+
+**Известные ловушки, зафиксированные до планирования:**
+
+| # | Ловушка |
+|---|---------|
+| 1 | ~~`applyCategories` всегда делает `dialplan reload`, а `confbridge.conf` требует `module reload app_confbridge.so`~~ — **снято D-02:** модуль генерирует диалплан, а не `confbridge.conf`, и `dialplan reload` оказывается ровно нужной перезагрузкой |
+| 2 | ~~AMI `CreateConfig` не создаёт родительские каталоги — нужен операционный `mkdir krasterisk/conferences`~~ — **снято D-02** вместе с записью файла |
+| 3 | Второй аргумент `ConfBridge()` — это **имя bridge-профиля**, а не строка флагов. В `dialplan.util.ts` (case `confbridge`) остаётся `params.options`, которое дописывается в этот слот |
+| 4 | Ad hoc конференция уже существует в колл-центре: `CallCenterService.addToConference` делает `Redirect(Channel + ExtraChannel)` в `ConfBridge(room)` плюс `Originate` для третьего участника. **D-03: поглощается модулем** как эфемерная комната |
+| 5 | ~~Тенантный префикс ломает записи маршрутов с «голым» номером, нужен переходный период или миграция~~ — **снято D-09:** маршрутов с действием `confbridge` в проде нет, разработка новая |
+| 6 | **Новое, из discuss:** `bridge`-профиль обязан быть одинаковым на всю комнату (смешивать нельзя, поведение не определено), а `user`-профиль у каждого участника свой — на это ложатся роли D-14 |
+| 7 | **Новое, из discuss:** ConfBridge не MCU — видео не транскодируется и не масштабируется. ~~Видео получают только участники с совпавшим кодеком (D-23)~~ — **пересмотрено ресёрчем:** видео аппарату определяет не кодек, а бюджет `max_video_streams >= N + 1`, дефолт которого равен 1, поэтому любой существующий абонент видео-слеп. Джиттербуфер при видео рекомендуется отключать |
+| 8 | **Новое, из ресёрча:** `Set(CONFBRIDGE(bridge,video_mode)=sfu)` молча не срабатывает — `video_mode` требует статического профиля в `confbridge.conf` (ловушка 1 частично возвращается, но только для одного платформенного файла, не для тенантных настроек) |
+| 9 | **Новое, из ресёрча:** стоковый `sip.js` останавливает предыдущий удалённый видеотрек при каждом новом, до вызова делегата — без собственного `SessionDescriptionHandler` сетки не будет (Phase 16.3) |
+
+**Решения discuss:** `16-CONTEXT.md` — D-01…D-41. Движок комнаты был сознательно не зафиксирован на discuss и вынесен в ресёрч R-ENGINE; **ресёрч закрыл его на ConfBridge + AMI**, поэтому D-02, D-10, D-34 и D-38 зафиксированы. Поправки ресёрча к D-02, D-20 и D-23 записаны в `16-CONTEXT.md` в разделе «Поправки к зафиксированным решениям».
+
+**GSD workflow:** `/gsd-discuss-phase 16` ✅ (`16-CONTEXT.md`) → ресёрч **R-ENGINE / R-VIDEO / R-CAPACITY** ✅ (спайки 001–004, `16-RESEARCH.md`) → `/gsd-ui-phase 16` ✅ (`16-UI-SPEC.md`) → `/gsd-plan-phase 16` → `/gsd-execute-phase 16` → `/gsd-secure-phase 16` → `/gsd-verify-work 16`
+
+---
+
+## Phase 16.1: Телеконференции — видео, ёмкость комнаты, гостевой вход и приглашения (backend)
+
+**Status:** Implemented and verified — 6/6 summaries; verification passed 16/16; SECURITY verified 21/21. Old security-pending and critical-review reminders require the latest fixes to be considered.
+
+**Goal:** Довести комнату из Phase 16 до полноценной видеовстречи с внешними участниками: сетка видео на нативном SFU, честная ёмкость комнаты как бюджет полосы, гостевой вход по ссылке без учётной записи портала и приглашение внутренних и внешних абонентов из комнаты.
+
+**Plans:** 6/6 plans complete
+
+Plans:
+
+- [x] 16.1-01-PLAN.md — Спина: токен → ephemeral PJSIP → admit/refuse + ALTER display_name/sip_id
+- [x] 16.1-02-PLAN.md — D-12: два kind, revoke=Kick+destroy, PIN, гостевой SSE
+- [x] 16.1-03-PLAN.md — D-23/D-24: max_video_streams + VP8, backfill ew*, guest webrtc-config
+- [x] 16.1-04-PLAN.md — D-18…D-21: GET capacity одно поле, max_members из бюджета, cron, join→capacityForRoom
+- [x] 16.1-05-PLAN.md — D-38/D-39: AMI Originate + invite_external_scope
+- [x] 16.1-06-PLAN.md — D-40 overlay имён + R-TELEMETRY ingest
+
+**Wave 1**
+
+- [x] `16.1-01-PLAN.md` — Wave 1, checkpoint схемы + tracer + DDL
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] `16.1-02-PLAN.md` — Wave 2: D-12 tokens/revoke/SSE
+- [x] `16.1-03-PLAN.md` — Wave 2: D-23/D-24 provisioning (parallel с 02)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] `16.1-04-PLAN.md` — Wave 3: capacity REST + dialplan max_members + join→capacityForRoom
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] `16.1-05-PLAN.md` — Wave 4: invite Originate + scope
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] `16.1-06-PLAN.md` — Wave 5: display names + telemetry
+
+**Scope (in):**
+
+1. **Гость как эфемерный PJSIP-абонент** (D-10) — endpoint создаётся на сессию, его `context` указывает прямо на контекст конкретной комнаты; скомпрометированный токен не даёт ничего, кроме входа в ту же комнату
+2. **Гостевые ссылки двух видов** (D-12) — общая ссылка комнаты с TTL и отзывом плюс именные приглашения с точечным отзывом, по образцу `cc_display_tokens` + `DisplayTokenGuard` и `vm_access_tokens`. Отзыв обязан **синхронно** делать `ConfbridgeKick` и удалять endpoint, а не только проставлять `revoked_at`
+3. **Ёмкость комнаты** (D-18, D-19, D-20, D-21) — минимум из потолка тарифа и живого остатка сервера по модели бюджета потоков; тенант видит дословно «Максимальное число участников: N» без упоминания сервера; участник сверх лимита получает отказ с объяснением, деградация «пустить без видео» отклонена
+4. **Видео сеткой** (D-23, D-24) — раскладка сетки всех участников на нативном `video_mode=sfu`; провижининг эндпоинтов расширяется на `max_video_streams` и VP8 в `allow` (`NAT_PROFILES.webrtc` в `endpoints.service.ts` сегодня не даёт ни того, ни другого)
+5. **Приглашения** (D-38, D-39) — AMI `Originate` внутреннего абонента и внешнего номера; кто может звонить наружу за деньги тенанта — настройка комнаты
+6. **Отображаемые имена** (D-40) — гостю запоминается по токену, своим только на время встречи; карточка абонента и справочники не перезаписываются никогда
+7. **Клиентская телеметрия качества** (R-TELEMETRY) — потери, замирания, `qualityLimitationReason`; сервер при деградации комнаты выглядит спокойным, поэтому без сбора с браузеров деградацию не увидеть
+
+**Scope (out):** всё, что относится к Phase 16, 16.2 и 16.3.
+
+**Requirements:** D-10, D-12, D-18, D-19, D-20, D-21, D-23, D-24, D-38, D-39, D-40 (+ R-TELEMETRY из ресёрча).
+
+**Depends on:** Phase 16 (домен комнаты, тенантный диалплан-контекст, поток событий).
+
+**Общие артефакты:** `16-CONTEXT.md`, `16-RESEARCH.md`, `16-PATTERNS.md`, `16-UI-SPEC.md`, `16-VALIDATION.md`, `16-EDGE-COVERAGE.json` в каталоге Phase 16.
+
+**GSD workflow:** `/gsd-plan-phase 16.1` → `/gsd-execute-phase 16.1` → `/gsd-secure-phase 16.1` (гостевой вход — новая внешняя поверхность, обязательно) → `/gsd-verify-work 16.1`
+
+---
+
+## Phase 16.2: Телеконференции — запись встреч и отчётность
+
+**Status:** Implemented — 4/4 summaries; UAT complete 3/3 with live recording evidence; SECURITY verified 10/10. Earlier VERIFICATION human_needed remains a historical report.
+
+**Goal:** Записывать конференции тем же механизмом, что и разговоры, и отдавать записи в двух местах — историей встреч комнаты в модуле и фактом звонка в CDR.
+
+**Scope (in):**
+
+1. **Запись переиспользует механику записей разговоров** (D-30) — тот же `records_base_path`, тот же access-scope и Range-стриминг, что у CDR и голосовой почты
+2. **Два способа включения** (D-31) — автоматически по настройке комнаты и кнопкой модератора через AMI `ConfbridgeStartRecord` / `ConfbridgeStopRecord` на лету
+3. **Уведомление о записи** (D-32) — настройка комнаты: индикатор в вебе и голосовое объявление для телефонных участников
+4. **Две поверхности прослушивания** (D-33) — история встреч комнаты с плеером и списком участников в модуле, факт звонка и запись в CDR-отчёте, по образцу голосовой почты Phase 13
+
+**Scope (out):** AI-саммари и расшифровка записи — вне фазы по ROADMAP, кандидат в отдельную фазу. Live-кнопка записи, вкладка Record формы комнаты и гостевой шелл — Phase 16.3. Видео/ёмкость/гостевые токены — Phase 16.1.
+
+**Requirements:** D-30, D-31, D-32, D-33.
+
+**Plans:** 4/4 plans executed
+
+Plans:
+
+- [x] 16.2-01-PLAN.md — Спина: путь D-30, встреча → AMI StartRecord → WAV play, ALTER uniqueid
+- [x] 16.2-02-PLAN.md — Кнопка модератора, leftover диалплана, announcement, last-leave, list/CDR-join API
+- [x] 16.2-03-PLAN.md — CDR-бейдж + модалка WAV
+- [x] 16.2-04-PLAN.md — Фрагмент History tab
+
+**Wave 1**
+
+- [x] `16.2-01-PLAN.md` — Wave 1, checkpoint пути + tracer + schema
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] `16.2-02-PLAN.md` — Wave 2: D-31 button/stop, D-32 announcement, D-33 persist/list
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] `16.2-03-PLAN.md` — Wave 3: CDR surface (RTK + badge + modal)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] `16.2-04-PLAN.md` — Wave 4: History tab fragment
+
+**Cross-cutting constraints:**
+
+- `startForMeeting` не фильтрует `record_mode`; политику держат auto-join (`auto|both`) и `startByModerator` (`button|both`)
+- Play WAV через `records_base_path` + access-scope, без `.mp3` и без записи пути в `CDR(record)`
+
+**Depends on:** Phase 16 (домен комнаты и история встреч). Параллельна Phase 16.1.
+
+**GSD workflow:** `/gsd-plan-phase 16.2` → `/gsd-execute-phase 16.2` → `/gsd-verify-work 16.2`
+
+## Phase 17: Модуль Автообзвон: кампании, клиентские базы, диалер, монитор, отчётность
+
+**Status:** Implementation exists across 17.1–17.5; requirement reconciliation and live verification pending (2026-09-17).
+**Goal:** Коммерческий глобальный модуль «Автообзвон»: клиентские базы с настраиваемой схемой и импортом, кампании с Progressive/Power/Agentless пейсингом на ARI, сценарии через DialplanAppsEditor (host `autodial`), онлайн-монитор, KPI и отчётность.
+**Requirements:** см. `17-CONTEXT.md` (D-01…D-20)
+**Depends on:** Phase 9 (CallCenter state/queues), Phase 12 (DialplanAppsEditor), Phase 15 (AI adapter gate)
+**Plans:** shared artifacts in parent dir; work in 17.1–17.5
+
+**GSD workflow:** `/gsd-discuss-phase 17` (done) → `/gsd-plan-phase 17.1` → execute per subphase → `/gsd-secure-phase` → `/gsd-verify-work`
+
+---
+
+## Phase 17.1: Автообзвон — клиентские базы и импорт (INSERTED)
+
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
+**Goal:** `ac_bases` / fields / contacts / phones / import profiles & runs; CSV+XLSX import with reusable mapping profiles; frontend `/autodial/bases`.
+**Depends on:** Phase 17
+**Plans:** implementation inline (scaffold + CRUD + import)
+
+---
+
+## Phase 17.2: Автообзвон — кампании, диалплан-сценарий, расписание (INSERTED)
+
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
+**Goal:** `ac_campaigns` / schedules / DNC / tasks; DialplanHost `autodial`; `krsk-ac-*` dialplan; scheduler; restart-by-disposition.
+**Depends on:** Phase 17.1
+**Plans:** TBD
+
+---
+
+## Phase 17.3: Автообзвон — движок набора ARI и пейсинг (INSERTED)
+
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
+**Goal:** ARI originate/dial/continueInDialplan; pacer with capacity providers; dispositions/retries; SSE; AMD; marketplace registration.
+**Depends on:** Phase 17.2
+**Plans:** TBD
+
+---
+
+## Phase 17.4: Автообзвон — монитор, KPI и отчётность (INSERTED)
+
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
+**Goal:** Live monitor SSE; KPI metrics; nightly rollup; reports with charts + CSV/XLSX export.
+**Depends on:** Phase 17.3
+**Plans:** TBD
+
+## Phase 17.5: Автообзвон — AI-адаптер, Predictive, лимит транка (INSERTED)
+
+**Status:** Code present; plan/summary reconciliation and live acceptance pending (2026-09-17)
+**Goal:** `autodial-ai.adapter.ts` + SKILL.md + coverage; predictive pacing; trunk channel limit as first-class setting.
+**Depends on:** Phase 17.4
+**Plans:** TBD
+
+## Phase 16.3: Телеконференции — фронтенд живой комнаты, гостевая поверхность и AI-адаптер
+
+**Status:** Implemented; live media gate open — 10/10 summaries; UAT 7/8 pass, staff WebRTC/microphone test blocked; SECURITY verified 23/23. Do not treat this as fully live-validated.
+**Plans:** 10 plans (01–08 + gap 09–10, all complete)
+
+Plans:
+**Wave 1**
+
+- [x] 16.3-01-PLAN.md — Tracer R-SDH: VideoSurface + factory + LiveRoom на двух треках
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 16.3-02-PLAN.md — useConferenceRoom, session slice, RTK extend, R-RENEG
+- [x] 16.3-03-PLAN.md — AI-адаптер + SKILL.md + covered/configure (D-41)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 16.3-04-PLAN.md — Hub apps 65 + полный словарь ru/en (D-27)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 16.3-08-PLAN.md — Список, форма, stub ConferenceRoomPage (D-27)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] 16.3-05-PLAN.md — Полная staff LiveRoom + ConferenceRoomPage (D-26/D-29)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] 16.3-06-PLAN.md — Мини-панель add-alongside (D-26/D-29)
+- [x] 16.3-07-PLAN.md — Гостевой шелл /conf/:token (D-28/D-29)
+
+**Wave 7** *(gap closure — blocked on Wave 6)*
+
+- [x] 16.3-09-PLAN.md — Session+UA above room + softphone park (G-16.3-1, G-16.3-2)
+
+**Wave 8** *(gap closure — blocked on Wave 7)*
+
+- [x] 16.3-10-PLAN.md — Guest participants + telemetry POST + videoFailedMids (G-16.3-3…5)
+
+**Waves:** W1 {16.3-01} · W2 {16.3-02, 16.3-03} · W3 {16.3-04} · W4 {16.3-08} · W5 {16.3-05} · W6 {16.3-06, 16.3-07} · W7 {16.3-09} · W8 {16.3-10}
+
+**Goal:** Собрать поверхность модуля: живую комнату с сеткой видео и ролевым управлением, минимальный гостевой шелл, полноценную комнату на телефоне, место модуля в Module Hub и обязательный AI-адаптер со скилом.
+
+**Scope (in):**
+
+1. **Живая комната** (D-26) — полноэкранная страница плюс мини-панель «вы в конференции» при уходе на другую страницу, по образцу софтфона Phase 9/10
+2. **Место в продукте** (D-27) — страница в базовом хабе `apps` рядом с IVR, очередями и группами; монетизация в `market` отложена, чтобы не блокировать запуск биллингом
+3. **Гостевая поверхность** (D-28) — минимальный шелл с логотипом тенанта, без сайдбара, меню и намёков на остальную АТС
+4. **Мобильный веб** (D-29) — полноценная комната на телефоне в v1: гость чаще всего откроет ссылку именно с телефона
+5. **Собственный `SessionDescriptionHandler`** (R-SDH) — стоковый `sip.js` останавливает предыдущий удалённый видеотрек при каждом новом, до вызова делегата; без подмены сетки не будет
+6. **Обнаружение «вошёл, но видео нет»** (R-RENEG) — примерно каждый двенадцатый вход, требуется повторное согласование
+7. **AI-адаптер и скил модуля** (D-41) — чтение, настройка через дифф-карточку и живые действия (заглушить, исключить) по образцу live-ops колл-центра; `packages/backend/src/skills/conferences/SKILL.md` и запись в `module-coverage.registry.ts`, иначе падает completeness-тест из `15-23`
+
+Здесь же реализуются все 82 UI-соображения из `16-UI-SPEC.md` (25 explicit, 55 backstop, 2 unresolved).
+
+**Scope (out):** замена общего softphone-стека Phase 10 — комната надстраивается над ним, а не форкает его.
+
+**Requirements:** D-26, D-27, D-28, D-29, D-41 (+ R-SDH, R-RENEG из ресёрча).
+
+**Depends on:** Phase 16, 16.1, 16.2 (REST- и SSE-контракты всех трёх).
+
+**GSD workflow:** `/gsd-plan-phase 16.3` ✅ → `/gsd-execute-phase 16.3` ✅ → `/gsd-secure-phase 16.3` ✅ → `/gsd-verify-work 16.3` ✅ → UAT ✅
+
+## Phase 18: Полный рефакторинг речевой аналитики
+
+**Status:** Complete
+**Goal:** Заново собрать модуль речевой аналитики до паритета с aiPBX и удобнее текущего кабинета: проекты и редактор метрик, загрузка записей через интерфейс и API, дашборды и отчёты, диаризация stereo/mono, включение анализа на маршруте, внешний API для чужих АТС, модели из каталога platform/тенанта, биллинг Krasterisk, эталонные оценки, настройка через AI-чат и живой UAT.
+**Depends on:** — (модуль уже в коде; Phase 17 не блокирует)
+**Requirements**: паритет с aiPBX, архитектура `packages/frontend/.idea/ARCHITECTURE.md`, живой прогон `Z:\temp\speech-analytics-samples` (REQ-SA-PARITY, REQ-SA-ARCH, REQ-SA-UAT)
+**Plans:** 22/22 plans complete
+
+Plans:
+**Wave 1**
+
+- [x] 18-01-PLAN.md — Schema 0023 multi-run + SA-CHARGE-RUN/INSIGHTS persist seams (D-05, D-46…D-49)
+- [x] 18-02-PLAN.md — Route project Select + capture-policy project-only (D-01, D-02, D-19…D-22)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 18-03-PLAN.md — Hangup enqueue + wait non-empty file (500ms/60s), no STT in handler (D-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 18-04-PLAN.md — Real STT/diarize/score pipeline + SA-CHARGE-RUN (D-23, D-24, D-38)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 18-05-PLAN.md — Journal + sheet + access-scoped journal API (D-05…D-13)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] 18-11-PLAN.md — Excel export + CDR analytics actions + journal i18n/route (D-05, D-16, D-18, D-37)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] 18-06-PLAN.md — Project-editor backend draft/publish, budget, webhooks (D-25…D-31)
+- [x] 18-08-PLAN.md — Standard dashboard + on-demand insights (D-34…D-36, D-47)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [x] 18-12-PLAN.md — MetricEditor + projects pages UI (D-25, D-36)
+- [x] 18-14-PLAN.md — Remove Reports product surface (D-37)
+- [x] 18-07-PLAN.md — Upload/API/URL ingest + hash-only tokens backend (D-14…D-18, D-32, D-33, D-39…D-42)
+- [x] 18-09-PLAN.md — Routes AI chat tools for analytics project (D-04)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [x] 18-13-PLAN.md — UploadForm + TokensTable UI (D-14…D-16, D-32, D-33)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [x] 18-15-PLAN.md — Module AI adapter + ModuleSettings pause/models (D-27, D-33, D-38)
+- [x] 18-10-PLAN.md — Golden eval + live UAT harness (D-43…D-45, D-50)
+
+**Wave 10 — gap closure** *(verification 14/20)*
+
+- [x] 18-16-PLAN.md — Nest hangup port + worker runAnalysis + AI adapter DI (G-18-01, G-18-02, G-18-04)
+- [x] 18-17-PLAN.md — Public upload/URL → real sa_* journal UUIDs (G-18-03)
+- [x] 18-18-PLAN.md — HTTP insights persist SA-CHARGE-INSIGHTS (G-18-05)
+
+**Wave 11 — gap closure** *(blocked on 18-17)*
+
+- [x] 18-19-PLAN.md — UUID recording proof + live API re-check checklist (G-18-06)
+
+**Wave 12 — gap closure** *(verification 20/23)*
+
+- [x] 18-20-PLAN.md — AI apply keeps the full merged draft (CR-01, D-27)
+- [x] 18-21-PLAN.md — Hangup audioMs from duration, not file bytes (CR-02, D-46)
+- [x] 18-22-PLAN.md — Public accepted batch returns without awaiting score (CR-03, D-17)
+
+**Cross-cutting constraints:**
+
+- User-visible strings exist in ru and en and do not contain U+2014. Feature and page styles use SCSS modules and var(--color-*). Tailwind utilities are not added in those layers. Layout uses VStack, HStack, and Flex from shared/ui (ARCHITECTURE.md, UI-SPEC).
+- The hangup handler only enqueues a job. STT does not run inside the handler. The job waits until the recording file exists and is non-empty. Upload and URL batches process one item at a time. One failure does not stop the rest. Pause blocks only new automatic analyses. Queued and in-flight jobs finish (D-03, D-16, D-19, D-41).
+- A route with recording off or with no project selected does not enqueue analysis. An incomplete URL download (break, timeout, empty body, or fewer bytes than Content-Length) is an error for that URL and does not call SA-CHARGE-RUN. A file over 50MB is an error (D-03, D-04, D-41)
+- Journal «Разговоры» lives in analytics DB; PBX analyzed calls keep CDR player and an «Аналитика» button to the same journal URL; sheet has no second player for PBX; uploads/API play on Transcript only (D-05, D-08)
+- Пауза компании не скрывает ручные «Получить аналитику» и загрузку.
+- Metric editor keeps aiPBX sections: templates real_estate, delivery, tech_support, banking, medicine, food, auto_service, insurance, ecommerce, custom; custom metrics; hideable standard scales; system prompt; topics; analytics event webhook; digest; alerts (D-25)
+- Upload: one form, one file is a batch of 1; mp3/wav/ogg/m4a max 50MB; operator is cabinet user or free-text name; project required; sequential; one failure does not stop the batch; progress on the job; buttons on journal AND CDR (D-14, D-15, D-16)
+- API token: one token one project; request cannot override project; secret shown once; DB stores only hash; can upload and read; cannot delete or regenerate; issuers admin and superadmin; supervisor cannot; no expiry; module off does not delete tokens (D-32, D-33)
+- Excel export is a journal toolbar button, not a Reports page and not DataTable.exportCsv. It exports the entire filtered selection in this column order: journal columns, summary, transcript, STT quality, topics, rationales, and all project scales. Cost is the latest run. Robot columns are absent (D-37)
+
+**Вход для discuss:** `docs/archive/gsd/phases/18-polnyy-refaktoring-rechevoy-analitiki/18-BRIEF.md`. Реализация по `.planning/initiatives/ai-products/` — пример того, что не устроило, а не план этой фазы.
+
+---
+
+## Production readiness track (после review 2026-09-17)
+
+**Status:** executing — partial live verification.
+
+1. P0 tenant namespaces, provisioning/outbox, авторизация, quotas, reconciliation; исправить подтверждённые live-сбои CDR/legacy trigger и отсутствующий deployed context группы IVR.
+2. P1 AI capability CRUD matrix, typed recipes, small-model eval и понятные failure states.
+3. P1 tenant-scoped Asterisk logs, support skills, call timeline и безопасные repair proposals.
+4. P2 onboarding, deployment status UI, observability, backup/restore и capacity tests.
+
+Порядок зависимостей, критерии приёмки и источники: [PRODUCTION-READINESS-2026-09-17.md](../../plans/legacy/PRODUCTION-READINESS-2026-09-17.md). Старые phase-complete статусы не закрывают новые release gates.

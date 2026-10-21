@@ -34,6 +34,9 @@ export interface IHubCatalogItem {
   tenantVisible?: boolean;
   /** Cabinet may connect its own speech models. Omitted by older catalogs. */
   ownModels?: boolean;
+  description?: string | null;
+  /** Role grants removed pages this user cannot open. */
+  accessFiltered?: boolean;
   pages: Array<{ page_code: string; path: string | null; sort_order: number }>;
 }
 
@@ -369,13 +372,9 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
       invalidatesTags: (_r, _e, { tenantId }) => [{ type: 'Tenants', id: `modules-${tenantId}` }],
     }),
 
-    getModuleCatalog: builder.query<any[], void>({
-      query: () => '/marketplace',
-    }),
-
-    getMyModules: builder.query<ITenantModule[], void>({
-      query: () => '/marketplace/my-modules',
-      providesTags: [{ type: 'Tenants', id: 'MY-MODULES' }],
+    getMyBalance: builder.query<IBillingBalance, void>({
+      query: () => '/billing/balance',
+      providesTags: [{ type: 'Tenants', id: 'MY-BALANCE' }],
     }),
 
     // ─── Hub catalog / role→start (Phase 8) ────────────────────────────────
@@ -406,11 +405,15 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
         url: `/marketplace/ai-products/skus/${skuCode}/purchase`,
         method: 'POST',
       }),
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try { await queryFulfilled; } catch { return; }
+        dispatch(cloudAdminApi.util.invalidateTags([{ type: 'Tenants', id: 'MY-BALANCE' }]));
+      },
       invalidatesTags: [
         { type: 'Tenants', id: 'HUB-CATALOG' },
-        { type: 'Tenants', id: 'MY-MODULES' },
         { type: 'Tenants', id: 'AI-PRODUCT-STATUS' },
         { type: 'Tenants', id: 'AI-SKU-CATALOG' },
+        { type: 'Tenants', id: 'MY-BALANCE' },
       ],
     }),
 
@@ -443,7 +446,6 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
       },
       invalidatesTags: [
         { type: 'Tenants', id: 'HUB-CATALOG' },
-        { type: 'Tenants', id: 'MY-MODULES' },
       ],
     }),
 
@@ -470,7 +472,6 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
       },
       invalidatesTags: [
         { type: 'Tenants', id: 'HUB-CATALOG' },
-        { type: 'Tenants', id: 'MY-MODULES' },
       ],
     }),
 
@@ -484,9 +485,22 @@ export const cloudAdminApi = rtkApi.injectEndpoints({
         method: 'POST',
         body,
       }),
+      async onQueryStarted({ moduleCode }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } catch {
+          return;
+        }
+        const apply = (draft: IHubCatalogItem[]) => {
+          const item = draft.find((row) => row.code === moduleCode);
+          if (item) item.licenseStatus = 'active';
+        };
+        dispatch(cloudAdminApi.util.updateQueryData('getHubCatalog', undefined, apply));
+        dispatch(cloudAdminApi.util.updateQueryData('getMyHubModules', undefined, apply));
+      },
       invalidatesTags: [
         { type: 'Tenants', id: 'HUB-CATALOG' },
-        { type: 'Tenants', id: 'MY-MODULES' },
+        { type: 'Tenants', id: 'MY-BALANCE' },
       ],
     }),
 
@@ -689,8 +703,7 @@ export const {
   useEntitleCurrentAiProductMutation,
   useActivateModuleMutation,
   useDeactivateModuleMutation,
-  useGetModuleCatalogQuery,
-  useGetMyModulesQuery,
+  useGetMyBalanceQuery,
   useGetHubCatalogQuery,
   useGetAiProductsStatusQuery,
   useGetAiSkuCatalogQuery,

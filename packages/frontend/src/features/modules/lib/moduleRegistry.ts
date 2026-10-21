@@ -53,6 +53,10 @@ export interface HubCatalogLicenseItem {
   pages?: Array<{ page_code: string; path?: string | null; sort_order?: number }>;
   kind?: 'base' | 'market' | 'off';
   tenantVisible?: boolean;
+  description?: string | null;
+  accessUntil?: string | null;
+  /** Server removed pages the current role cannot open. */
+  accessFiltered?: boolean;
 }
 
 const ADMIN_PLUS: UserLevel[] = [UserLevel.ADMIN, UserLevel.SUPERADMIN];
@@ -161,13 +165,6 @@ export const BASELINE_MODULES: ModuleDef[] = [
         minLevels: ADMIN_PLUS,
       },
       {
-        id: 'tenant-modules',
-        path: '/system/modules',
-        labelKey: 'nav.modules',
-        icon: Package,
-        minLevels: ADMIN_PLUS,
-      },
-      {
         id: 'ai-providers',
         path: '/ai-providers',
         labelKey: 'nav.aiProviders',
@@ -188,6 +185,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
         labelKey: 'nav.ccDashboard',
         icon: LayoutDashboard,
         minLevels: CC_SUPERVISOR_LEVELS,
+        routeAllow: CC_SUPERVISOR_LEVELS.filter((level) => level !== UserLevel.SUPERADMIN),
       },
       {
         id: 'cc-agent',
@@ -202,6 +200,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
         labelKey: 'nav.supervisor',
         icon: Monitor,
         minLevels: CC_SUPERVISOR_LEVELS,
+        routeAllow: CC_SUPERVISOR_LEVELS.filter((level) => level !== UserLevel.SUPERADMIN),
       },
       {
         id: 'cc-reports',
@@ -209,6 +208,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
         labelKey: 'nav.ccReports',
         icon: BarChart3,
         minLevels: CC_SUPERVISOR_LEVELS,
+        routeAllow: CC_SUPERVISOR_LEVELS.filter((level) => level !== UserLevel.SUPERADMIN),
       },
       {
         id: 'cc-settings',
@@ -216,6 +216,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
         labelKey: 'nav.ccSettings',
         icon: Settings,
         minLevels: ADMIN_PLUS,
+        routeAllow: [UserLevel.ADMIN],
       },
     ],
   },
@@ -258,8 +259,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
     navVariant: 'sidebar',
     labelKey: 'nav.analytics',
     pages: [
-      { id: 'reports', path: '/reports', labelKey: 'nav.reports', icon: BarChart3 },
-      { id: 'cdr', path: '/reports/cdr', labelKey: 'nav.cdr', icon: PhoneCall },
+      { id: 'cdr', path: '/reports/cdr', matchPaths: ['/reports/calls'], labelKey: 'nav.cdr', icon: PhoneCall },
       {
         id: 'voice-robot-cdr',
         path: '/reports/voice-robot-cdr',
@@ -286,6 +286,7 @@ export const BASELINE_MODULES: ModuleDef[] = [
       {
         id: 'speech-analytics-conversations',
         path: '/speech-analytics/conversations',
+        matchPaths: ['/speech-analytics'],
         labelKey: 'nav.speechAnalyticsJournal',
         icon: List,
       },
@@ -463,6 +464,8 @@ export function mergeModulesWithCatalog(
       displayPrice: cat?.displayPrice,
       billingPeriod: cat?.billingPeriod,
       billingIntervalCount: cat?.billingIntervalCount,
+      description: cat?.description,
+      accessUntil: cat?.accessUntil,
     };
   });
 }
@@ -509,14 +512,6 @@ export function findModuleByPath(
   for (const mod of modules) {
     const page = findPageByPath(pathname, mod.pages);
     if (page && (!best || page.path.length > best.len)) best = { mod, len: page.path.length };
-    // The speech analytics landing is a module root without its own nav item.
-    if (pathname === '/speech-analytics') {
-      for (const candidate of mod.pages) {
-        if (candidate.path.startsWith('/speech-analytics/') && (!best || candidate.path.length > best.len)) {
-          best = { mod, len: candidate.path.length };
-        }
-      }
-    }
   }
   return best?.mod;
 }

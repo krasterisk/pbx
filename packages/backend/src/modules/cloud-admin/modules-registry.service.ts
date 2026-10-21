@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { ConfigService } from '@nestjs/config';
+import { QueryTypes } from 'sequelize';
 import { ModuleRegistry } from './module-registry.model';
 import { TenantModule } from './tenant-module.model';
 import { Tenant } from './tenant.model';
@@ -15,6 +16,8 @@ import {
   type AiProductModuleCode, type ProductAccessDecision,
 } from './product-access-policy';
 import { ProductAccessService } from '../product-access/product-access.service';
+import { UserLevel } from '../users/user.model';
+import { filterHubCatalogPages, parseHubPageGrants } from './hub-page-grants';
 import { resolveTenantIdFromJwt as lookupTenantIdFromJwt, type JwtTenantHints } from './tenant-binding';
 import {
   isBillingPeriod,
@@ -100,6 +103,7 @@ export interface HubCatalogItem {
   tenantVisible: boolean;
   /** Cabinet may connect its own speech models. Same value on every row. */
   ownModels: boolean;
+  description: string | null;
   pages: Array<{ page_code: string; path: string | null; sort_order: number }>;
 }
 
@@ -449,6 +453,7 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
         billingPeriod: listPrice.billingPeriod,
         billingIntervalCount: listPrice.billingIntervalCount,
         ownModels,
+        description: registryByCode.get(hub.code)?.description ?? null,
         pages: pages
           .slice()
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -459,6 +464,44 @@ export class ModulesRegistryService implements OnApplicationBootstrap {
           })),
       };
     });
+  }
+
+  /**
+   * Tenant hub-catalog. ADMIN and SUPERADMIN see every page. A named role
+   * sees only the pages stored in roles.role. Missing DB access does not hide pages.
+   */
+  async getHubCatalogForUser(
+    tenantId: number,
+    user?: { level?: number; role?: number; vpbx_user_uid?: number },
+  ): Promise<HubCatalogItem[]> {
+    const catalog = await this.getHubCatalogForTenant(tenantId);
+    const roleId = Number(user?.role);
+    if (
+      user?.level === UserLevel.ADMIN
+      || user?.level === UserLevel.SUPERADMIN
+      || !Number.isSafeInteger(roleId)
+      || roleId <= 0
+    ) {
+      return catalog;
+    }
+    const grants = await this.readRoleGrants(roleId, Number(user?.vpbx_user_uid));
+    if (!grants) return catalog;
+    return filterHubCatalogPages(catalog, grants);
+  }
+
+  private async readRoleGrants(roleId: number, tenantUid: number): Promise<Record<string, string[]> | null> {
+    const sequelize = this.hubModuleModel?.sequelize;
+    if (!sequelize?.query || !Number.isSafeInteger(tenantUid)) return null;
+    try {
+      const rows = await sequelize.query<{ grants: string | null }>(
+        'SELECT role AS grants FROM roles WHERE id = :roleId AND vpbx_user_uid = :tenantUid LIMIT 1',
+        { replacements: { roleId, tenantUid }, type: QueryTypes.SELECT },
+      );
+      return parseHubPageGrants(rows[0]?.grants ?? {});
+    } catch (error) {
+      this.logger.warn(`Hub page grants unavailable: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   // ─── Platform Hub CRUD (SuperAdmin) ────────────────────────────────────────

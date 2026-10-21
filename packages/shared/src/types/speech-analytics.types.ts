@@ -346,10 +346,24 @@ export type SaProjectConfigV1 = {
   /** Optional project model overrides (D-38); empty/null = module default. */
   sttModelId?: string | null;
   scoreModelId?: string | null;
+  /** Local source-bound PII masking before any transcript is sent to an analysis LLM. */
+  textPrivacy?: { anonymizeBeforeLlm: boolean };
   /** Provider uids used when the cabinet allows a project to override models. */
   sttProviderUid?: number | null;
   llmProviderUid?: number | null;
 };
+
+/** Missing legacy config is off; a malformed policy must never silently disable protection. */
+export function saTextPrivacyEnabled(config: Pick<SaProjectConfigV1, 'textPrivacy'> | null | undefined): boolean {
+  if (config?.textPrivacy === undefined) return false;
+  const policy = config.textPrivacy;
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)
+    || typeof policy.anonymizeBeforeLlm !== 'boolean'
+    || Object.keys(policy).some((key) => key !== 'anonymizeBeforeLlm')) {
+    throw new Error('invalid_text_privacy');
+  }
+  return policy.anonymizeBeforeLlm;
+}
 
 const SCALE_COPY: Record<SaDefaultScaleId, { name: string; rubric: string }> = {
   greeting_quality: {

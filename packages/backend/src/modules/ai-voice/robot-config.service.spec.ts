@@ -11,7 +11,8 @@ function fixture() {
   const binding = { revision: 4, capture_policy: '{"mode":"allow","retentionDays":7}', update: jest.fn().mockResolvedValue(undefined) };
   const agents = { findOne: jest.fn().mockResolvedValueOnce(agent).mockResolvedValue(null), create: jest.fn() };
   const drafts = { findOne: jest.fn().mockResolvedValue(draft), create: jest.fn() };
-  const versions = { max: jest.fn().mockResolvedValue(8), create: jest.fn().mockImplementation(async row => row) };
+  const versions = { max: jest.fn().mockResolvedValue(8), create: jest.fn().mockImplementation(async row => row),
+    findAll: jest.fn().mockResolvedValue([]), findOne: jest.fn() };
   const deployments = { findAll: jest.fn().mockResolvedValue([binding]), create: jest.fn() };
   const providers = { findOne: jest.fn().mockResolvedValue({ capabilities: ['realtime'], kind: 'online',
     vendor: 'openai', endpoint: 'https://provider.example/v1', auth_type: 'bearer',

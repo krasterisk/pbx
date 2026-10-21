@@ -29,7 +29,7 @@ test('aggregate matrix refuses SLA and requires prior evidence slices', () => {
 
 test('11M docs name RELEASE matrix and pending gates', () => {
   const docs = fs.readFileSync(
-    path.join(__dirname, '../../.planning/initiatives/ai-products/AI-11-11M-MATRIX.md'),
+    path.join(__dirname, '../../docs/plans/initiatives/ai-products/AI-11-11M-MATRIX.md'),
     'utf8',
   );
   assert.match(docs, /Not a product SLA|not a product SLA/i);

@@ -143,7 +143,7 @@ export class MarketplaceController {
   @ApiOperation({ summary: 'Hub modules with licenseStatus for current tenant' })
   async getHubCatalog(@Req() req: any) {
     const tenantId = (await this.modulesService.resolveTenantIdFromJwt(req.user)) ?? 0;
-    return this.modulesService.getHubCatalogForTenant(tenantId);
+    return this.modulesService.getHubCatalogForUser(tenantId, req.user);
   }
 
   /**

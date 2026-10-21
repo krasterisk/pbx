@@ -9,7 +9,7 @@ import { getModelToken } from '@nestjs/sequelize';
 import { readFile } from 'node:fs/promises';
 import { invokeSaChargeRun } from '../charging/sa-charge-run';
 import { configForAnalysis } from '../pipeline/analysis-prompt';
-import { diarizeChannels } from '../pipeline/channel-diarize';
+import { diarizeChannels, probeWavHeader } from '../pipeline/channel-diarize';
 import { decodeToPcmWav, isPcmWav } from '../pipeline/decode-pcm-wav';
 import { runAnalysis as pipelineRunAnalysis } from '../pipeline/run-analysis';
 import type { RunAnalysisDeps } from '../pipeline/run-analysis';
@@ -35,6 +35,7 @@ import {
 } from './sa-analysis.worker';
 import { SA_ANALYSIS_WORKER } from '../hangup-analytics.port';
 import { AiJobAdmissionService } from '../../ai-jobs/ai-job-admission.service';
+import { prepareAnalysisText } from '../pipeline/text-privacy';
 
 export { SA_ANALYSIS_WORKER };
 
@@ -181,9 +182,20 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
 
     const absolute = resolveAnalysisAudioPath(job.recordPath, recordsBase);
     const channelSource = job.channelSource ?? 'route';
-    const projectConfig = deps.loadProjectConfig
-      ? await deps.loadProjectConfig(job)
-      : configForAnalysis(null);
+    let projectConfig: SaProjectConfigV1 | null;
+    try {
+      projectConfig = deps.loadProjectConfig ? await deps.loadProjectConfig(job) : configForAnalysis(null);
+    } catch {
+      const run = await deps.runs.findOne({ where: { id: job.runId, tenant_uid: job.tenantUid } });
+      if (run) {
+        run.state = 'failed';
+        run.reason = 'project_config_invalid';
+        run.updated_at = new Date();
+        await run.save();
+        if (run.job_id && deps.settleAdmission) await deps.settleAdmission(job.tenantUid,run.job_id,'failed');
+      }
+      return {state:'error',scored:false,reason:'project_config_invalid'};
+    }
     const resolved = deps.speechProviders
       ? await deps.speechProviders.resolve(job.tenantUid, projectConfig)
       : null;
@@ -279,6 +291,11 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
     } catch {
       stereoWav = null;
     }
+    if (stereoWav && !isPcmWav(stereoWav)) stereoWav=await decodeToPcmWav(absolute);
+    const header=stereoWav?probeWavHeader(stereoWav):null;
+    const frameBytes=header?header.channels*header.bitsPerSample/8:0;
+    const verifiedMediaDurationMs=header&&frameBytes>0&&header.sampleRate>0
+      ? Math.floor(Math.min(header.dataSize,stereoWav!.length-header.dataOffset)/frameBytes/header.sampleRate*1000):undefined;
 
     const closeAdmission = async (jobId: string | null, outcome: 'succeeded' | 'failed') => {
       if (!jobId || !deps.settleAdmission) return;
@@ -291,6 +308,10 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
     };
 
     const pipelineDeps: RunAnalysisDeps = {
+      prepareText: async (segments, config) => {
+        if(!deps.providers) throw new Error('text_privacy_local_unavailable');
+        return prepareAnalysisText(segments,config,deps.providers);
+      },
       stt: jobStt,
       score: jobScore,
       diarize: async (args) => {
@@ -383,8 +404,8 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
             schema_version: 1,
             summary: patch.summary || '',
             metric_results: JSON.stringify(patch.metrics ?? []),
-            evidence_refs: '[]',
-            quality: 'ok',
+            evidence_refs: JSON.stringify(patch.evidence ?? []),
+            quality: patch.evidence?.length ? 'adjusted' : 'ok',
             status: 'completed',
             created_at: new Date(),
           });
@@ -417,6 +438,7 @@ export function createSaAnalysisWorker(deps: SaAnalysisWorkerNestDeps): SaAnalys
         tenantUid: job.tenantUid,
         audioPath: absolute,
         audioMs,
+        verifiedMediaDurationMs,
         currency: 'RUB',
         channelSource,
         swapChannels: false,
@@ -475,15 +497,17 @@ export const saAnalysisWorkerProvider = {
     recordings,
     loadProjectConfig: async (job) => {
       const run = await runs.findOne({ where: { id: job.runId, tenant_uid: job.tenantUid } });
-      if (!run?.project_version_id) return configForAnalysis(null);
+      if (!run?.project_version_id) throw new Error('project_config_unavailable');
       const version = await versions.findOne({
         where: { id: run.project_version_id, tenant_uid: job.tenantUid },
       });
-      if (!version?.config) return configForAnalysis(null);
+      if (!version?.config) throw new Error('project_config_unavailable');
       try {
-        return configForAnalysis(JSON.parse(version.config) as SaProjectConfigV1);
+        const parsed=JSON.parse(version.config);
+        if(!parsed || typeof parsed!=='object' || Array.isArray(parsed)) throw new Error('project_config_invalid');
+        return configForAnalysis(parsed as SaProjectConfigV1);
       } catch {
-        return configForAnalysis(null);
+        throw new Error('project_config_invalid');
       }
     },
     resolvePlatformModels: () => platformModels.modelIds().catch(() => ({

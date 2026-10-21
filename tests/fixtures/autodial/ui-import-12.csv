@@ -1,0 +1,3 @@
+﻿external_id;phone;name;amount_rub;amount_usd;visit_date;active;priority;score;city;specialist;visit_time;reference
+sv-ui12-valid;00991432;Валидный клиент;15240,50;123,45;20.10.2026;да;высокий;7;Тестовый город;Тестовый врач;14:30;TEST-008
+sv-ui11-invalid;ошибка;Ошибочная строка;не сумма;123,45;31.02.2026;да;высокий;7;Тестовый город;Тестовый врач;14:30;TEST-008

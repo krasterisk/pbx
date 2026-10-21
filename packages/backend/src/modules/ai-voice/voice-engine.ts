@@ -163,6 +163,12 @@ export function enableDeployment(stores: VoiceStores, deploymentId: string, read
   row.revision += 1;
 }
 
+export function requireTicketSecret(raw: string | undefined): string {
+  const secret = (raw ?? '').trim();
+  if (secret.length < 16) throw new DomainError('ticket_secret_unconfigured', 503);
+  return secret;
+}
+
 export function issueTicket(input: {
   secret: string;
   tenantUid: number;
