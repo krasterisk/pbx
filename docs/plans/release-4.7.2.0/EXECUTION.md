@@ -1,5 +1,7 @@
 # Release 4.7.2.0 — PLAN / EXECUTION
 
+Current deployed label: **4.7.1.2**, source **ebedc378**; see r2 correction acceptance below. The4.7.2.0 acceptance is historical.
+
 - Coordinator: /root, codex-direct, 2026-10-21. No subagents.
 - Human assignment: repeat version bump, commit/push current work to krasterisk/pbx main and deploy box 185.177.216.132.
 - Baseline: main 10308472; existing staged repository-layout migration and application changes preserved.
@@ -54,9 +56,28 @@ Next action: none for this release. Future work starts from released source/sche
 
 2026-10-21, /root codex-direct. User explicitly requested4.7.1.2 after correcting the mistakenly selected4.7.2.0. This is a build-number correction, not a rollback of application changes.
 
-- VC1 in_progress: canonical version:set4.7.1.2; owned paths root/workspace manifests, lock metadata and shared/src/app-version.ts. Dependency graph and application implementation preserved.
-- VC2 pending: version/identity targeted checks, commit/push main and applicable CI.
-- VC3 pending: derive Linux backend from the currently verified e0d0a038 image, overlay only corrected metadata, rebuild shared; rebuild frontend from published source using the same installed dependencies. No fresh npm install needed.
-- VC4 pending: verify unchanged clean schema0055 and0active channels, switch app containers, authenticated/external checks. Previous source/image e0d0a038 is the rollback baseline; no schema update required.
+- VC1 implemented: canonical version:set4.7.1.2; owned paths root/workspace manifests, lock metadata and shared/src/app-version.ts. Dependency graph and application implementation preserved.
+- VC2 automated-tests-passed / published: version/identity targeted checks, commit/push main and applicable CI.
+- VC3 implemented: derive Linux backend from the currently verified e0d0a038 image, overlay only corrected metadata, rebuild shared; rebuild frontend from published source using the same installed dependencies. No fresh npm install needed.
+- VC4 released / live-verified: verify unchanged clean schema0055 and0active channels, switch app containers, authenticated/external checks. Previous source/image e0d0a038 is the rollback baseline; no schema update required.
 - Evidence: ARTIFACTS_ROOT/runs/release-version-correction/20261021-4712.
 - Historical acceptance above remains evidence for the previous version label. Correction is not released until VC4 completes.
+
+
+## Version correction acceptance r2 — 2026-10-21 14:44 UTC
+
+Status: released / live-verified; coordinator idle, no pending required gate or release writer. Correct application version **4.7.1.2**, npm-compatible workspace version4.7.1. Historical4.7.2.0 label superseded; application changes were preserved.
+
+- Published source **ebedc378e72d0dfdedcd07a9e65f27acf1c79e73**. Only canonical version fields/constant and release records changed; dependency graph and all application implementation unchanged from the accepted runtime baseline.
+- [quality39616051918](https://github.com/krasterisk/pbx/actions/runs/39616051918), [harness39616052030](https://github.com/krasterisk/pbx/actions/runs/39616052030), [e2e39616051949](https://github.com/krasterisk/pbx/actions/runs/39616051949), [dual-engine contracts39616051992](https://github.com/krasterisk/pbx/actions/runs/39616051992) all PASS for this exact application source. Quality includes full lint/shared/backend/frontend/build: shared180PASS, backend5017PASS/27skip, frontend482files/2639PASS.
+- Local version lockstep3tests, backend identity3tests, frontend AppVersion1test, shared build, full lint and full backend PASS. Duplicate local full frontend run intentionally stopped after its complete CI counterpart passed; local process exit1 is cancellation, not a failing test case. Full frontend acceptance comes from CI.
+- Derived backend from verified e0d0a038 with only metadata overlay and shared compilation; frontend rebuilt from published source using the unchanged installed dependency graph. No dependency reinstall or database migration performed.
+- First corrected-version deployment passed functional smoke but exposed inherited APP_GIT_SHA=e0d0a038. Docker base ENV shadowed same-named ARG. Resolved with explicit metadata ENV overlay, rebuilt frontend using corrected base; final backend environment, frontend JavaScript and public health all pin ebedc378. First-run evidence retained separately; no application implementation fix was needed.
+- Final images: backend sha256:daed1b9f457a2e46e3d0709652957b6241826920c6bbfea25581131788131b49; frontend sha256:416312856105ee386eae756f097f2c7455939ce4373fc261aa2c816ce075b25a. Tag ebedc378; /opt/krasterisk/src -> /opt/krasterisk/releases/ebedc378. Current public health: {"status":"ok","timestamp":"2026-10-21T14:44:01.737Z","version":"4.7.1.2","sha":"ebedc378","schema":"0055-phone-sessions.sql"}.
+- Final live authenticated smoke PASS: configured admin login/logout, box/registration policy, existing routes/endpoints/trunk/settings, new CDR list/overview/facets, telephone endpoint list, four disabled-dashboard denials, frontend HTML/JS/brand assets. Frontend asset grep confirms4.7.1.2 andebedc378.
+- Fresh customer policy before/after fingerprints unchanged; module catalog policy exact match. Schema remains clean0055, no DDL/data restore. PostgreSQL container and native Asterisk PID472654/ActiveEnterTimestamp2026-10-02 unchanged;0channels at switches and final check.
+- Rollback references: prior functional source/image e0d0a038 (same schema), and rollback-version-4712 images pinned from running first corrected-version containers before identity follow-up. Schema downgrade is unnecessary.
+- Recovery/state references: /opt/krasterisk/backups/20261021-4.7.1.2; previous database/config backup remains20261021-4.7.2.0. Raw evidence/artifacts/scripts/logs: C:/Users/Professional/Documents/Codex/Artifacts/krasterisk_v4/runs/release-version-correction/20261021-4712.
+- Final acceptance follow-up changes documentation only; generated tracked tsbuildinfo and unrelated local files remain preserved.
+
+Next action: none for this version correction. Future release increments the build component unless the user requests a different version change.

@@ -62,5 +62,5 @@
 | artifact-storage | [EXECUTION](artifact-storage/EXECUTION.md) | Completed storage migration: 79334 files external/SHA-256 PASS, 247 generators, 9 targeted PASS; frontend WebRTC8 FAIL outside product ownership; /root chat01a15cc9 |
 
 | repository-layout | [EXECUTION](repository-layout/EXECUTION.md) | /root chat01a15cc9 codex-direct idle;947 docs/5 tools/7 inputs moved; planning tracked0; integrity/targeted/lint/backend PASS; frontend gate recorded separately; no release |
-| release-4.7.2.0 | `/root`, codex-direct | [PLAN / EXECUTION](release-4.7.2.0/EXECUTION.md) | released/live-verified on185.177.216.132, sourcee0d0a038; all required gates PASS; schema0055, customer grants/menu preserved; no active writer |
-| release-version-correction | `/root`, codex-direct | [r2 correction assignment](release-4.7.2.0/EXECUTION.md#version-correction--current-bounded-assignment-r2) | version4.7.1.2 requested; metadata/checks/publication/deploy in progress; prior runtime/schema0055 baseline preserved |
+| release-4.7.2.0 | `/root`, codex-direct | [historical acceptance + r2 correction](release-4.7.2.0/EXECUTION.md) | historical e0d0a038 release; label superseded by4.7.1.2/sourceebedc378, see correction row |
+| release-version-correction | `/root`, codex-direct idle | [r2 acceptance](release-4.7.2.0/EXECUTION.md#version-correction-acceptance-r2--2026-10-21-1444-utc) | released/live-verified4.7.1.2, sourceebedc378 on185.177.216.132; current CI/live/identity PASS; unchanged schema0055/customer policy; no pending gate |
