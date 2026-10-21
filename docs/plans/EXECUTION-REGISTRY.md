@@ -62,4 +62,4 @@
 | artifact-storage | [EXECUTION](artifact-storage/EXECUTION.md) | Completed storage migration: 79334 files external/SHA-256 PASS, 247 generators, 9 targeted PASS; frontend WebRTC8 FAIL outside product ownership; /root chat01a15cc9 |
 
 | repository-layout | [EXECUTION](repository-layout/EXECUTION.md) | /root chat01a15cc9 codex-direct idle;947 docs/5 tools/7 inputs moved; planning tracked0; integrity/targeted/lint/backend PASS; frontend gate recorded separately; no release |
-| release-4.7.2.0 | `/root`, codex-direct | [PLAN / EXECUTION](release-4.7.2.0/EXECUTION.md) | source preparation and gates in progress; production SSH key rejected; no deploy yet |
+| release-4.7.2.0 | `/root`, codex-direct | [PLAN / EXECUTION](release-4.7.2.0/EXECUTION.md) | released/live-verified on185.177.216.132, sourcee0d0a038; all required gates PASS; schema0055, customer grants/menu preserved; no active writer |
