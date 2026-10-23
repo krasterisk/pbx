@@ -19,11 +19,16 @@ test.describe('Supervisor panel — happy path', () => {
     await assertSupervisorShellVisible(page);
   });
 
-  test('shows the agent board and the calls panel', async ({ authenticatedPage: page }) => {
+  test('opens live calls from the waiting KPI and returns to the agent board', async ({ authenticatedPage: page }) => {
     await page.goto('/callcenter/supervisor');
     await closeAssistantIfOpen(page);
     await expect(page.getByTestId('supervisor-agents-board')).toBeVisible();
+    await expect(page.getByTestId('supervisor-calls-panel')).toHaveCount(0);
+    await page.getByTestId('supervisor-metric-waiting').click();
     await expect(page.getByTestId('supervisor-calls-panel')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('supervisor-calls-panel')).toHaveCount(0);
+    await expect(page.getByTestId('supervisor-agents-board')).toBeVisible();
   });
 
   test('loads without a connection error banner', async ({ authenticatedPage: page }) => {

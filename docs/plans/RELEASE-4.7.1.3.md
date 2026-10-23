@@ -8,3 +8,5 @@
 - Status: in_progress R2. Full tests running; initial backend invocation rejected an npm argument before tests started, relaunched canonical command.
 - Evidence: C:/Users/Professional/Documents/Codex/Artifacts/krasterisk_v4/runs/release-4.7.1.3/20261023/ (publication.json, test/build/CI logs and deployment receipts).
 - Gates: lint pending; backend pending; frontend pending; build pending; CI pending; production live checks pending.
+
+R2 progress: lint PASS (existing warnings), backend515suites/5083tests PASS/27conditional skips, local full build PASS. Initial d36b5f02 harness failed on two obsolete always-visible calls-panel expectations after the accepted on-demand supervisor redesign. Release owns harness/assertions/ui.ts and harness/scenarios/ui/supervisor-smoke.spec.ts for bounded repair: four KPI shell assertions and opening/closing the real calls Sheet. Initial failure logs retained. Concurrent supervisor-pulse execution-document edits belong to the separate test-stand deployment and are excluded from release follow-ups.

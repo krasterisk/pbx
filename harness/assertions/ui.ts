@@ -33,5 +33,8 @@ export async function assertSupervisorShellVisible(page: Page): Promise<void> {
   const root = page.getByTestId('cc-supervisor-responsive');
   await expect(root).toBeVisible();
   await expect(root.getByTestId('supervisor-agents-board')).toBeVisible();
-  await expect(root.getByTestId('supervisor-calls-panel')).toBeVisible();
+  await expect(root.getByTestId('cc-supervisor-kpi-sticky')).toBeVisible();
+  for (const metric of ['sla', 'answered', 'abandoned', 'waiting']) {
+    await expect(root.getByTestId(`supervisor-metric-${metric}`)).toBeVisible();
+  }
 }
