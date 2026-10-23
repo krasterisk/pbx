@@ -8,6 +8,12 @@ import {
 } from './periodRange';
 
 describe('periodRange', () => {
+  it('uses Sunday for complete calendar week navigation without changing custom dates',()=>{
+    const week=currentPeriod('week',new Date('2026-10-23T05:00:00Z'),'sunday');
+    expect(resolvePeriod(week)).toMatchObject({startDate:'2026-10-18',endDate:'2026-10-24'});
+    expect(resolvePeriod(shiftPeriod(week,-1))).toMatchObject({startDate:'2026-10-11',endDate:'2026-10-17'});
+    expect(resolvePeriod({unit:'custom',anchor:'2026-10-19',customFrom:'2026-10-19',customTo:'2026-10-20',weekStart:'sunday'})).toMatchObject({startDate:'2026-10-19',endDate:'2026-10-20'});
+  });
   const now = new Date('2026-09-29T08:00:00.000Z');
 
   it('anchors the current month on the first Moscow day', () => {

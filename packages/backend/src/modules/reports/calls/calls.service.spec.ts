@@ -84,7 +84,7 @@ function fixture() {
             initialized_from: 0,
           },
           {
-            source_key: 'call-facts:v2:node',
+            source_key: 'call-facts:v4:node',
             bootstrap_complete: 1,
             initialized_from: 0,
           },
@@ -126,6 +126,45 @@ function fixture() {
   return { service, access, store, ctx };
 }
 describe('company calls projection API', () => {
+  it.each(['list', 'overview', 'attention'] as const)('keeps a complete compatible journal available during optional index rebuilding: %s', async (method) => {
+    const f = fixture();
+    const original = f.store.select.getMockImplementation()!;
+    f.store.select.mockImplementation(async (sql, args) => {
+      if (sql.includes('dashboard_checkpoints')) return [
+        {source_key:'projection:node',bootstrap_complete:0,updated_at:Date.now()-600000},
+        {source_key:'cdr:node',bootstrap_complete:1,initialized_from:0,updated_at:Date.now()},
+        {source_key:'call-facts:v3:node',bootstrap_complete:1},
+        {source_key:'call-facts:v4:node',bootstrap_complete:0},
+        {source_key:'semantics:v6:node',bootstrap_complete:1},
+      ] as never;
+      if (sql.includes('LEFT JOIN call_facts')) return [];
+      return original(sql,args);
+    });
+    const result = await f.service[method]({} as never, {dateFrom:'2026-10-16',dateTo:'2026-10-22',search:'79135551122'});
+    expect(result.source.state).toBe('ok');
+    const [sql,args] = f.store.select.mock.calls.find(([sql])=>sql.includes('LEFT JOIN call_facts'))!;
+    expect(sql).toContain('f.schema_version<3');
+    expect(args).toMatchObject({tenant:42,node:'node'});
+    expect(sql).toContain('c.node_id= :node');
+    expect(sql).not.toContain('dashboard_participants');
+    await expectBoundSql(f.store.select.mock.calls);
+  });
+  it.each(['missingFact','groups','search','semantics'] as const)('does not present incomplete or incompatible history as ready: %s', async (reason) => {
+    const f = fixture();
+    const original=f.store.select.getMockImplementation()!;
+    f.store.select.mockImplementation(async(sql,args)=>{
+      if(sql.includes('dashboard_checkpoints'))return [
+        {source_key:'projection:node',bootstrap_complete:0,updated_at:Date.now()},
+        {source_key:'cdr:node',bootstrap_complete:1,initialized_from:0},
+        {source_key:'call-facts:v3:node',bootstrap_complete:1},
+        {source_key:'semantics:v6:node',bootstrap_complete:reason==='semantics'?0:1},
+      ] as never;
+      if(sql.includes('LEFT JOIN call_facts'))return [{call_key:'pending'}] as never;
+      return original(sql,args);
+    });
+    const result=await f.service.list({} as never,reason==='groups'?{groups:['501']}:reason==='search'?{search:'Анна'}:{});
+    expect(result.source).toMatchObject({state:'stale',message:'historyBackfillInProgress'});
+  });
   it('searches Unicode-normalized directory labels without reducing entity counts to the matched historical name', async () => {
     const f = fixture();
     f.store.select.mockImplementation(async (sql) =>
@@ -165,6 +204,58 @@ describe('company calls projection API', () => {
       state: 'stale',
       message: 'historyBackfillInProgress',
     });
+  });
+  it('includes configured groups without calls, uses current names and retains authorized historical groups', async () => {
+    const f = fixture();
+    f.store.select.mockImplementation(async (sql, args) => {
+      if (sql.includes('FROM call_groups')) return [
+        { value: '501', label: 'Новая группа' }, { value: '502', label: 'Поддержка' },
+      ] as never;
+      if (args?.dimension === 'group') return [
+        { value: '502', label: 'Старое имя', amount: 3 },
+        { value: '503', label: 'Историческая', amount: 1 },
+      ] as never;
+      return [];
+    });
+    const result = await f.service.facets({} as never, {
+      groups: ['501'], employees: ['201'], dateFrom: '2026-10-16', dateTo: '2026-10-22',
+    });
+    expect(result.options.group).toEqual([
+      { value: '502', label: 'Поддержка', count: 3 },
+      { value: '503', label: 'Историческая', count: 1 },
+      { value: '501', label: 'Новая группа', count: 0 },
+    ]);
+    const directory = f.store.select.mock.calls.find(([sql]) => sql.includes('FROM call_groups'))!;
+    expect(directory[0]).toContain('vpbx_user_uid=:tenant');
+    expect(directory[1]).toEqual({ tenant: 42 });
+    const counts = f.store.select.mock.calls.find(([, args]) => args?.dimension === 'group')!;
+    expect(counts[1]).toMatchObject({ tenant: 42, values_employees: ['201'], extensions: ['201'] });
+    expect(counts[1]).not.toHaveProperty('values_groups');
+    expect(counts[0]).toContain('p.tenant=:tenant');
+    expect(counts[1]?.to).toBeGreaterThan(counts[1]?.from as number);
+    await expectBoundSql(f.store.select.mock.calls);
+  });
+  it('searches every configured group before limiting, with literal Unicode and number matching', async () => {
+    const f = fixture();
+    f.store.select.mockImplementation(async sql => sql.includes('FROM call_groups')
+      ? Array.from({ length: 205 }, (_, i) => ({ value: String(500 + i), label: i === 204 ? 'НОВАЯ %_!' : `Группа ${i}` })) as never
+      : []);
+    const all = await f.service.facets({} as never, {});
+    expect(all.options.group).toHaveLength(200);
+    expect(all.truncated.group).toBe(true);
+    for (const directorySearch of ['новая', '%_!', '704']) {
+      const result = await f.service.facets({} as never, { directorySearch });
+      expect(result.options.group).toEqual([{ value: '704', label: 'НОВАЯ %_!', count: 0 }]);
+      expect(result.truncated.group).toBe(false);
+    }
+  });
+  it('defaults to seven calendar days including today without overriding explicit dates', () => {
+    const period = callsPeriod({}, 'Asia/Krasnoyarsk', new Date('2026-10-22T19:00:00Z'));
+    expect(new Date(period.from).toISOString()).toBe('2026-10-16T17:00:00.000Z');
+    expect(new Date(period.to).toISOString()).toBe('2026-10-23T17:00:00.000Z');
+    const explicit = callsPeriod({ dateFrom: '2026-10-01', dateTo: '2026-10-02' }, 'Asia/Krasnoyarsk');
+    expect(new Date(explicit.from).toISOString()).toBe('2026-09-30T17:00:00.000Z');
+    expect(new Date(explicit.to).toISOString()).toBe('2026-10-02T17:00:00.000Z');
   });
   it('computes disjunctive facets under tenant/ACL and keeps other filter groups; binds actual SQL', async () => {
     const f = fixture();

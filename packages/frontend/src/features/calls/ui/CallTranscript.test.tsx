@@ -93,7 +93,7 @@ describe('call transcript card', () => {
     const view = render(<CallTranscript callId="call" />);
     expect(screen.getByText('<script>secret()</script>')).toBeInTheDocument();
     expect(view.container.querySelector('script')).toBeNull();
-    expect(screen.getByText(/0:01 — 0:02/)).toBeInTheDocument();
+    expect(screen.getByText(/0:01 - 0:02/)).toBeInTheDocument();
     state.data = {
       state: 'ready',
       nextCursor: null,

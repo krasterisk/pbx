@@ -14,12 +14,13 @@ const agents = [
   { userId: 2, queues: ['q700_0'] },
 ];
 
-function Harness({ onSave }: { onSave: () => void }) {
+function Harness({ onSave, flat = false, onClose = () => undefined }: { onSave: () => void; flat?: boolean; onClose?: () => void }) {
   const [selected, setSelected] = useState<number[]>([]);
   return (
     <WatchlistSheet
+      flat={flat}
       open
-      onOpenChange={() => undefined}
+      onOpenChange={onClose}
       candidates={candidates}
       agents={agents}
       queueLabel={(q) => `Q ${q}`}
@@ -31,6 +32,20 @@ function Harness({ onSave }: { onSave: () => void }) {
 }
 
 describe('WatchlistSheet (U1.7)', () => {
+  it('keeps flat team edits as a draft until Save and lets Cancel close without saving', () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+    render(<Harness flat onSave={onSave} onClose={onClose} />);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+    expect(screen.getAllByRole('checkbox')[0]).toBeChecked();
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Cancel|Отмена/ }));
+    expect(onClose).toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('cc-watchlist-save'));
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
   it('groups by queue, selects a whole queue in one click and filters by search', () => {
     const onSave = vi.fn();
     render(<Harness onSave={onSave} />);

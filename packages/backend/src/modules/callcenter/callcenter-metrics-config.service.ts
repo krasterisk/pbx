@@ -1,3 +1,4 @@
+import { organizationTimezoneKey } from '../../shared/organization-timezone';
 /**
  * Tenant-level inputs of the metrics dictionary (cc-analytics A4/A5):
  * timezone, short-abandon window, default SLA threshold and per-queue SLA threshold.
@@ -209,6 +210,15 @@ export class CallCenterMetricsConfigService {
       // Box installs without the tenants table fall back to PBX_DEFAULT_TIMEZONE / UTC.
       this.logger.debug(`tenant timezones unavailable: ${err.message}`);
     }
+    try {
+      const column = this.sequelize.getDialect?.() === 'postgres' ? '"key"' : '`key`';
+      const predicate = onlyUid === undefined ? column+" LIKE 'organization.timezone.%'" : column+'=:timezoneKey';
+      const rows = await this.sequelize.query<{key:string;value:string}>('SELECT '+column+' AS setting_key,value FROM system_settings WHERE '+predicate,{type:QueryTypes.SELECT,replacements:{timezoneKey:onlyUid === undefined ? '' : organizationTimezoneKey(onlyUid)}});
+      for(const row of rows as unknown as Array<{setting_key:string;value:string}>){
+        const match=/^organization\.timezone\.(\d+)$/.exec(row.setting_key || '');
+        if(match && !map.has(Number(match[1])) && isValidTimezone(row.value))map.set(Number(match[1]),row.value);
+      }
+    } catch(error){this.logger.debug(`box organization timezone unavailable: ${error instanceof Error ? error.message : String(error)}`);}
     return map;
   }
 }

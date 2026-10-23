@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Switch, Text, InfoTooltip } from '@/shared/ui';
+import { Switch, Text, Label, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import {
   useGetTenantSettingsQuery,
@@ -12,7 +12,7 @@ import cls from './TenantSettingsSection.module.scss';
 const RAW_KEY = 'routes.show_raw_dialplan' as const;
 const FLOW_KEY = 'routes.show_flowchart' as const;
 
-export function TenantSettingsSection() {
+export function TenantSettingsSection({ allowRawDialplan = true }: { allowRawDialplan?: boolean }) {
   const { t } = useTranslation();
   const { data, isLoading } = useGetTenantSettingsQuery();
   const [update] = useUpdateTenantSettingsMutation();
@@ -44,12 +44,12 @@ export function TenantSettingsSection() {
         </Text>
       )}
 
-      <HStack gap="16" align="start" justify="between" max className={cls.row}>
+      {allowRawDialplan && <HStack gap="16" align="start" justify="between" max className={cls.row}>
         <VStack gap="4" className={cls.labels}>
           <HStack gap="4" align="center">
-            <Text className={cls.label}>
+            <Label htmlFor="tenant-setting-show-raw-dialplan" className={cls.label}>
               {t('settings.tenant.showRawDialplan', 'Показывать dialplan в маршруте')}
-            </Text>
+            </Label>
             <InfoTooltip text={pending ? loadingHint : t('settings.tenant.showRawDialplanHint', 'Скрывает режим Dialplan в форме маршрута. Сохранённый текст не удаляется.')} />
           </HStack>
         </VStack>
@@ -60,14 +60,14 @@ export function TenantSettingsSection() {
           onCheckedChange={toggle(RAW_KEY)}
           aria-label={pending ? loadingHint : t('settings.tenant.showRawDialplan', 'Показывать dialplan в маршруте')}
         />
-      </HStack>
+      </HStack>}
 
       <HStack gap="16" align="start" justify="between" max className={cls.row}>
         <VStack gap="4" className={cls.labels}>
           <HStack gap="4" align="center">
-            <Text className={cls.label}>
+            <Label htmlFor="tenant-setting-show-flowchart" className={cls.label}>
               {t('settings.tenant.showFlowchart', 'Показывать блок-схему маршрута')}
-            </Text>
+            </Label>
             <InfoTooltip text={pending ? loadingHint : t('settings.tenant.showFlowchartHint', 'Показывает вкладку "Схема" в маршруте и в меню IVR')} />
           </HStack>
         </VStack>

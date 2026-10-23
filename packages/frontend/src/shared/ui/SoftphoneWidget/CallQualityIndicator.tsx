@@ -30,8 +30,8 @@ export function CallQualityIndicator({ quality }: CallQualityIndicatorProps) {
     <div className={styles.tooltip}>
       <div>{t('callcenter.softphone.quality')}: {label}</div>
       {level > 0 && <><div>{t('callcenter.softphone.mos')}: {quality.mos.toFixed(1)}</div>
-      <div>{t('callcenter.softphone.jitter')}: {quality.jitterMs} ms</div>
-      <div>{t('callcenter.softphone.rtt')}: {quality.rttMs} ms</div>
+      <div>{t('callcenter.softphone.jitter')}: {quality.jitterMs} {t('callcenter.softphone.milliseconds')}</div>
+      <div>{t('callcenter.softphone.rtt')}: {quality.rttMs} {t('callcenter.softphone.milliseconds')}</div>
       <div>{t('callcenter.softphone.loss')}: {quality.lossPct}%</div></>}
     </div>
   );

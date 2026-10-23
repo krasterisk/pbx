@@ -4,4 +4,4 @@
  * Root package.json `krasterisk.version` is the source of truth.
  * npm `version` fields carry only 4.<line>.<change>.
  */
-export const APP_VERSION = '4.7.1.2';
+export const APP_VERSION = '4.7.1.3';

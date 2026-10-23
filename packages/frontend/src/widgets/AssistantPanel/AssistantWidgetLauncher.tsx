@@ -1,7 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, LoaderCircle, Sparkles } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
+import { LoaderCircle } from 'lucide-react';
+import { Button, Text, AppBrand } from '@/shared/ui';
 import type { ButtonProps } from '@/shared/ui/Button/Button';
 import cls from './AssistantPanel.module.scss';
 
@@ -25,8 +25,8 @@ export function AssistantWidgetLauncher({ style, controls, busy, pendingCount, m
             title={`${label}. ${t('aiChat.moveWidget')}`} aria-label={label}
             aria-haspopup="dialog" aria-expanded={false} data-testid="ai-agent-launcher">
             <Text as="span" className={cls.launcherCore} aria-hidden>
-                {busy ? <LoaderCircle size={24} className={cls.launcherSpinner} /> : <Bot size={26} className={cls.launcherIcon} />}
-                {!busy && <Sparkles size={11} className={cls.launcherSpark} />}
+                <AppBrand compact />
+                {busy && <LoaderCircle size={16} className={cls.launcherSpinner} />}
             </Text>
             {pendingCount > 0 && <Text as="span" className={cls.launcherBadge}>{pendingCount}</Text>}
             {busy && <Text as="span" className={cls.srOnly} role="status">{t('aiChat.progress.working')}</Text>}

@@ -43,7 +43,7 @@ export async function loadCallEnrichment(
   // Preserve zone-less wall clocks; serialize native instant columns with an explicit UTC offset.
   if (tables.has('cel'))
     result.events = await reader.select<CallEvent>(
-      `SELECT id,uniqueid,linkedid,eventtype,${await celTimestampExpression(reader)} AS eventtime,channame,exten,peer,appname,extra FROM cel WHERE uniqueid IN (:ids) OR linkedid IN (:ids) ORDER BY id LIMIT 100001`,
+      `SELECT id,uniqueid,linkedid,eventtype,${await celTimestampExpression(reader)} AS eventtime,channame,context,exten,peer,appname,extra FROM cel WHERE uniqueid IN (:ids) OR linkedid IN (:ids) ORDER BY id LIMIT 100001`,
       { ids },
     );
   if (result.events.length > 100000)
@@ -183,6 +183,10 @@ export async function loadCallEnrichment(
           },
         );
   }
+  if(tables.has('call_groups')) {
+    const rows=await reader.select<{exten:string;name:string}>('SELECT exten,name FROM call_groups WHERE vpbx_user_uid=:tenant',{tenant});
+    for(const row of rows)if(row.exten)result.names.set(`group:${row.exten}`,{name:row.name,department:null});
+  }
   return result;
 }
 export function artifactsForCall(
@@ -210,6 +214,7 @@ export function artifactsForCall(
   return result;
 }
 export function enrichCallNames(call: CallFact, data: CallEnrichment): void {
+  for(const group of call.groups || [])group.name=data.names.get(`group:${group.id}`)?.name || group.name;
   const enrich = (party: CallParty | null) => {
     const name = party && data.names.get(`${party.kind}:${party.id}`);
     if (party && name) Object.assign(party, name);

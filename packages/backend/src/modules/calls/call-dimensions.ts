@@ -6,13 +6,13 @@ import {
 
 export function callDimensions(
   call: CallRecord,
-): Array<{ kind: CallDimension | 'recording'; value: string; label: string }> {
+): Array<{ kind: CallDimension | 'recording' | 'trunk' | 'group'; value: string; label: string }> {
   const dimensions = new Map<
     string,
-    { kind: CallDimension | 'recording'; value: string; label: string }
+    { kind: CallDimension | 'recording' | 'trunk' | 'group'; value: string; label: string }
   >();
   const add = (
-    kind: CallDimension | 'recording',
+    kind: CallDimension | 'recording' | 'trunk' | 'group',
     value: string | null,
     label?: string | null,
   ) => {
@@ -47,5 +47,7 @@ export function callDimensions(
       call.companyNumber,
     );
   if (call.recordings.length) add('recording', 'yes');
+  for (const group of call.groups || []) add('group',group.id,group.name);
+  for (const trunk of call.trunks || []) add('trunk', trunk.id, trunk.name);
   return [...dimensions.values()];
 }

@@ -29,12 +29,12 @@ function fit(geometry: Geometry, width: number, minViewportWidth = 0): Geometry 
     };
 }
 
-function readGeometry(key: string, width: number, minViewportWidth: number): Geometry {
+function readGeometry(key: string, width: number, minViewportWidth: number, launcherBottom: number): Geometry {
     const fallback: Geometry = {
         x: window.innerWidth - width - MARGIN,
         y: 80,
         height: 640,
-        launcher: { x: window.innerWidth - LAUNCHER_SIZE - MARGIN, y: window.innerHeight - LAUNCHER_SIZE - 88 },
+        launcher: { x: window.innerWidth - LAUNCHER_SIZE - MARGIN, y: window.innerHeight - LAUNCHER_SIZE - launcherBottom },
     };
     try {
         const parsed = JSON.parse(localStorage.getItem(key) ?? 'null') as Geometry | null;
@@ -46,8 +46,8 @@ function readGeometry(key: string, width: number, minViewportWidth: number): Geo
 }
 
 /** Non-modal window geometry; presentation and business state belong to the caller. */
-export function useFloatingWindow(width: number, onWidthChange: (width: number) => number | void, storageKey: string, minViewportWidth = 0) {
-    const [geometry, setGeometry] = useState(() => readGeometry(storageKey, width, minViewportWidth));
+export function useFloatingWindow(width: number, onWidthChange: (width: number) => number | void, storageKey: string, minViewportWidth = 0, launcherBottom = 88) {
+    const [geometry, setGeometry] = useState(() => readGeometry(storageKey, width, minViewportWidth, launcherBottom));
     const [dragging, setDragging] = useState(false);
     const current = useRef(geometry);
     const widthRef = useRef(width);
@@ -122,10 +122,7 @@ export function useFloatingWindow(width: number, onWidthChange: (width: number) 
             cleanup();
             cleanupRef.current = null;
             setDragging(false);
-            const next = current.current;
-            if (kind === 'launcher' && moved) {
-                update({ ...next, launcher: fitPoint({ ...next.launcher, x: next.launcher.x < window.innerWidth / 2 ? MARGIN : window.innerWidth - LAUNCHER_SIZE - MARGIN }, LAUNCHER_SIZE, LAUNCHER_SIZE) }, true);
-            } else update(next, true);
+            update(current.current, true);
         };
         const onEnd = (next: globalThis.PointerEvent) => {
             if (next.pointerId === pointerId) finish();

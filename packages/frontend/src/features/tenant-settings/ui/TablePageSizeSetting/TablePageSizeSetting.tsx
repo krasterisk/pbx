@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Label, Select, Text } from '@/shared/ui';
+import { InfoTooltip, Label, Select, Text } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import {
   TABLE_PAGE_SIZE_OPTIONS,
@@ -31,9 +31,9 @@ export function TablePageSizeSetting() {
 
   return (
     <VStack gap="8" className={cls.root} data-testid="table-page-size-setting">
-      <Label htmlFor="tenant-table-page-size">
+      <HStack gap="4" align="center"><Label htmlFor="tenant-table-page-size">
         {t('systemSettings.tablePageSize', 'Строк в таблице')}
-      </Label>
+      </Label><InfoTooltip text={t('systemSettings.tablePageSizeHint')} /></HStack>
       <HStack gap="12" align="center">
         <Select
           id="tenant-table-page-size"
@@ -47,9 +47,6 @@ export function TablePageSizeSetting() {
           ))}
         </Select>
       </HStack>
-      <Text variant="small" className={cls.hint}>
-        {t('systemSettings.tablePageSizeHint', 'Сколько записей показывать на одной странице таблиц этого кабинета')}
-      </Text>
       {saveError ? (
         <Text variant="small" className={cls.error}>
           {t('settings.tenant.saveError', 'Не удалось сохранить настройку, значение возвращено')}

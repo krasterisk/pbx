@@ -1,0 +1,12 @@
+.form { width: 100%; max-width: 680px; min-width: 0; }
+.field { width: 100%; min-width: 0; }
+.label { color: var(--color-muted-foreground, hsl(var(--muted-foreground))); font-size: 0.875rem; }
+.grow { flex: 1; min-width: 0; }
+.icon { width: 15px; height: 15px; flex-shrink: 0; }
+.code { font-family: var(--font-mono, monospace); overflow-wrap: anywhere; font-size: 0.8125rem; }
+.action { flex-shrink: 0; }
+.link { font-size: 0.8125rem; color: var(--color-primary, hsl(var(--primary))); }
+.spin { animation: settings-spin 1s linear infinite; }
+@keyframes settings-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+@media (max-width: 560px) { .responsive.responsive { flex-direction: column; align-items: stretch; } .responsive > .action { align-self: flex-start; } }

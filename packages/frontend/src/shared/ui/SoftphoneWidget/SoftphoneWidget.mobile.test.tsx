@@ -1,0 +1,22 @@
+import {it,expect,vi,beforeEach} from 'vitest';import {render,screen,fireEvent,waitFor} from '@testing-library/react';import {SoftphoneWidget} from './SoftphoneWidget';
+vi.mock('@/shared/hooks/useIsMobile',()=>({useIsMobile:()=>true}));vi.mock('react-i18next',()=>({useTranslation:()=>({t:(key:string)=>key})}));
+const phone={status:'registered',callInfo:null,isHeld:false,isMuted:false,hangup:vi.fn(),hold:vi.fn(),unhold:vi.fn(),mute:vi.fn(),unmute:vi.fn(),sendDtmf:vi.fn(),makeCall:vi.fn()};
+beforeEach(()=>{localStorage.clear();Object.defineProperty(window,'innerWidth',{configurable:true,value:390});Object.defineProperty(window,'innerHeight',{configurable:true,value:844});});
+it('keeps a compact launcher movable by keyboard and restores its saved position',async()=>{
+ const view=render(<SoftphoneWidget phone={phone} mode="sip"/>);
+ let button=screen.getByTestId('softphone-widget-sticky');
+ const initial=parseFloat(button.style.getPropertyValue('--launcher-x'));
+ fireEvent.keyDown(button,{key:'ArrowLeft'});
+ expect(button.style.getPropertyValue('--launcher-x')).toBe((initial-16)+'px');
+ view.unmount();render(<SoftphoneWidget phone={phone} mode="sip"/>);
+ button=screen.getByTestId('softphone-widget-sticky');
+ expect(button.style.getPropertyValue('--launcher-x')).toBe((initial-16)+'px');
+ fireEvent.click(button,{detail:0});
+ expect(screen.getByRole('dialog')).toBeTruthy();
+ expect(screen.queryByTestId('softphone-widget-sticky')).not.toBeInTheDocument();
+ expect(screen.getAllByText('callcenter.softphone.panelTitle')).toHaveLength(1);
+ fireEvent.keyDown(document,{key:'Escape'});
+ await waitFor(()=>expect(screen.getByTestId('softphone-widget-sticky')).toBeInTheDocument());
+ await waitFor(()=>expect(screen.getByTestId('softphone-widget-sticky')).toHaveFocus());
+ expect(phone.makeCall).not.toHaveBeenCalled();
+});

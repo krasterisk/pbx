@@ -1,5 +1,11 @@
 # Реестр координации инициатив
 
+Supervisor Pulse: [PLAN](supervisor-pulse/PLAN.md), [EXECUTION](supervisor-pulse/EXECUTION.md), `/root` chat01a16857, codex-direct; implemented, corrective 9 files / 28 tests + types/lint/backend/synthetic browser PASS. Full frontend: 501 files passed, single i18n failure corrected and rerun; original run retained. Scoped assignment closed, existing avatar/CDR/softphone baseline preserved; no release assigned.
+
+Supervisor avatar retry fix: [EXECUTION / scoped plan A1–A3](supervisor-avatar/EXECUTION.md), `/root` chat01a166a2, codex-direct; missing-avatar retry loop fixed, targeted 1+5 tests/types/lint PASS; existing server 404 confirmed, no release.
+
+Softphone window controls: [EXECUTION / scoped plan W1–W2](softphone-window/EXECUTION.md), `/root` chat01a166a2, codex-direct; desktop movement/resize/close and aligned number input implemented; targeted 29+6 tests/lint/SCSS PASS, full tests/types pending; no release.
+
 Указывает, где хранится владелец и текущее назначение; не дублирует ROADMAP/STATE и не является атомарной блокировкой. Порядок: [HYBRID-WORKFLOW](../development/HYBRID-WORKFLOW.md).
 
 | Инициатива | Каноническое состояние координации | Master roadmap |
@@ -57,10 +63,11 @@
 
 | cc-operator-report | [EXECUTION](cc-operator-report/EXECUTION.md) | [PLAN](cc-operator-report/PLAN.md), codex-direct; operator scorecard: person rows, journal time, queue filter, RNA and occupancy, supervisor scope; migration 0047; live stand check PASS |
 
-| cdr-reports-ux | [EXECUTION](cdr-reports-ux/EXECUTION.md) | R7O11 bounded acceptance CLOSED: both privacy failures repaired using retained STT;13/13 analyses,463segments/169metrics,11 prior results unchanged. Browser aiChat approximate timing/unknown,7-call aggregate and6/6 summary PASS; index71/71/search/card/seek/ACL+revocation PASS with semantic preview limits. Backend5017PASS/27skip; frontend482filesPASS; lint/build PASS. Native WebRTC/unanswered gates retained. Disposable QA stopped/removed, external evidence retained; main3010/5010 rebuilt/up. No robot-model or CC-shift edits; not a production rollout. External runs/cdr-reports-ux/r7o11-20261021. |
+| cdr-reports-ux | [EXECUTION](cdr-reports-ux/EXECUTION.md) | [PLAN Settings help and compact style](cdr-reports-ux/PLAN.md), /root same chat codex-direct sole writer; implemented / automated-tests-passed / available-desktop-tabs-live-verified. InfoTooltip across settings tabs, common compact SCSS and architecture cleanup;9files41tests/final subset20/lint/types/source audit PASS. AI controlled real-component tests; optional mobile recheck unavailable after session expiry, not claimed passed. Accepted regional/calendar/report baseline and Asia/Krasnoyarsk/Monday unchanged; no backend change or release. |
 
 | artifact-storage | [EXECUTION](artifact-storage/EXECUTION.md) | Completed storage migration: 79334 files external/SHA-256 PASS, 247 generators, 9 targeted PASS; frontend WebRTC8 FAIL outside product ownership; /root chat01a15cc9 |
 
 | repository-layout | [EXECUTION](repository-layout/EXECUTION.md) | /root chat01a15cc9 codex-direct idle;947 docs/5 tools/7 inputs moved; planning tracked0; integrity/targeted/lint/backend PASS; frontend gate recorded separately; no release |
 | release-4.7.2.0 | `/root`, codex-direct | [historical acceptance + r2 correction](release-4.7.2.0/EXECUTION.md) | historical e0d0a038 release; label superseded by4.7.1.2/sourceebedc378, see correction row |
 | release-version-correction | `/root`, codex-direct idle | [r2 acceptance](release-4.7.2.0/EXECUTION.md#version-correction-acceptance-r2--2026-10-21-1444-utc) | released/live-verified4.7.1.2, sourceebedc378 on185.177.216.132; current CI/live/identity PASS; unchanged schema0055/customer policy; no pending gate |
+| release-4.7.1.3 | [Execution](RELEASE-4.7.1.3.md) | /root, codex-direct | in_progress: publish current authored packages/docs; required gates, Linux build, application-only deploy and live smoke on 185.177.216.132. Customer policy/schema preserved. |

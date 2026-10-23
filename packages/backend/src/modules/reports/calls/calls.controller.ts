@@ -1,3 +1,5 @@
+import ExcelJS from 'exceljs';
+import { safeExportCell } from './calls-export';
 import {
   Controller,
   Optional,
@@ -10,6 +12,7 @@ import {
   Request,
   Res,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Request as ExpressRequest, Response } from 'express';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -18,6 +21,8 @@ import { RequiresModule } from '../../cloud-admin/requires-module.decorator';
 import type { JwtPayloadUser } from '../../auth/auth.service';
 import { CallsPolicyDto } from './calls-policy.dto';
 import { CallsQueryDto } from './calls-query.dto';
+import { exportCallAttention } from './calls-export';
+import { CallsAttentionExportDto } from './calls-attention-export.dto';
 import { CallsService } from './calls.service';
 import { CdrService } from '../cdr/cdr.service';
 import { CallTranscriptService } from './call-transcript.service';
@@ -66,6 +71,16 @@ export class CallsController {
   ) {
     return this.calls.attention(req.user, query);
   }
+  @Get('attention/export') async attentionExport(@Request() req: {user:JwtPayloadUser}, @Query() query: CallsAttentionExportDto, @Res() res: Response) {
+    const format = query.format || 'csv';
+    if (!['csv','xlsx'].includes(format)) throw new BadRequestException('Invalid export format');
+    const data = await this.calls.attention(req.user, query, true);
+    if (data.source.state === 'unavailable') throw new ServiceUnavailableException('Call history unavailable');
+    const content = await exportCallAttention(data, format);
+    res.setHeader('Content-Type', format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="call-callbacks.${format}"`);
+    res.send(content);
+  }
   @Get('facets') facets(
     @Request() req: { user: JwtPayloadUser },
     @Query() query: CallsQueryDto,
@@ -74,9 +89,30 @@ export class CallsController {
   }
   @Get('export') async exportCsv(
     @Request() req: { user: JwtPayloadUser },
-    @Query() query: CallsQueryDto,
+    @Query() query: CallsAttentionExportDto,
     @Res() res: Response,
   ) {
+    if(query.format === 'xlsx') {
+      // Streaming worksheet keeps memory bounded on a full-history export.
+      // Authorize/validate before committing headers or any worksheet bytes.
+      let workbook: ExcelJS.stream.xlsx.WorkbookWriter | undefined;
+      let sheet: ExcelJS.Worksheet | undefined;
+      await this.calls.exportRows(req.user,query,async values=>{
+        if(res.destroyed) return false;
+        if(!workbook) {
+          res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition','attachment; filename="company-calls.xlsx"');
+          workbook=new ExcelJS.stream.xlsx.WorkbookWriter({stream:res,useStyles:true});
+          sheet=workbook.addWorksheet('Звонки',{views:[{state:'frozen',ySplit:1}]});
+          sheet.columns=values.map(()=>({width:26}));
+        }
+        const row=sheet!.addRow(values.map(value=>typeof value === 'number' ? value : safeExportCell(value)));
+        if(row.number===1) row.font={bold:true};
+        row.commit(); return true;
+      });
+      if(workbook) {sheet!.commit();await workbook.commit();}
+      return;
+    }
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
       'Content-Disposition',

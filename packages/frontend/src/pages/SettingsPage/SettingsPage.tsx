@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
-import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route, Bot, Table2, Phone } from 'lucide-react';
-import { Text } from '@/shared/ui';
+import { Settings, Terminal, Mic2, Shield, Cpu, Database, Route, Bot, Table2, Phone, AudioLines } from 'lucide-react';
+import { Button, InfoTooltip, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger, Text } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
+import { useGetAuthConfigQuery } from '@/shared/api/endpoints/authApi';
 import { DialplanSubroutinesCard } from '@/features/system-settings/ui/DialplanSubroutinesCard';
 import { RecordingsCard } from '@/features/system-settings/ui/RecordingsCard';
 import { WebhookSecurityCard } from '@/features/system-settings/ui/WebhookSecurityCard';
@@ -14,128 +15,59 @@ import { EndpointExpertModeSetting } from '@/features/tenant-settings/ui/Endpoin
 import { AiChatProviderCard } from '@/features/system-settings/ui/AiChatProviderCard';
 import { TenantSpeechModelsCard } from '@/features/speechAnalytics/ui/TenantSpeechModelsCard/TenantSpeechModelsCard';
 import { useGetSaSpeechModelsQuery } from '@/features/speechAnalytics/api/speechAnalyticsApi';
+import { OrganizationTimezoneSetting } from '@/features/system-settings/ui/OrganizationTimezoneSetting/OrganizationTimezoneSetting';
 import cls from './SettingsPage.module.scss';
 
+type Tab = 'general' | 'telephony' | 'ai' | 'server';
 const SECTIONS = [
-  {
-    key: 'endpoints',
-    icon: Phone,
-    titleKey: 'endpoints.title',
-    descKey: 'endpoints.expertModeGlobalHint',
-    content: <EndpointExpertModeSetting />,
-  },
-  {
-    key: 'dialplan',
-    icon: Terminal,
-    titleKey: 'systemSettings.sectionDialplan',
-    descKey: 'systemSettings.sectionDialplanDesc',
-    content: <DialplanSubroutinesCard />,
-  },
-  {
-    key: 'recordings',
-    icon: Mic2,
-    titleKey: 'systemSettings.sectionRecordings',
-    descKey: 'systemSettings.sectionRecordingsDesc',
-    content: <RecordingsCard />,
-  },
-  {
-    key: 'security',
-    icon: Shield,
-    titleKey: 'systemSettings.sectionSecurity',
-    descKey: 'systemSettings.sectionSecurityDesc',
-    content: <WebhookSecurityCard />,
-  },
-  {
-    key: 'ffmpeg',
-    icon: Cpu,
-    titleKey: 'systemSettings.sectionFfmpeg',
-    descKey: 'systemSettings.sectionFfmpegDesc',
-    content: <FfmpegStatusCard />,
-  },
-  {
-    key: 'redis',
-    icon: Database,
-    titleKey: 'systemSettings.sectionRedis',
-    descKey: 'systemSettings.sectionRedisDesc',
-    content: <RedisStatusCard />,
-  },
-  {
-    key: 'aiChat',
-    icon: Bot,
-    titleKey: 'systemSettings.sectionAiAgent',
-    descKey: 'systemSettings.sectionAiAgentDesc',
-    content: <AiChatProviderCard />,
-  },
-  {
-    key: 'tables',
-    icon: Table2,
-    titleKey: 'systemSettings.sectionTables',
-    descKey: 'systemSettings.sectionTablesDesc',
-    content: <TablePageSizeSetting />,
-  },
-  {
-    key: 'tenant',
-    icon: Route,
-    titleKey: 'settings.tenant.title',
-    descKey: 'settings.tenant.description',
-    content: <TenantSettingsSection />,
-  },
+  { key: 'timezone', tab: 'general', icon: Settings, titleKey: 'calls.calendarSettingsTitle', descKey: '', content: <OrganizationTimezoneSetting /> },
+  { key: 'tables', tab: 'general', icon: Table2, titleKey: 'systemSettings.sectionTables', descKey: '', content: <TablePageSizeSetting /> },
+  { key: 'endpoints', tab: 'telephony', icon: Phone, titleKey: 'endpoints.title', descKey: '', content: <EndpointExpertModeSetting /> },
+  { key: 'tenant', tab: 'telephony', icon: Route, titleKey: 'systemSettings.sectionRoutes', descKey: 'systemSettings.sectionRoutesDesc' },
+  { key: 'speechModels', tab: 'ai', icon: AudioLines, titleKey: 'speechAnalytics.tenantModelsTitle', descKey: 'speechAnalytics.tenantModelsHint', content: <TenantSpeechModelsCard /> },
+  { key: 'aiChat', tab: 'ai', icon: Bot, titleKey: 'systemSettings.sectionAiAgent', descKey: '' },
+  { key: 'dialplan', tab: 'server', icon: Terminal, titleKey: 'systemSettings.sectionDialplan', descKey: 'systemSettings.sectionDialplanDesc', content: <DialplanSubroutinesCard /> },
+  { key: 'recordings', tab: 'server', icon: Mic2, titleKey: 'systemSettings.sectionRecordings', descKey: 'systemSettings.sectionRecordingsDesc', content: <RecordingsCard /> },
+  { key: 'security', tab: 'server', icon: Shield, titleKey: 'systemSettings.sectionSecurity', descKey: 'systemSettings.sectionSecurityDesc', content: <WebhookSecurityCard /> },
+  { key: 'ffmpeg', tab: 'server', icon: Cpu, titleKey: 'systemSettings.sectionFfmpeg', descKey: 'systemSettings.sectionFfmpegDesc', content: <FfmpegStatusCard /> },
+  { key: 'redis', tab: 'server', icon: Database, titleKey: 'systemSettings.sectionRedis', descKey: 'systemSettings.sectionRedisDesc', content: <RedisStatusCard /> },
 ] as const;
 
 export function SettingsPage() {
   const { t } = useTranslation();
-  const { data: speechModels } = useGetSaSpeechModelsQuery();
-  const sections = SECTIONS.filter((section) => section.key !== 'aiChat' || speechModels?.ownModels);
-
-  return (
-    <VStack
-      gap="32"
-      max
-      className={cls.page}
-      data-testid="settings-page-responsive"
-      data-stack="phone"
-    >
-      {/* Header */}
-      <HStack gap="12" align="center" className="min-w-0">
-        <Settings className={cls.pageIcon} />
-        <VStack gap="4" className="min-w-0">
-          <Text variant="h1" className={cls.pageTitle}>{t('systemSettings.pageTitle')}</Text>
-          <Text variant="small" className={cls.pageSubtitle}>{t('systemSettings.pageSubtitle')}</Text>
-        </VStack>
-      </HStack>
-
-      <TenantSpeechModelsCard />
-
-      {/* Sections - stacked forms for 360px (D-29) */}
-      {sections.map((section, i) => {
-        const Icon = section.icon;
-        return (
-          <motion.div
-            key={section.key}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: i * 0.06 }}
-            className={cls.section}
-          >
-            <VStack gap="16" className="min-w-0" max>
-              <HStack gap="8" align="center" className={`${cls.sectionHeader} min-w-0`}>
-                <Icon className={cls.sectionIcon} />
-                <VStack gap="2" className="min-w-0">
-                  <Text className={cls.sectionTitle}>
-                    {section.key === 'tenant' ? t(section.titleKey, 'Маршруты') : t(section.titleKey)}
-                  </Text>
-                  <Text variant="small" className={cls.sectionDesc}>
-                    {section.key === 'tenant'
-                      ? t(section.descKey, 'Видимость dialplan и блок-схемы в форме маршрута')
-                      : t(section.descKey)}
-                  </Text>
-                </VStack>
-              </HStack>
-              <div className={cls.sectionBody}>{section.content}</div>
-            </VStack>
-          </motion.div>
-        );
-      })}
-    </VStack>
-  );
+  const { data: config, isError, refetch } = useGetAuthConfigQuery();
+  const { data: speechModels } = useGetSaSpeechModelsQuery(undefined, { skip: !config });
+  const [selected, setSelected] = useState<Tab>('general');
+  const installation = config?.deploymentMode === 'box' || config?.deploymentMode === 'opensource';
+  const tabs: Tab[] = ['general', 'telephony', ...(speechModels?.ownModels ? ['ai' as const] : []), ...(installation ? ['server' as const] : [])];
+  const active = tabs.includes(selected) ? selected : 'general';
+  return <VStack gap="24" max className={cls.page} data-testid="settings-page-responsive" data-stack="phone">
+    <HStack gap="12" align="center" className={cls.heading}>
+      <Settings className={cls.pageIcon} />
+      <Text variant="h1" className={cls.pageTitle}>{t('systemSettings.pageTitle')}</Text>
+    </HStack>
+    {!config ? isError
+      ? <HStack gap="12"><Text role="alert" variant="error">{t('systemSettings.modeError')}</Text><Button variant="outline" size="sm" onClick={() => refetch()}>{t('common.retry')}</Button></HStack>
+      : <VStack max gap="16"><Skeleton height={40} /><Skeleton height={180} /></VStack>
+      : <Tabs value={active} onValueChange={value => setSelected(value as Tab)} className={cls.tabs}>
+        <TabsList aria-label={t('systemSettings.sectionsLabel')}>
+          {tabs.map(tab => <TabsTrigger key={tab} value={tab}>{t(`systemSettings.tabs.${tab}`)}</TabsTrigger>)}
+        </TabsList>
+        {tabs.map(tab => <TabsContent key={tab} value={tab}>
+          <VStack gap="24" max>
+            {SECTIONS.filter(section => section.tab === tab).map(section => {
+              const Icon = section.icon;
+              return <VStack key={section.key} gap="12" className={cls.section} max>
+                <HStack gap="8" align="center" className={cls.sectionHeader}>
+                  <Icon className={cls.sectionIcon} />
+                  <Text className={cls.sectionTitle}>{t(section.titleKey)}</Text>
+                  {section.descKey && <InfoTooltip text={t(section.descKey)} />}
+                </HStack>
+                <VStack align="stretch" className={cls.sectionBody}>{section.key === 'tenant' ? <TenantSettingsSection allowRawDialplan={installation} /> : section.key === 'aiChat' ? <AiChatProviderCard ownModels={Boolean(speechModels?.ownModels)} /> : section.content}</VStack>
+              </VStack>;
+            })}
+          </VStack>
+        </TabsContent>)}
+      </Tabs>}
+  </VStack>;
 }

@@ -20,6 +20,9 @@ export const phoneSessionApi = rtkApi.injectEndpoints({
     phoneHeartbeat: build.mutation<PhoneConnection, { owner: string }>({
       query: (body) => ({ url: '/phone-session/heartbeat', method: 'POST', body }),
     }),
+    restorePhone: build.mutation<PhoneConnection | null, {owner:string}>({
+      query: body => ({url:'/phone-session/restore',method:'POST',body}),
+    }),
     disconnectPhone: build.mutation<{ success: true }, { owner: string }>({
       query: (body) => ({ url: '/phone-session', method: 'DELETE', body }),
     }),
@@ -34,5 +37,5 @@ export const phoneSessionApi = rtkApi.injectEndpoints({
     }),
   }),
 });
-export const { usePhoneContactsQuery, usePhoneEndpointsQuery, useConnectPhoneMutation, usePhoneHeartbeatMutation, useDisconnectPhoneMutation,
+export const { useRestorePhoneMutation, usePhoneContactsQuery, usePhoneEndpointsQuery, useConnectPhoneMutation, usePhoneHeartbeatMutation, useDisconnectPhoneMutation,
   usePhoneCredentialsMutation, usePhoneDialMutation, usePhoneDialViaCallCenterMutation } = phoneSessionApi;

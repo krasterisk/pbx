@@ -19,7 +19,9 @@ export function DashboardChart({ points, series, label, formatTime, formatToolti
         <XAxis dataKey="at" tickFormatter={formatTime} minTickGap={40} tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} />
         <YAxis allowDecimals={false} width={42} tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} />
         {showLegend && <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:12 }} formatter={(value: string) => <span style={{ color:'var(--color-foreground)' }}>{value}</span>} />}
-        <Tooltip labelFormatter={(value) => formatTooltip(String(value))} contentStyle={{ background: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-foreground)' }} />
+        <Tooltip labelFormatter={(value) => formatTooltip(String(value))}
+          labelStyle={{ color: 'var(--color-foreground)' }} itemStyle={{ color: 'var(--color-foreground)' }}
+          contentStyle={{ background: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-foreground)' }} />
         {series.map((item) => <Bar key={item.key} dataKey={item.key} name={item.label} fill={item.color} isAnimationActive={false}
           onClick={(entry: { at?: string; payload?: { at?: string } }) => { const at = entry.at ?? entry.payload?.at; if (at) onPoint(at, item.key); }} />)}
       </BarChart>

@@ -1,4 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
+import { assertSupportRouteChanges, isSupportSourceAction } from './support-policy';
 import { RoutesService } from '../routes/routes.service';
 import { TimeGroupsService } from '../time-groups/time-groups.service';
 import { ContextsService } from '../contexts/contexts.service';
@@ -38,18 +39,16 @@ export class SupportRuntimeVerifier {
     const route=await this.routes.findOne(args.id,tenant);
     if(route.raw_dialplan?.trim())throw new ConflictException('support_raw_route_requires_owner');
     if(args.actions===undefined)return;
-    const existing=new Map((route.actions??[]).map((action:any,index:number)=>[String(action.id??action.uid??index),action]));
-    const ordered=(route.actions??[]).map((action:any,index:number)=>String(action.id??action.uid??index));let previous=-1;
+    // The registered routes mutation contract resolves every target in this tenant
+    // and revalidates the full state fingerprint at approval. Support only adds
+    // a restricted grammar, not an alternative route writer.
+    const ids=new Set<string>();
     for(const action of args.actions){
-      const index=ordered.indexOf(String(action.id??action.uid));if(index<=previous)throw new ConflictException('support_route_order_change_requires_typed_tool');previous=index;
-      const before:any=existing.get(String(action.id??action.uid));
-      // This release can remove a selected forwarding step and attach a scoped
-      // calendar. It cannot install new targets, direct SIP addresses or scripts.
-      if(!before||before.type!==action.type||stateFingerprint(before.params??{})!==stateFingerprint(action.params??{}))throw new ConflictException('support_route_target_change_requires_typed_tool');
-      const identity=(value:any)=>Object.fromEntries(Object.entries(value).filter(([key])=>key!=='condition'));
-      if(stateFingerprint(identity(before))!==stateFingerprint(identity(action)))throw new ConflictException('support_route_step_change_requires_typed_tool');
-      const withoutCalendar=(condition:any)=>Object.fromEntries(Object.entries(condition??{}).filter(([key])=>key!=='time_group_uid'));
-      if(stateFingerprint(withoutCalendar(before.condition))!==stateFingerprint(withoutCalendar(action.condition)))throw new ConflictException('support_route_condition_change_requires_typed_tool');
+      if(typeof action.id!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(action.id))throw new ConflictException('support_route_step_identity_required');
+      if(ids.has(action.id))throw new ConflictException('support_route_duplicate_step');ids.add(action.id);
+      if(isSupportSourceAction(action)){
+        assertSupportRouteChanges({actions:[{...action,type:'set_source',params:{value:action.params.command.slice(13,-1)}}]});
+      }else assertSupportRouteChanges({actions:[action]});
     }
   }
   async calendarConsumers(uid:number,tenant:number):Promise<number[]> {

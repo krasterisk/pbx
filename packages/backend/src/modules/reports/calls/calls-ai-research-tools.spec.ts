@@ -10,6 +10,7 @@ function fixture() {
   const calls = {
     aiActor: jest.fn().mockResolvedValue(actor),
     aiTimezone: jest.fn().mockResolvedValue("Asia/Krasnoyarsk"),
+    aiWeekStart: jest.fn().mockResolvedValue('monday'),
     aiOwnEmployee: jest.fn().mockResolvedValue("101"),
     facets: jest
       .fn()

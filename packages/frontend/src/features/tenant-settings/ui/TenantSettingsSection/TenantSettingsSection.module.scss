@@ -1,5 +1,7 @@
 .root {
   width: 100%;
+  max-width: 680px;
+  min-width: 0;
 }
 
 .row {
@@ -12,7 +14,8 @@
 }
 
 .label {
-  color: var(--color-foreground);
+  color: var(--color-muted-foreground);
+  font-size: 0.875rem;
 }
 
 .hint {

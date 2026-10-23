@@ -1,0 +1,9 @@
+.form { width: 100%; max-width: 680px; }
+.fields { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 560px) { .fields { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
+
+.field { min-width: 0; width: 100%; }
+.fields.fields { display: grid; width: 100%; }
+.spin { animation: regional-spin 1s linear infinite; }
+@keyframes regional-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }

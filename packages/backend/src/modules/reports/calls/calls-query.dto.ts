@@ -12,6 +12,28 @@ import {
 } from 'class-validator';
 import type { CallsQuery } from '@krasterisk/shared';
 export class CallsQueryDto implements CallsQuery {
+  @IsOptional()
+  @Transform(({ value }) => Array.isArray(value) ? value : [value])
+  @IsArray() @ArrayMaxSize(4) @IsIn(["in","out","internal","external"], { each: true })
+  directions?: CallsQuery['directions'];
+  @IsOptional()
+  @Transform(({ value }) => Array.isArray(value) ? value : [value])
+  @IsArray() @ArrayMaxSize(6) @IsIn(["employee","queue","menu","voiceRobot","aiRobot","autodial"], { each: true })
+  handlings?: CallsQuery['handlings'];
+  @IsOptional()
+  @Transform(({ value }) => Array.isArray(value) ? value : [value])
+  @IsArray() @ArrayMaxSize(3) @IsIn(["busy","noAnswer","unavailable"], { each: true })
+  results?: CallsQuery['results'];
+  @IsOptional()
+  @Transform(({ value }) => Array.isArray(value) ? value : [value])
+  @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) @MaxLength(128, { each: true })
+  numbers?: string[];
+  @IsOptional()
+  @Transform(({ value }) => Array.isArray(value) ? value : [value])
+  @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) @MaxLength(128, { each: true })
+  trunks?: string[];
+  @IsOptional() @IsIn(['any','caller','recipient']) numberRole?: CallsQuery['numberRole'];
+
   @IsOptional() @IsString() @MaxLength(128) callerEmployee?: string;
   @IsOptional() @IsString() @MaxLength(128) focusEmployee?: string;
   @IsOptional() @IsString() @MaxLength(128) focusDepartment?: string;
@@ -98,6 +120,10 @@ export class CallsQueryDto implements CallsQuery {
   @IsString({ each: true })
   @MaxLength(128, { each: true })
   queues?: string[];
+  @IsOptional()
+  @Transform(({value})=>Array.isArray(value)?value:[value])
+  @IsArray() @ArrayMaxSize(30) @IsString({each:true}) @MaxLength(8,{each:true})
+  groups?: string[];
   @IsOptional()
   @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
   @IsArray()

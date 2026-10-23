@@ -56,8 +56,7 @@ describe("calendar call heatmap", () => {
         <CallHeatmap days={[day()]} periodHref={link} />
       </MemoryRouter>,
     );
-    const first = screen.getByRole("link", { name: /01:00 UTC−04:00/ });
-    const second = screen.getByRole("link", { name: /01:00 UTC−05:00/ });
+    const [first, second] = screen.getAllByRole("link", { name: /01:00/ });
     expect(first).toHaveAttribute(
       "href",
       link("2026-11-01T05:00:00Z", "2026-11-01T06:00:00Z"),
@@ -67,7 +66,7 @@ describe("calendar call heatmap", () => {
       link("2026-11-01T06:00:00Z", "2026-11-01T07:00:00Z"),
     );
     expect(
-      screen.getByRole("button", { name: /02:00 UTC−05:00/ }),
+      screen.getByRole("button", { name: /02:00/ }),
     ).toBeDisabled();
     expect(screen.getAllByLabelText("calls.heatmapMissing")).toHaveLength(22);
     expect(screen.getByRole("region")).toHaveAttribute("tabindex", "0");
@@ -88,7 +87,7 @@ describe("calendar call heatmap", () => {
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "calls.heatmapNext" }));
     expect(
-      screen.getByRole("link", { name: /2026-11-08 01:00 UTC−04:00/ }),
+      screen.getAllByRole("link", { name: /2026-11-08 01:00/ })[0],
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "calls.heatmapNext" }),
@@ -97,7 +96,7 @@ describe("calendar call heatmap", () => {
       screen.getByRole("button", { name: "calls.heatmapPrevious" }),
     );
     expect(
-      screen.getByRole("link", { name: /2026-11-01 01:00 UTC−04:00/ }),
+      screen.getAllByRole("link", { name: /2026-11-01 01:00/ })[0],
     ).toBeInTheDocument();
   });
 });

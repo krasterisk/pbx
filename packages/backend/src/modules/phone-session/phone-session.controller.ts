@@ -40,6 +40,8 @@ export class PhoneSessionController {
   }
   @Post('heartbeat')
   heartbeat(@Req() req: PhoneRequest, @Body() dto: PhoneOwnerDto) { return this.phone.heartbeat(req.user.vpbx_user_uid, req.user.sub, dto.owner); }
+  @Post('restore')
+  restore(@Req() req: PhoneRequest, @Body() dto: PhoneOwnerDto) { return this.phone.restore(req.user.vpbx_user_uid,req.user.sub,dto.owner); }
   @Delete()
   release(@Req() req: PhoneRequest, @Body() dto: PhoneOwnerDto) { return this.phone.release(req.user.vpbx_user_uid, req.user.sub, dto.owner); }
   @Post('credentials')

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { CallCalendarDay } from "@krasterisk/shared";
-import { Button, Flex, Text, VStack } from "@/shared/ui";
+import { Button, Flex, Text, VStack, InfoTooltip } from "@/shared/ui";
 import cls from "./Calls.module.scss";
 
 const PAGE = 7;
@@ -32,7 +32,7 @@ export function CallHeatmap({
   return (
     <VStack gap="8" align="stretch">
       <Flex justify="between" align="center" wrap="wrap" gap="8">
-        <Text variant="h3">{t("calls.heatmapTitle")}</Text>
+        <Flex gap="4" align="center"><Text variant="h3">{t("calls.heatmapTitle")}</Text><InfoTooltip text={t("calls.heatmapHelp")}/></Flex>
         <Flex gap="8" align="center" wrap="wrap">
           <Button
             variant="outline"
@@ -42,7 +42,7 @@ export function CallHeatmap({
             {t("calls.heatmapPrevious")}
           </Button>
           <Text role="status">
-            {shown[0]?.date} — {shown.at(-1)?.date}
+            {shown[0]?.date} - {shown.at(-1)?.date}
           </Text>
           <Button
             variant="outline"
@@ -53,7 +53,6 @@ export function CallHeatmap({
           </Button>
         </Flex>
       </Flex>
-      <Text variant="muted">{t("calls.heatmapHelp")}</Text>
       <VStack
         className={cls.heatmapScroll}
         role="region"
@@ -87,13 +86,12 @@ export function CallHeatmap({
                   <VStack gap="2" key={hour} className={cls.heatmapCell}>
                     {occurrences.length ? (
                       occurrences.map((item) => {
-                        const offset = `${item.offsetMinutes < 0 ? "−" : "+"}${String(Math.floor(Math.abs(item.offsetMinutes) / 60)).padStart(2, "0")}:${String(Math.abs(item.offsetMinutes) % 60).padStart(2, "0")}`;
                         const clock = new Date(
                           Date.parse(item.from) + item.offsetMinutes * 60000,
                         )
                           .toISOString()
                           .slice(11, 16);
-                        const label = `${day.date} ${clock} UTC${offset} · ${t("calls.overviewBucketCounts", { ...item })}`;
+                        const label = `${day.date} ${clock} · ${t("calls.overviewBucketCounts", { ...item })}`;
                         const level = item.total
                           ? Math.max(1, Math.ceil((item.total / maximum) * 4))
                           : 0;
@@ -125,7 +123,7 @@ export function CallHeatmap({
                         title={t("calls.heatmapMissing")}
                         aria-label={t("calls.heatmapMissing")}
                       >
-                        —
+                        -
                       </Text>
                     )}
                   </VStack>

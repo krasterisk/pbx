@@ -71,6 +71,26 @@ describe('CDR recording files and streaming', () => {
     const target = file(name + '.mp3');
     expect((await service(name).resolveRecordingFile(910001, 'lab.1')).filePath).toBe(target);
   });
+  it('advertises only real safe files rather than inherited MixMonitor filenames',async()=>{
+    const instance=service('missing');
+    expect(await instance.availableCallRecordings(910001,['lab.1'])).toEqual(new Set());
+    file('missing.mp3');expect(await instance.availableCallRecordings(910001,['lab.1'])).toEqual(new Set(['lab.1']));
+    expect(await service('../outside.mp3').availableCallRecordings(910001,['lab.1'])).toEqual(new Set());
+  });
+  it('uses the installation recording path without changing the shared setting', async () => {
+    const previous = process.env.RECORDS_BASE_PATH;
+    const target = file('override.mp3');
+    process.env.RECORDS_BASE_PATH = root;
+    try {
+      const instance = service('override');
+      const settings = (instance as unknown as { systemSettings: SystemSettingsService }).systemSettings;
+      jest.mocked(settings.getServerConfigRaw).mockResolvedValue({ records_base_path: '/unavailable-shared-path' } as never);
+      expect((await instance.resolveRecordingFile(910001, 'lab.1')).filePath).toBe(target);
+    } finally {
+      if (previous === undefined) delete process.env.RECORDS_BASE_PATH;
+      else process.env.RECORDS_BASE_PATH = previous;
+    }
+  });
   it.each(['call.mp3', 'call.wav', 'call.WAV'])('opens the explicit recording filename %s', async name => {
     const target = file(name, name.endsWith('.mp3') ? mp3 : wav);
     expect((await service(name).resolveRecordingFile(910001, 'lab.1')).filePath).toBe(target);

@@ -33,6 +33,8 @@ export interface MultiSelectProps {
   searchPlaceholder?: string;
   /** Accessible name of the trigger. */
   ariaLabel?: string;
+  /** Optional remote facet search. Local matching remains immediate. */
+  onSearchChange?: (value: string) => void;
 }
 
 /**
@@ -53,6 +55,7 @@ export const MultiSelect = memo(({
   searchable = false,
   searchPlaceholder,
   ariaLabel,
+  onSearchChange,
 }: MultiSelectProps) => {
   const { t } = useTranslation();
   const listId = useId();
@@ -96,7 +99,8 @@ export const MultiSelect = memo(({
       };
     }
     setQuery('');
-  }, [isOpen, updateDropdownPosition, searchable]);
+    onSearchChange?.('');
+  }, [isOpen, updateDropdownPosition, searchable, onSearchChange]);
 
   // Close on outside click
   useEffect(() => {
@@ -212,7 +216,7 @@ export const MultiSelect = memo(({
               aria-label={searchPlaceholder || t('common.search', 'Search')}
               value={query}
               placeholder={selected.length === 0 ? (searchPlaceholder || placeholder || 'Search...') : (searchPlaceholder || '')}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {setQuery(e.target.value);onSearchChange?.(e.target.value);}}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
@@ -243,7 +247,7 @@ export const MultiSelect = memo(({
             type="button"
             className={cls.chevronBtn}
             ref={toggleRef}
-            aria-label={isOpen ? t('common.close', 'Close') : `${ariaLabel || placeholder || t('common.select', 'Select')} — ${t('common.open', 'Open')}`}
+            aria-label={isOpen ? t('common.close', 'Close') : `${ariaLabel || placeholder || t('common.select', 'Select')} - ${t('common.open', 'Open')}`}
             aria-expanded={isOpen}
             aria-controls={isOpen ? listId : undefined}
             aria-haspopup="listbox"
@@ -274,7 +278,7 @@ export const MultiSelect = memo(({
           }}
         >
           {filteredOptions.length === 0 ? (
-            <div className={cls.empty}>{query.trim() ? '-' : (placeholder || 'Select...')}</div>
+            <div className={cls.empty}>{t('common.noData', 'No data')}</div>
           ) : filteredOptions.map(opt => {
             const isChecked = selected.includes(opt.value);
             return (

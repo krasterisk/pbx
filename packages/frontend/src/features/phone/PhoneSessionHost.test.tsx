@@ -32,6 +32,7 @@ vi.mock('@/shared/api/endpoints/phoneSessionApi', () => ({
   usePhoneEndpointsQuery: () => ({ data: mocks.data, refetch: mocks.refetch }),
   useConnectPhoneMutation: () => [mocks.acquire, { isLoading: false }],
   useDisconnectPhoneMutation: () => [mocks.release], usePhoneHeartbeatMutation: () => [mocks.heartbeat],
+  useRestorePhoneMutation: () => [mocks.heartbeat],
   usePhoneCredentialsMutation: () => [mocks.runtime, { reset: mocks.reset }], usePhoneDialMutation: () => [mocks.dial, { isLoading: false }],
   usePhoneDialViaCallCenterMutation: () => [mocks.ccDial, { isLoading: false }],
 }));
@@ -90,7 +91,7 @@ describe('ordinary-user work phone', () => {
       {id:'e103_7',extension:'103',name:'Busy',webrtc:true,available:false});
     mount(); await open();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getAllByTestId('softphone-widget-trigger')).toHaveLength(1);
+    expect(screen.queryByTestId('softphone-widget-trigger')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('phoneNumber.device'), {target:{value:'webrtc'}});
     expect(screen.getByRole('option',{name:'101 · Alice'})).toBeInTheDocument();
     expect(screen.queryByRole('option',{name:'102 · Desk'})).not.toBeInTheDocument();
@@ -113,10 +114,10 @@ describe('ordinary-user work phone', () => {
     mocks.data.endpoints.push({id:'e102_7',extension:'102',name:'Bob',webrtc:true,available:true});
     await userEvent.click(screen.getByRole('button',{name:'phoneNumber.change'}));
     fireEvent.change(screen.getByLabelText('phoneNumber.subscriber'),{target:{value:'e102_7'}});
-    mocks.acquire.mockImplementationOnce(() => ({unwrap:async()=>{throw {data:{message:'busy'}};}}));
+    mocks.acquire.mockImplementationOnce(() => ({unwrap:async()=>{throw {status:409,data:{message:'Telephone already in use'}};}}));
     mocks.disconnect.mockClear();
     await userEvent.click(screen.getByRole('button',{name:'phoneNumber.apply'}));
-    expect(await screen.findByRole('alert')).toHaveTextContent('busy');
+    expect(await screen.findByRole('alert')).toHaveTextContent('phoneNumber.sessionConflict');
     expect(mocks.release).not.toHaveBeenCalled(); expect(mocks.disconnect).not.toHaveBeenCalled();
     expect(screen.getByRole('button',{name:'phoneNumber.back'})).toBeInTheDocument();
   });
@@ -142,9 +143,9 @@ describe('ordinary-user work phone', () => {
   });
   it('keeps failed WebRTC setup inside the widget with an explicit retry and disconnect', async () => {
     mocks.acquire.mockImplementationOnce(() => ({ unwrap:async()=>({endpoint:'e101_7',extension:'101',mode:'webrtc',expiresAt:Date.now()+120_000}) }));
-    mocks.runtime.mockImplementationOnce(() => ({unwrap:async()=>{throw {data:{message:'runtime unavailable'}};}}));
+    mocks.runtime.mockImplementationOnce(() => ({unwrap:async()=>{throw {status:503,data:{message:'runtime unavailable'}};}}));
     mount(); await choose('webrtc');
-    expect(await screen.findByRole('alert')).toHaveTextContent('runtime unavailable');
+    expect(await screen.findByRole('alert')).toHaveTextContent('phoneNumber.serverUnavailable');
     expect(screen.getByLabelText('phoneNumber.subscriber')).toBeInTheDocument();
     expect(screen.getByRole('button',{name:'phoneNumber.disconnect'})).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

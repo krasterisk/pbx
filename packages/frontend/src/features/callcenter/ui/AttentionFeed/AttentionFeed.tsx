@@ -37,6 +37,8 @@ export interface AttentionFeedProps {
   onOpenQueue: (queueName: string) => void;
   /** Collapse >= 4 identical agent-level alerts into a single expandable group row (U1.6). */
   groupSimilar?: boolean;
+  /** Supervisor Pulse starts with two quiet links; details and actions are disclosed on demand. */
+  compact?: boolean;
 }
 
 /**
@@ -55,6 +57,7 @@ export const AttentionFeed = memo(function AttentionFeed({
   onSpy,
   onOpenQueue,
   groupSimilar = false,
+  compact = false,
 }: AttentionFeedProps) {
   const { t } = useTranslation();
   const now = useNowTick();
@@ -193,13 +196,25 @@ export const AttentionFeed = memo(function AttentionFeed({
   if (items.length === 0) {
     const sample = queues.reduce((sum, q) => sum + Math.max(0, (q.calls?.total ?? 0) - (q.calls?.shortAbandoned ?? 0)), 0);
     return (
-      <Flex align="center" gap="8" className={clsx(styles.feed, styles.calm)} data-testid="attention-feed" data-state="ok">
+      <Flex align="center" gap="8" className={clsx(styles.feed, styles.calm, compact && styles.compact)} data-testid="attention-feed" data-state="ok">
         <CheckCircle2 className={styles.calmIcon} aria-hidden />
         <Text variant="muted">{sample < SLA_BREACH_MIN_SAMPLE
           ? t('callcenter.supervisor.attention.smallSample', 'No alerts · too few calls to assess SLA ({{count}})', { count: sample })
           : t('callcenter.supervisor.attention.allClear', 'No alerts')}</Text>
       </Flex>
     );
+  }
+
+  if (compact && !expanded) {
+    return <Flex align="center" gap="12" wrap="wrap" className={styles.compact} data-testid="attention-feed"
+      data-state={criticalCount > 0 ? 'critical' : 'warning'}>
+      <AlertTriangle size={15} className={styles.compactIcon} aria-hidden />
+      {items.slice(0, 2).map(item => <Button key={item.id} type="button" variant="unstyled" size="none"
+        className={styles.compactLink} onClick={() => setExpanded(true)}>{describe(item)}</Button>)}
+      {items.length > 2 && <Button type="button" variant="ghost" size="sm" onClick={() => setExpanded(true)}>
+        {t('callcenter.supervisor.pulse.allAttention', { count: items.length })}
+      </Button>}
+    </Flex>;
   }
 
   return (
@@ -209,6 +224,9 @@ export const AttentionFeed = memo(function AttentionFeed({
         <Text as="span" variant="small" className={styles.count} data-testid="attention-count">
           {items.length}
         </Text>
+        {compact && <Button type="button" variant="ghost" size="sm" onClick={() => setExpanded(false)}>
+          {t('callcenter.supervisor.pulse.collapseAttention')}
+        </Button>}
       </Flex>
 
       <VStack gap="4" role="list" className={styles.list}>

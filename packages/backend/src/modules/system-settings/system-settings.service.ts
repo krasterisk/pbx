@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { ActionLog } from '../logger/action-log.model';
+import type { OrganizationCalendar, OrganizationWeekStart, OrganizationRegionalSettings } from '@krasterisk/shared';
+import { organizationWeekStartKey, readOrganizationWeekStart } from '../../shared/organization-calendar';
+import { readOrganizationTimezone,organizationTimezoneKey,missingTimezoneTable } from '../../shared/organization-timezone';
+import { QueryTypes } from 'sequelize';
+import type { JwtPayloadUser } from '../auth/auth.service';
 import { InjectModel } from '@nestjs/sequelize';
 import { SystemSetting } from './system-setting.model';
 import { ConfigService } from '@nestjs/config';
@@ -32,7 +38,82 @@ export class SystemSettingsService {
   constructor(
     @InjectModel(SystemSetting) private settingModel: typeof SystemSetting,
     private readonly config: ConfigService,
+    @InjectModel(ActionLog) private readonly audit: typeof ActionLog,
   ) {}
+
+  private timezoneTenant(user: JwtPayloadUser): number {
+    if (![0,1].includes(user.level)) throw new ForbiddenException('Company administrator required');
+    if (!Number.isSafeInteger(user.vpbx_user_uid) || user.vpbx_user_uid < 0) throw new ForbiddenException('Invalid organization');
+    return user.vpbx_user_uid;
+  }
+
+  async organizationTimezone(user: JwtPayloadUser) {
+    const tenant = this.timezoneTenant(user);
+    const timezone = await readOrganizationTimezone(this.settingModel.sequelize!,tenant,this.config.get<string>('PBX_DEFAULT_TIMEZONE','UTC'));
+    return {timezone,canEdit:true};
+  }
+
+  async organizationRegional(user: JwtPayloadUser): Promise<OrganizationRegionalSettings> {
+    const timezone = await this.organizationTimezone(user);
+    const calendar = await this.organizationCalendar(user);
+    return { ...timezone, ...calendar };
+  }
+
+  async setOrganizationRegional(user: JwtPayloadUser, settings: Pick<OrganizationRegionalSettings, 'timezone' | 'weekStart'>): Promise<OrganizationRegionalSettings> {
+    const tenant = this.timezoneTenant(user);
+    const { timezone, weekStart } = settings;
+    if (!['monday', 'sunday'].includes(weekStart)) throw new BadRequestException('Invalid week start');
+    try {
+      if (typeof timezone !== 'string' || !timezone || timezone.length > 64) throw new Error();
+      new Intl.DateTimeFormat('en', { timeZone: timezone }).format();
+    } catch { throw new BadRequestException('Invalid IANA timezone'); }
+    const db = this.settingModel.sequelize!;
+    let cloudRow = false;
+    try {
+      cloudRow = (await db.query('SELECT timezone FROM tenants WHERE vpbx_user_uid=:tenant LIMIT 1', { replacements: { tenant }, type: QueryTypes.SELECT })).length > 0;
+    } catch (error) { if (!missingTimezoneTable(error)) throw error; }
+    await db.transaction(async transaction => {
+      if (cloudRow) {
+        await db.query('UPDATE tenants SET timezone=:timezone WHERE vpbx_user_uid=:tenant', { replacements: { tenant, timezone }, transaction });
+      } else {
+        await this.settingModel.upsert({ key: organizationTimezoneKey(tenant), value: timezone, category: 'organization', updated_at: new Date() }, { transaction });
+      }
+      await this.settingModel.upsert({ key: organizationWeekStartKey(tenant), value: weekStart, category: 'organization', updated_at: new Date() }, { transaction });
+      await this.audit.create({ user_id: user.sub, user_uid: tenant, action: 'organization_regional_update', entity_type: 'tenant', entity_id: null, details: JSON.stringify({ timezone, weekStart }), status: 'success' }, { transaction });
+    });
+    return { timezone, weekStart, canEdit: true };
+  }
+
+  async organizationCalendar(user: JwtPayloadUser): Promise<OrganizationCalendar> {
+    if (!Number.isSafeInteger(user.vpbx_user_uid) || user.vpbx_user_uid < 0) throw new ForbiddenException('Invalid organization');
+    return { weekStart: await readOrganizationWeekStart(this.settingModel.sequelize!, user.vpbx_user_uid), canEdit: [0,1].includes(user.level) };
+  }
+
+  async setOrganizationWeekStart(user: JwtPayloadUser, weekStart: OrganizationWeekStart): Promise<OrganizationCalendar> {
+    const tenant = this.timezoneTenant(user);
+    if (!['monday', 'sunday'].includes(weekStart)) throw new BadRequestException('Invalid week start');
+    await this.settingModel.sequelize!.transaction(async transaction => {
+      await this.settingModel.upsert({ key: organizationWeekStartKey(tenant), value: weekStart, category: 'organization', updated_at: new Date() }, { transaction });
+      await this.audit.create({ user_id: user.sub, user_uid: tenant, action: 'organization_week_start_update', entity_type: 'tenant', entity_id: null, details: JSON.stringify({ weekStart }), status: 'success' }, { transaction });
+    });
+    return { weekStart, canEdit: true };
+  }
+
+  async setOrganizationTimezone(user: JwtPayloadUser, timezone: string) {
+    const tenant = this.timezoneTenant(user);
+    try { if (!timezone || timezone.length > 64) throw new Error(); new Intl.DateTimeFormat('en',{timeZone:timezone}).format(); }
+    catch { throw new BadRequestException('Invalid IANA timezone'); }
+    const db = this.settingModel.sequelize!;
+    let cloudRow = false;
+    try { cloudRow = (await db.query('SELECT timezone FROM tenants WHERE vpbx_user_uid=:tenant LIMIT 1',{replacements:{tenant},type:QueryTypes.SELECT})).length > 0; }
+    catch(error){if(!missingTimezoneTable(error))throw error;}
+    await db.transaction(async transaction => {
+      if(cloudRow)await db.query('UPDATE tenants SET timezone=:timezone WHERE vpbx_user_uid=:tenant',{replacements:{tenant,timezone},transaction});
+      else await this.settingModel.upsert({key:organizationTimezoneKey(tenant),value:timezone,category:'organization',updated_at:new Date()},{transaction});
+      await this.audit.create({user_id:user.sub,user_uid:tenant,action:'organization_timezone_update',entity_type:'tenant',entity_id:null,details:JSON.stringify({timezone}),status:'success'}, {transaction});
+    });
+    return {timezone,canEdit:true};
+  }
 
   private isMissingTableError(err: unknown): boolean {
     const parent = (err as { parent?: { code?: string; errno?: number } })?.parent;

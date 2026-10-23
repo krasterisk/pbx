@@ -1,4 +1,5 @@
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
+import { useGetOrganizationCalendarQuery } from '@/shared/api/endpoints/organizationSettingsApi';
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -146,7 +147,9 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
   const projects = cabinetSaProjects(projectRows);
   const [projectId, setProjectId] = useState('');
   const [period, setPeriod] = useState<PeriodSelection>(() => currentPeriod('month'));
-  const range = useMemo(() => resolvePeriod(period), [period]);
+  const { data: calendar, isError: calendarError, refetch: refetchCalendar } = useGetOrganizationCalendarQuery();
+  const effectivePeriod = useMemo(() => ({ ...period, weekStart: calendar?.weekStart ?? 'monday' as const }), [period, calendar?.weekStart]);
+  const range = useMemo(() => resolvePeriod(effectivePeriod), [effectivePeriod]);
   useEffect(() => {
     if (!projects.length) return;
     setProjectId((current) => (
@@ -156,7 +159,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
   const selectedProject = projects.find((project) => project.id === projectId) ?? null;
   const dashboardQuery = useGetSaDashboardQuery(
     { projectId: projectId || '00000000-0000-4000-8000-000000000000', from: range.from, to: range.to },
-    { skip: !projectId, refetchOnMountOrArgChange: true },
+    { skip: !projectId || (period.unit === 'week' && !calendar), refetchOnMountOrArgChange: true },
   );
   const [requestInsights, insightsMutation] = useRequestSaInsightsMutation();
 
@@ -317,7 +320,7 @@ export const SpeechAnalyticsDashboardPage = memo(() => {
           </HStack>
         ) : null}
       </Flex>
-      <PeriodNavigator value={period} onChange={setPeriod} />
+      {calendar ? <PeriodNavigator value={effectivePeriod} onChange={setPeriod} /> : calendarError ? <VStack><Text role="alert">{t('calls.weekStartError')}</Text><Button onClick={() => void refetchCalendar()}>{t('calls.refresh')}</Button></VStack> : <Skeleton className="h-10 w-full" />}
       {dashboardLoadError ? <QueryErrorState message={t('common.queryLoadError')} onRetry={() => void (projectsQuery.isError ? projectsQuery.refetch() : dashboardQuery.refetch())} data-testid="dashboard-error" /> : null}
 
       {projectsQuery.isLoading || (Boolean(projectId) && dashboardQuery.isLoading) ? (

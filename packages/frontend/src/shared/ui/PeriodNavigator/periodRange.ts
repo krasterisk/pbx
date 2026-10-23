@@ -1,7 +1,9 @@
 export type PeriodUnit = 'day' | 'week' | 'month' | 'year' | 'custom';
+import type { OrganizationWeekStart } from '@krasterisk/shared';
 
 export interface PeriodSelection {
   unit: PeriodUnit;
+  weekStart?: OrganizationWeekStart;
   /** Calendar day that anchors the window, YYYY-MM-DD in Europe/Moscow. */
   anchor: string;
   customFrom?: string;
@@ -51,18 +53,18 @@ export function addCalendarDays(value: string, days: number): string {
   return formatYmd(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
 }
 
-function weekdayMondayIndex(value: string): number {
+function weekdayIndex(value: string, weekStart: OrganizationWeekStart): number {
   const parsed = parseYmd(value);
   if (!parsed) return 0;
   const utc = new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day));
-  return (utc.getUTCDay() + 6) % 7;
+  return (utc.getUTCDay() + (weekStart === 'sunday' ? 0 : 6)) % 7;
 }
 
-export function startOfUnit(value: string, unit: Exclude<PeriodUnit, 'custom'>): string {
+export function startOfUnit(value: string, unit: Exclude<PeriodUnit, 'custom'>, weekStart: OrganizationWeekStart = 'monday'): string {
   const parsed = parseYmd(value);
   if (!parsed) return value;
   if (unit === 'day') return value;
-  if (unit === 'week') return addCalendarDays(value, -weekdayMondayIndex(value));
+  if (unit === 'week') return addCalendarDays(value, -weekdayIndex(value, weekStart));
   if (unit === 'month') return formatYmd(parsed.year, parsed.month, 1);
   return formatYmd(parsed.year, 1, 1);
 }
@@ -74,9 +76,9 @@ function addMonths(value: string, months: number): string {
   return formatYmd(next.getUTCFullYear(), next.getUTCMonth() + 1, 1);
 }
 
-export function currentPeriod(unit: Exclude<PeriodUnit, 'custom'>, now = new Date()): PeriodSelection {
+export function currentPeriod(unit: Exclude<PeriodUnit, 'custom'>, now = new Date(), weekStart?: OrganizationWeekStart): PeriodSelection {
   const today = moscowToday(now);
-  return { unit, anchor: startOfUnit(today, unit) };
+  return { unit, anchor: startOfUnit(today, unit, weekStart), ...(weekStart ? { weekStart } : {}) };
 }
 
 export function resolvePeriod(selection: PeriodSelection): ResolvedPeriod {
@@ -89,7 +91,7 @@ export function resolvePeriod(selection: PeriodSelection): ResolvedPeriod {
     const to = new Date(moscowInstant(end.year, end.month, end.day).getTime() + 24 * 60 * 60 * 1000 - 1);
     return { from: moscowInstant(parseYmd(startDate)!.year, parseYmd(startDate)!.month, parseYmd(startDate)!.day).toISOString(), to: to.toISOString(), startDate, endDate };
   }
-  const anchor = startOfUnit(selection.anchor, selection.unit);
+  const anchor = startOfUnit(selection.anchor, selection.unit, selection.weekStart);
   const parsed = parseYmd(anchor)!;
   const start = moscowInstant(parsed.year, parsed.month, parsed.day);
   const nextStart = selection.unit === 'day'
@@ -115,7 +117,7 @@ export function shiftPeriod(selection: PeriodSelection, direction: -1 | 1): Peri
       customTo: addCalendarDays(resolved.endDate, direction * span),
     };
   }
-  const anchor = startOfUnit(selection.anchor, selection.unit);
+  const anchor = startOfUnit(selection.anchor, selection.unit, selection.weekStart);
   const parsed = parseYmd(anchor);
   if (!parsed) return selection;
   const next = selection.unit === 'day'

@@ -23,6 +23,14 @@ describe('ordinary-user phone ownership', () => {
     service = new PhoneSessionService({ transaction: async (fn: any) => fn(tx) } as any, sessions, endpoints, users, shifts, credentials, ami);
   });
   async function connect() { return service.acquire(7, 42, 'e101_7', 'sip', owner); }
+  it('restores only an existing live lease owned by this window, with absence as normal null',async()=>{
+    expect(await service.restore(7,42,owner)).toBeNull();
+    await connect();sessions.findOne.mockResolvedValue(row);
+    expect(await service.restore(7,42,owner)).toMatchObject({endpoint:'e101_7',mode:'sip'});
+    expect(await service.restore(7,42,'22222222-2222-4222-8222-222222222222')).toBeNull();
+    row.expires_at=0;expect(await service.restore(7,42,owner)).toBeNull();
+    users.findOne.mockResolvedValue({level:5});await expect(service.restore(7,42,owner)).rejects.toThrow('access denied');
+  });
   it('does not offer or acquire an unregistered desk phone',async()=>{
     ami.collectDashboardEndpoints.mockResolvedValue({complete:true,events:[]});
     expect((await service.list(7,42)).endpoints[0].sipAvailable).toBe(false);

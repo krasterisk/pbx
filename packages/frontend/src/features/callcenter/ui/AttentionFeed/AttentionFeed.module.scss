@@ -6,6 +6,19 @@
   min-width: 0;
 }
 
+.compact {
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  width: 100%;
+  min-width: 0;
+}
+.compactLink { font-size: 0.75rem; text-align: left; color: var(--color-foreground); }
+.compactLink:hover { color: var(--color-primary); }
+.compactIcon { color: var(--color-warning); flex-shrink: 0; }
+
 .feed[data-state='critical'] {
   border-color: color-mix(in srgb, var(--color-destructive) 50%, var(--color-border));
 }

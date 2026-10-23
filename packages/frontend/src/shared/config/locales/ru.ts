@@ -1,6 +1,7 @@
 import { autodialWorkspaceRu, autodialWorkspaceErrorsRu } from './autodialWorkspace';
 import { aiVoiceDesignerRu } from './aiVoiceDesigner';
 import { callsRu } from './calls';
+import { supervisorPulseRu } from './supervisorPulse';
 export const ru = {
   calls: callsRu,
   modal: { defaultOption: "По умолчанию", errors: {"save":"Не удалось сохранить. Проверьте настройки и повторите попытку.","upload":"Не удалось загрузить файл. Повторите попытку.","remove":"Не удалось удалить файл. Повторите попытку."}, sections: {report: 'Отчёт', filters: 'Фильтры', delivery: 'Доставка', "identity":"Основные сведения","connection":"Подключение","account":"Учётные данные","access":"Права доступа","settings":"Параметры","timing":"Ожидание и таймеры"} },
@@ -193,7 +194,7 @@ export const ru = {
     phonebooks: "Справочники",
     directories: "Справочники",
     routeTemplates: "Шаблоны маршрутов",
-    cdr: "Журнал звонков (CDR)",
+    cdr: "Звонки",
     voiceRobotCdr: "Журнал роботов (CDR)",
     serviceRequests: "Заявки клиентов",
     komandorClaims: "Рекламации Командор",
@@ -3913,7 +3914,18 @@ export const ru = {
     headerValue: "Значение",
     addHeader: "Добавить заголовок",
   },
+  settings: { tenant: {"title":"Маршруты","description":"Видимость dialplan и блок-схемы в маршрутах","loading":"Загружаем настройки","saveError":"Не удалось сохранить настройку, значение возвращено","showRawDialplan":"Показывать dialplan в маршруте","showRawDialplanHint":"Скрывает режим Dialplan в форме маршрута. Сохранённый текст не удаляется.","showFlowchart":"Показывать блок-схему маршрута","showFlowchartHint":"Показывает вкладку «Схема» в маршруте и в меню IVR"} },
   systemSettings: {
+    statusNotChecked: "Не проверено",
+    statusCheckError: "Не удалось проверить состояние",
+    sectionRoutes: "Маршруты",
+    sectionRoutesDesc: "Видимость dialplan и блок-схемы в маршрутах",
+    tabs: {"general":"Общие","telephony":"Телефония","ai":"AI","server":"Сервер"},
+    sectionsLabel: "Разделы настроек",
+    modeError: "Не удалось загрузить доступные настройки.",
+    regionalError: "Не удалось загрузить или сохранить региональные настройки.",
+    timezoneSearch: "Поиск часового пояса",
+    noTimezones: "Часовые пояса не найдены",
     pageTitle: "Настройки системы",
     sectionTables: "Таблицы",
     sectionTablesDesc: "Сколько записей показывать на странице таблиц этого кабинета",
@@ -3936,11 +3948,9 @@ export const ru = {
     sectionRecordingsDesc:
       "Пути и URL для сохранения и доступа к записям разговоров",
     recordingsBasePath: "Путь на диске",
-    recordingsBasePathDesc:
-      "Абсолютный путь на сервере Asterisk, куда MixMonitor записывает WAV файлы и ffmpeg конвертирует в MP3",
+    recordingsBasePathDesc: "Каталог на сервере телефонии, в котором хранятся записи звонков.",
     recordingsBaseUrl: "Публичный URL",
-    recordingsBaseUrlDesc:
-      "Базовый URL для генерации ссылок на MP3 файлы в вебхуках on_hangup",
+    recordingsBaseUrlDesc: "Базовый URL для ссылок на записи в исходящих вебхуках.",
     recordingsSaved: "Настройки записи сохранены",
     recordingsSaveError: "Ошибка сохранения",
     recordingsSaveBtn: "Сохранить",
@@ -3949,7 +3959,7 @@ export const ru = {
     sectionSecurity: "Безопасность вебхуков",
     sectionSecurityDesc:
       "HMAC-SHA256 подпись исходящих вебхуков для верификации на стороне CRM",
-    webhookSecretLabel: "Webhook Secret",
+    webhookSecretLabel: "Ключ подписи вебхуков",
     webhookSecretDesc:
       "Если задан - все вебхуки подписываются заголовком X-Krasterisk-Signature: sha256=<hex>",
     webhookSecretPlaceholder: "Введите секретный ключ...",
@@ -3973,12 +3983,11 @@ export const ru = {
     ffmpegInstallHint: "Установите командой: apt install ffmpeg",
     // Redis section
     sectionRedis: "Статус Redis",
-    sectionRedisDesc:
-      "Redis используется для персистентных очередей BullMQ (доставка вебхуков с retry)",
+    sectionRedisDesc: "Очередь доставки вебхуков с сохранением задач и повторными попытками.",
     redisCheck: "Проверить",
     redisChecking: "Проверка...",
     redisConnected: "Redis подключён",
-    redisDisconnected: "Redis недоступен - используется in-memory fallback",
+    redisDisconnected: "Redis недоступен, очередь хранится в памяти",
     redisVersion: "Версия",
     redisDesc:
       "Redis используется для BullMQ очередей. Без него - вебхуки в памяти (теряются при рестарте)",
@@ -3996,7 +4005,7 @@ export const ru = {
     aiPbxModelDesc:
       "Имя модели, которое отдаёт aiPBX (как в его списке провайдеров)",
     aiPbxSaved:
-      "Подключение aiPBX сохранено — чат будет ходить через этот шлюз",
+      "Подключение aiPBX сохранено - чат будет ходить через этот шлюз",
     aiPbxSaveError: "Не удалось сохранить подключение aiPBX",
     aiPbxAllProviders: "Все провайдеры",
     aiChatProvider: "Провайдер чата",
@@ -4004,7 +4013,7 @@ export const ru = {
       "Через этого провайдера и его модель работает помощник в панели. В самом чате модель выбрать нельзя.",
     aiChatProviderSaved: "Провайдер чата сохранён",
     aiChatProviderEmpty:
-      "Нет включённых LLM-провайдеров — добавьте их в разделе AI → Провайдеры.",
+      "Нет включённых LLM-провайдеров - добавьте их в разделе AI → Провайдеры.",
     aiChatSeeAllThreads: "Видеть все разговоры тенанта",
     aiChatSeeAllThreadsHint:
       "Администратор видит все разговоры тенанта только для чтения, даже если их нет в списке доступа.",
@@ -4078,6 +4087,7 @@ export const ru = {
     resizeWidget: "Изменить размер: перетащите или используйте стрелки",
     minimizeWidget: "Свернуть в кнопку",
     restoreWidget: "Вернуться к диалогу",
+    showWidgetButton: "Показывать кнопку виджета",
     openWidget: "Открыть AI-ассистента",
     expand: "Развернуть на рабочую область",
     collapse: "Вернуться к виджету",
@@ -4792,6 +4802,7 @@ export const ru = {
       },
     },
     supervisor: {
+      pulse: supervisorPulseRu,
       title: "Панель супервизора",
       subtitle: "Мониторинг колл-центра в реальном времени",
       tabAgents: "Операторы",
@@ -5970,6 +5981,10 @@ export const ru = {
       draftSaved: "Карточка сохранена",
     },
     softphone: {
+      backspaceHint: "Удалить последний символ",
+      clearDialHint: "Очистить весь номер",
+      moveWindow: "Переместить окно: перетащите или используйте стрелки",
+      resizeWindow: "Изменить размер окна: перетащите или используйте стрелки",
       searchExtension: "Поиск по имени или номеру",
       startShift: "Начать смену",
       endShift: "Завершить смену",
@@ -6062,6 +6077,8 @@ export const ru = {
       addContact: "Добавить контакт",
       calledBackTag: "Дозвонились",
       deviceSwitchFailed: "Не удалось переключить устройство",
+      defaultDevice: "По умолчанию",
+      milliseconds: "мс",
     },
     registration: {
       online: "В сети",

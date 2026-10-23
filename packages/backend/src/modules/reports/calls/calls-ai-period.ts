@@ -1,4 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
+import type { OrganizationWeekStart } from '@krasterisk/shared';
 
 export const AI_CALL_PERIODS = [
   "today",
@@ -13,6 +14,7 @@ export function aiCallPeriod(
   period: string,
   timezone: string,
   now = new Date(),
+  weekStart: OrganizationWeekStart = 'monday',
 ) {
   if (!AI_CALL_PERIODS.includes(period as (typeof AI_CALL_PERIODS)[number]))
     throw new BadRequestException("Invalid relative call period");
@@ -29,7 +31,7 @@ export function aiCallPeriod(
     value.setUTCDate(value.getUTCDate() + days);
     return value.toISOString().slice(0, 10);
   };
-  const weekday = (date.getUTCDay() + 6) % 7;
+  const weekday = (date.getUTCDay() + (weekStart === 'sunday' ? 0 : 6)) % 7;
   if (period === "yesterday") return { dateFrom: shift(-1), dateTo: shift(-1) };
   if (period === "last_week")
     return { dateFrom: shift(-weekday - 7), dateTo: shift(-weekday - 1) };

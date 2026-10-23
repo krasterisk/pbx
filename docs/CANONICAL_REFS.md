@@ -1,5 +1,7 @@
 # Canonical References — Krasterisk v4
 
+Supervisor Pulse: [accepted PLAN r1](plans/supervisor-pulse/PLAN.md), [EXECUTION](plans/supervisor-pulse/EXECUTION.md). Explicit user assignment for the minimal supervisor UI, personal team, unified status menu and queue-management Sheet; `/root` chat01a16857, codex-direct.
+
 **Обязательно для всех GSD-фаз** (discuss → plan → execute). Downstream-агенты MUST READ перед планированием и реализацией.
 
 **Порядок управления:** [HYBRID-WORKFLOW](development/HYBRID-WORKFLOW.md), [EXECUTION-REGISTRY](plans/EXECUTION-REGISTRY.md). Один координатор и явно назначенный PLAN на задание; Codex-direct и GSD-workflow не запускают независимые цепочки одной фазы. AI-продукты: [текущее назначение](plans/initiatives/ai-products/EXECUTION.md).
@@ -12,6 +14,8 @@
 | **Backend** | `packages/backend/.idea/ARCHITECTURE.md` | NestJS 11, модули, Sequelize, AMI/ARI, API-конвенции |
 
 ## Монорепо
+
+CDR refinements: [current PLAN](plans/cdr-reports-ux/PLAN.md), [EXECUTION](plans/cdr-reports-ux/EXECUTION.md), [current results](plans/cdr-reports-ux/R12-SUMMARY.md), [R11 baseline](plans/cdr-reports-ux/R11-SUMMARY.md). Coordinator /root, codex-direct; current regional/settings continuation completed: atomic save, searchable timezone and deployment-aware tabs, client permanently Asia/Krasnoyarsk. Completed index coverage, bounded projection throughput and actual text/group search verification retained. R11 compact filters and R9 widget/timezone results remain the baseline.
 
 Shared table design/search/export assignment: [EXECUTION](plans/table-ui-standardization/EXECUTION.md), [PLAN](plans/table-ui-standardization/PLAN.md), codex-direct /root, current revision 2026-10-13-r6 (one shared selection toolbar, no duplicate selection banners). Existing endpoint design is the UI baseline; adjacent completed initiatives remain unchanged.
 

@@ -1,4 +1,4 @@
-import type { CallsQuery } from '@krasterisk/shared';
+import { callConnectionResult, type CallRecord, type CallsQuery } from '@krasterisk/shared';
 const directions = new Set(['in', 'out', 'internal', 'external']);
 const outcomes = new Set([
   'human',
@@ -32,6 +32,12 @@ export function readCallsQuery(params: URLSearchParams): CallsQuery {
       : null);
   const period = params.has('dateFrom') || params.has('dateTo');
   return {
+    directions: params.has('directions') ? params.getAll('directions').filter(v => directions.has(v)) as CallsQuery['directions'] : undefined,
+    handlings: params.has('handlings') ? params.getAll('handlings').filter(v => handling.has(v)) as CallsQuery['handlings'] : undefined,
+    results: params.has('results') ? params.getAll('results').filter(v => ['busy','noAnswer','unavailable'].includes(v)) as CallsQuery['results'] : undefined,
+    numbers: params.has('numbers') ? [...new Set(params.getAll('numbers').filter(Boolean))] : undefined,
+    numberRole: ['any','caller','recipient'].includes(params.get('numberRole') || '') ? params.get('numberRole') as CallsQuery['numberRole'] : undefined,
+    trunks: params.has('trunks') ? [...new Set(params.getAll('trunks').filter(Boolean))] : undefined,
     callerEmployee: params.get('callerEmployee') || undefined,
     search: params.get('search') || undefined,
     focusEmployee: params.get('focusEmployee') || undefined,
@@ -83,7 +89,7 @@ export function readCallsQuery(params: URLSearchParams): CallsQuery {
     companyNumber: params.get('companyNumber') || undefined,
     department: params.get('department') || undefined,
     ...Object.fromEntries(
-      ['employees', 'departments', 'companyNumbers', 'queues', 'robots'].map(
+      ['employees', 'departments', 'companyNumbers', 'queues', 'groups', 'robots'].map(
         (key) => [
           key,
           params.has(key)
@@ -114,7 +120,11 @@ export function patchCallsQuery(
   patch: Record<string, string | string[] | undefined>,
 ): URLSearchParams {
   const next = new URLSearchParams(params);
+  if(['from','to','dateFrom','dateTo'].some(key=>key in patch)&&!('periodPreset' in patch))next.delete('periodPreset');
   const original = readCallsQuery(params);
+  if ('directions' in patch) next.delete('direction');
+  if ('handlings' in patch) next.delete('handling');
+  if ('results' in patch) { next.delete('outcome'); next.delete('dashboardOutcome'); }
   if (original.outcome && !next.has('outcome'))
     next.set('outcome', original.outcome);
   if (original.dashboardOutcome && !next.has('dashboardOutcome'))
@@ -126,6 +136,10 @@ export function patchCallsQuery(
   if (Object.prototype.hasOwnProperty.call(patch, 'outcome'))
     next.delete('dashboardOutcome');
   if (Object.prototype.hasOwnProperty.call(patch, 'outcomes')) {
+    next.delete('outcome');
+    next.delete('dashboardOutcome');
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'results')) {
     next.delete('outcome');
     next.delete('dashboardOutcome');
   }
@@ -180,7 +194,12 @@ export function callTime(
 export function callOutcomeKey(call: {
   direction: string;
   outcome: string;
+  journey?: CallRecord['journey'];
 }): string {
+  if (call.journey) {
+    const result = callConnectionResult(call as CallRecord);
+    if (result) return `calls.connectionResult.${result}`;
+  }
   if (call.outcome === 'human' && call.direction === 'out')
     return 'calls.outgoingConnected';
   if (call.outcome === 'human' && call.direction === 'internal')

@@ -1,3 +1,4 @@
+import { readOrganizationTimezone } from '../../shared/organization-timezone';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { QueryTypes } from 'sequelize';
@@ -16,24 +17,13 @@ const nullableInteger = (value: unknown): number | null => {
   const number = Number(value);
   return Number.isSafeInteger(number) ? number : null;
 };
-const validTimezone = (value: unknown): value is string => {
-  if (typeof value !== 'string' || !value) return false;
-  try { new Intl.DateTimeFormat('en', { timeZone: value }).format(); return true; }
-  catch { return false; }
-};
 
 @Injectable()
 export class DashboardCloudService {
   constructor(private readonly sequelize: Sequelize, private readonly config: ConfigService) {}
 
   async timezone(tenantUid: number): Promise<string> {
-    const rows = await this.sequelize.query<{ timezone: string | null }>(
-      'SELECT timezone FROM tenants WHERE vpbx_user_uid = :tenantUid LIMIT 1',
-      { replacements: { tenantUid }, type: QueryTypes.SELECT },
-    );
-    if (validTimezone(rows[0]?.timezone)) return rows[0].timezone;
-    const fallback = this.config.get<string>('PBX_DEFAULT_TIMEZONE', 'UTC');
-    return validTimezone(fallback) ? fallback : 'UTC';
+    return readOrganizationTimezone(this.sequelize,tenantUid,this.config.get<string>('PBX_DEFAULT_TIMEZONE','UTC'));
   }
 
   async overview(tenantUid: number, live?: DashboardLive): Promise<DashboardCloud> {

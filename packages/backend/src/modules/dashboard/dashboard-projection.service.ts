@@ -30,6 +30,9 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
   private catchup = false;
   private continuation: ReturnType<typeof setTimeout> | null = null;
   private readonly batchSize = 500;
+  // Fact replay writes complete per-call projections; yield to live ingestion
+  // and persist progress more often than the cheaper source-read batches.
+  private readonly factsBatchSize = 100;
   private liveProof: Promise<DashboardCompletionSnapshot | null> | null = null;
   private lastPendingReplay = 0;
   constructor(private readonly store: DashboardReadStore, private readonly config: ConfigService) {}
@@ -245,9 +248,10 @@ export class DashboardProjectionService implements OnModuleInit, OnModuleDestroy
     const cursor = cp?.cursor_key || '';
     const rows = await this.store.select<{ call_key: string; tenant: number; linkedid: string }>(
       'SELECT call_key,tenant,linkedid FROM dashboard_calls WHERE node_id=:node AND call_key > :cursor ORDER BY call_key LIMIT :limit',
-      { node: this.store.nodeId, cursor, limit: this.batchSize });
+      { node: this.store.nodeId, cursor, limit: this.factsBatchSize });
     await this.reproject(rows.map(row => ({ uniqueid: row.linkedid, linkedid: row.linkedid, vpbx_user_uid: Number(row.tenant) })));
-    const complete = rows.length < this.batchSize;
+    if (this.destroyed) throw new Error('Projection stopped before fact checkpoint');
+    const complete = rows.length < this.factsBatchSize;
     await this.store.saveCheckpoint(source, CALL_FACTS_VERSION, 0, complete, rows.at(-1)?.call_key || cursor, this.owner);
     this.catchup ||= !complete;
   }

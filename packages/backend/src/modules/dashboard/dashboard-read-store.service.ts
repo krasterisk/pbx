@@ -82,8 +82,11 @@ export class DashboardReadStore {
       }
       const [old] = await this.select<Record<string, any>>('SELECT * FROM dashboard_calls WHERE call_key= :id FOR UPDATE', { id: call.id }, transaction);
       if (old?.fingerprint === call.fingerprint) return false;
-      if (old) await this.adjustBucket(old, -1, transaction);
       const row = { call_key: call.id, tenant: call.tenant, node_id: call.nodeId, linkedid: call.linkedid, started_at: Date.parse(call.startedAt), ended_at: call.endedAt ? Date.parse(call.endedAt) : null, src: call.src.slice(0, 128), dst: call.dst.slice(0, 128), direction: call.direction, origin: call.origin, outcome: call.outcome, reason: call.reason, duration: call.duration, fingerprint: call.fingerprint, updated_at: Date.now() };
+      const bucketChanged = !old ||
+        ['tenant', 'node_id', 'direction', 'origin', 'outcome'].some(key => old[key] !== row[key as keyof typeof row]) ||
+        Math.floor(Number(old.started_at) / STEP) !== Math.floor(row.started_at / STEP);
+      if (old && bucketChanged) await this.adjustBucket(old, -1, transaction);
       await this.upsert('dashboard_calls', row, ['call_key'], transaction);
       if (fact) {
         const parties = [fact.caller, fact.recipient, ...fact.participants];
@@ -96,9 +99,17 @@ export class DashboardReadStore {
           connected_sec: fact.connectedSec, timing_source: fact.timingSource || null, payload: JSON.stringify(fact), schema_version: CALL_FACTS_VERSION,
         }, ['call_key'], transaction);
         await this.execute('DELETE FROM call_dimensions WHERE call_key=:id AND tenant=:tenant', { id: call.id, tenant: call.tenant }, transaction);
-        for (const dimension of callDimensions(fact)) {
-          await this.execute('INSERT INTO call_dimensions (call_key,tenant,kind,value,label,search_label) VALUES (:id,:tenant,:kind,:value,:label,:searchLabel)',
-            { id: call.id, tenant: call.tenant, ...dimension, searchLabel: dimension.label.toLowerCase() }, transaction);
+        const dimensions = callDimensions(fact);
+        for (let offset = 0; offset < dimensions.length; offset += 100) {
+          const replacements: Record<string, unknown> = { id: call.id, tenant: call.tenant };
+          const values = dimensions.slice(offset, offset + 100).map((dimension, i) => {
+            replacements[`kind${i}`] = dimension.kind;
+            replacements[`value${i}`] = dimension.value;
+            replacements[`label${i}`] = dimension.label;
+            replacements[`searchLabel${i}`] = dimension.label.toLowerCase();
+            return `(:id,:tenant,:kind${i},:value${i},:label${i},:searchLabel${i})`;
+          });
+          await this.execute(`INSERT INTO call_dimensions (call_key,tenant,kind,value,label,search_label) VALUES ${values.join(',')}`, replacements, transaction);
         }
       }
       await this.execute('DELETE FROM dashboard_participants WHERE call_key= :id', { id: call.id }, transaction);
@@ -107,7 +118,7 @@ export class DashboardReadStore {
         const values = call.participants.slice(offset, offset + 100).map((p, i) => { replacements[`k${i}`] = p.kind; replacements[`v${i}`] = p.value.slice(0, 128); return `(:id,:tenant,:k${i},:v${i})`; });
         if (values.length) await this.execute(`INSERT INTO dashboard_participants (call_key,tenant,kind,value) VALUES ${values.join(',')}`, replacements, transaction);
       }
-      await this.adjustBucket(row, 1, transaction);
+      if (bucketChanged) await this.adjustBucket(row, 1, transaction);
       await this.bumpRevision(call.tenant, transaction);
       if (Date.now() >= leaseExpiry) throw new Error('Projection lease expired before commit');
       return true;

@@ -6,6 +6,21 @@ import {
   readCallsQuery,
 } from './callsUrl';
 describe('company call navigation', () => {
+  it('keeps multiple ring groups in links and clears them independently',()=>{
+    const next=patchCallsQuery(new URLSearchParams('employees=201&cursor=old'),{groups:['700','701']});
+    expect(readCallsQuery(next)).toMatchObject({groups:['700','701'],employees:['201']});
+    const cleared=readCallsQuery(patchCallsQuery(next,{groups:undefined}));expect(cleared.groups).toBeUndefined();expect(cleared.employees).toEqual(['201']);
+  });
+  it('roundtrips multi-direction, handling, number lists and results and removes legacy single values', () => {
+    const next = patchCallsQuery(new URLSearchParams('direction=in&handling=employee&outcome=missed&cursor=old'), {
+      directions:['in','out'],handlings:['employee','voiceRobot'],numbers:['79135551122','79135553344'],numberRole:'caller',trunks:['t_main_42'],results:['busy'],
+    });
+    expect(next.has('direction')).toBe(false);
+    expect(next.has('handling')).toBe(false);
+    expect(next.has('outcome')).toBe(false);
+    expect(next.has('cursor')).toBe(false);
+    expect(readCallsQuery(next)).toMatchObject({directions:['in','out'],handlings:['employee','voiceRobot'],numbers:['79135551122','79135553344'],numberRole:'caller',trunks:['t_main_42'],results:['busy']});
+  });
   it('roundtrips repeated directory filters without splitting names and replaces legacy single values', () => {
     const params = patchCallsQuery(
       new URLSearchParams('extension=201&outcome=human&cursor=old&call=abc'),
@@ -89,4 +104,10 @@ describe('company call navigation', () => {
       dashboardOutcome: undefined,
     });
   });
+});
+
+it('keeps the custom-period marker out of API queries and clears it on a new period',()=>{
+ const params=new URLSearchParams('periodPreset=custom&dateFrom=2026-10-16&dateTo=2026-10-22');
+ expect(readCallsQuery(params)).not.toHaveProperty('periodPreset');
+ expect(patchCallsQuery(params,{dateFrom:'2026-10-22',dateTo:'2026-10-22'}).has('periodPreset')).toBe(false);
 });

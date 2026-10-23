@@ -1,37 +1,42 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import type { CallsQuery } from "@krasterisk/shared";
-import { BookmarkPlus, Trash2 } from "lucide-react";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { CallsQuery, OrganizationWeekStart } from '@krasterisk/shared';
+import { BookmarkPlus, Trash2 } from 'lucide-react';
 import {
   Button,
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   Flex,
+  InfoTooltip,
   Input,
   Label,
   Select,
   Text,
-} from "@/shared/ui";
+} from '@/shared/ui';
 import {
   captureCallFilter,
   readSavedCallFilters,
   restoreCallFilter,
   type SavedCallFilter,
-} from "../model/savedCallFilters";
-import cls from "./Calls.module.scss";
+  type CallPeriod,
+} from '../model/savedCallFilters';
+import cls from './Calls.module.scss';
 
 export function SavedCallFilters({
   storageKey,
   query,
   timezone,
+  periodPreset,
+  weekStart,
   onApply,
 }: {
   storageKey: string;
   query: CallsQuery;
   timezone: string;
+  periodPreset?: CallPeriod;
+  weekStart?: OrganizationWeekStart;
   onApply: (params: URLSearchParams) => void;
 }) {
   const { t } = useTranslation();
@@ -47,70 +52,81 @@ export function SavedCallFilters({
   });
   const [rows, setRows] = useState<SavedCallFilter[]>(initial.rows);
   const [error, setError] = useState(
-    initial.error ? "calls.savedStorageError" : "",
+    initial.error ? 'calls.savedStorageError' : '',
   );
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState('');
+  const current = captureCallFilter(
+    '',
+    query,
+    timezone,
+    new Date(),
+    periodPreset,
+    weekStart,
+  );
+  const selectedMatches = rows.some(
+    (row) =>
+      row.name === selected &&
+      row.params === current.params &&
+      row.period === current.period,
+  );
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const persist = (next: SavedCallFilter[]) => {
     try {
       if (next.some((row) => row.params.length > 8192))
-        throw new Error("Saved selection too large");
+        throw new Error('Saved selection too large');
       localStorage.setItem(storageKey, JSON.stringify(next));
       setRows(next);
-      setError("");
+      setError('');
       return true;
     } catch {
-      setError("calls.savedStorageError");
+      setError('calls.savedStorageError');
       return false;
     }
   };
   return (
     <>
       <Flex gap="8" wrap="wrap" align="center" className={cls.savedFilters}>
-        <Select
-          aria-label={t("calls.savedFilters")}
-          value={selected}
-          disabled={!rows.length}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          <option value="">{t("calls.savedFilters")}</option>
-          {rows.map((row) => (
-            <option key={row.name} value={row.name}>
-              {row.name}
-            </option>
-          ))}
-        </Select>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!selected}
-          onClick={() => {
-            const saved = rows.find((row) => row.name === selected);
-            if (saved) onApply(restoreCallFilter(saved, timezone));
-          }}
-        >
-          {t("calls.applySaved")}
-        </Button>
+        {!!rows.length && (
+          <>
+            <Select
+              aria-label={t('calls.savedFilters')}
+              value={selectedMatches ? selected : ''}
+              disabled={!rows.length}
+              onChange={(e) => {
+                setSelected(e.target.value);
+                const saved = rows.find((row) => row.name === e.target.value);
+                if (saved) onApply(restoreCallFilter(saved, timezone, new Date(), weekStart));
+              }}
+            >
+              <option value="">{t('calls.savedFilters')}</option>
+              {rows.map((row) => (
+                <option key={row.name} value={row.name}>
+                  {row.name}
+                </option>
+              ))}
+            </Select>
+          </>
+        )}
         <Button
           size="sm"
           variant="outline"
           onClick={() => {
-            setName("");
+            setName('');
             setOpen(true);
           }}
         >
           <BookmarkPlus size={16} />
-          {t("calls.saveFilters")}
+          {t('calls.saveFilters')}
         </Button>
-        {selected && (
+        {selectedMatches && (
           <Button
             size="icon"
             variant="ghost"
-            aria-label={t("calls.deleteSaved")}
+            aria-label={t('calls.deleteSaved')}
             onClick={() => {
               if (persist(rows.filter((row) => row.name !== selected)))
-                setSelected("");
+                setSelected('');
             }}
           >
             <Trash2 size={16} />
@@ -119,10 +135,9 @@ export function SavedCallFilters({
       </Flex>
       {error && <Text role="status">{t(error)}</Text>}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>{t("calls.saveFilters")}</DialogTitle>
-            <DialogDescription>{t("calls.savedLocalHint")}</DialogDescription>
+            <DialogTitle>{t('calls.saveFilters')}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -137,12 +152,19 @@ export function SavedCallFilters({
                     trimmed.toLocaleLowerCase(),
                 )
               ) {
-                setError("calls.savedNameError");
+                setError('calls.savedNameError');
                 return;
               }
               const next = [
                 ...rows,
-                captureCallFilter(trimmed, query, timezone),
+                captureCallFilter(
+                  trimmed,
+                  query,
+                  timezone,
+                  new Date(),
+                  periodPreset,
+                  weekStart,
+                ),
               ];
               if (persist(next)) {
                 setSelected(trimmed);
@@ -150,7 +172,10 @@ export function SavedCallFilters({
               }
             }}
           >
-            <Label htmlFor="calls-saved-name">{t("calls.savedName")}</Label>
+            <Flex gap="4" align="center">
+              <Label htmlFor="calls-saved-name">{t('calls.savedName')}</Label>
+              <InfoTooltip text={t('calls.savedLocalHint')} />
+            </Flex>
             <Input
               autoFocus
               id="calls-saved-name"
@@ -165,10 +190,10 @@ export function SavedCallFilters({
                 variant="outline"
                 onClick={() => setOpen(false)}
               >
-                {t("common.cancel")}
+                {t('common.cancel')}
               </Button>
               <Button type="submit" disabled={!name.trim()}>
-                {t("common.save")}
+                {t('common.save')}
               </Button>
             </Flex>
           </form>

@@ -197,6 +197,16 @@ export class PhoneSessionService {
     });
   }
 
+  /** Absence is expected on first visit; this never claims another window's lease. */
+  async restore(tenant: number, userId: number, owner: string) {
+    await this.authorize(tenant,userId);
+    const ownerHash = this.hash(owner);
+    const row = await this.sessions.findOne({where:{tenant,user_id:userId}});
+    if (!row?.endpoint || row.owner_hash !== ownerHash || Number(row.expires_at) <= Date.now()) return null;
+    try { return await this.heartbeat(tenant,userId,owner); }
+    catch (error) { if (error instanceof ConflictException) return null; throw error; }
+  }
+
   release(tenant: number, userId: number, owner: string) {
     return this.owned(tenant, userId, owner, async (row, tx) => {
       if (Number(row.dial_pending_until) > Date.now()) throw new ConflictException('A call is being started');

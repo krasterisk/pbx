@@ -26,6 +26,7 @@ export interface CallEvent {
   exten?: string;
   peer?: string;
   appname?: string;
+  context?: string;
   extra?: string | Record<string, unknown>;
 }
 export interface CallArtifacts {
@@ -40,7 +41,7 @@ export interface CallFact extends CallRecord {
   linkedid: string;
   uniqueids: string[];
 }
-export const CALL_FACTS_VERSION = 2;
+export const CALL_FACTS_VERSION = 4;
 function compareJourney(a: CallJourneyStep, b: CallJourneyStep): number {
   const boundary = (kind: CallJourneyStep['kind']) =>
     kind === 'received' ? 0 : kind === 'ended' ? 2 : 1;
@@ -229,6 +230,11 @@ export function buildCallFact(
           channels.has(event.channame || ''))) &&
       (!event.channame || channels.has(event.channame)),
   );
+  const groups = new Map<string,{id:string;name:string}>();
+  for(const context of [...legs.map(leg=>leg.dcontext),...owned.map(event=>event.context)]) {
+    const match=context?.match(new RegExp(`^group_(\\d{1,8})_${tenant}$`));
+    if(match) groups.set(match[1],{id:match[1],name:match[1]});
+  }
   for (const event of owned) {
     if (
       !['BLINDTRANSFER', 'ATTENDEDTRANSFER', 'FORWARD'].includes(
@@ -400,6 +406,7 @@ export function buildCallFact(
             Math.round((firstAnswer - Date.parse(classified.startedAt)) / 1000),
           ),
     recordings: [...recordingMap.values()],
+    groups: [...groups.values()],
     hasVoicemail: artifacts.voicemail === true,
     voicemailCallId: artifacts.voicemailCallId || null,
     analytics: artifacts.analytics || null,
@@ -409,6 +416,15 @@ export function buildCallFact(
     // Keep coverage partial until the fork/join/Local-channel reconstruction gate.
     historyComplete: false,
     businessOutcome: 'unknown',
+    connectionResult: !['missed','error','unknown'].includes(outcome) ? null
+      : journey.some(step => ['attempt','queue'].includes(step.kind) && step.result === 'noAnswer') ? 'noAnswer'
+      : journey.some(step => ['attempt','queue'].includes(step.kind) && step.result === 'busy') ? 'busy'
+      : legs.some(leg => leg.disposition === 'NO ANSWER') ? 'noAnswer'
+      : legs.some(leg => leg.disposition === 'BUSY') ? 'busy' : 'unavailable',
+    trunks: [...new Set(legs.flatMap(leg => [leg.channel, leg.dstchannel]).flatMap(channel => {
+      const endpoint = channel?.match(/^(?:PJSIP|SIP)\/(t_.+)-[a-f\d]+$/i)?.[1];
+      return endpoint?.endsWith(`_${tenant}`) ? [endpoint] : [];
+    }))].map(id => ({ id, name: id.replace(/^t_/, '').replace(new RegExp(`_${tenant}$`), '') })),
   };
 }
 export function classifyCall(

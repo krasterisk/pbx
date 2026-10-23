@@ -7,10 +7,11 @@ import { PhoneActionsProvider, dialableNumber } from '@/entities/phone';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useWebRTCPhone } from '@/shared/lib/telephony/useWebRTCPhone';
 import { usePhoneEndpointsQuery, useConnectPhoneMutation, useDisconnectPhoneMutation, usePhoneHeartbeatMutation,
-  usePhoneCredentialsMutation, usePhoneDialMutation, usePhoneDialViaCallCenterMutation, type PhoneConnection } from '@/shared/api/endpoints/phoneSessionApi';
+  useRestorePhoneMutation, usePhoneCredentialsMutation, usePhoneDialMutation, usePhoneDialViaCallCenterMutation, type PhoneConnection } from '@/shared/api/endpoints/phoneSessionApi';
 import { Button, Input, Flex, VStack, HStack, Text, Label, Select, Tooltip } from '@/shared/ui';
 import { SoftphoneWidget } from '@/shared/ui/SoftphoneWidget';
 import { PhoneJournal, PhoneContacts } from './PhoneTabs';
+import { phoneSessionErrorKey } from './phoneSessionError';
 import cls from './PhoneSessionHost.module.scss';
 
 /** Auth identity is a remount boundary: never reuse a phone/password across users or tenants. */
@@ -27,6 +28,7 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
   const [acquire, acquireState] = useConnectPhoneMutation();
   const [release] = useDisconnectPhoneMutation();
   const [heartbeat] = usePhoneHeartbeatMutation();
+  const [restorePhone] = useRestorePhoneMutation();
   const [runtime, runtimeState] = usePhoneCredentialsMutation();
   const [dial, dialState] = usePhoneDialMutation();
   const [dialViaCallCenter, ccDialState] = usePhoneDialViaCallCenterMutation();
@@ -75,9 +77,8 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
     return () => clearInterval(timer);
   }, [phone.status]);
   const showError = useCallback((reason: unknown) => {
-    const message = (reason as { data?: { message?: string } })?.data?.message;
-    setError(typeof message === 'string' ? message : t('phoneNumber.operationFailed'));
-  }, [t]);
+    setError(phoneSessionErrorKey(reason));
+  }, []);
 
   // A cloned sessionStorage must not create two WebRTC transports for the same browser session.
   useEffect(() => {
@@ -104,8 +105,9 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
     let active = true;
     const restore = async () => {
       try {
-        const restored = await heartbeat({ owner }).unwrap();
+        const restored = await restorePhone({ owner }).unwrap();
         if (!active) return;
+        if (!restored) { if (!openRef.current) setWantsPhone(false); return; }
         setConnection(restored);
         if (restored.mode === 'webrtc') {
           try {
@@ -139,7 +141,7 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
       catch (reason) {
         const denied = [401, 403, 409].includes(Number((reason as { status?: number })?.status));
         if (active && (denied || Date.now() >= leaseExpires.current)) {
-          setError(t('phoneNumber.sessionLost'));
+          setError('phoneNumber.sessionLost');
           setConnection(null);
           await disconnectTransport();
         }
@@ -163,7 +165,7 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
       const fresh = await refetch();
       const candidate = fresh.data?.endpoints.find(item => item.id === endpoint);
       if (!candidate || (!candidate.available && candidate.id !== connection?.endpoint) || (device === 'webrtc' && !candidate.webrtc) || (device === 'sip' && candidate.sipAvailable === false)) {
-        setError(t('phoneNumber.noLongerAvailable')); return;
+        setError('phoneNumber.noLongerAvailable'); return;
       }
       const acquired = await acquire({ endpoint, mode: device, owner }).unwrap();
       if (!activeOwner.current) return;
@@ -243,7 +245,7 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
       <Text className="font-medium">{t(connection ? 'phoneNumber.change' : 'phoneNumber.connect')}</Text>
       <Tooltip content={t('phoneNumber.chooseHelp')}><HelpCircle size={16} aria-label={t('phoneNumber.chooseHelp')}/></Tooltip>
     </HStack>
-    {error && <Text role="alert">{error}</Text>}
+    {error && <Text role="alert">{t(error)}</Text>}
     {isError && <Text role="alert">{t('phoneNumber.loadFailed')}</Text>}
     {!tabOwned && <Text variant="muted">{t(navigator.locks ? 'phoneNumber.otherTab' : 'phoneNumber.secureBrowser')}</Text>}
     <Label htmlFor="ordinary-phone-mode">{t('phoneNumber.device')}</Label>
@@ -275,7 +277,7 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
     {children}
     <audio ref={remoteAudioRef} autoPlay />
     {!data?.callCenterActive && <Flex className={cls.dock}>
-      <SoftphoneWidget className={cls.ordinaryWidget} phone={{ ...phone, status: !connection ? 'disconnected' : connection.mode === 'sip' ? 'registered' : phone.status, makeCall: call }}
+      <SoftphoneWidget floating className={cls.ordinaryWidget} phone={{ ...phone, status: !connection ? 'disconnected' : connection.mode === 'sip' ? 'registered' : phone.status, makeCall: call }}
         panelOpen={open} onPanelOpenChange={value => { setOpen(value); if (value) { setWantsPhone(true); void refetch(); } }}
         mode={connection?.mode || mode} dialAllowed={canCall} callSeconds={callSeconds} standaloneControls autoOpenIncoming
         onRecover={() => connect(connection?.endpoint, connection?.mode)}

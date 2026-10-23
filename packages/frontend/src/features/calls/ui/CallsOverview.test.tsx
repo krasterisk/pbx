@@ -1,11 +1,12 @@
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { CallsOverview } from './CallsOverview';
 const state = vi.hoisted(() => ({
   data: undefined as unknown,
   error: false,
   fetching: false,
+  refetch: vi.fn(),
 }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'ru' } }),
@@ -15,10 +16,24 @@ vi.mock('@/shared/api/endpoints/callsApi', () => ({
     currentData: state.data,
     isError: state.error,
     isFetching: state.fetching,
-    refetch: vi.fn(),
+    refetch: state.refetch,
   }),
 }));
 describe('calls overview drill down', () => {
+  it('refreshes preparing history and cancels its timer when closed', () => {
+    vi.useFakeTimers();
+    try {
+      state.error=false;state.fetching=false;
+      state.refetch.mockClear();
+      state.data={source:{state:'stale',message:'historyBackfillInProgress'}};
+      const view=render(<MemoryRouter><CallsOverview query={{}} periodHref={()=>''}/></MemoryRouter>);
+      act(()=>vi.advanceTimersByTime(15000));
+      expect(state.refetch).toHaveBeenCalledTimes(1);
+      view.unmount();
+      act(()=>vi.advanceTimersByTime(15000));
+      expect(state.refetch).toHaveBeenCalledTimes(1);
+    } finally {vi.useRealTimers();}
+  });
   it('opens the exact half-open interval and disables empty intervals', () => {
     const periodHref = (from: string, to: string) =>
       `/reports/calls?from=${from}&to=${to}&employees=101`;
@@ -58,6 +73,7 @@ describe('calls overview drill down', () => {
         <CallsOverview query={{ employees: ['101'] }} periodHref={periodHref} />
       </MemoryRouter>,
     );
+    fireEvent.click(screen.getByRole('button',{name:'calls.tables'}));
     expect(screen.getAllByRole('link').find(link=>link.getAttribute('href')===periodHref('2026-10-18T00:00:00Z','2026-10-18T01:00:00Z'))).toHaveAttribute(
       'href',
       '/reports/calls?from=2026-10-18T00:00:00Z&to=2026-10-18T01:00:00Z&employees=101',
@@ -74,7 +90,8 @@ describe('calls overview drill down', () => {
         <CallsOverview query={{ employees: ['101'] }} periodHref={periodHref} />
       </MemoryRouter>,
     );
-    expect(screen.getByText('calls.sourcePartial')).toBeInTheDocument();
+    expect(screen.getByText('calls.historyUnavailable')).toBeInTheDocument();
+    expect(screen.queryByTestId('calls-overview')).not.toBeInTheDocument();
     expect(screen.queryByText('calls.historyStale')).not.toBeInTheDocument();
   });
   it('does not show old aggregates after a failed query', () => {
@@ -88,7 +105,7 @@ describe('calls overview drill down', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
     state.error = false;
   });
-  it('labels both offset occurrences instead of presenting a repeated hour as zero time', () => {
+  it('keeps repeated local hours linked to distinct intervals without showing timezone labels', () => {
     state.data = {
       summary: {total:3,human:3,missed:0,unknown:0}, previous: {total:0,human:0,missed:0,unknown:0},
       period: {from:'2026-11-01T05:00:00Z',to:'2026-11-01T07:00:00Z'},
@@ -97,9 +114,10 @@ describe('calls overview drill down', () => {
       buckets:[{from:'2026-11-01T05:00:00Z',to:'2026-11-01T06:00:00Z',total:1,human:1,missed:0,unknown:0},{from:'2026-11-01T06:00:00Z',to:'2026-11-01T07:00:00Z',total:2,human:2,missed:0,unknown:0}],
     };
     render(<MemoryRouter><CallsOverview query={{}} periodHref={(from,to)=>`/reports/calls?from=${from}&to=${to}`} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'calls.tables'}));
     const first = screen.getAllByRole('link').find(link=>link.getAttribute('href')?.includes('from=2026-11-01T05:00:00Z'))!;
     const second = screen.getAllByRole('link').find(link=>link.getAttribute('href')?.includes('from=2026-11-01T06:00:00Z'))!;
-    expect(first).toHaveTextContent('UTC-04:00'); expect(first).toHaveTextContent('UTC-05:00');
-    expect(second).toHaveTextContent('UTC-05:00'); expect(second).not.toHaveTextContent('UTC-04:00');
+    expect(first).not.toHaveTextContent(/GMT|UTC/); expect(first).toHaveTextContent('01:00');
+    expect(second).not.toHaveTextContent(/GMT|UTC/); expect(second).toHaveTextContent('01:00');
   });
 });

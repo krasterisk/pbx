@@ -89,7 +89,7 @@ function renderCard() {
     ...render(
       <Provider store={store}>
         <MemoryRouter>
-          <AiChatProviderCard />
+          <AiChatProviderCard ownModels={speechModels.ownModels} />
         </MemoryRouter>
       </Provider>,
     ),

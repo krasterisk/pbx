@@ -309,7 +309,8 @@ export class CdrService {
   private async getRecordingBaseUrl(): Promise<{ url: string; path: string }> {
     const cfg = await this.systemSettings.getServerConfigRaw();
     const baseUrl = (cfg.records_base_url || '').replace(/\/$/, '');
-    const basePath = cfg.records_base_path || '/usr/records';
+    // Installation override also lets a local runtime use its mounted recording copy.
+    const basePath = process.env.RECORDS_BASE_PATH || cfg.records_base_path || '/usr/records';
     return { url: baseUrl, path: basePath };
   }
 
@@ -389,6 +390,18 @@ export class CdrService {
       uniqueid: row.uniqueid as string,
       record: row.record as string,
     };
+  }
+
+  /** Called only after the logical-call ACL; filenames stay server-side. */
+  async availableCallRecordings(tenantUid: number, ids: string[]): Promise<Set<string>> {
+    if (!ids.length) return new Set();
+    const tenant = tenantLegFilter(tenantUid);
+    const rows = await this.sequelize.query<{ uniqueid: string; record: string }>(
+      `SELECT c.uniqueid,c.record FROM cdr c WHERE ${tenant.sql} AND c.uniqueid IN (:ids) AND c.record IS NOT NULL AND c.record<>''`,
+      { replacements: {...tenant.replacements, ids:[...new Set(ids)]}, type:QueryTypes.SELECT },
+    );
+    const { path: basePath } = await this.getRecordingBaseUrl();
+    return new Set(rows.filter(row => Boolean(this.safeRecordFilePath(basePath,row.record))).map(row => row.uniqueid));
   }
 
   /** Absolute stream URL (uniqueid often contains ".", so relative "play" breaks). */

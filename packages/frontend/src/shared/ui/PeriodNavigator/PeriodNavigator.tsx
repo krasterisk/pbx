@@ -66,7 +66,7 @@ export function PeriodNavigator({ value, onChange, className }: PeriodNavigatorP
             });
             return;
           }
-          onChange(currentPeriod(unit));
+          onChange(currentPeriod(unit, new Date(), value.weekStart));
         }}
         options={units.map((unit) => ({ value: unit.value, label: unit.label }))}
       />

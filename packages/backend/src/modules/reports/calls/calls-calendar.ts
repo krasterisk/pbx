@@ -116,6 +116,7 @@ export function callsCalendar(
 }
 
 export interface CalendarCounts {
+  robot?: number | string;
   local_hour: number | string;
   utc_offset: number | string;
   total: number | string;
@@ -144,6 +145,7 @@ export function presentCalendar(
         to: new Date(slot.to).toISOString(),
         total: 0,
         human: 0,
+        robot: 0,
         missed: 0,
         unknown: 0,
         hours: [],
@@ -157,9 +159,11 @@ export function presentCalendar(
       offsetMinutes: slot.offsetMs / 60000,
       total: Number(row?.total || 0),
       human: Number(row?.human || 0),
+      robot: Number(row?.robot || 0),
       missed: Number(row?.missed || 0),
       unknown: Number(row?.unknown || 0),
     };
+    day.robot = (day.robot || 0) + hour.robot;
     day.hours.push(hour);
     day.to = hour.to;
     for (const metric of ["total", "human", "missed", "unknown"] as const)

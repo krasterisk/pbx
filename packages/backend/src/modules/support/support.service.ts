@@ -13,7 +13,7 @@ import { PbxWorkflowCompilerService, type DeclarativeWorkflowStep } from '../ai-
 import { AiAdapterRegistryService } from '../ai-platform/ai-adapter-registry.service';
 import { redactSecrets } from '../ai-platform/ai-secret-redaction';
 import { SupportPlan } from './support-plan.model';
-import { SUPPORT_READS, SUPPORT_MUTATIONS, assertSupportArguments, assertSupportRouteChanges, redactSupportRead } from './support-policy';
+import { SUPPORT_READS, SUPPORT_MUTATIONS, assertSupportArguments, assertSupportRouteChanges, normalizeSupportRouteChanges, supportRouteActionSchema, redactSupportRead } from './support-policy';
 import { SupportRuntimeVerifier } from './support-runtime-verifier';
 
 function stable(value:unknown):unknown { return Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>[k,stable(v)])):value; }
@@ -54,16 +54,21 @@ export class SupportService implements OnModuleInit {
   async capabilities(ctx:TenantContext) {
     const {scopes}=await this.identity(ctx);
     const tools=this.mcp.getToolsList(ctx.tenantUid).map(t=>{
+      if(t.name==='update_route'){
+        const schema=JSON.parse(JSON.stringify(t.inputSchema));delete schema.properties?.webhooks;schema.properties={...schema.properties,actions:{type:'array',minItems:1,maxItems:100,items:supportRouteActionSchema()}};
+        return {...t,inputSchema:schema};
+      }
       if(!['create_time_group','update_time_group'].includes(t.name)||!t.inputSchema.properties?.intervals?.items)return t;
       const schema=JSON.parse(JSON.stringify(t.inputSchema));const item=schema.properties.intervals.items;item.required=[...new Set([...(item.required??[]),'days_of_week','timezone'])];return {...t,inputSchema:schema};
     });
+    for(const t of tools)if(t.name==='update_route')t.description+=' Support: actions may be inserted, edited, removed or reordered; type set_source uses params {value: literal source name}, never command. Native tenant target validation and exact approval are required.';
     const operations=tools.filter(t=>SUPPORT_READS.has(t.name)&&scopes.has('support:read:'+t.name)||SUPPORT_MUTATIONS.has(t.name)&&scopes.has('support:propose:'+t.name)).map(t=>({id:t.name,tool:t.name,description:t.description,effect:t.name==='speech_probe'?'paid_probe':SUPPORT_READS.has(t.name)?'read':'propose',schema:t.inputSchema}));
     if(scopes.has('support:propose:propose_plan')) {
       const choices=tools.filter(t=>SUPPORT_MUTATIONS.has(t.name)&&scopes.has('support:propose:'+t.name)).map(t=>({type:'object',additionalProperties:false,required:['id','tool','args'],properties:{id:{type:'string',maxLength:64},tool:{type:'string',enum:[t.name]},args:t.inputSchema,dependsOn:{type:'array',items:{type:'string',maxLength:64},maxItems:20},label:{type:'string',maxLength:200}}}));
       if(choices.length)operations.push({id:'propose_plan',tool:'propose_plan',description:'Один согласуемый план зависимых изменений',effect:'propose',schema:{type:'object',additionalProperties:false,required:['title','steps'],properties:{title:{type:'string',maxLength:200},steps:{type:'array',minItems:1,maxItems:20,items:{oneOf:choices}}}}});
     }
     // Only registered tools with explicit per-tool grants enter discovery.
-    return {product:'krasterisk_v4',version:'support-1.0.0',limitations:['update_route may remove existing steps or attach a scoped calendar; new targets require a dedicated typed tool','raw dialplan changes are unavailable through support'],tenant_id:ctx.tenantUid,permission_revision:ctx.permissionRevision,operations};
+    return {product:'krasterisk_v4',version:'support-1.1.0',limitations:['typed route steps and literal set_source are supported; scripts, webhooks and raw dialplan are unavailable through support'],tenant_id:ctx.tenantUid,permission_revision:ctx.permissionRevision,lifecycle_scopes:[...scopes].filter(s=>['support:apply','support:reject','support:status'].includes(s)).sort(),operations};
   }
   async read(ctx:TenantContext,tool:string,args:Record<string,unknown>) {
     const {scopes,actor}=await this.identity(ctx);
@@ -80,12 +85,12 @@ export class SupportService implements OnModuleInit {
   private steps(body:Record<string,unknown>,scopes:Set<string>):{title:string;steps:DeclarativeWorkflowStep[]} {
     if(Object.keys(body).sort().join(',')!=='arguments,operation,request_id'||typeof body.operation!=='string'||!body.arguments||typeof body.arguments!=='object')throw new BadRequestException('support_proposal_invalid');
     assertSupportArguments(body.arguments);
-    const args=body.arguments as Record<string,unknown>;
+    const args=JSON.parse(JSON.stringify(body.arguments)) as Record<string,unknown>;
     const draft=body.operation==='propose_plan'?args:{title:body.operation,steps:[{id:'change',tool:body.operation,args}]};
     if(body.operation==='propose_plan')this.require(scopes,'support:propose:propose_plan');
     if(typeof draft.title!=='string'||draft.title.length>200||!Array.isArray(draft.steps)||!draft.steps.length||draft.steps.length>20)throw new BadRequestException('support_plan_limit');
     for(const step of draft.steps){if(!step||typeof step!=='object'||!SUPPORT_MUTATIONS.has(step.tool))throw new ForbiddenException('support_plan_tool_denied');this.require(scopes,'support:propose:'+step.tool);
-      if(step.tool==='update_route')assertSupportRouteChanges(step.args);
+      if(step.tool==='update_route')step.args=normalizeSupportRouteChanges(step.args);
       if(['create_time_group','update_time_group'].includes(step.tool)&&step.args?.intervals){
         if(!Array.isArray(step.args.intervals)||step.args.intervals.some((i:any)=>!i||typeof i.days_of_week!=='string'||!i.days_of_week||typeof i.timezone!=='string'||!i.timezone))throw new BadRequestException('support_schedule_days_timezone_required');
       }

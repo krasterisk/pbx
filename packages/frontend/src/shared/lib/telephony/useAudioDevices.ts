@@ -56,7 +56,8 @@ export function useAudioDevices(): UseAudioDevicesResult {
 }
 
 /** Fallback label when enumerateDevices returns empty label (pre-permission). */
-export function audioDeviceLabel(device: MediaDeviceInfo, index: number, kind: 'mic' | 'speaker'): string {
+export function audioDeviceLabel(device: MediaDeviceInfo, index: number, kind: 'mic' | 'speaker', fallbackLabel?: string): string {
   if (device.label?.trim()) return device.label;
+  if (fallbackLabel) return fallbackLabel;
   return kind === 'mic' ? `Microphone ${index + 1}` : `Speaker ${index + 1}`;
 }

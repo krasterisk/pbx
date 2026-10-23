@@ -36,7 +36,12 @@ describe('DashboardCloudService', () => {
   it('uses organization IANA timezone and defaults only if unset or invalid', async () => {
     query.mockResolvedValueOnce([{ timezone: 'Asia/Krasnoyarsk' }]);
     expect(await service.timezone(42)).toBe('Asia/Krasnoyarsk');
-    query.mockResolvedValueOnce([{ timezone: 'bad/zone' }]);
+    query.mockResolvedValueOnce([{ timezone: 'bad/zone' }]).mockResolvedValueOnce([]);
     expect(await service.timezone(42)).toBe('UTC');
+  });
+  it('uses a tenant-bound organization setting for a box without a cloud tenant', async () => {
+    query.mockResolvedValueOnce([]).mockResolvedValueOnce([{value:'Asia/Krasnoyarsk'}]);
+    expect(await service.timezone(0)).toBe('Asia/Krasnoyarsk');
+    expect(query.mock.calls[1][1].replacements).toEqual({timezoneKey:'organization.timezone.0'});
   });
 });

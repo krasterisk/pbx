@@ -201,12 +201,12 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
             size="icon"
             id="shell-agent-trigger"
             ref={agentTriggerRef}
-            className={agentOpen && !agentMinimized ? cls.agentTriggerActive : undefined}
+            className={`${cls.agentTrigger} ${agentOpen && !agentMinimized ? cls.agentTriggerActive : ''}`}
             onClick={() => { setAgentOpen((open) => agentMinimized || !open); setAgentMinimized(false); }}
             aria-label={t('aiChat.openAssistant')}
             aria-pressed={agentOpen && !agentMinimized}
           >
-            <Sparkles size={16} aria-hidden />
+            <Sparkles size={24} aria-hidden />
           </Button>
         </Tooltip>
 

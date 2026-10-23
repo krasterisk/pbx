@@ -103,6 +103,13 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
     const showRail = !isBelowWide && (!isDock || layout.dockWidth >= 700);
 
     const floating = useFloatingWindow(layout.dockWidth, setWidth, 'assistant-widget-geometry', 768);
+    const [launcherVisible, setLauncherVisible] = useState(() => {
+        try { return localStorage.getItem('assistant-widget-visible') !== 'false'; } catch { return true; }
+    });
+    const changeLauncherVisible = (visible: boolean) => {
+        setLauncherVisible(visible);
+        try { localStorage.setItem('assistant-widget-visible', String(visible)); } catch { /* Optional local preference. */ }
+    };
     const { cancelGesture } = floating;
     const [localMinimized, setLocalMinimized] = useState(false);
     const minimized = controlledMinimized ?? localMinimized;
@@ -371,6 +378,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
                     </Flex>
                 )}
                 <AssistantPanelHeader
+                    launcherVisible={launcherVisible} onLauncherVisibleChange={changeLauncherVisible}
                     sheet={sheet} isDock={isDock} isStreaming={isStreaming}
                     effectiveMode={effectiveMode} plansOpen={plansOpen} pendingPlanCount={pendingPlanCount}
                     showThreadsToggle={!showRail} threadsOpen={threadsOpen}
@@ -667,7 +675,7 @@ export const AssistantPanel = ({ open, mode, onModeChange, onClose, onOpen,
                     </Button>
                 )}
             </Flex>
-            {!visible && (open || onOpen) && (
+            {launcherVisible && !visible && (open || onOpen) && (
                 <AssistantWidgetLauncher
                     style={floating.style} controls={floating.controls('launcher')}
                     busy={isStreaming} pendingCount={pendingPlanCount} minimized={open && minimized}

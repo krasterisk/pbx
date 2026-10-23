@@ -48,7 +48,7 @@ export function CallRouteView({
       data-testid="call-route"
     >
       <Flex justify="between" align="center" wrap="wrap" gap="8">
-        <Flex gap="4" align="center"><Text variant="h3">{t('calls.routeTitle')}</Text><InfoTooltip text={t('calls.routeLegend', { timezone })}/></Flex>
+        <Flex gap="4" align="center"><Text variant="h3">{t('calls.routeTitle')}</Text><InfoTooltip text={t('calls.routeLegend')}/></Flex>
         <Button
           size="sm"
           variant="outline"
@@ -83,6 +83,7 @@ export function CallRouteView({
         gap="0"
         align="stretch"
         className={`${cls.route} ${scheme ? cls.routeScheme : ''}`}
+        data-view={scheme ? 'scheme' : 'timeline'}
       >
         {nodes.map((node) => {
           const step = node.steps[0];

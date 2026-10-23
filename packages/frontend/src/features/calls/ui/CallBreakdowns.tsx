@@ -6,7 +6,7 @@ import type {
   CallsQuery,
   CallOutcome,
 } from '@krasterisk/shared';
-import { Button, Flex, Text, VStack } from '@/shared/ui';
+import { Button, Flex, Text, VStack, InfoTooltip } from '@/shared/ui';
 import { callsParams } from '@/shared/lib/callsQueryParams';
 import { patchCallsQuery } from '../model/callsUrl';
 import cls from './Calls.module.scss';
@@ -46,8 +46,7 @@ export function CallBreakdowns({
   const { t } = useTranslation();
   return (
     <VStack gap="16" align="stretch">
-      <Text variant="h3">{t('calls.breakdownsTitle')}</Text>
-      <Text variant="muted">{t('calls.breakdownsMeaning')}</Text>
+      <Flex gap="4" align="center"><Text variant="h3">{t('calls.breakdownsTitle')}</Text><InfoTooltip text={t('calls.breakdownsMeaning')}/></Flex>
       {data.map((group) => {
         const rows = [
           ...group.rows,

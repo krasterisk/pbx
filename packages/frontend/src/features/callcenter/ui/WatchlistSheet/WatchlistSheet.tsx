@@ -35,6 +35,7 @@ export interface WatchlistSheetProps {
   onSave: () => void;
   saving?: boolean;
   error?: string;
+  flat?: boolean;
 }
 
 function candidateLabel(c: WatchlistCandidate, noExtension: string): string {
@@ -60,6 +61,7 @@ export function WatchlistSheet({
   onSave,
   saving = false,
   error,
+  flat = false,
 }: WatchlistSheetProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
@@ -91,9 +93,9 @@ export function WatchlistSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" aria-describedby={undefined} data-testid="cc-watchlist-sheet">
         <SheetHeader>
-          <SheetTitle>{t('callcenter.supervisor.watchlistTitle', 'Supervised agents')}</SheetTitle>
+          <SheetTitle>{flat ? t('callcenter.supervisor.pulse.myTeam') : t('callcenter.supervisor.watchlistTitle', 'Supervised agents')}</SheetTitle>
           <Text variant="muted" className={styles.hint}>
-            {t('callcenter.supervisor.watchlistHint', 'Pick users. An extension is assigned only when the shift starts.')}
+            {flat ? t('callcenter.supervisor.pulse.teamHint') : t('callcenter.supervisor.watchlistHint', 'Pick users. An extension is assigned only when the shift starts.')}
           </Text>
         </SheetHeader>
 
@@ -101,6 +103,7 @@ export function WatchlistSheet({
           <Search size={16} aria-hidden="true" />
           <Input
             value={search}
+            disabled={saving}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('callcenter.supervisor.cockpit.watchlistSearch', 'Find an operator…')}
             aria-label={t('callcenter.supervisor.cockpit.watchlistSearch', 'Find an operator…')}
@@ -113,6 +116,15 @@ export function WatchlistSheet({
             <Text variant="muted">{t('callcenter.supervisor.candidatesEmpty', 'No available agents')}</Text>
           ) : groups.length === 0 ? (
             <Text variant="muted">{t('callcenter.supervisor.cockpit.watchlistNoMatch', 'Nobody found')}</Text>
+          ) : flat ? (
+            [...new Map(groups.flatMap(group => group.candidates).map(candidate => [candidate.userId, candidate])).values()]
+              .sort((a, b) => a.name.localeCompare(b.name)).map(candidate => (
+                <Label key={candidate.userId} className={styles.item}>
+                  <Checkbox checked={selectedSet.has(candidate.userId)} disabled={saving}
+                    onChange={() => toggleOne(candidate.userId)} />
+                  <Text>{candidateLabel(candidate, noExtension)}</Text>
+                </Label>
+              ))
           ) : (
             groups.map((group) => {
               const ids = group.candidates.map((c) => c.userId);
@@ -160,7 +172,7 @@ export function WatchlistSheet({
               count: selectedUserIds.length,
             })}
           </Text>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
             {t('callcenter.supervisor.cancel', 'Cancel')}
           </Button>
           <Button onClick={onSave} disabled={saving} data-testid="cc-watchlist-save">

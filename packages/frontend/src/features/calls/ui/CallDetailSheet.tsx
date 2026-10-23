@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CallParty } from '@krasterisk/shared';
@@ -40,11 +41,13 @@ export function CallDetailSheet({
   onClose,
   onVoicemailClick,
   transcriptSegment,
+  initialTab,
 }: {
   id: string | null;
   onClose: () => void;
   onVoicemailClick?: (id: string) => void;
   transcriptSegment?:string;
+  initialTab?: 'recordings' | 'journey';
 }) {
   const { t, i18n } = useTranslation();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -54,7 +57,7 @@ export function CallDetailSheet({
     isError,
     refetch,
   } = useGetCompanyCallQuery(id || '', { skip: !id });
-  const [tab, setTab] = useState(transcriptSegment?'recordings':'journey');
+  const [tab, setTab] = useState<string>(initialTab || (transcriptSegment?'recordings':'journey'));
   const call = data?.call;
   const [audioTarget,setAudioTarget]=useState<{recordingId:string;startMs:number;segmentId:string}|null>(null);
   const label = (party: CallParty | null) =>
@@ -83,8 +86,7 @@ export function CallDetailSheet({
               <Flex gap="8" wrap="wrap">
                 <Badge variant="secondary">{t(callOutcomeKey(call))}</Badge>
                 <Text variant="muted">
-                  {callTime(call.startedAt, data.timezone, i18n.language)} ·{' '}
-                  {data.timezone}
+                  {callTime(call.startedAt, data.timezone, i18n.language)}
                 </Text>
               </Flex>
               <Flex gap="8" wrap="wrap">
@@ -152,20 +154,21 @@ export function CallDetailSheet({
                       </Text>
                       {call.analytics.recordingId && (
                         <Button variant="outline" asChild>
-                          <a
-                            href={`/speech-analytics/recordings/${encodeURIComponent(call.analytics.recordingId)}`}
+                          <Link
+                            to={`/speech-analytics/recordings/${encodeURIComponent(call.analytics.recordingId)}`}
                           >
                             {t('calls.openAnalytics')}
-                          </a>
+                          </Link>
                         </Button>
                       )}
                     </VStack>
                   )}
-                  {(call.analytics?.state === 'analyzed' || transcriptSegment) && <>
+                  {call.analytics && (call.analytics.state === 'analyzed' || transcriptSegment) && <>
                     {transcriptSegment && <CallTranscript key={call.id+':'+transcriptSegment} callId={call.id} segment={transcriptSegment} onTarget={setAudioTarget} />}
-                    <CallAnalysisCard key={call.id} callId={call.id}/>
                     {!transcriptSegment && <CallTranscript key={call.id} callId={call.id} />}
+                    <CallAnalysisCard key={call.id} callId={call.id}/>
                   </>}
+                  {transcriptSegment && !call.analytics && <Text role="status" variant="muted">{t('calls.transcriptUnavailable')}</Text>}
                   {call.hasVoicemail && (
                     <VStack gap="8" align="stretch">
                       <Text>{t('calls.hasVoicemail')}</Text>

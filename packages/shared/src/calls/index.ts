@@ -79,6 +79,12 @@ export interface CallAnalysisPage {
   privacyProtected: boolean;
 }
 export interface CallRecord {
+  /** Normalized terminal connection result; accepted handling remains in outcome. */
+  connectionResult?: 'busy' | 'noAnswer' | 'unavailable' | null;
+  /** Trunk endpoint identities observed in this call's owned CDR channels. */
+  trunks?: Array<{ id: string; name: string }>;
+  /** Ring groups proven by this call's native routing context. */
+  groups?: Array<{ id: string; name: string }>;
   id: string;
   startedAt: string;
   endedAt: string | null;
@@ -129,6 +135,13 @@ export interface CallSummary {
   estimatedConnectedSample: number;
 }
 export interface CallsQuery {
+  directions?: CallDirection[];
+  handlings?: Array<CallActorKind | 'autodial'>;
+  /** OR inside each group; AND between different filter groups. */
+  numbers?: string[];
+  numberRole?: 'any' | 'caller' | 'recipient';
+  trunks?: string[];
+  results?: Array<'busy' | 'noAnswer' | 'unavailable'>;
   /** Initiating employee's extension/identity in the existing call party model; not mere participation. */
   callerEmployee?: string;
   focusEmployee?: string;
@@ -156,6 +169,7 @@ export interface CallsQuery {
   departments?: string[];
   companyNumbers?: string[];
   queues?: string[];
+  groups?: string[];
   robots?: string[];
   outcomes?: CallOutcome[];
   recording?: 'yes' | 'no';
@@ -177,10 +191,19 @@ export interface CallFacetOption {
 }
 export interface CallsFacets {
   contextKey?: string;
-  options: Record<CallDimension, CallFacetOption[]>;
-  truncated: Partial<Record<CallDimension, boolean>>;
+  options: Record<CallDimension, CallFacetOption[]> & { trunk?: CallFacetOption[]; group?: CallFacetOption[] };
+  truncated: Partial<Record<CallDimension | 'trunk' | 'group', boolean>>;
   analyticsAllowed: boolean;
   dataAsOf: string | null;
+}
+/** Failed intermediate legs never override a confirmed completed handling. */
+export function callConnectionResult(call: Pick<CallRecord, 'outcome' | 'journey' | 'connectionResult'>): 'busy' | 'noAnswer' | 'unavailable' | null {
+  if (!['missed', 'error', 'unknown'].includes(call.outcome)) return null;
+  if (call.connectionResult) return call.connectionResult;
+  const attempts = call.journey.filter(step => ['attempt', 'queue'].includes(step.kind));
+  if (attempts.some(step => step.result === 'noAnswer')) return 'noAnswer';
+  if (attempts.some(step => step.result === 'busy')) return 'busy';
+  return 'unavailable';
 }
 export interface CallRouteNode {
   id: string;
@@ -346,6 +369,7 @@ export function summarizeCallGroups(
 }
 
 export interface CallOverviewBucket {
+  robot?: number;
   from: string;
   to: string;
   total: number;
@@ -366,6 +390,7 @@ export interface CallsOverview {
   period: { from: string; to: string };
   previousPeriod: { from: string; to: string };
   buckets: Array<{
+    robot?: number;
     from: string;
     to: string;
     total: number;

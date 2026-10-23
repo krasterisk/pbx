@@ -1,12 +1,14 @@
 import type { PointerEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, X, Trash2, Maximize2, Minimize2, ClipboardList, Grip, Minus, History } from 'lucide-react';
-import { Button, Text } from '@/shared/ui';
+import { X, Trash2, Maximize2, Minimize2, ClipboardList, Grip, Minus, History } from 'lucide-react';
+import { Button, Text, Switch, Tooltip, AppBrand } from '@/shared/ui';
 import type { ButtonProps } from '@/shared/ui/Button/Button';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import cls from './AssistantPanel.module.scss';
 
 interface Props {
+    launcherVisible: boolean;
+    onLauncherVisibleChange: (visible: boolean) => void;
     sheet: boolean;
     isDock: boolean;
     isStreaming: boolean;
@@ -24,7 +26,7 @@ interface Props {
     onClose: () => void;
 }
 
-export function AssistantPanelHeader({ sheet, isDock, isStreaming, effectiveMode, plansOpen, pendingPlanCount,
+export function AssistantPanelHeader({ launcherVisible, onLauncherVisibleChange, sheet, isDock, isStreaming, effectiveMode, plansOpen, pendingPlanCount,
     showThreadsToggle, threadsOpen, onToggleThreads, moveControls, onTogglePlans, onClear, onToggleMode, onMinimize, onClose }: Props) {
     const { t } = useTranslation();
     return (
@@ -46,7 +48,7 @@ export function AssistantPanelHeader({ sheet, isDock, isStreaming, effectiveMode
                 </Button>
             )}
             <VStack className={cls.avatar} align="center" justify="center">
-                <Bot size={18} aria-hidden />
+                <AppBrand compact />
             </VStack>
             <VStack className={cls.headerInfo} gap="0" align="start">
                 <Text as="span" className={cls.headerTitle}>{t('aiChat.title')}</Text>
@@ -59,6 +61,8 @@ export function AssistantPanelHeader({ sheet, isDock, isStreaming, effectiveMode
                 </Text>
             </VStack>
 
+            <Tooltip content={t('aiChat.showWidgetButton')}><Switch checked={launcherVisible} onCheckedChange={onLauncherVisibleChange}
+                aria-label={t('aiChat.showWidgetButton')} /></Tooltip>
             {showThreadsToggle && (
                 <Button variant="ghost" size="icon" onClick={onToggleThreads}
                     title={t('aiChat.threadsHeading')} aria-label={t('aiChat.threadsHeading')}

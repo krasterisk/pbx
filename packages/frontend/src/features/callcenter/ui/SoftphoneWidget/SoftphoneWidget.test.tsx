@@ -171,6 +171,7 @@ describe('SoftphoneWidget', () => {
 
     fireEvent.click(screen.getByTestId('softphone-widget-trigger'));
     expect(screen.getByTestId('softphone-reg-banner')).toBeTruthy();
+    expect(screen.getByTestId('softphone-widget-panel')).toHaveFocus();
     expect(screen.queryByTestId('softphone-recover')).toBeNull();
     expect(phone.ensureConnected).toHaveBeenCalledWith(true);
 
@@ -181,11 +182,16 @@ describe('SoftphoneWidget', () => {
     fireEvent.click(screen.getByTestId('softphone-recover'));
     expect(phone.ensureConnected).toHaveBeenCalledTimes(2);
 
+    expect(screen.queryByTestId('softphone-widget-trigger')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }));
+    expect(screen.getByTestId('softphone-widget-trigger')).toHaveFocus();
+
     rerender(<SoftphoneWidget phone={mockPhone({ status: 'connecting' })} mode="webrtc" />);
     expect(screen.getByTestId('softphone-reg-badge').getAttribute('data-state')).toBe('registering');
 
     rerender(<SoftphoneWidget phone={mockPhone({ status: 'registered' })} mode="webrtc" />);
     expect(screen.getByTestId('softphone-reg-badge').getAttribute('data-state')).toBe('online');
+    fireEvent.click(screen.getByTestId('softphone-widget-trigger'));
     expect(screen.queryByTestId('softphone-reg-banner')).toBeNull();
 
     unmount();

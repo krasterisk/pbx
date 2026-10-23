@@ -3,6 +3,8 @@ import { DashboardCacheService } from './dashboard-cache.service';
 import { DashboardReadStore } from './dashboard-read-store.service';
 import { classifyDashboardCall } from './dashboard-classifier';
 import { buildCallFact } from '../calls/call-record';
+import { callDimensions } from '../calls/call-dimensions';
+import { Sequelize } from 'sequelize';
 function mockStore(dialect = 'postgres') {
   const query = jest.fn().mockResolvedValue([]);
   const sequelize = { query, getDialect: () => dialect, transaction: jest.fn(async (optionsOrWork: any, work?: (t: unknown) => Promise<unknown>) => (work || optionsOrWork)({})) };
@@ -10,6 +12,58 @@ function mockStore(dialect = 'postgres') {
 }
 const fixedPeriod = { period: 'custom' as const, from: '2026-10-01T00:00:00Z', to: '2026-10-02T00:00:00Z' };
 describe('Dashboard durable read store', () => {
+  it('keeps unchanged aggregate buckets untouched during a fact/index refresh',async()=>{
+    const {store,query}=mockStore();
+    const legs=[{uniqueid:'u1',calldate:'2026-10-01 00:00:00',channel:'PJSIP/e201_42-1',disposition:'BUSY'}];
+    const call=classifyDashboardCall(42,'node',legs,{complete:true});
+    const fact=buildCallFact(call,legs,{complete:true},'UTC');
+    query.mockImplementation(async(sql:string)=>sql.startsWith('SELECT * FROM dashboard_calls')?[{tenant:call.tenant,node_id:call.nodeId,direction:call.direction,origin:call.origin,outcome:call.outcome,started_at:Date.parse(call.startedAt),fingerprint:'previous-index-version'}]:[]);
+    await store.putCall(call,undefined,fact);
+    expect(query.mock.calls.some(([sql])=>sql.startsWith('INSERT INTO dashboard_buckets'))).toBe(false);
+    expect(query.mock.calls.some(([sql])=>sql.startsWith('INSERT INTO call_facts'))).toBe(true);
+    expect(query.mock.calls.some(([sql])=>sql.includes('revision:'))).toBe(false);
+    expect(query.mock.calls.some(([sql,options])=>sql.startsWith('INSERT INTO dashboard_checkpoints')&&options.replacements.source==='revision:42')).toBe(true);
+  });
+  it.each(['mysql', 'postgres'])('batches Unicode dimensions with bound values in the same call transaction in %s', async (dialect) => {
+    const {store,query}=mockStore(dialect);
+    const legs=[{uniqueid:'u1',calldate:'2026-10-01 00:00:00',channel:'PJSIP/e201_42-1',disposition:'BUSY'}];
+    const call=classifyDashboardCall(42,'node',legs,{complete:true});
+    const fact=buildCallFact(call,legs,{complete:true},'UTC');
+    fact.groups=Array.from({length:205},(_,i)=>({id:String(i+1),name:`ГРУППА 'Тест' ${i}`}));
+    const dimensions=callDimensions(fact);
+    await store.putCall(call,undefined,fact);
+    const inserts=query.mock.calls.filter(([sql])=>sql.startsWith('INSERT INTO call_dimensions'));
+    expect(inserts).toHaveLength(Math.ceil(dimensions.length/100));
+    const db=new Sequelize('fixture','fixture','fixture',{dialect:dialect as 'mysql'|'postgres',logging:false});
+    const {injectReplacements}=jest.requireActual('sequelize/lib/utils/sql');
+    try {
+      let total=0;
+      for(const [sql,options] of inserts){
+        const values=options.replacements;
+        const kinds=Object.keys(values).filter(key=>/^kind\d+$/.test(key));
+        expect(kinds.length).toBeLessThanOrEqual(100);
+        total+=kinds.length;
+        expect(values).toMatchObject({id:call.id,tenant:42});
+        expect(options.transaction).toBeDefined();
+        expect(sql).not.toContain('ГРУППА');
+        for(const key of kinds){const i=key.slice(4);expect(values[`searchLabel${i}`]).toBe(String(values[`label${i}`]).toLowerCase());}
+        const rendered=injectReplacements(sql,(db as any).dialect,values);
+        expect(rendered).not.toMatch(/:(?:id|tenant|kind\d+|value\d+|label\d+|searchLabel\d+)\b/);
+      }
+      expect(total).toBe(dimensions.length);
+      expect(new Set(inserts.map(([,options])=>options.transaction)).size).toBe(1);
+    } finally {await db.close();}
+  });
+  it('propagates a dimension write failure before publishing participants and revision',async()=>{
+    const {store,query}=mockStore();
+    const legs=[{uniqueid:'u1',calldate:'2026-10-01 00:00:00',channel:'PJSIP/e201_42-1',disposition:'BUSY'}];
+    const call=classifyDashboardCall(42,'node',legs,{complete:true});
+    const fact=buildCallFact(call,legs,{complete:true},'UTC');
+    query.mockImplementation(async(sql:string)=>{if(sql.startsWith('INSERT INTO call_dimensions'))throw new Error('dimension write failed');return [];});
+    await expect(store.putCall(call,undefined,fact)).rejects.toThrow('dimension write failed');
+    expect(query.mock.calls.some(([sql])=>sql.startsWith('DELETE FROM dashboard_participants'))).toBe(false);
+    expect(query.mock.calls.some(([sql])=>sql.includes('cursor_value=cursor_value + 1'))).toBe(false);
+  });
   it.each(['mysql', 'postgres'])('writes the journal fact, ACL and dashboard counters in one transaction in %s', async (dialect) => {
     const { store, query, sequelize } = mockStore(dialect);
     const call = classifyDashboardCall(42, 'node', [{ uniqueid: 'u1', calldate: '2026-10-01 00:00:00', channel: 'PJSIP/e201_42-1', disposition: 'BUSY' }], { complete: true });

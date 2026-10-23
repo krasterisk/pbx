@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import '@testing-library/jest-dom';
@@ -84,6 +84,9 @@ describe('AgentSheet (U1.3)', () => {
     expect(screen.getByTestId('cc-agent-sheet')).toBeInTheDocument();
     expect(screen.queryByTestId('sheet-overlay')).not.toBeInTheDocument();
     expect(screen.getByTestId('cc-agent-sheet-unpause')).toBeInTheDocument();
+    const stats = within(screen.getByTestId('cc-agent-sheet-stats'));
+    expect(stats.getByText('12')).toBeInTheDocument();
+    expect(stats.getByText('4')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('cc-agent-sheet-unpause'));
     expect(onUnpause).toHaveBeenCalledWith(pausedAgent);

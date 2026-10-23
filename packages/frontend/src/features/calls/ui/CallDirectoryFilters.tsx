@@ -11,17 +11,23 @@ import {
   Select,
   Text,
   VStack,
+  InfoTooltip,
 } from '@/shared/ui';
 import cls from './Calls.module.scss';
+import { invalidCallPeriod } from '../model/callPeriod';
 
 export function CallDirectoryFilters({
   query,
   patch,
   advanced,
+  visibleFields,
+  compact = false,
 }: {
   query: CallsQuery;
   patch: (value: Record<string, string | string[] | undefined>) => void;
   advanced: boolean;
+  visibleFields?: string[];
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
@@ -31,7 +37,13 @@ export function CallDirectoryFilters({
     values: Record<string, string>;
   }>({ context: '', values: {} });
   useEffect(() => {
-    const timer = setTimeout(() => setDirectorySearch(search), 300);
+    const timer = setTimeout(
+      () =>
+        setDirectorySearch(
+          search.trim().length >= 3 ? search.trim().slice(0, 128) : '',
+        ),
+      650,
+    );
     return () => clearTimeout(timer);
   }, [search]);
   const {
@@ -40,11 +52,18 @@ export function CallDirectoryFilters({
     isFetching,
     isError,
     refetch,
-  } = useGetCompanyCallFacetsQuery({
-    ...query,
-    cursor: undefined,
-    directorySearch: directorySearch || undefined,
-  });
+  } = useGetCompanyCallFacetsQuery(
+    {
+      ...query,
+      cursor: undefined,
+      directorySearch: directorySearch || undefined,
+    },
+    {
+      skip:
+        invalidCallPeriod(query) ||
+        Boolean(query.search && query.search.trim().length < 3),
+    },
+  );
   const context = (data || previous)?.contextKey || 'legacy';
   const labels = knownLabels.context === context ? knownLabels.values : {};
   useEffect(() => {
@@ -81,19 +100,29 @@ export function CallDirectoryFilters({
       title: 'companyNumber',
     },
     { kind: 'queue', key: 'queues', title: 'queue' },
+    { kind: 'group', key: 'groups', title: 'group' },
     { kind: 'robot', key: 'robots', title: 'robot' },
+    { kind: 'trunk', key: 'trunks', title: 'trunk' },
   ] as Array<{
-    kind: CallDimension;
-    key: 'employees' | 'departments' | 'companyNumbers' | 'queues' | 'robots';
+    kind: CallDimension | 'trunk' | 'group';
+    key:
+      | 'employees'
+      | 'departments'
+      | 'companyNumbers'
+      | 'queues'
+      | 'groups'
+      | 'robots'
+      | 'trunks';
     legacy?: 'extension' | 'department' | 'companyNumber';
     title: string;
   }>;
   return (
     <VStack gap="12" align="stretch" aria-busy={isFetching}>
-      {advanced && (
+      {advanced && !visibleFields && (
         <VStack gap="4" align="stretch">
           <Label htmlFor="calls-directory-search">
             {t('calls.directorySearchLabel')}
+            <InfoTooltip text={t('calls.filterLogic')} />
           </Label>
           <Input
             id="calls-directory-search"
@@ -105,8 +134,10 @@ export function CallDirectoryFilters({
       )}
       <Flex className={cls.filterRow}>
         {fields
-          .filter(
-            (field) => advanced || !['queue', 'robot'].includes(field.kind),
+          .filter((field) =>
+            visibleFields
+              ? visibleFields.includes(field.key)
+              : advanced || !['queue', 'robot'].includes(field.kind),
           )
           .map((field) => {
             const legacy = field.legacy && query[field.legacy];
@@ -137,12 +168,15 @@ export function CallDirectoryFilters({
                 align="stretch"
                 className={cls.field}
               >
-                <Text as="span" variant="muted">
-                  {t(`calls.${field.title}`)}
-                </Text>
+                {!compact && (
+                  <Text as="span" variant="muted">
+                    {t(`calls.${field.title}`)}
+                  </Text>
+                )}
                 <MultiSelect
                   ariaLabel={t(`calls.${field.title}`)}
                   searchable
+                  onSearchChange={setSearch}
                   options={options.map((o) => ({
                     value: o.value,
                     label: label(o),
@@ -163,54 +197,74 @@ export function CallDirectoryFilters({
           })}
         {advanced && (
           <>
-            <VStack gap="4" align="stretch" className={cls.field}>
-              <Label htmlFor="calls-recording">{t('calls.recording')}</Label>
-              <Select
-                id="calls-recording"
-                value={query.recording || ''}
-                onChange={(e) =>
-                  patch({ recording: e.target.value || undefined })
-                }
-              >
-                <option value="">{t('calls.all')}</option>
-                <option value="yes">{t('calls.withRecording')}</option>
-                <option value="no">{t('calls.withoutRecording')}</option>
-              </Select>
-            </VStack>
-            <VStack gap="4" align="stretch" className={cls.field}>
-              <Label htmlFor="calls-voicemail">{t('calls.voicemail')}</Label>
-              <Select
-                id="calls-voicemail"
-                value={query.voicemail || ''}
-                onChange={(e) =>
-                  patch({ voicemail: e.target.value || undefined })
-                }
-              >
-                <option value="">{t('calls.all')}</option>
-                <option value="1">{t('calls.hasVoicemail')}</option>
-              </Select>
-            </VStack>
-            {data?.analyticsAllowed && (
+            {(!visibleFields || visibleFields.includes('recording')) && (
               <VStack gap="4" align="stretch" className={cls.field}>
-                <Label htmlFor="calls-analytics">{t('calls.analytics')}</Label>
+                {!compact && (
+                  <Label htmlFor="calls-recording">
+                    {t('calls.recording')}
+                  </Label>
+                )}
                 <Select
-                  id="calls-analytics"
-                  value={query.analytics || ''}
+                  aria-label={t('calls.recording')}
+                  id="calls-recording"
+                  value={query.recording || ''}
                   onChange={(e) =>
-                    patch({ analytics: e.target.value || undefined })
+                    patch({ recording: e.target.value || undefined })
                   }
                 >
                   <option value="">{t('calls.all')}</option>
-                  {['none', 'queued', 'running', 'analyzed', 'failed'].map(
-                    (state) => (
-                      <option key={state} value={state}>
-                        {t(`calls.analysis.${state}`)}
-                      </option>
-                    ),
-                  )}
+                  <option value="yes">{t('calls.withRecording')}</option>
+                  <option value="no">{t('calls.withoutRecording')}</option>
                 </Select>
               </VStack>
             )}
+            {(!visibleFields || visibleFields.includes('voicemail')) && (
+              <VStack gap="4" align="stretch" className={cls.field}>
+                {!compact && (
+                  <Label htmlFor="calls-voicemail">
+                    {t('calls.voicemail')}
+                  </Label>
+                )}
+                <Select
+                  aria-label={t('calls.voicemail')}
+                  id="calls-voicemail"
+                  value={query.voicemail || ''}
+                  onChange={(e) =>
+                    patch({ voicemail: e.target.value || undefined })
+                  }
+                >
+                  <option value="">{t('calls.all')}</option>
+                  <option value="1">{t('calls.hasVoicemail')}</option>
+                </Select>
+              </VStack>
+            )}
+            {data?.analyticsAllowed &&
+              (!visibleFields || visibleFields.includes('analytics')) && (
+                <VStack gap="4" align="stretch" className={cls.field}>
+                  {!compact && (
+                    <Label htmlFor="calls-analytics">
+                      {t('calls.analytics')}
+                    </Label>
+                  )}
+                  <Select
+                    aria-label={t('calls.analytics')}
+                    id="calls-analytics"
+                    value={query.analytics || ''}
+                    onChange={(e) =>
+                      patch({ analytics: e.target.value || undefined })
+                    }
+                  >
+                    <option value="">{t('calls.all')}</option>
+                    {['none', 'queued', 'running', 'analyzed', 'failed'].map(
+                      (state) => (
+                        <option key={state} value={state}>
+                          {t(`calls.analysis.${state}`)}
+                        </option>
+                      ),
+                    )}
+                  </Select>
+                </VStack>
+              )}
           </>
         )}
       </Flex>
@@ -223,39 +277,38 @@ export function CallDirectoryFilters({
         </Flex>
       )}
       {data && Object.values(data.truncated).some(Boolean) && (
-        <Text variant="muted">{t('calls.facetsLimited')}</Text>
+        <InfoTooltip text={t('calls.facetsLimited')} />
       )}
-      <Text variant="muted" className={cls.filterLogic}>
-        {t('calls.filterLogic')}
-      </Text>
-      <Flex gap="8" wrap="wrap">
-        {fields.flatMap((field) =>
-          (query[field.key] || []).map((value) => {
-            const option = (data || previous)?.options[field.kind].find(
-              (o) => o.value === value,
-            );
-            return (
-              <Button
-                key={`${field.key}:${value}`}
-                size="sm"
-                variant="outline"
-                aria-label={`${t('calls.removeFilter')}: ${option?.label || labels[field.kind + ':' + value] || value}`}
-                onClick={() =>
-                  patch({
-                    [field.key]: query[field.key]!.filter((v) => v !== value)
-                      .length
-                      ? query[field.key]!.filter((v) => v !== value)
-                      : undefined,
-                  })
-                }
-              >
-                {t(`calls.${field.title}`)}:{' '}
-                {option?.label || labels[field.kind + ':' + value] || value} ×
-              </Button>
-            );
-          }),
-        )}
-      </Flex>
+      {!compact && (
+        <Flex gap="8" wrap="wrap">
+          {fields.flatMap((field) =>
+            (query[field.key] || []).map((value) => {
+              const option = (data || previous)?.options[field.kind]?.find(
+                (o) => o.value === value,
+              );
+              return (
+                <Button
+                  key={`${field.key}:${value}`}
+                  size="sm"
+                  variant="outline"
+                  aria-label={`${t('calls.removeFilter')}: ${option?.label || labels[field.kind + ':' + value] || value}`}
+                  onClick={() =>
+                    patch({
+                      [field.key]: query[field.key]!.filter((v) => v !== value)
+                        .length
+                        ? query[field.key]!.filter((v) => v !== value)
+                        : undefined,
+                    })
+                  }
+                >
+                  {t(`calls.${field.title}`)}:{' '}
+                  {option?.label || labels[field.kind + ':' + value] || value} ×
+                </Button>
+              );
+            }),
+          )}
+        </Flex>
+      )}
     </VStack>
   );
 }

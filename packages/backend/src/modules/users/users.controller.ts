@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { createReadStream } from 'fs';
 import type { Response } from 'express';
 import { UsersService } from './users.service';
@@ -40,6 +41,9 @@ export class UsersController {
   }
 
   @Get(':id/avatar')
+  // One board loads many cacheable photos through the same handler/IP bucket.
+  // Authentication and tenant-scoped file lookup still apply to every request.
+  @SkipThrottle({ default: true, global: true })
   async streamAvatar(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: any,

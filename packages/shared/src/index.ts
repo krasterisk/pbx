@@ -117,3 +117,4 @@ export * from './callcenter-dashboard';
 export * from './callcenter-hotkeys';
 export * from './callcenter-cards';
 export { APP_VERSION } from './app-version';
+export type { OrganizationWeekStart, OrganizationCalendar, OrganizationRegionalSettings } from './types/organization-calendar.types';

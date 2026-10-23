@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AudioLines } from 'lucide-react';
 import {
-  Button, Card, CardContent, CardHeader, Checkbox, Text,
+  Button, Checkbox, Label,
 } from '@/shared/ui';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import {
   useGetSaSpeechModelsQuery,
   useSaveSaSpeechModelsMutation,
 } from '../../api/speechAnalyticsApi';
+import cls from './TenantSpeechModelsCard.module.scss';
 import { SpeechAnalyticsModelFields } from '../SpeechAnalyticsModelFields/SpeechAnalyticsModelFields';
 
 /** Tenant-wide speech models. Hidden unless the cabinet is allowed to use its own. */
@@ -30,18 +30,7 @@ export function TenantSpeechModelsCard() {
   if (!data?.ownModels) return null;
 
   return (
-    <Card data-testid="tenant-speech-models">
-      <CardHeader>
-        <HStack gap="12" align="center">
-          <AudioLines size={20} />
-          <VStack gap="2">
-            <Text variant="h4">{t('speechAnalytics.tenantModelsTitle', 'Модели речевой аналитики')}</Text>
-            <Text variant="muted">{t('speechAnalytics.tenantModelsHint', 'Распознавание и LLM для этого кабинета. Пустое значение берёт модель платформы.')}</Text>
-          </VStack>
-        </HStack>
-      </CardHeader>
-      <CardContent>
-        <VStack gap="16" max>
+    <VStack gap="12" className={cls.form} data-testid="tenant-speech-models">
           <SpeechAnalyticsModelFields
             idPrefix="tenant-speech"
             providers={data.providers}
@@ -56,19 +45,18 @@ export function TenantSpeechModelsCard() {
               checked={projectOverride}
               onChange={() => setProjectOverride((value) => !value)}
             />
-            <Text>{t('speechAnalytics.projectModelOverride', 'Переопределять модели в настройках проекта')}</Text>
+            <Label htmlFor="tenant-speech-project-override">{t('speechAnalytics.projectModelOverride', 'Переопределять модели в настройках проекта')}</Label>
           </HStack>
-          <HStack justify="end">
+          <HStack>
             <Button
               type="button"
+              size="sm"
               disabled={isLoading}
               onClick={() => void save({ sttProviderUid, llmProviderUid, projectOverride })}
             >
               {t('common.save', 'Сохранить')}
             </Button>
           </HStack>
-        </VStack>
-      </CardContent>
-    </Card>
+    </VStack>
   );
 }

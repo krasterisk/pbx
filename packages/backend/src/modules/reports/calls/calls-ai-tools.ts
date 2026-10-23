@@ -11,7 +11,7 @@ import { callsAiTiming } from './calls-ai-timing';
 
 const filters: Record<string, unknown> = {
   mine: { type: 'boolean', description: 'Only calls involving the authenticated employee. Resolved on the server; never supply a guessed employee id.' },
-  period: { type: 'string', enum: AI_CALL_PERIODS, description: 'Server resolves company timezone. last_week = previous Monday–Sunday, not rolling seven days. Do not combine with explicit dates.' },
+  period: { type: 'string', enum: AI_CALL_PERIODS, description: 'Server resolves company timezone. last_week = previous full calendar week using the organization week-start setting, not rolling seven days. Do not combine with explicit dates.' },
   callerEmployee: { type: 'string', description: 'Exact initiating employee identity from resolve_call_employees; unlike employees, excludes calls where they only participated.' },
   dateFrom: { type: 'string', description: 'First company day YYYY-MM-DD' },
   dateTo: { type: 'string', description: 'Last day inclusive YYYY-MM-DD' },
@@ -22,10 +22,17 @@ const filters: Record<string, unknown> = {
   to: { type: 'string', description: 'Exclusive ISO timestamp with timezone' },
   search: {
     type: 'string',
+    minLength: 3,
     maxLength: 200,
     description:
       'Phone, employee name or department; no transcript/semantic search',
   },
+  directions: {type:'array',maxItems:4,items:{type:'string',enum:['in','out','internal','external']}},
+  handlings: {type:'array',maxItems:6,items:{type:'string',enum:['employee','queue','menu','voiceRobot','aiRobot','autodial']}},
+  results: {type:'array',maxItems:3,items:{type:'string',enum:['busy','noAnswer','unavailable']}},
+  numbers: {type:'array',maxItems:30,items:{type:'string',maxLength:128}},
+  trunks: {type:'array',maxItems:30,items:{type:'string',maxLength:128}},
+  numberRole: {type:'string',enum:['any','caller','recipient']},
   direction: { type: 'string', enum: ['in', 'out', 'internal', 'external'] },
   outcome: {
     type: 'string',
@@ -88,6 +95,7 @@ const filters: Record<string, unknown> = {
       'departments',
       'companyNumbers',
       'queues',
+      'groups',
       'robots',
       'outcomes',
     ].map((k) => [
@@ -128,7 +136,8 @@ export async function prepareCallsAiQuery(calls: CallsService, user: JwtPayloadU
   if (copy.period !== undefined) {
     if (['dateFrom','dateTo','from','to'].some(key=>copy[key] !== undefined)) throw new BadRequestException('Choose a relative period or explicit dates');
     if (typeof copy.period !== 'string') throw new BadRequestException('Invalid relative call period');
-    Object.assign(copy, aiCallPeriod(copy.period, await calls.aiTimezone(user)));
+    const [timezone, weekStart] = await Promise.all([calls.aiTimezone(user), calls.aiWeekStart(user)]);
+    Object.assign(copy, aiCallPeriod(copy.period, timezone, new Date(), weekStart));
     delete copy.period;
   }
   return query(copy);
@@ -179,7 +188,7 @@ export const callsKnowledge = `## Анализ звонков компании
 - search_call_content: «найди номер и с кем я говорил на прошлой неделе о башенном кране» => phrase="башенный кран", period=last_week, mine=true, mode=semantic. Для «я» используй текущую привязку пользователя; self_unmapped требует уточнения, не ищи по всей компании. Возвращай контакты и ссылки/таймкод из результата. Сырые цитаты открываются в журнале, не пересказывай их из догадок.
 - Поиск по теме разговора всегда начинай с search_call_content в mode=semantic, сохраняя полную тему запроса и отрицания. mode=literal нужен только для явно запрошенной точной фразы. Пустой ответ не разрешает ослаблять тему до одного общего слова или выдавать обычные search_calls за тематические совпадения. mine=true у обычного поиска ограничивает участника, но не проверяет содержание разговора.
 - get_call_analysis читает разбор одного звонка с актуальными правами SA/проекта. not_applicable и insufficient_evidence не нули и не максимумы. Эти инструменты не предоставляют расшифровки целиком.
-- Давай ссылки url, период/часовой пояс/размер выборки и ограничения. Относительный period сервер вычисляет в зоне компании; last_week — предыдущие понедельник–воскресенье. Не смешивай period с точными датами. Ошибка поиска/недоступность не равны отсутствию звонков.
+- Давай ссылки url, период/часовой пояс/размер выборки и ограничения. Относительный period сервер вычисляет в зоне компании; last_week — предыдущая полная календарная неделя с началом из настроек организации. Не смешивай period с точными датами. Ошибка поиска/недоступность не равны отсутствию звонков.
 - find_cdr_calls/get_cdr_summary — переходные имена search_calls/summarize_calls с новой моделью результатов.`;
 
 export function callsAiTools(calls: CallsService): AiToolDefinition[] {

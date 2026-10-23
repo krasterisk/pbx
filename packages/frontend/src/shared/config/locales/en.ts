@@ -1,6 +1,7 @@
 import { autodialWorkspaceEn, autodialWorkspaceErrorsEn } from './autodialWorkspace';
 import { aiVoiceDesignerEn } from './aiVoiceDesigner';
 import { callsEn } from './calls';
+import { supervisorPulseEn } from './supervisorPulse';
 export const en = {
   calls: callsEn,
   modal: { defaultOption: "Default", errors: {"save":"Could not save. Check the settings and try again.","upload":"Could not upload the file. Try again.","remove":"Could not delete the file. Try again."}, sections: {report: 'Report', filters: 'Filters', delivery: 'Delivery', "identity":"General information","connection":"Connection","account":"Credentials","access":"Access permissions","settings":"Settings","timing":"Waiting and timers"} },
@@ -193,7 +194,7 @@ export const en = {
     phonebooks: "Phonebooks",
     directories: "Directories",
     routeTemplates: "Route templates",
-    cdr: "Call log (CDR)",
+    cdr: "Calls",
     voiceRobotCdr: "Voice robot log (CDR)",
     serviceRequests: "Service requests",
     komandorClaims: "Komandor claims",
@@ -3836,7 +3837,18 @@ export const en = {
     headerValue: "Value",
     addHeader: "Add header",
   },
+  settings: { tenant: {"title":"Routes","description":"Dialplan and flowchart visibility in routes","loading":"Loading settings","saveError":"Could not save the setting. The previous value was restored.","showRawDialplan":"Show dialplan in routes","showRawDialplanHint":"Controls the Dialplan mode in the route form. Hiding it does not delete saved text.","showFlowchart":"Show route flowcharts","showFlowchartHint":"Shows the flowchart tab in routes and IVR menus"} },
   systemSettings: {
+    statusNotChecked: "Not checked",
+    statusCheckError: "Could not check status",
+    sectionRoutes: "Routes",
+    sectionRoutesDesc: "Dialplan and flowchart visibility in routes",
+    tabs: {"general":"General","telephony":"Telephony","ai":"AI","server":"Server"},
+    sectionsLabel: "Settings sections",
+    modeError: "Could not load available settings.",
+    regionalError: "Could not load or save regional settings.",
+    timezoneSearch: "Search time zones",
+    noTimezones: "No time zones found",
     pageTitle: "System Settings",
     sectionTables: "Tables",
     sectionTablesDesc: "How many rows this cabinet shows on each table page",
@@ -3858,11 +3870,9 @@ export const en = {
     sectionRecordingsDesc:
       "Paths and URLs for storing and accessing call recordings",
     recordingsBasePath: "Disk path",
-    recordingsBasePathDesc:
-      "Absolute path on the Asterisk server where MixMonitor writes WAV files and ffmpeg converts to MP3",
+    recordingsBasePathDesc: "Directory on the telephony server where call recordings are stored.",
     recordingsBaseUrl: "Public URL",
-    recordingsBaseUrlDesc:
-      "Base URL for generating MP3 download links in on_hangup webhook payloads",
+    recordingsBaseUrlDesc: "Base URL for recording links in outgoing webhooks.",
     recordingsSaved: "Recording settings saved",
     recordingsSaveError: "Save error",
     recordingsSaveBtn: "Save",
@@ -3871,7 +3881,7 @@ export const en = {
     sectionSecurity: "Webhook Security",
     sectionSecurityDesc:
       "HMAC-SHA256 signature for outbound webhooks - verified by CRM on their end",
-    webhookSecretLabel: "Webhook Secret",
+    webhookSecretLabel: "Webhook signing secret",
     webhookSecretDesc:
       "When set - all webhooks are signed with X-Krasterisk-Signature: sha256=<hex>",
     webhookSecretPlaceholder: "Enter secret key...",
@@ -3895,12 +3905,11 @@ export const en = {
     ffmpegInstallHint: "Install with: apt install ffmpeg",
     // Redis section
     sectionRedis: "Redis Status",
-    sectionRedisDesc:
-      "Redis is used for persistent BullMQ queues (webhook delivery with retry)",
+    sectionRedisDesc: "Persistent webhook delivery queue with automatic retries.",
     redisCheck: "Check",
     redisChecking: "Checking...",
     redisConnected: "Redis connected",
-    redisDisconnected: "Redis unavailable - using in-memory fallback",
+    redisDisconnected: "Redis unavailable - the queue is kept in memory",
     redisVersion: "Version",
     redisDesc:
       "Redis backs BullMQ queues. Without it - webhooks are in-memory (lost on restart)",
@@ -3916,7 +3925,7 @@ export const en = {
     aiPbxApiKeyPlaceholder: "Enter token...",
     aiPbxModel: "Model in aiPBX",
     aiPbxModelDesc: "Model name aiPBX exposes (from its provider list)",
-    aiPbxSaved: "aiPBX connection saved — chat will use this gateway",
+    aiPbxSaved: "aiPBX connection saved - chat will use this gateway",
     aiPbxSaveError: "Could not save the aiPBX connection",
     aiPbxAllProviders: "All providers",
     aiChatProvider: "Chat provider",
@@ -3924,7 +3933,7 @@ export const en = {
       "The assistant panel uses this provider and its model. Tenants cannot pick a model in the chat itself.",
     aiChatProviderSaved: "Chat provider saved",
     aiChatProviderEmpty:
-      "No enabled LLM providers — add one under AI → Providers.",
+      "No enabled LLM providers - add one under AI → Providers.",
     aiChatSeeAllThreads: "See all tenant conversations",
     aiChatSeeAllThreadsHint:
       "Admins can see every tenant conversation read-only, even when it is not on an access list.",
@@ -3998,6 +4007,7 @@ export const en = {
     resizeWidget: "Resize widget: drag or use arrow keys",
     minimizeWidget: "Minimize to button",
     restoreWidget: "Return to conversation",
+    showWidgetButton: "Show floating widget button",
     openWidget: "Open AI assistant",
     expand: "Expand to workspace",
     collapse: "Return to widget",
@@ -4705,6 +4715,7 @@ export const en = {
       },
     },
     supervisor: {
+      pulse: supervisorPulseEn,
       title: "Supervisor Panel",
       subtitle: "Real-time call center monitoring",
       tabAgents: "Agents",
@@ -5869,6 +5880,10 @@ export const en = {
       draftSaved: "Call card saved",
     },
     softphone: {
+      backspaceHint: "Delete the last character",
+      clearDialHint: "Clear the entire number",
+      moveWindow: "Move window: drag or use arrow keys",
+      resizeWindow: "Resize window: drag or use arrow keys",
       searchExtension: "Search by name or extension",
       startShift: "Start shift",
       endShift: "End shift",
@@ -5960,6 +5975,8 @@ export const en = {
       addContact: "Add contact",
       calledBackTag: "Called back",
       deviceSwitchFailed: "Could not switch device",
+      defaultDevice: "Default",
+      milliseconds: "ms",
     },
     registration: {
       online: "Online",

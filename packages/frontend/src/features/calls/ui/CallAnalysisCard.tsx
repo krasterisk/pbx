@@ -18,10 +18,10 @@ export function CallAnalysisCard({callId}:{callId:string}) {
     {data.summary ? <Text>{data.summary}</Text> : <Text variant="muted">{t('calls.analysisCard.noSummary','Саммари не сформировано')}</Text>}
     {data.summaryTruncated && <Text variant="muted">{t('calls.analysisCard.truncated','Саммари показано не полностью')}</Text>}
     <dl>
-      {data.metrics.map(metric=><div key={metric.id}>
+      {data.metrics.map(metric=><VStack key={metric.id} gap="4" align="stretch">
         <dt><Text variant="muted">{t(`calls.analysisCard.metrics.${metric.id}`,metric.label)}</Text></dt>
         <dd><Text>{metric.status==='not_applicable'?t('calls.analysisCard.notApplicable','Не применимо'):metric.status==='insufficient_evidence'?t('calls.analysisCard.insufficientEvidence','Недостаточно подтверждений'):value(metric.value)}{metric.unit && metric.value!==null && (!metric.status || metric.status==='assessed')?` ${metric.unit}`:''}</Text>{metric.rationale && <Text variant="muted">{metric.rationale}</Text>}{metric.quote && <blockquote><Text variant="muted">{metric.quote}</Text></blockquote>}</dd>
-      </div>)}
+      </VStack>)}
     </dl>
     <Text variant="muted">{t('calls.analysisCard.modelAssessment','Оценки модели. Для проверки откройте исходную расшифровку и запись.')}</Text>
   </VStack>;

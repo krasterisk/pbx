@@ -1,10 +1,35 @@
 export const callsRu = {
+  calendarSettingsTitle: 'Региональные настройки', weekStartTitle: 'Начало недели', weekStartHint: 'Единое начало календарной недели для отчётов организации. Последние 7 дней всегда включают сегодня и шесть предыдущих дней.', weekStartSave: 'Сохранить начало недели', weekStartError: 'Не удалось загрузить или сохранить начало недели.', weekStarts: { monday: 'Понедельник', sunday: 'Воскресенье' },
+  filterSummary: 'Условия выборки', caller: 'Инициатор', originLabel: 'Источник', unassignedLabel: 'Без назначения',
+  numberTagError:'Введите от 2 до 11 цифр. В списке может быть не больше 30 номеров.',
+  period:'Период', includeTime:'Время',
+  periods:{today:'Сегодня',yesterday:'Вчера',currentWeek:'Текущая неделя',previousWeek:'Прошлая неделя',week:'Последние 7 дней',fortnight:'Последние 14 дней',currentMonth:'Текущий месяц',previousMonth:'Прошлый месяц',last30Days:'Последние 30 дней',month:'Месяц',twoMonths:'2 месяца',threeMonths:'3 месяца',quarter:'Текущий квартал',previousQuarter:'Прошлый квартал',currentYear:'Текущий год',previousYear:'Прошлый год',year:'Год',all:'Вся история',custom:'Произвольная дата'},
+  numberTagPlaceholder:'Номер и Enter',numberTagHint:'До 30 номеров. Только цифры, до 11 в номере. Enter или запятая фиксирует номер. Номера объединяются по ИЛИ, разные условия по И.',
+  historyPreparing:'История звонков подготавливается',historyPreparingHint:'Обработка истории ещё не завершена. Звонки и итоговые показатели появятся после её завершения.',
+  historyUnavailable:'Не удалось получить актуальную историю',historyUnavailableHint:'Проверьте подключение и обновите отчёт. Если проблема сохраняется, обратитесь к администратору.',
+
+  group:'Группа вызова',
+  addFilter:'Добавить фильтр', exporting:'Готовим файл для скачивания…', periodLimited:'Для этого раздела показаны последние {{days}} дней выбранного периода. Полная выборка остаётся в журнале.',
+  clearSearch:'Очистить поиск', searchMinimum:'Введите не менее 3 символов', searchLoading:'Обновляем выборку…', searchPending:'Поиск начнётся после окончания ввода', searchGuidance:'Номер, имя или участник звонка',
+  directionFilter:{in:'Внешние входящие',out:'Внешние исходящие',internal:'Внутренние',external:'Внешние без данных о направлении'},
+  connectionResult: { busy: 'Занят', noAnswer: 'Нет ответа', unavailable: 'Недоступен' },
+  applyTimeRange:'Применить период', timeRangeHint:'Выбранная последняя минута включается полностью. При повторном переводе часов включаются оба повторения выбранного интервала.', timeRangeError:'Некорректный период. Дата и время конца должны быть не раньше начала. Исправьте поля, период обновится автоматически.',
+  resultsHint: 'Занят: подтверждён BUSY. Нет ответа: была попытка без ответа. Остальные незавершённые соединения: недоступен. Подтверждённая обработка сотрудником или роботом важнее промежуточных неудачных попыток.',
+  numbers: 'Номера клиентов', numberRole: 'Искать номера', numberRoles: {any:'С любой стороны',caller:'Кто звонил',recipient:'Кому звонили'},
+  numbersHint: 'До 30 полных номеров через запятую, точку с запятой или с новой строки. Номера внутри списка объединяются по ИЛИ, остальные фильтры по И. Например, выберите входящие и «Кто звонил» для списка клиентов.',
+  numbersPlaceholder: '+7 913 555-11-22, +7 913 555-33-44', numbersError:'Введите от 1 до 30 корректных номеров.',
+  trunk:'Транк', directionHint:'Входящие и исходящие относятся к внешним звонкам. Для исходящих через конкретного оператора выберите направление и транк в расширенных фильтрах. Внешний без направления означает, что данных для определения стороны недостаточно.',
+  playRecording:'Слушать запись', showTranscript:'Открыть расшифровку',
+  charts:'Графики', tables:'Таблицы', automation:'Доля роботов среди принятых', automationHint:'Звонки с итоговой обработкой роботом / звонки, принятые сотрудниками или роботами. Участие робота на промежуточном этапе не означает полную автоматизацию.',
+  incomingRobot:'Входящих принято роботами', exportPdf:'Скачать PDF', exportXlsx:'Скачать Excel', exportCsv:'Скачать CSV',
+  timezoneTitle:'Часовой пояс организации', timezoneHint:'Общий пояс организации применяется к журналу, обзору, перезвонам и экспорту. Изменение не меняет время исходных записей. Используйте IANA, например Asia/Krasnoyarsk.', timezoneError:'Не удалось сохранить часовой пояс',
+
   analysisCard: {
     notApplicable:'Не применимо', insufficientEvidence:'Недостаточно подтверждений',
     title:'Разбор разговора',loading:'Загружаем разбор звонка…',error:'Не удалось получить разбор звонка',unavailable:'Доступного разбора пока нет',unknown:'Недостаточно данных',yes:'Да',no:'Нет',noSummary:'Саммари не сформировано',truncated:'Саммари показано не полностью',protected:'Облачный разбор по обезличенному тексту',timingAdjusted:'Таймкоды уточнены по длительности записи',modelAssessment:'Оценки модели. Для проверки откройте исходную расшифровку и запись.',
     metrics:{customer_sentiment:'Эмоции клиента',csat:'Оценка удовлетворённости',success:'Задача решена',topics:'Темы разговора'},
   },
-  attentionTitle: 'Требует внимания',
+  attentionTitle: 'Пропущенные и перезвоны',
   attentionPurpose: 'Кому ещё нужно перезвонить',
   callbackDeadline: 'Срок для обратного звонка: {{hours}} ч',
   durationExplanation: 'В расчёт вошло {{count}} звонков с подтверждённым ответом сотрудника. Звонок с переводом учитывается один раз: пересекающиеся соединения не складываются. ≈ означает, что границы соединения восстановлены по телефонному журналу. Время отдельного сотрудника после перевода здесь не измеряется.',
@@ -16,9 +41,9 @@ export const callsRu = {
   contactPolicyError: 'Не удалось сохранить настройку. Повторите запрос.',
   contactPolicyReadError: 'Настройка окна недоступна.',
   attentionPolicy:
-    'Список помогает вернуть пропущенные обращения и голосовые сообщения. Повторные обращения с одного номера на один номер компании объединяются. Срок перезвона — {{hours}} ч после окончания первого обращения.',
+    'Список помогает вернуть пропущенные обращения и голосовые сообщения. Повторные обращения с одного номера на один номер компании объединяются. Срок перезвона - {{hours}} ч после окончания первого обращения.',
   attentionMeaning:
-    'Компания перезвонила и соединилась — контакт состоялся. Клиент перезвонил сам — это отмечается отдельно. Неудачная попытка набора не закрывает случай. Совпадение номеров не гарантирует, что вопрос решён. Автообзвон не учитывается.',
+    'Компания перезвонила и соединилась - контакт состоялся. Клиент перезвонил сам - это отмечается отдельно. Неудачная попытка набора не закрывает случай. Совпадение номеров не гарантирует, что вопрос решён. Автообзвон не учитывается.',
   attentionRange:
     'Выберите период не более 31 дня или уточните фильтры. Если выборка небольшая, повторите запрос.',
   attentionScope:
@@ -88,7 +113,7 @@ export const callsRu = {
   transcriptOriginal: 'Последняя доступная расшифровка речевой аналитики. Ошибки распознавания возможны; время указано от начала соответствующей записи.',
   textSearch: {
     queryRedacted:'Обезличивание скрыло условия поиска. Опишите ситуацию без имён и контактов или выберите поиск по точной фразе.',
-    mode:'Как искать',literal:'По точной фразе',semantic:'По смыслу — предварительный режим',semanticNotice:'Опишите ситуацию своими словами. Показываем похожие фрагменты, которые нужно проверить в контексте разговора. Часть расшифровок может ещё готовиться к поиску.',semanticEmpty:'В проверенной части подходящие фрагменты не найдены. Это не исключает их наличия в неразобранных или непроиндексированных разговорах.',semanticState:{error:'Часть фрагментов не подготовилась. Повторяем попытку; можно искать по точной фразе.',ready:'Подготовлено фрагментов: {{indexed}} из {{total}}.',indexing:'Готовим фрагменты для поиска: {{indexed}} из {{total}}. Результаты обновятся автоматически.',unavailable:'Смысловой поиск сейчас недоступен. Можно воспользоваться поиском точной фразы.'},
+    mode:'Как искать',literal:'По точной фразе',semantic:'По смыслу - предварительный режим',semanticNotice:'Опишите ситуацию своими словами. Показываем похожие фрагменты, которые нужно проверить в контексте разговора. Часть расшифровок может ещё готовиться к поиску.',semanticEmpty:'В проверенной части подходящие фрагменты не найдены. Это не исключает их наличия в неразобранных или непроиндексированных разговорах.',semanticState:{error:'Часть фрагментов не подготовилась. Повторяем попытку; можно искать по точной фразе.',ready:'Подготовлено фрагментов: {{indexed}} из {{total}}.',indexing:'Готовим фрагменты для поиска: {{indexed}} из {{total}}. Результаты обновятся автоматически.',unavailable:'Смысловой поиск сейчас недоступен. Можно воспользоваться поиском точной фразы.'},
     title:'Найти фразу в разговорах', found:'Найденная реплика',readFromStart:'Читать с начала записи', phrase:'Фраза из разговора', submit:'Найти в этой выборке', clear:'Очистить поиск по тексту', loading:'Проверяем доступные расшифровки…',
     explanation:'Ищем буквальную фразу внутри реплики, без учёта регистра и лишних пробелов. Проверяем последние доступные расшифровки звонков из выборки ниже; поиск по номерам и остальные фильтры тоже учитываются.',
     coverage:'Звонков в выборке: {{cohort}}; рассмотрено: {{considered}}. Доступных расшифровок: {{eligible}}. Проверенных реплик: {{segments}}.',
@@ -104,7 +129,7 @@ export const callsRu = {
   askAiHint: 'Открыть новый чат с фильтрами и периодом. ИИ повторно проверит доступные данные; содержание разговоров не передаётся.',
   overviewCalendarIntervals: 'Часы и дни организации. При смене часового пояса или переводе часов длительность интервалов может отличаться. Нажмите интервал, чтобы открыть его звонки.',
   heatmapTitle: 'Нагрузка по дням и часам',
-  heatmapHelp: 'В ячейках — число звонков, цвет показывает нагрузку. В повторяющийся час показаны отдельные интервалы со своим UTC-смещением. На узком экране прокрутите таблицу по горизонтали.',
+  heatmapHelp: 'В ячейках - число звонков, цвет показывает нагрузку. В повторяющийся час показаны отдельные интервалы со своим смещением. На узком экране прокрутите таблицу по горизонтали.',
   heatmapPrevious: 'Предыдущие дни',
   heatmapNext: 'Следующие дни',
   heatmapDay: 'День / час',
@@ -125,7 +150,7 @@ export const callsRu = {
   facetsLimited:
     'Показаны первые 200 вариантов. Уточните период или воспользуйтесь поиском в справочниках.',
   filterLogic:
-    'В одной группе — любое выбранное значение. Между группами должны выполняться все условия.',
+    'В одной группе - любое выбранное значение. Между группами должны выполняться все условия.',
   withRecording: 'С записью',
   withoutRecording: 'Без записи',
   routeTitle: 'Маршрут звонка',
@@ -138,7 +163,7 @@ export const callsRu = {
   transferConnected: 'Получатель перевода ответил',
   transferUnconfirmed: 'Результат перевода не подтверждён',
   routeLegend:
-    'Часы на маршруте: {{timezone}}. Знак ≈ у этапа означает, что его время вычислено по записи CDR; точное событие АТС недоступно. Если история неполная, перевод или ответ могут не отображаться.',
+    'Знак ≈ у этапа означает, что его время вычислено по записи CDR; точное событие АТС недоступно. Если история неполная, перевод или ответ могут не отображаться.',
   legacyFilterNotice:
     'Некоторые условия старого отчёта здесь не поддерживаются. Уточните выборку фильтрами нового журнала.',
   updatedAt: 'Данные на',
@@ -177,7 +202,7 @@ export const callsRu = {
   incomingTotal: 'Входящие звонки',
   initiator: 'Инициатор',
   outgoingTotal: 'Исходящие звонки',
-  export: 'Выгрузить CSV',
+  export: 'Экспорт',
   exportError: 'Не удалось выгрузить звонки. Повторите попытку.',
   playbackSpeed: 'Скорость воспроизведения',
   title: 'Звонки',
@@ -238,7 +263,7 @@ export const callsRu = {
     in: 'Входящий',
     out: 'Исходящий',
     internal: 'Внутренний',
-    external: 'Внешний, направление не определено',
+    external: 'Внешний без данных о направлении',
   },
   outcome: {
     human: 'Принят сотрудником',
@@ -286,12 +311,35 @@ export const callsRu = {
   },
 };
 export const callsEn: typeof callsRu = {
+  calendarSettingsTitle: 'Regional settings', weekStartTitle: 'Start of week', weekStartHint: 'A shared calendar week start for organization reports. Last 7 days always includes today and the six preceding days.', weekStartSave: 'Save start of week', weekStartError: 'Could not load or save the start of week.', weekStarts: { monday: 'Monday', sunday: 'Sunday' },
+  filterSummary: 'Selection conditions', caller: 'Initiator', originLabel: 'Source', unassignedLabel: 'Unassigned',
+  numberTagError:'Enter 2 to 11 digits. A list can contain up to 30 numbers.',
+  period:'Period', includeTime:'Time',
+  periods:{today:'Today',yesterday:'Yesterday',currentWeek:'Current week',previousWeek:'Previous week',week:'Last 7 days',fortnight:'Last 14 days',currentMonth:'Current month',previousMonth:'Previous month',last30Days:'Last 30 days',month:'Month',twoMonths:'2 months',threeMonths:'3 months',quarter:'Current quarter',previousQuarter:'Previous quarter',currentYear:'Current year',previousYear:'Previous year',year:'Year',all:'All history',custom:'Custom date'},
+  numberTagPlaceholder:'Number and Enter',numberTagHint:'Up to 30 numbers, digits only, up to 11 per number. Enter or comma commits a number. Numbers use OR; different conditions use AND.',
+  historyPreparing:'Preparing call history',historyPreparingHint:'History processing has not finished. Calls and totals will appear when it completes.',
+  historyUnavailable:'Current history is unavailable',historyUnavailableHint:'Check your connection and refresh the report. Contact your administrator if the problem persists.',
+
+  group:'Ring group',
+  addFilter:'Add filter', exporting:'Preparing your download…', periodLimited:'Showing the last {{days}} days of the selected period in this view. The full selection remains in the journal.',
+  clearSearch:'Clear search', searchMinimum:'Enter at least 3 characters', searchLoading:'Updating calls…', searchPending:'Search starts when you finish typing', searchGuidance:'Number, name or call participant',
+  directionFilter:{in:'External incoming',out:'External outgoing',internal:'Internal',external:'External without direction evidence'},
+  connectionResult: {busy:'Busy',noAnswer:'No answer',unavailable:'Unavailable'},
+  applyTimeRange:'Apply period',timeRangeHint:'The selected final minute is included in full. A repeated clock interval includes both occurrences.',timeRangeError:'Invalid period. End date and time must be at or after the start. Correct the fields; the period updates automatically.',
+  resultsHint:'Busy requires BUSY evidence. No answer requires an unanswered attempt. Other incomplete connections are unavailable. Confirmed staff or robot handling takes precedence over failed intermediate attempts.',
+  numbers:'Customer numbers',numberRole:'Match numbers',numberRoles:{any:'Either side',caller:'Caller',recipient:'Recipient'},
+  numbersHint:'Up to 30 full numbers separated by commas, semicolons or newlines. Numbers are ORed; different filter groups are ANDed. Select incoming and Caller to find incoming calls from a list.',
+  numbersPlaceholder:'+7 913 555-11-22, +7 913 555-33-44',numbersError:'Enter between 1 and 30 valid numbers.',
+  trunk:'Trunk',directionHint:'Incoming and outgoing refer to external calls. Select a direction and a trunk in advanced filters to find calls through a carrier. External without direction means insufficient direction evidence.',
+  playRecording:'Play recording',showTranscript:'Open transcript',charts:'Charts',tables:'Tables',automation:'Robot share of accepted calls',automationHint:'Calls completed by robots / calls accepted by staff or robots. Intermediate robot involvement does not mean full automation.',incomingRobot:'Incoming accepted by robots',exportPdf:'Download PDF',exportXlsx:'Download Excel',exportCsv:'Download CSV',
+  timezoneTitle:'Organization time zone',timezoneHint:'The organization zone applies to the journal, overview, callbacks and exports. It does not alter source recording timestamps. Use an IANA zone such as Asia/Krasnoyarsk.',timezoneError:'Could not save the time zone',
+
   analysisCard: {
     notApplicable:'Not applicable', insufficientEvidence:'Insufficient evidence',
     title:'Conversation analysis',loading:'Loading call analysis…',error:'Could not load call analysis',unavailable:'No analysis is available',unknown:'Insufficient data',yes:'Yes',no:'No',noSummary:'No summary was generated',truncated:'The summary is truncated',protected:'Cloud analysis used de-identified text',timingAdjusted:'Timestamps adjusted to the recording duration',modelAssessment:'Model assessments. Check them against the original transcript and recording.',
     metrics:{customer_sentiment:'Customer sentiment',csat:'Estimated satisfaction',success:'Task resolved',topics:'Conversation topics'},
   },
-  attentionTitle: 'Needs attention',
+  attentionTitle: 'Missed calls and callbacks',
   attentionPurpose: 'Who still needs a callback',
   callbackDeadline: 'Callback target: {{hours}} hours',
   durationExplanation: 'Includes {{count}} calls with a confirmed employee answer. Overlapping connections during transfers are counted once. ≈ means connection boundaries were derived from call records. This is not individual employee talk time after a transfer.',
@@ -374,7 +422,7 @@ export const callsEn: typeof callsRu = {
   transcriptOriginal: 'Latest available speech analytics transcript. Recognition errors are possible; timestamps refer to the relevant recording.',
   textSearch: {
     queryRedacted:'De-identification hid the search conditions. Describe the situation without names or contacts, or use exact phrase search.',
-    mode:'Search method',literal:'Exact phrase',semantic:'Meaning — preliminary mode',semanticNotice:'Describe the situation in your own words. Similar excerpts need verification in conversation context. Some transcripts may still be preparing for search.',semanticEmpty:'No suitable excerpts in the checked portion. Unanalyzed or unindexed conversations may still contain matches.',semanticState:{error:'Some excerpts could not be prepared. Retrying; exact phrase search remains available.',ready:'Prepared excerpts: {{indexed}} of {{total}}.',indexing:'Preparing excerpts: {{indexed}} of {{total}}. Results update automatically.',unavailable:'Meaning search is currently unavailable. Exact phrase search is available.'},
+    mode:'Search method',literal:'Exact phrase',semantic:'Meaning - preliminary mode',semanticNotice:'Describe the situation in your own words. Similar excerpts need verification in conversation context. Some transcripts may still be preparing for search.',semanticEmpty:'No suitable excerpts in the checked portion. Unanalyzed or unindexed conversations may still contain matches.',semanticState:{error:'Some excerpts could not be prepared. Retrying; exact phrase search remains available.',ready:'Prepared excerpts: {{indexed}} of {{total}}.',indexing:'Preparing excerpts: {{indexed}} of {{total}}. Results update automatically.',unavailable:'Meaning search is currently unavailable. Exact phrase search is available.'},
     title:'Find a phrase in conversations',found:'Matching utterance',readFromStart:'Read from the beginning',phrase:'Conversation phrase',submit:'Search this selection',clear:'Clear text search',loading:'Checking accessible transcripts…',
     explanation:'Literal phrase search ignores case and extra whitespace. Checks the latest accessible transcript of calls in the selection below, including phone/name and other filters.',
     coverage:'{{cohort}} calls in selection; {{considered}} considered, {{eligible}} with accessible transcripts. {{segments}} utterances checked.',
@@ -424,7 +472,7 @@ export const callsEn: typeof callsRu = {
   transferConnected: 'Transfer recipient answered',
   transferUnconfirmed: 'Transfer outcome is not confirmed',
   routeLegend:
-    'Route clock: {{timezone}}. ≈ means the stage time is derived from CDR because an exact PBX event is unavailable. Incomplete history may omit a transfer or answer.',
+    '≈ means the stage time is derived from CDR because an exact PBX event is unavailable. Incomplete history may omit a transfer or answer.',
   legacyFilterNotice:
     'Some legacy report conditions are not supported here. Refine the selection using the new journal filters.',
   updatedAt: 'Data as of',
@@ -463,7 +511,7 @@ export const callsEn: typeof callsRu = {
   incomingTotal: 'Incoming calls',
   initiator: 'Initiator',
   outgoingTotal: 'Outgoing calls',
-  export: 'Export CSV',
+  export: 'Export',
   exportError: 'Unable to export calls. Please try again.',
   playbackSpeed: 'Playback speed',
   title: 'Calls',
@@ -524,7 +572,7 @@ export const callsEn: typeof callsRu = {
     in: 'Incoming',
     out: 'Outgoing',
     internal: 'Internal',
-    external: 'External, direction unknown',
+    external: 'External without direction evidence',
   },
   outcome: {
     human: 'Answered by staff',

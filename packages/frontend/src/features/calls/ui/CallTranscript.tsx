@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGetCompanyCallTranscriptQuery } from '@/shared/api/endpoints/callsApi';
-import { Button, Flex, QueryErrorState, Text, VStack } from '@/shared/ui';
+import { Button, Flex, QueryErrorState, Text, VStack, InfoTooltip } from '@/shared/ui';
 import { callDuration } from '../model/callsUrl';
 import cls from './Calls.module.scss';
 
@@ -81,12 +81,11 @@ export function CallTranscript({
   return (
     <VStack gap="12" align="stretch">
       {isFetching && <Text role="status">{t('calls.transcriptLoading')}</Text>}
-      <Text variant="h3">{t('calls.transcriptTitle')}</Text>
+      <Flex gap="4" align="center"><Text variant="h3">{t('calls.transcriptTitle')}</Text><InfoTooltip text={t('calls.transcriptOriginal')}/></Flex>
       {data.state === 'unavailable' ? (
         <Text variant="muted">{t('calls.transcriptUnavailable')}</Text>
       ) : (
         <>
-          <Text variant="muted">{t('calls.transcriptOriginal')}</Text>
           {startAtMatch && (
             <Button variant="outline" onClick={readFromStart}>
               {t('calls.textSearch.readFromStart')}
@@ -94,14 +93,14 @@ export function CallTranscript({
           )}
           {!data.segments.length && <Text>{t('calls.transcriptEmpty')}</Text>}
           {data.segments.map((segment) => (
-            <div key={segment.id} ref={segment.id===targetSegment?targetRef:undefined}
+            <Flex direction="column" key={segment.id} ref={segment.id===targetSegment?targetRef:undefined}
               tabIndex={segment.id===targetSegment?-1:undefined} data-cdr-found-segment={segment.id===targetSegment||undefined}>
             <VStack gap="4" className={cls.transcriptSegment}>
               {segment.id === targetSegment && (
                 <Text>{t('calls.textSearch.found')}</Text>
               )}
               <Text variant="muted">
-                {callDuration(Math.floor(segment.startMs / 1000))} —{' '}
+                {callDuration(Math.floor(segment.startMs / 1000))} -{' '}
                 {callDuration(Math.floor(segment.endMs / 1000))} ·{' '}
                 {t(`calls.transcriptSpeaker.${segment.speaker}`)}
               </Text>
@@ -112,7 +111,7 @@ export function CallTranscript({
                 </Text>
               )}
             </VStack>
-            </div>
+            </Flex>
           ))}
           <Flex gap="8" wrap="wrap">
             <Button

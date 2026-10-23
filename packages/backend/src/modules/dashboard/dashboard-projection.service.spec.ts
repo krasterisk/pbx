@@ -8,6 +8,38 @@ function makeProjection(legs: any[] = []) {
   return { worker, store };
 }
 describe('Incremental logical-call projection', () => {
+  it('checkpoints fact replay every100 calls and resumes without replaying the completed prefix',async()=>{
+    const rows=Array.from({length:251},(_,i)=>({call_key:String(i+1).padStart(64,'0'),tenant:42,linkedid:`l${i}`}));
+    const f=makeProjection();let checkpoint:any=null;
+    f.store.checkpoint.mockImplementation(async()=>checkpoint);
+    f.store.select.mockImplementation(async(_sql:string,args:any)=>rows.filter(row=>row.call_key>args.cursor).slice(0,args.limit) as any);
+    f.store.saveCheckpoint.mockImplementation(async(_source:string,cursor:number,from:number,complete:boolean,cursorKey?:string)=>{checkpoint={cursor_value:cursor,initialized_from:from,bootstrap_complete:complete?1:0,cursor_key:cursorKey};});
+    const replay=jest.spyOn(f.worker,'reproject').mockResolvedValue(undefined);
+    await (f.worker as any).replayCallFacts();
+    expect(replay.mock.calls[0][0]).toHaveLength(100);
+    expect(checkpoint).toMatchObject({bootstrap_complete:0,cursor_key:rows[99].call_key});
+    const restarted=new DashboardProjectionService(f.store as any,new ConfigService());
+    const resumed=jest.spyOn(restarted,'reproject').mockResolvedValue(undefined);
+    await (restarted as any).replayCallFacts();
+    expect(checkpoint.cursor_key).toBe(rows[199].call_key);
+    await (restarted as any).replayCallFacts();
+    expect(checkpoint).toMatchObject({bootstrap_complete:1,cursor_key:rows[250].call_key});
+    expect(resumed.mock.calls.map(([batch])=>batch.length)).toEqual([100,51]);
+    await (restarted as any).replayCallFacts();
+    expect(resumed).toHaveBeenCalledTimes(2);
+    expect(f.store.select.mock.calls.every(([,args]:any)=>args.limit===100)).toBe(true);
+  });
+  it('does not advance fact replay after shutdown or a failed checkpoint fence',async()=>{
+    const f=makeProjection();
+    f.store.select.mockResolvedValue([{call_key:'a'.repeat(64),tenant:42,linkedid:'l1'}] as any);
+    jest.spyOn(f.worker,'reproject').mockImplementation(async()=>{(f.worker as any).destroyed=true;});
+    await expect((f.worker as any).replayCallFacts()).rejects.toThrow('stopped before fact checkpoint');
+    expect(f.store.saveCheckpoint).not.toHaveBeenCalled();
+    const resumed=new DashboardProjectionService(f.store as any,new ConfigService());
+    jest.spyOn(resumed,'reproject').mockResolvedValue(undefined);
+    f.store.saveCheckpoint.mockRejectedValueOnce(new Error('Projection ownership lost'));
+    await expect((resumed as any).replayCallFacts()).rejects.toThrow('Projection ownership lost');
+  });
   it('fetches evidence in batches and not once for every call', async () => {
     const legs = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, vpbx_user_uid: 42, uniqueid: `u${i}`, linkedid: `l${i}`, calldate: '2026-10-01 00:00:00', channel: 'PJSIP/t_trunk_42-1', disposition: 'NO ANSWER' }));
     const { worker, store } = makeProjection(legs);

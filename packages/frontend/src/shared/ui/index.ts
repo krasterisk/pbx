@@ -73,3 +73,5 @@ export * from './ModalLayout';
 export { NavItem, isPlainNavigationClick } from './NavItem';
 
 export { AppBrand } from './AppBrand';
+
+export { SearchableSelect } from './SearchableSelect';

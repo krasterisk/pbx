@@ -10,10 +10,16 @@ function Harness() {
 }
 
 describe('MultiSelect accessible selection', () => {
+  it('clears remote search when the dropdown closes',()=>{
+    const search=vi.fn();render(<MultiSelect searchable onSearchChange={search} options={[{value:'201',label:'Alice'}]} value={[]} onChange={vi.fn()} ariaLabel="Employees"/>);
+    fireEvent.click(screen.getByRole('button',{name:'Employees - Open'}));
+    fireEvent.change(screen.getByRole('textbox'),{target:{value:'201'}});expect(search).toHaveBeenLastCalledWith('201');
+    fireEvent.keyDown(screen.getByRole('textbox'),{key:'Escape'});expect(search).toHaveBeenLastCalledWith('');
+  });
   it('names removal controls and supports selecting and closing the list by keyboard', () => {
     render(<Harness/>);
     expect(screen.getByRole('button', { name: 'Clear selection: Support' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Queues — Open' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Queues - Open' }));
     expect(screen.getByRole('listbox', { name: 'Queues' }).getAttribute('aria-multiselectable')).toBe('true');
     const sales = screen.getByRole('option', { name: 'Sales' });
     fireEvent.keyDown(sales, { key: 'Enter' });
@@ -22,7 +28,7 @@ describe('MultiSelect accessible selection', () => {
     expect(document.activeElement).toBe(screen.getByRole('option', { name: 'Support' }));
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(screen.queryByRole('listbox')).toBeNull();
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Queues — Open' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Queues - Open' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear selection: Support' }));
     expect(screen.queryByText('Support')).toBeNull();
   });

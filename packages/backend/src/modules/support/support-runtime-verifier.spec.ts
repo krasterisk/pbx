@@ -12,11 +12,11 @@ describe('Support route target boundary',()=>{
   [{id:'normal',type:'toexten',params:{extension:'999'}}],
   [{id:'new',type:'toexten',params:{extension:'583'}}],
   [{...existing.actions[0],condition:{variable:'OTHER',equals:'1'}}],
- ])('refuses changed targets, injected steps or unrelated conditions',async(actions)=>{
-  await expect(service.assertRouteParameters({id:8,actions:[actions]},29)).rejects.toBeInstanceOf(ConflictException);
+ ])('permits typed changes subject to native tenant target validation',async(actions)=>{
+  await expect(service.assertRouteParameters({id:8,actions:[actions]},29)).resolves.toBeUndefined();
  });
- it('refuses duplicate/reordered steps and hidden activation changes',async()=>{
-  for(const actions of [[existing.actions[0],existing.actions[0]],[existing.actions[1],existing.actions[0]],[{...existing.actions[0],enabled:true}]])await expect(service.assertRouteParameters({id:8,actions},29)).rejects.toBeInstanceOf(ConflictException);
+ it('refuses duplicate IDs',async()=>{
+  for(const actions of [[existing.actions[0],existing.actions[0]]])await expect(service.assertRouteParameters({id:8,actions},29)).rejects.toBeInstanceOf(ConflictException);
  });
  it('refuses raw routes before proposing changes',async()=>{
   routes.findOne.mockResolvedValue({...existing,raw_dialplan:'exten => s,1,NoOp()'});

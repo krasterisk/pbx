@@ -14,6 +14,9 @@ import { rtkApi } from '../rtkApi';
 const callsApi = rtkApi.injectEndpoints({
   overrideExisting: import.meta.hot != null,
   endpoints: (build) => ({
+    exportCompanyCallsAttention: build.query<Blob, {query:CallsQuery;format:'csv'|'xlsx'}>({
+      query: ({query,format}) => ({ url:`/reports/calls/attention/export?${callsParams({...query,cursor:undefined,limit:undefined})}&format=${format}`, responseHandler: response => response.blob() }),
+    }),
     getCompanyCallAnalysis: build.query<CallAnalysisPage,string>({
       query:id=>`/reports/calls/${encodeURIComponent(id)}/analysis`,
       providesTags:['CDR'],keepUnusedDataFor:0,
@@ -62,15 +65,16 @@ const callsApi = rtkApi.injectEndpoints({
         providesTags: ['CDR'],
       },
     ),
-    exportCompanyCalls: build.query<Blob, CallsQuery>({
-      query: (params) => ({
-        url: `/reports/calls/export?${callsParams({ ...params, cursor: undefined })}`,
+    exportCompanyCalls: build.query<Blob, CallsQuery & {format?:'csv'|'xlsx'}>({
+      query: ({format='csv',...params}) => ({
+        url: `/reports/calls/export?${callsParams({ ...params, cursor: undefined })}&format=${format}`,
         responseHandler: (response) => response.blob(),
       }),
     }),
   }),
 });
 export const {
+  useLazyExportCompanyCallsAttentionQuery,
   useGetCompanyCallAnalysisQuery,
   useSearchCompanyCallTextQuery,
   useGetCompanyCallTranscriptQuery,

@@ -1,9 +1,7 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, XCircle } from 'lucide-react';
-import { Text, Button, Select } from '@/shared/ui';
+import { Text, Button, Select, Label, InfoTooltip } from '@/shared/ui';
 import { VStack, HStack } from '@/shared/ui/Stack';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { selectIsAdmin } from '@/entities/User';
@@ -12,18 +10,16 @@ import {
   useGetAiChatDefaultProviderQuery,
   useUpdateAiChatDefaultProviderMutation,
 } from '@/shared/api/endpoints/aiChatApi';
-import { useGetSaSpeechModelsQuery } from '@/features/speechAnalytics/api/speechAnalyticsApi';
-import cls from './AiChatProviderCard.module.scss';
+import cls from '../SettingsControls.module.scss';
 
-export const AiChatProviderCard = memo(() => {
+export const AiChatProviderCard = memo(({ ownModels }: { ownModels: boolean }) => {
   const { t } = useTranslation();
   const isAdmin = useAppSelector(selectIsAdmin);
-  const { data: speechModels } = useGetSaSpeechModelsQuery(undefined, { skip: !isAdmin });
   const { data: providers = [], isLoading } = useGetAiProvidersQuery(undefined, {
-    skip: !speechModels?.ownModels,
+    skip: !ownModels || !isAdmin,
   });
   const { data: defaultProvider } = useGetAiChatDefaultProviderQuery(undefined, {
-    skip: !speechModels?.ownModels,
+    skip: !ownModels || !isAdmin,
   });
   const [saveDefaultProvider] = useUpdateAiChatDefaultProviderMutation();
 
@@ -48,82 +44,32 @@ export const AiChatProviderCard = memo(() => {
     setTimeout(() => setResult(null), 4000);
   };
 
-  if (!speechModels?.ownModels) return null;
+  if (!ownModels || !isAdmin) return null;
 
   return (
-    <div className={cls.card} data-testid="ai-chat-provider-card">
-      <VStack gap="12" max>
-        <Text variant="muted" className={cls.desc}>
-          {t('systemSettings.aiChatProviderDesc')}
-        </Text>
-        {llmProviders.length === 0 ? (
-          <Text variant="muted" data-testid="ai-chat-provider-empty">
-            {t('systemSettings.aiChatProviderEmpty')}
-          </Text>
-        ) : (
-          <HStack gap="8" align="center" className="flex-col sm:flex-row" max>
-            <Select
-              value={chatProviderUid === '' ? '' : String(chatProviderUid)}
-              onChange={(event) => setChatProviderUid(Number(event.target.value))}
-              disabled={isLoading}
-              data-testid="ai-chat-provider"
-              className={cls.input}
-            >
-              <option value="" disabled>
-                {t('systemSettings.aiChatProvider')}
-              </option>
-              {llmProviders.map((row) => {
+    <VStack gap="12" align="stretch" className={cls.form} data-testid="ai-chat-provider-card">
+      <VStack gap="6" align="stretch" className={cls.field}>
+        <HStack gap="4" align="center"><Label htmlFor="settings-chat-provider" className={cls.label}>{t('systemSettings.aiChatProvider')}</Label><InfoTooltip text={t('systemSettings.aiChatProviderDesc')} /></HStack>
+        {llmProviders.length === 0 ? <Text variant="muted" data-testid="ai-chat-provider-empty">{t('systemSettings.aiChatProviderEmpty')}</Text> :
+          <HStack gap="8" align="center" className={cls.responsive} max>
+            <Select id="settings-chat-provider" value={chatProviderUid === '' ? '' : String(chatProviderUid)} onChange={event => setChatProviderUid(Number(event.target.value))} disabled={isLoading} data-testid="ai-chat-provider" className={cls.grow}>
+              <option value="" disabled>{t('systemSettings.aiChatProvider')}</option>
+              {llmProviders.map(row => {
                 const modelName = typeof row.defaults?.model === 'string' ? row.defaults.model : null;
-                return (
-                  <option key={row.uid} value={row.uid}>
-                    {row.name}{modelName ? ` · ${modelName}` : ''}
-                  </option>
-                );
+                return <option key={row.uid} value={row.uid}>{row.name}{modelName ? ` · ${modelName}` : ''}</option>;
               })}
             </Select>
-            <Button
-              size="sm"
-              type="button"
-              disabled={chatProviderUid === ''}
-              data-testid="ai-chat-provider-save"
-              className={cls.saveBtn}
-              onClick={() => {
-                if (chatProviderUid === '') return;
-                void saveDefaultProvider({ providerUid: chatProviderUid })
-                  .unwrap()
-                  .then(() => showFeedback(true, t('systemSettings.aiChatProviderSaved')))
-                  .catch(() => showFeedback(false, t('systemSettings.aiPbxSaveError')));
-              }}
-            >
-              {t('systemSettings.recordingsSaveBtn')}
-            </Button>
-          </HStack>
-        )}
-        <HStack gap="12" align="center" justify="between" max>
-          <AnimatePresence mode="wait">
-            {result && (
-              <motion.div
-                key="result"
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.2 }}
-                className={cls.result}
-              >
-                {result.ok
-                  ? <CheckCircle2 className={cls.iconOk} />
-                  : <XCircle className={cls.iconErr} />}
-                <Text variant="small">{result.msg}</Text>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <Link to="/ai-providers" className={cls.link} data-testid="ai-chat-all-providers">
-            {t('systemSettings.aiPbxAllProviders')}
-          </Link>
-        </HStack>
+            <Button size="sm" type="button" disabled={chatProviderUid === ''} data-testid="ai-chat-provider-save" className={cls.action} onClick={() => {
+              if (chatProviderUid === '') return;
+              void saveDefaultProvider({ providerUid: chatProviderUid }).unwrap().then(() => showFeedback(true, t('systemSettings.aiChatProviderSaved'))).catch(() => showFeedback(false, t('systemSettings.aiPbxSaveError')));
+            }}>{t('systemSettings.recordingsSaveBtn')}</Button>
+          </HStack>}
       </VStack>
-    </div>
+      <HStack gap="12" align="center" wrap="wrap">
+        <Link to="/ai-providers" className={cls.link} data-testid="ai-chat-all-providers">{t('systemSettings.aiPbxAllProviders')}</Link>
+        {result && <Text role={result.ok ? 'status' : 'alert'} variant={result.ok ? 'success' : 'error'}>{result.msg}</Text>}
+      </HStack>
+    </VStack>
   );
 });
-
 AiChatProviderCard.displayName = 'AiChatProviderCard';

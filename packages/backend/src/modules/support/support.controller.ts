@@ -2,6 +2,7 @@ import { All, Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@n
 import type { Request, Response } from 'express';
 import { TenantContextGuard } from '../integration-credentials/tenant-context.guard';
 import type { TenantContextRequest } from '../integration-credentials/tenant-context.guard';
+import { supportMcpTools, supportMcpCall, supportMcpError } from './support-mcp';
 import { SupportService } from './support.service';
 @Controller('support/v1')
 @UseGuards(TenantContextGuard)
@@ -24,10 +25,10 @@ export class SupportController {
       if(rpc.method==='notifications/initialized'){res.status(202).end();return;}
       let result:unknown;
       if(rpc.method==='initialize')result={protocolVersion:'2025-11-25',capabilities:{tools:{}},serverInfo:{name:'krasterisk-support',version:'1.0.0'}};
-      else if(rpc.method==='tools/list')result={tools:(await this.support.capabilities(req.tenantContext!)).operations.filter(o=>o.effect==='read').map(o=>({name:o.tool,description:o.description,inputSchema:o.schema}))};
-      else if(rpc.method==='tools/call'){const value=await this.support.read(req.tenantContext!,rpc.params?.name,rpc.params?.arguments??{});result={content:[{type:'text',text:JSON.stringify(value)}]};}
+      else if(rpc.method==='tools/list')result={tools:await supportMcpTools(this.support,req.tenantContext!)};
+      else if(rpc.method==='tools/call'){const value=await supportMcpCall(this.support,req.tenantContext!,rpc.params?.name,rpc.params?.arguments??{});result={content:[{type:'text',text:JSON.stringify(value)}]};}
       else throw new Error('method_not_found');
       res.json({jsonrpc:'2.0',id:rpc.id,result});
-    }catch {res.status(400).json({jsonrpc:'2.0',id:rpc?.id??null,error:{code:-32602,message:'Support operation refused'}});}
+    }catch(error) {res.status(400).json({jsonrpc:'2.0',id:rpc?.id??null,error:supportMcpError(error)});}
   }
 }

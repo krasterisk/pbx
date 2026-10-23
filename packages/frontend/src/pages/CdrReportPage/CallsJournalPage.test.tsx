@@ -1,24 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { CallRecord } from '@krasterisk/shared';
 import { CallsJournalPage } from './CallsJournalPage';
 const state = vi.hoisted(() => ({
   data: undefined as unknown,
   error: false,
+  fetching:false,
+  weekStart: 'monday' as 'monday' | 'sunday',
   query: vi.fn(),
+  options: vi.fn(),
 }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'ru' } }),
 }));
+vi.mock('@/shared/api/endpoints/organizationSettingsApi',()=>({useGetOrganizationCalendarQuery:()=>({data:{weekStart:state.weekStart,canEdit:true}})}));
 vi.mock('@/shared/api/endpoints/callsApi', () => ({
-  useGetCompanyCallsQuery: (query: unknown) => {
+  useGetCompanyCallsQuery: (query: unknown, options: unknown) => {
     state.query(query);
+    state.options(options);
     return {
       currentData: state.data,
       data: state.data,
       isLoading: false,
-      isFetching: false,
+      isFetching: state.fetching,
       isError: state.error,
       refetch: vi.fn(),
     };
@@ -103,6 +108,8 @@ function show(entry = '/reports/calls') {
 beforeEach(() => {
   localStorage.clear();
   state.error = false;
+  state.fetching=false;
+  state.weekStart='monday';
   state.query.mockClear();
   state.data = {
     rows: [call],
@@ -122,8 +129,81 @@ beforeEach(() => {
   };
 });
 describe('company call workspace', () => {
+  it('keeps the default filter surface to one search input and its embedded disclosure',()=>{
+    show('/reports/calls?dateFrom=2026-10-16&dateTo=2026-10-22');
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'calls.today'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'calls.reset'})).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'calls.showFilters'}).parentElement).toContainElement(screen.getByRole('textbox'));
+  });
+  it('hides partial rows, totals and exports until authoritative history is ready',()=>{
+    state.data={...(state.data as object),source:{state:'stale',message:'historyBackfillInProgress'}};
+    const view=show();
+    expect(screen.queryByText('calls.historyPreparing')).not.toBeInTheDocument();
+    expect(screen.getByTestId('calls-report-skeleton')).toHaveAttribute('aria-busy','true');
+    expect(screen.queryByText('Клиент')).not.toBeInTheDocument();
+    expect(screen.queryByText('calls.found')).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'calls.export'})).toBeDisabled();
+    state.data={...(state.data as object),source:{state:'ok'}};
+    view.rerender(<MemoryRouter><CallsJournalPage/></MemoryRouter>);
+    expect(screen.getAllByText('Клиент').length).toBeGreaterThan(0);
+    expect(screen.queryByText('calls.historyPreparing')).not.toBeInTheDocument();
+    state.fetching=true;
+    view.rerender(<MemoryRouter><CallsJournalPage/></MemoryRouter>);
+    expect(screen.getByTestId('calls-report-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('Клиент')).not.toBeInTheDocument();
+  });
+
+  it('skips an invalid linked period before transport and shows an actionable alert',()=>{
+    show('/reports/calls?dateFrom=2026-10-24&dateTo=2026-10-22');
+    expect(state.options).toHaveBeenLastCalledWith({skip:true});
+    expect(screen.getByRole('alert')).toHaveTextContent('calls.timeRangeError');
+  });
+  it('waits for a complete search rather than issuing one request per character',async()=>{
+    show('/reports/calls');
+    fireEvent.change(screen.getByRole('textbox',{name:'calls.searchLabel'}),{target:{value:'2'}});
+    expect(screen.getByText('calls.searchMinimum')).toBeInTheDocument();
+    expect(state.query).toHaveBeenLastCalledWith(expect.objectContaining({search:undefined}));
+    fireEvent.change(screen.getByRole('textbox',{name:'calls.searchLabel'}),{target:{value:'201'}});
+    expect(state.query).toHaveBeenLastCalledWith(expect.objectContaining({search:undefined}));
+    await waitFor(()=>expect(state.query).toHaveBeenLastCalledWith(expect.objectContaining({search:'201'})),{timeout:2000});
+  });
+  it('hides reset for the default unfiltered journal', () => {
+    show('/reports/calls');
+    expect(screen.queryByRole('button',{name:'calls.reset'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'calls.saveFilters'})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:/calls.showFilters/}));
+    expect(screen.getByRole('button',{name:'calls.saveFilters'})).toBeInTheDocument();
+  });
+  it('uses Sunday policy when editing and saving a calendar-week selection', () => {
+    vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-23T05:00:00Z'));
+    try {
+      state.weekStart='sunday';
+      show('/reports/calls?dateFrom=2026-10-11&dateTo=2026-10-17&periodPreset=previousWeek');
+      fireEvent.click(screen.getByRole('button',{name:/calls.showFilters/}));
+      expect(screen.getByLabelText('calls.period')).toHaveValue('previousWeek');
+      fireEvent.click(screen.getByRole('button',{name:'calls.saveFilters'}));
+      fireEvent.change(screen.getByLabelText('calls.savedName'),{target:{value:'Sunday calendar'}});
+      fireEvent.click(screen.getByRole('button',{name:'common.save'}));
+      const saved=JSON.parse(localStorage.getItem('calls:saved-filters:v1:42:101')!);
+      expect(saved[0].period).toBe('previousWeek');
+    } finally { vi.useRealTimers(); }
+  });
+  it('shows the linked period and active values beneath search only while filters are collapsed', () => {
+    show('/reports/calls?dateFrom=2026-10-16&dateTo=2026-10-22&directions=in&results=busy');
+    const summary = screen.getByRole('region',{name:'calls.filterSummary'});
+    expect(summary).toHaveTextContent('16.10.2026 - 22.10.2026');
+    expect(summary).toHaveTextContent('calls.directionFilter.in');
+    expect(summary).toHaveTextContent('calls.connectionResult.busy');
+    fireEvent.click(screen.getByRole('button',{name:/calls.showFilters/}));
+    expect(screen.queryByRole('region',{name:'calls.filterSummary'})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:/calls.hideFilters/}));
+    expect(screen.getByRole('region',{name:'calls.filterSummary'})).toHaveTextContent('16.10.2026 - 22.10.2026');
+  });
   it('saves the latest typed search without pagination or card navigation and restores conditions', () => {
     show('/reports/calls?direction=out&cursor=page2&call=abc');
+    fireEvent.click(screen.getByRole('button',{name:/calls.showFilters/}));
     fireEvent.change(screen.getByRole('textbox', { name: 'calls.searchLabel' }), { target: { value: 'новый номер' } });
     fireEvent.click(screen.getByRole('button', { name: 'calls.saveFilters' }));
     fireEvent.change(screen.getByLabelText('calls.savedName'), { target: { value: 'Исходящие' } });
@@ -134,7 +214,8 @@ describe('company call workspace', () => {
     expect(saved[0].params).not.toContain('cursor=');
     expect(saved[0].params).not.toContain('call=');
     fireEvent.click(screen.getByRole('button', { name: 'calls.reset' }));
-    fireEvent.click(screen.getByRole('button', { name: 'calls.applySaved' }));
+    fireEvent.change(screen.getByLabelText('calls.savedFilters'),{target:{value:''}});
+    fireEvent.change(screen.getByLabelText('calls.savedFilters'),{target:{value:'Исходящие'}});
     expect(state.query).toHaveBeenLastCalledWith(expect.objectContaining({ direction: 'out', search: 'новый номер' }));
     expect(screen.getByRole('textbox', { name: 'calls.searchLabel' })).toHaveValue('новый номер');
   });
@@ -143,11 +224,15 @@ describe('company call workspace', () => {
     expect(screen.queryByLabelText('calls.from')).not.toBeInTheDocument();
     expect(state.query).toHaveBeenLastCalledWith(expect.objectContaining({ direction: 'out', recording: 'yes' }));
     fireEvent.click(screen.getByRole('button', { name: /calls.showFilters/ }));
-    expect(screen.getByLabelText('calls.from')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'calls.lessFilters' })).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'calls.lessFilters' }));
-    expect(screen.getByRole('button', { name: 'calls.moreFilters' })).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(screen.getByRole('button', { name: /calls.hideFilters/ }));
+    expect(screen.queryByLabelText('calls.from')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('calls.recording')).toHaveValue('yes');
+    expect(screen.queryByLabelText('calls.numbers')).not.toBeInTheDocument();
+    const hideFilters = screen.getByRole('button', { name: /calls.hideFilters/ });
+    expect(hideFilters).toHaveAttribute('aria-expanded', 'true');
+    expect(hideFilters).toHaveAttribute('data-expanded', 'true');
+    expect(document.getElementById('calls-filter-panel')?.parentElement).toContainElement(screen.getByRole('textbox', { name: 'calls.searchLabel' }));
+    fireEvent.click(hideFilters);
+    expect(screen.getByRole('button', { name: /calls.showFilters/ })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByLabelText('calls.from')).not.toBeInTheDocument();
     expect(state.query).toHaveBeenLastCalledWith(expect.objectContaining({ direction: 'out', recording: 'yes' }));
     expect(screen.getByText('calls.incomingTotal')).toBeInTheDocument();
@@ -185,7 +270,9 @@ describe('company call workspace', () => {
   it('makes incomplete coverage visible and does not show successful empty results on failure', () => {
     state.data = { ...(state.data as object), source: { state: 'stale' } };
     const rendered = show();
-    expect(screen.getByText('calls.sourcePartial')).toBeInTheDocument();
+    expect(screen.getByText('calls.historyUnavailable')).toBeInTheDocument();
+    expect(screen.queryByText('Клиент')).not.toBeInTheDocument();
+    expect(screen.queryByText('calls.found')).not.toBeInTheDocument();
     rendered.unmount();
     state.error = true;
     state.data = undefined;

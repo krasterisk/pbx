@@ -18,6 +18,13 @@ const leg: DashboardLeg = {
   billsec: 20,
 };
 describe('optional call module artifacts', () => {
+  it('loads ring-group labels only from the current tenant directory',async()=>{
+    const reader={select:jest.fn().mockResolvedValue([{exten:'700',name:'Отдел продаж'}])};
+    const data=await loadCallEnrichment(reader,new Set(['call_groups']),42,[leg]);
+    expect(reader.select).toHaveBeenCalledWith(expect.stringContaining('vpbx_user_uid=:tenant'),{tenant:42});
+    const call=classifyCall(42,'node',[{...leg,dcontext:'group_700_42'}],{complete:true});enrichCallNames(call,data);
+    expect(call.groups).toEqual([{id:'700',name:'Отдел продаж'}]);
+  });
   it('works without robots, voicemail or speech analytics installed', async () => {
     const reader = { select: jest.fn().mockResolvedValue([]) };
     const data = await loadCallEnrichment(reader, new Set(), 42, [leg]);

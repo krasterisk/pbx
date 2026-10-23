@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete, Body, Param, Query,
-  UseGuards, HttpCode, Logger, Inject, ParseIntPipe,
+  UseGuards, HttpCode, Logger, Inject, ParseIntPipe, Request,
 } from '@nestjs/common';
 import { SystemSettingsService, ServerConfig } from './system-settings.service';
 import { DialplanSubroutinesService } from './dialplan-subroutines.service';
@@ -10,6 +10,10 @@ import { Roles } from '../auth/roles.decorator';
 import { UserLevel } from '../users/user.model';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { WebhookQueueService } from '../routes/webhook-queue.service';
+import type { JwtPayloadUser } from '../auth/auth.service';
+import { OrganizationTimezoneDto } from './organization-timezone.dto';
+import { OrganizationWeekStartDto } from './organization-week-start.dto';
+import { OrganizationRegionalDto } from './organization-regional.dto';
 
 @Controller('system-settings')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,6 +31,37 @@ export class SystemSettingsController {
   @Get()
   async findAll() {
     return this.systemSettingsService.findAll();
+  }
+
+  @Get('organization-timezone')
+  organizationTimezone(@Request() req: {user: JwtPayloadUser}) {
+    return this.systemSettingsService.organizationTimezone(req.user);
+  }
+
+  @Get('organization-regional')
+  organizationRegional(@Request() req: {user: JwtPayloadUser}) {
+    return this.systemSettingsService.organizationRegional(req.user);
+  }
+
+  @Put('organization-regional')
+  setOrganizationRegional(@Request() req: {user: JwtPayloadUser}, @Body() body: OrganizationRegionalDto) {
+    return this.systemSettingsService.setOrganizationRegional(req.user, body);
+  }
+
+  @Get('organization-calendar')
+  @Roles() // Calendar metadata is readable by every authenticated tenant user.
+  organizationCalendar(@Request() req: { user: JwtPayloadUser }) {
+    return this.systemSettingsService.organizationCalendar(req.user);
+  }
+
+  @Put('organization-week-start')
+  setOrganizationWeekStart(@Request() req: { user: JwtPayloadUser }, @Body() body: OrganizationWeekStartDto) {
+    return this.systemSettingsService.setOrganizationWeekStart(req.user, body.weekStart);
+  }
+
+  @Put('organization-timezone')
+  setOrganizationTimezone(@Request() req: {user: JwtPayloadUser}, @Body() body: OrganizationTimezoneDto) {
+    return this.systemSettingsService.setOrganizationTimezone(req.user, body.timezone);
   }
 
   // ---------------------------------------------------------------------------

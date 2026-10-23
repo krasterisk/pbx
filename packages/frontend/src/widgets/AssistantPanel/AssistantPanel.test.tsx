@@ -297,6 +297,7 @@ describe('AssistantPanel', () => {
     sessionStorage.clear();
     localStorage.removeItem('assistant-panel-layout');
     localStorage.removeItem('assistant-widget-geometry');
+    localStorage.removeItem('assistant-widget-visible');
     mockViewport(1280);
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 });
     Element.prototype.scrollIntoView = vi.fn();
@@ -493,20 +494,28 @@ describe('AssistantPanel', () => {
     expect(screen.getByTestId('ai-agent-panel').style.getPropertyValue('--floating-x')).toBe(`${initial - 16}px`);
   });
 
-  it('drags the launcher to an edge without activating it', () => {
+  it('keeps the launcher at the chosen interior position without activating it', () => {
     render(<AssistantPanel open {...dockProps} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'aiChat.minimizeWidget' }));
     const launcher = screen.getByTestId('ai-agent-launcher');
     fireEvent.pointerDown(launcher, { button: 0, isPrimary: true, pointerId: 1, clientX: 1200, clientY: 600 });
-    fireEvent.pointerMove(window, { pointerId: 1, clientX: 120, clientY: 300 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 620, clientY: 300 });
     fireEvent.pointerUp(window, { pointerId: 1 });
     fireEvent.click(launcher, { detail: 1 });
     expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-minimized', 'true');
-    expect(launcher.style.getPropertyValue('--launcher-x')).toBe('16px');
+    expect(launcher.style.getPropertyValue('--launcher-x')).toBe('624px');
     fireEvent.click(launcher, { detail: 0 });
     expect(screen.getByTestId('ai-agent-panel')).toHaveAttribute('data-open', 'true');
   });
 
+  it('persists the optional launcher and restores it from the chat header',()=>{
+    const props={...dockProps,onClose:vi.fn(),onOpen:vi.fn()};const view=render(<AssistantPanel open {...props}/>);
+    fireEvent.click(screen.getByRole('switch',{name:'aiChat.showWidgetButton'}));expect(localStorage.getItem('assistant-widget-visible')).toBe('false');
+    view.rerender(<AssistantPanel open={false} {...props}/>);expect(screen.queryByTestId('ai-agent-launcher')).toBeNull();
+    view.unmount();const second=render(<AssistantPanel open {...props}/>);expect(screen.getByRole('switch',{name:'aiChat.showWidgetButton'})).not.toBeChecked();
+    fireEvent.click(screen.getByRole('switch',{name:'aiChat.showWidgetButton'}));second.rerender(<AssistantPanel open={false} {...props}/>);
+    expect(screen.getByTestId('ai-agent-launcher').querySelector('img')).toHaveAttribute('src','/brand/aipbx-logo.png?v=2');
+  });
   it('opens a closed widget from its floating button', () => {
     const onOpen = vi.fn();
     render(<AssistantPanel open={false} {...dockProps} onClose={vi.fn()} onOpen={onOpen} />);

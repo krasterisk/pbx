@@ -9,6 +9,7 @@ import {
 import { Transaction } from 'sequelize';
 import {
   summarizeCallGroups,
+  callConnectionResult,
   type CallAggregate,
   type CallRecord,
   type CallsPage,
@@ -18,7 +19,6 @@ import {
   type CallBreakdownRow,
   type CallsQuery,
   type CallsFacets,
-  type CallDimension,
 } from '@krasterisk/shared';
 import type { JwtPayloadUser } from '../../auth/auth.service';
 import {
@@ -28,6 +28,8 @@ import {
 import { DashboardReadStore } from '../../dashboard/dashboard-read-store.service';
 import { DashboardCloudService } from '../../dashboard/dashboard-cloud.service';
 import { callsPeriod, callsWhere } from './calls-query';
+import { readOrganizationWeekStart } from '../../../shared/organization-calendar';
+import { callExportTime } from './calls-export';
 import { callsCalendar, presentCalendar, calendarBuckets, type CalendarCounts } from './calls-calendar';
 import type { CallFact } from '../../calls/call-record';
 import { CALL_FACTS_VERSION } from '../../calls/call-record';
@@ -40,6 +42,8 @@ import {
 } from '../../calls/call-attention';
 import { ActionLog } from '../../logger/action-log.model';
 import { CallSemanticIndexService } from './call-semantic-index.service';
+import { CdrService } from '../cdr/cdr.service';
+import { DASHBOARD_SEMANTICS_VERSION } from '../../dashboard/dashboard-classifier';
 
 interface FactRow {
   payload: string;
@@ -54,17 +58,52 @@ interface GroupRow {
   connected_sample: number | string;
   estimated_sample?: number | string;
 }
+interface HistoryCheckpoint {
+  source_key: string;
+  bootstrap_complete: number;
+  initialized_from?: number;
+}
 const FROM =
   'FROM dashboard_calls c JOIN call_facts f ON f.call_key=c.call_key AND f.tenant=c.tenant';
 @Injectable()
 export class CallsService {
   private readonly overviewCache = new DashboardCacheService();
+  private historyKeys(): string[] {
+    return [
+      `projection:${this.store.nodeId}`, `cdr:${this.store.nodeId}`,
+      `call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}`,
+      `call-facts:v3:${this.store.nodeId}`,
+      `semantics:v${DASHBOARD_SEMANTICS_VERSION}:${this.store.nodeId}`,
+    ];
+  }
+  private async historyComplete(checkpoints: HistoryCheckpoint[], tenant: number, period: {from: number; to: number}, query: CallsQuery, transaction: Transaction): Promise<boolean> {
+    const done = (key: string) => checkpoints.some(row => row.source_key === key && Number(row.bootstrap_complete) === 1);
+    const cdr = checkpoints.find(row => row.source_key === `cdr:${this.store.nodeId}`);
+    if (!cdr || Number(cdr.bootstrap_complete) !== 1 || Number(cdr.initialized_from) !== 0) return false;
+    if (done(`projection:${this.store.nodeId}`) && done(`call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}`)) return true;
+    // v4 adds group/search indexing. A complete v3 journal remains usable while
+    // that index is rebuilt; queries depending on the new index must wait.
+    const indexedSearch = query.search?.trim() && !/^[+\d\s().-]+$/.test(query.search.trim());
+    if (CALL_FACTS_VERSION !== 4 || query.groups?.length || indexedSearch ||
+        !done(`call-facts:v3:${this.store.nodeId}`) ||
+        !done(`semantics:v${DASHBOARD_SEMANTICS_VERSION}:${this.store.nodeId}`)) return false;
+    // Check the entire tenant period before user filters, so missing facts cannot
+    // disappear behind a filter and produce misleading complete totals.
+    const pending = await this.store.select<{call_key: string}>(
+      `SELECT c.call_key FROM dashboard_calls c LEFT JOIN call_facts f ON f.call_key=c.call_key AND f.tenant=c.tenant
+       WHERE c.tenant= :tenant AND c.node_id= :node AND c.started_at>= :from AND c.started_at< :to
+       AND (f.call_key IS NULL OR f.schema_version<3) LIMIT 1`,
+      {tenant, node:this.store.nodeId, ...period}, transaction,
+    );
+    return pending.length === 0;
+  }
   constructor(
     private readonly access: DashboardAccessService,
     private readonly store: DashboardReadStore,
     private readonly cloud: DashboardCloudService,
     @InjectModel(ActionLog) private readonly audit: typeof ActionLog,
     @Optional() private readonly semanticIndex?:CallSemanticIndexService,
+    @Optional() private readonly cdr?: CdrService,
   ) {}
   private async auditRead(
     ctx: DashboardContext,
@@ -99,6 +138,11 @@ export class CallsService {
         projectId: null,
       };
     return record;
+  }
+  private async availableMaterials(records: CallRecord[], tenant: number): Promise<CallRecord[]> {
+    if (!this.cdr) return records;
+    const available = await this.cdr.availableCallRecordings(tenant,records.flatMap(call => call.recordings.map(recording => recording.id)));
+    return records.map(call => ({...call,recordings:call.recordings.filter(recording => available.has(recording.id))}));
   }
   private async context(user: JwtPayloadUser, query: CallsQuery) {
     const ctx = await this.access.resolve(user, 'cdr');
@@ -139,7 +183,7 @@ export class CallsService {
       }
     }
     try {
-      return await this.store.sequelize.transaction(
+      const result = await this.store.sequelize.transaction<CallsPage>(
         { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
         async (transaction) => {
           const checkpoints = await this.store.select<{
@@ -152,10 +196,8 @@ export class CallsService {
             'SELECT source_key,cursor_value,bootstrap_complete,updated_at,initialized_from FROM dashboard_checkpoints WHERE source_key IN (:keys)',
             {
               keys: [
-                `projection:${this.store.nodeId}`,
-                `cdr:${this.store.nodeId}`,
+                ...this.historyKeys(),
                 `revision:${ctx.tenant}`,
-                `call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}`,
               ],
             },
             transaction,
@@ -163,17 +205,8 @@ export class CallsService {
           const source = checkpoints.find(
             (row) => row.source_key === `projection:${this.store.nodeId}`,
           );
-          const cdr = checkpoints.find(
-            (row) => row.source_key === `cdr:${this.store.nodeId}`,
-          );
           const revision = checkpoints.find(
             (row) => row.source_key === `revision:${ctx.tenant}`,
-          );
-          const factsReady = checkpoints.some(
-            (row) =>
-              row.source_key ===
-                `call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}` &&
-              Number(row.bootstrap_complete) === 1,
           );
           const groups = await this.store.select<GroupRow>(
             `SELECT c.direction,f.outcome,COUNT(*) AS amount,
@@ -201,15 +234,9 @@ export class CallsService {
           );
           const page = rows.slice(0, limit);
           const last = page[page.length - 1];
-          const complete =
-            source &&
-            cdr &&
-            factsReady &&
-            Number(source.bootstrap_complete) === 1 &&
-            Number(cdr.bootstrap_complete) === 1 &&
-            Number(cdr.initialized_from) === 0;
-          const fresh =
-            source && Date.now() - Number(source.updated_at) < 90000;
+          const complete = await this.historyComplete(checkpoints, ctx.tenant, period, query, transaction);
+          const updatedAt = Math.max(...checkpoints.map(row => Number(row.updated_at) || 0));
+          const fresh = source && Date.now() - updatedAt < 90000;
           return {
             period: { from: new Date(period.from).toISOString(), to: new Date(period.to).toISOString() },
             rows: page.map((row) => this.present(row, ctx)),
@@ -228,7 +255,7 @@ export class CallsService {
                   ).toString('base64url')
                 : null,
             dataAsOf: source
-              ? new Date(Number(source.updated_at)).toISOString()
+              ? new Date(updatedAt).toISOString()
               : null,
             projectionVersion: `${CALL_FACTS_VERSION}:${revision?.cursor_value || 0}`,
             source: {
@@ -249,6 +276,9 @@ export class CallsService {
           };
         },
       );
+      // Release the snapshot connection before filesystem/configuration availability checks.
+      result.rows = await this.availableMaterials(result.rows,ctx.tenant);
+      return result;
     } catch (error) {
       if (
         error instanceof BadRequestException ||
@@ -297,9 +327,7 @@ export class CallsService {
             'SELECT source_key,bootstrap_complete,initialized_from,updated_at,cursor_value FROM dashboard_checkpoints WHERE source_key IN (:keys)',
             {
               keys: [
-                `projection:${this.store.nodeId}`,
-                `cdr:${this.store.nodeId}`,
-                `call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}`,
+                ...this.historyKeys(),
                 `revision:${ctx.tenant}`,
               ],
             },
@@ -308,21 +336,10 @@ export class CallsService {
           const source = checkpoints.find(
             (r) => r.source_key === `projection:${this.store.nodeId}`,
           );
-          const ready = [
-            `projection:${this.store.nodeId}`,
-            `cdr:${this.store.nodeId}`,
-            `call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}`,
-          ].every((key) =>
-            checkpoints.some(
-              (r) => r.source_key === key && Number(r.bootstrap_complete) === 1,
-            ),
-          );
-          const cdr = checkpoints.find(
-            (r) => r.source_key === `cdr:${this.store.nodeId}`,
-          );
-          const fresh =
-            source && Date.now() - Number(source.updated_at) < 90000;
-          const complete = ready && Number(cdr?.initialized_from) === 0;
+          const ready = await this.historyComplete(checkpoints, ctx.tenant, {from: previousFrom, to: period.to}, query, transaction);
+          const updatedAt = Math.max(...checkpoints.map(row => Number(row.updated_at) || 0));
+          const fresh = source && Date.now() - updatedAt < 90000;
+          const complete = ready;
           const cacheKey = JSON.stringify([
             'calendar-v1',
             ctx.tenant,
@@ -364,6 +381,7 @@ export class CallsService {
               `SELECT ${localHourSql} AS local_hour,(${calendar.offsetSql}) AS utc_offset,
                COUNT(*) AS total,
                SUM(CASE WHEN f.outcome='human' THEN 1 ELSE 0 END) AS human,
+               SUM(CASE WHEN f.outcome='robot' THEN 1 ELSE 0 END) AS robot,
                SUM(CASE WHEN f.outcome='missed' THEN 1 ELSE 0 END) AS missed,
                SUM(CASE WHEN f.outcome='unknown' THEN 1 ELSE 0 END) AS unknown
                ${FROM} WHERE ${filter.sql} AND c.started_at >= :currentFrom GROUP BY 1,2`,
@@ -392,7 +410,7 @@ export class CallsService {
               buckets: calendarBuckets(days, duration),
               timezone,
               dataAsOf: source
-                ? new Date(Number(source.updated_at)).toISOString()
+                ? new Date(updatedAt).toISOString()
                 : null,
               projectionVersion: `${CALL_FACTS_VERSION}:${checkpoints.find((r) => r.source_key === `revision:${ctx.tenant}`)?.cursor_value || 0}`,
               source: {
@@ -491,8 +509,10 @@ export class CallsService {
   async attention(
     user: JwtPayloadUser,
     query: CallsQuery,
+    exportAll = false,
   ): Promise<CallsAttention> {
     const { ctx, timezone, period, filter } = await this.context(user, query);
+    if (exportAll) await this.auditRead(ctx, 'call_attention_export');
     if (period.to - period.from > 31 * 86400000)
       throw new BadRequestException(
         'Attention requires a period of at most 31 days',
@@ -542,9 +562,7 @@ export class CallsService {
           'SELECT source_key,bootstrap_complete,initialized_from,updated_at FROM dashboard_checkpoints WHERE source_key IN (:keys)',
           {
             keys: [
-              `projection:${this.store.nodeId}`,
-              `cdr:${this.store.nodeId}`,
-              `call-facts:v${CALL_FACTS_VERSION}:${this.store.nodeId}`,
+              ...this.historyKeys(), `revision:${ctx.tenant}`,
             ],
           },
           transaction,
@@ -552,16 +570,10 @@ export class CallsService {
         const projection = checkpoints.find(
           (r) => r.source_key === `projection:${this.store.nodeId}`,
         );
-        const ready =
-          checkpoints.length === 3 &&
-          checkpoints.every((r) => Number(r.bootstrap_complete) === 1) &&
-          checkpoints.some(
-            (r) =>
-              r.source_key === `cdr:${this.store.nodeId}` &&
-              Number(r.initialized_from) === 0,
-          );
-        const fresh =
-          projection && snapshotAt - Number(projection.updated_at) < 90000;
+        const ready = await this.historyComplete(checkpoints, ctx.tenant,
+          {from: period.from, to: Math.min(snapshotAt + 1, period.to + windowHours * 3600000)}, query, transaction);
+        const updatedAt = Math.max(...checkpoints.map(row => Number(row.updated_at) || 0));
+        const fresh = projection && snapshotAt - updatedAt < 90000;
         const complete = !!(ready && fresh && candidates.length <= 10000);
         const matched = matchCallAttention(
           sources,
@@ -603,8 +615,8 @@ export class CallsService {
             progress: null,
           },
           totals: matched.totals,
-          rows: visible.slice(0, limit),
-          truncated: visible.length > limit,
+          rows: exportAll ? visible : visible.slice(0, limit),
+          truncated: !exportAll && visible.length > limit,
         };
       },
     );
@@ -743,11 +755,15 @@ export class CallsService {
     );
     if (!row) throw new NotFoundException();
     await this.auditRead(ctx, 'call_view', id);
-    return { call: this.present(row, ctx), timezone };
+    return { call: (await this.availableMaterials([this.present(row, ctx)],ctx.tenant))[0], timezone };
   }
   async aiTimezone(user: JwtPayloadUser): Promise<string> {
     const ctx = await this.access.resolve(user, 'cdr');
     return this.cloud.timezone(ctx.tenant);
+  }
+  async aiWeekStart(user: JwtPayloadUser) {
+    const ctx = await this.access.resolve(user, 'cdr');
+    return readOrganizationWeekStart(this.store.sequelize, ctx.tenant);
   }
   async aiOwnEmployee(user: JwtPayloadUser): Promise<string | null> {
     const ctx = await this.access.resolve(user, 'cdr');
@@ -764,7 +780,9 @@ export class CallsService {
       department: 'departments',
       companyNumber: 'companyNumbers',
       queue: 'queues',
+      group: 'groups',
       robot: 'robots',
+      trunk: 'trunks',
     } as const;
     const options = {} as CallsFacets['options'];
     const truncated: CallsFacets['truncated'] = {};
@@ -772,7 +790,7 @@ export class CallsService {
       return await this.store.sequelize.transaction(
         { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
         async (transaction) => {
-          for (const kind of Object.keys(dimensions) as CallDimension[]) {
+          for (const kind of Object.keys(dimensions) as Array<keyof typeof dimensions>) {
             // Disjunctive facets: retain other groups and ACL; omit only this group's
             // own selection so a user can add another value without clearing it.
             const facetQuery = { ...query, [dimensions[kind]]: undefined };
@@ -787,6 +805,39 @@ export class CallsService {
       this.store.sequelize.getDialect?.() || 'mysql',
             );
             const directoryTerm = query.directorySearch?.trim().toLowerCase();
+            if (kind === 'group') {
+              // The directory defines selectable groups; history supplies only
+              // authorized counts. A new group must be usable before its first call.
+              const configured = await this.store.select<{ value: string; label: string }>(
+                'SELECT exten AS value,name AS label FROM call_groups WHERE vpbx_user_uid=:tenant',
+                { tenant: ctx.tenant },
+                transaction,
+              );
+              const observed = await this.store.select<{
+                value: string; label: string; amount: string | number;
+              }>(
+                `SELECT d.value,MIN(d.label) AS label,COUNT(DISTINCT c.call_key) AS amount ${FROM}
+                 JOIN call_dimensions d ON d.call_key=c.call_key AND d.tenant=c.tenant
+                 WHERE ${filter.sql} AND d.kind=:dimension GROUP BY d.value`,
+                { ...filter.args, dimension: kind },
+                transaction,
+              );
+              const groups = new Map(observed.map(row => [String(row.value), {
+                value: String(row.value), label: row.label, count: Number(row.amount),
+              }]));
+              for (const row of configured) {
+                const value = String(row.value);
+                groups.set(value, { value, label: row.label, count: groups.get(value)?.count ?? 0 });
+              }
+              // Normalize in JS so Cyrillic search also works on database locales
+              // whose LOWER() only handles ASCII. Search precedes response limiting.
+              const matches = [...groups.values()].filter(row => !directoryTerm ||
+                row.label.toLowerCase().includes(directoryTerm) || row.value.toLowerCase().includes(directoryTerm))
+                .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+              options.group = matches.slice(0, 200);
+              truncated.group = matches.length > 200;
+              continue;
+            }
             const match =
               "d.search_label LIKE :directoryTerm ESCAPE '!' OR LOWER(d.value) LIKE :directoryTerm ESCAPE '!'";
             // Search entity labels inside the authorized cohort, but count every
@@ -855,10 +906,16 @@ export class CallsService {
     const ctx = await this.access.resolve(user, 'cdr');
     await this.auditRead(ctx, 'call_recording_play', id);
   }
-  async exportCsv(
+  async exportCsv(user: JwtPayloadUser, query: CallsQuery, write: (chunk:string)=>Promise<boolean>): Promise<void> {
+    let header=true;
+    await this.exportRows(user,query,async values=>{
+      const chunk=(header?'\uFEFF':'')+values.map(callCsvCell).join(';')+'\r\n'; header=false; return write(chunk);
+    });
+  }
+  async exportRows(
     user: JwtPayloadUser,
     query: CallsQuery,
-    write: (chunk: string) => Promise<boolean>,
+    write: (values: unknown[]) => Promise<boolean>,
   ): Promise<void> {
     const { ctx, timezone, filter } = await this.context(user, query);
     await this.auditRead(ctx, 'call_export');
@@ -880,10 +937,8 @@ export class CallsService {
     };
     if (
       !(await write(
-        '\uFEFF' +
-          [
-            'Начало UTC',
-            'Часовой пояс',
+        [
+            'Начало',
             'От',
             'Кому',
             'Номер компании',
@@ -893,10 +948,7 @@ export class CallsService {
             'Общая длительность, сек',
             'Точность времени соединения',
             'Голосовое',
-          ]
-            .map(callCsvCell)
-            .join(';') +
-          '\r\n',
+          ],
       ))
     )
       return;
@@ -919,13 +971,12 @@ export class CallsService {
           for (const row of rows) {
             const call = this.present(row, ctx);
             const values = [
-              call.startedAt,
-              timezone,
+              callExportTime(call.startedAt, timezone),
               call.caller.name || call.caller.number,
               call.recipient.name || call.recipient.number,
               call.companyNumber,
               directions[call.direction],
-              outcomes[call.outcome],
+              callConnectionResult(call) ? ({busy:'Занят',noAnswer:'Нет ответа',unavailable:'Недоступен'}[callConnectionResult(call)!]) : outcomes[call.outcome],
               call.connectedSec,
               call.durationSec,
               call.timingSource === 'cdr'
@@ -935,7 +986,7 @@ export class CallsService {
                   : 'Не определено',
               call.hasVoicemail ? 'Да' : 'Нет',
             ];
-            if (!(await write(values.map(callCsvCell).join(';') + '\r\n')))
+            if (!(await write(values)))
               return;
           }
           if (rows.length < 500) return;

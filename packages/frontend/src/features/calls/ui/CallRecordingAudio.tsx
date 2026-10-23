@@ -5,14 +5,17 @@ import { useGetCdrRecordingQuery } from '@/shared/api/endpoints/cdrApi';
 import { getAuthApiBase } from '@/shared/api/apiBase';
 import { Select, Text, VStack, QueryErrorState } from '@/shared/ui';
 import cls from './Calls.module.scss';
+import { MediaAudio } from '@/shared/ui/MediaAudio/MediaAudio';
 export function CallAudio({
   recording,
   callId,
   startMs,
+  autoPlay = false,
 }: {
   recording: CallRecording;
   callId: string;
   startMs?: number;
+  autoPlay?: boolean;
 }) {
   const { t } = useTranslation();
   const audio = useRef<HTMLAudioElement>(null);
@@ -45,10 +48,11 @@ export function CallAudio({
   const src = `${getAuthApiBase()}/reports/calls/${encodeURIComponent(callId)}/recordings/${encodeURIComponent(recording.id)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   return (
     <VStack gap="8" align="stretch">
-      <audio
+      <MediaAudio
         ref={audio}
         className={cls.audio}
         controls
+        autoPlay={autoPlay}
         key={src}
         preload={startMs === undefined ? 'none' : 'metadata'}
         src={src}

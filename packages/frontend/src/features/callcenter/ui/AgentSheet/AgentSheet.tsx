@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import {
@@ -56,6 +56,7 @@ export interface AgentSheetProps {
   onUnpause?: (agent: IAgent) => void;
   onOpenQueues?: (agent: IAgent) => void;
   onSpy?: (agent: IAgent, mode: 'spy' | 'whisper' | 'barge') => void;
+  statusControl?: ReactNode;
 }
 
 type KpiScope = 'shift' | 'day';
@@ -81,10 +82,12 @@ export function AgentSheet({
   onUnpause,
   onOpenQueues,
   onSpy,
+  statusControl,
 }: AgentSheetProps) {
   const { t } = useTranslation();
   const isCompact = useIsMobile(1024);
-  const [kpiScope, setKpiScope] = useState<KpiScope>('shift');
+  // Match the daily counters that lead into this detail panel from the Pulse table.
+  const [kpiScope, setKpiScope] = useState<KpiScope>('day');
   const [fetchDetail, { data: detail, isLoading, isError, isFetching }] = useLazyGetAgentDetailQuery();
   const ccQueues = useSelector(selectCcQueues);
   const { data: queueList = [] } = useGetQueuesQuery(undefined, { skip: !open });
@@ -100,6 +103,7 @@ export function AgentSheet({
   useEffect(() => {
     if (!open || !onNavigateAgent) return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || (e.target instanceof Element && e.target.closest('[role="menu"], input, textarea, select'))) return;
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         onNavigateAgent(-1);
@@ -136,10 +140,10 @@ export function AgentSheet({
     return raw.map((q) => queueDisplayName(q, queueLabelSources)).join(', ');
   }, [detail?.stats.queues, agent?.queues, queueLabelSources]);
 
-  const showStartShift = Boolean(agent && agent.userId > 0 && (!live || status === 'OFFLINE'));
-  const showEndShift = Boolean(agent && agent.userId > 0 && !showStartShift && live && status !== 'OFFLINE');
-  const showPause = Boolean(live && status === 'READY');
-  const showUnpause = Boolean(live && status === 'PAUSED');
+  const showStartShift = !statusControl && Boolean(agent && agent.userId > 0 && (!live || status === 'OFFLINE'));
+  const showEndShift = !statusControl && Boolean(agent && agent.userId > 0 && !showStartShift && live && status !== 'OFFLINE');
+  const showPause = !statusControl && Boolean(live && status === 'READY');
+  const showUnpause = !statusControl && Boolean(live && status === 'PAUSED');
   const showSpy = Boolean(live && (status === 'IN_CALL' || status === 'RINGING'));
 
   const stats = detail?.stats;
@@ -168,11 +172,11 @@ export function AgentSheet({
               {agent && <Avatar name={title} src={avatarSrc} size={32} />}
               <VStack gap="2">
                 <SheetTitle>{title}</SheetTitle>
-                <StatusPill
+                {statusControl ?? <StatusPill
                   status={status}
                   label={pauseReason ? `${translate(`callcenter.status.${status.toLowerCase()}`, status)} (${pauseReason})` : undefined}
                   queuesDetached={agent?.queuesDetached ?? detail?.stats.queuesDetached}
-                />
+                />}
               </VStack>
             </HStack>
             {onNavigateAgent && (
