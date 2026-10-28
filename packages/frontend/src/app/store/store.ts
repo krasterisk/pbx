@@ -33,6 +33,7 @@ import conferenceSessionReducer from '@/features/conferences/model/slice/confere
 import { conferencesPageReducer } from '@/features/conferences/model/slice/conferencesPageSlice';
 import { autodialPageReducer } from '@/features/autodial/model/slice/autodialPageSlice';
 import '@/shared/api/endpoints/cdrApi';
+import { notificationBatch } from './notificationBatch';
 
 const resetApiOnLogout: Middleware = (api) => (next) => (action) => {
   const previousUser = api.getState().auth.user;
@@ -85,6 +86,7 @@ export const store = configureStore({
       serializableCheck: false,
       immutableCheck: false,
     }).concat(rtkApi.middleware).concat(resetApiOnLogout),
+  enhancers: defaults => defaults({ autoBatch: notificationBatch }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

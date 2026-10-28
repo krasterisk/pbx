@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { expect, it, vi } from 'vitest';
+import { notificationBatch } from '@/app/store/notificationBatch';
 import reducer, { resetCallCenter, setConnected, setSnapshot, updateAgent as updateAgentImmediately } from './callCenterSlice';
 import { addCall, removeCall, updateAgent, updateCall, updateQueue } from './callCenterEventActions';
 import type { IAgent, ICall, IQueueStats } from '../types/callCenterSchema';
@@ -73,4 +74,26 @@ it('keeps manual optimistic status actions synchronous even with pending stream 
   expect(store.getState().agents[0].status).toBe('READY');
   notifications.forEach(notify => notify());
   expect(subscriber).toHaveBeenCalledTimes(1);
+});
+
+it('notifies background panels without waiting for an animation frame', () => {
+  vi.useFakeTimers();
+  const frame = window.requestAnimationFrame;
+  const requestFrame = vi.fn();
+  window.requestAnimationFrame = requestFrame;
+  try {
+    const store = configureStore({ reducer, enhancers: defaults => defaults({ autoBatch: notificationBatch }) });
+    store.dispatch(setSnapshot({ agents: [agent], queues: [], calls: [] }));
+    const subscriber = vi.fn();
+    store.subscribe(subscriber);
+    for (let index = 1; index <= 200; index++) store.dispatch(updateAgent({ interface: agent.interface, callsTaken: index }));
+    expect(store.getState().agents[0].callsTaken).toBe(200);
+    expect(subscriber).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(16);
+    expect(subscriber).toHaveBeenCalledTimes(1);
+    expect(requestFrame).not.toHaveBeenCalled();
+  } finally {
+    window.requestAnimationFrame = frame;
+    vi.useRealTimers();
+  }
 });

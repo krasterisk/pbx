@@ -99,3 +99,9 @@ navigation can stall behind six SSE connections; a blank-document commit can
 also wait behind an overloaded renderer. Closing owned targets frees transport
 without either dependency. Use this identical policy outside every measured
 window, preserve context/login, and never read application auth storage.
+
+Wait at least6seconds after the measured window before capturing final probe
+outcomes, while retaining the original interval bounds; fresh-DOM wait remains
+bounded25seconds. Analysis exposes DOM/table/WS continuity gates separately.
+A WS window needs exactly six proxy tunnels at both boundaries and no upgrade
+inside the window to pass continuity, even if all six final tables look current.

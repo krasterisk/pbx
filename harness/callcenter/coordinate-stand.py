@@ -84,8 +84,9 @@ def main():
             write(exchange / ('end-' + phase + '.json'), {'at': time.time()})
             done = wait_file(exchange / ('done-' + phase + '.json'), exchange, 90)
             consistent = len(done['pages']) == 6 and all(page['rows'] == 150 and page['talking'] == 150 and not page['observerErrors'] for page in done['pages'])
-            phase_status = 'measured' if consistent and done.get('fresh', False) else 'failed-browser-gates'
-            summary['phases'].append({'phase': phase, 'status': phase_status, 'dialogs': 150, 'callFingerprint': fingerprint, 'done': done, 'proxyBefore': before, 'proxyAfter': after})
+            transport_stable = not phase.startswith('ws-') or (before['activeTunnels'] == 6 and after['activeTunnels'] == 6 and after['upgrades'] == before['upgrades'])
+            phase_status = 'measured' if consistent and done.get('fresh', False) and transport_stable else 'failed-browser-gates'
+            summary['phases'].append({'phase': phase, 'status': phase_status, 'transportStable': transport_stable, 'dialogs': 150, 'callFingerprint': fingerprint, 'done': done, 'proxyBefore': before, 'proxyAfter': after})
             write(exchange / 'coordinator-summary.json', summary)
             print(json.dumps({'phase': phase, 'stage': phase_status, 'tables': 6}), flush=True)
         summary['status'] = 'completed' if all(phase['status'] == 'measured' for phase in summary['phases']) else 'completed-with-failed-gates'

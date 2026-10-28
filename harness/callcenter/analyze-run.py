@@ -131,6 +131,10 @@ def analyze(directory):
         proxy_statuses = {key: count - before['responses'].get(key, 0) for key, count in after['responses'].items()}
         summary['phases'][phase] = {
             'status': 'measured' if browser.get('fresh', True) else 'failed-final-freshness',
+            'gates': {'freshDom': bool(browser.get('fresh')),
+                      'sixTablesConsistent': len(pages) == 6 and all(page['rows'] == 150 and page['talking'] == 150 and not page['observerErrors'] for page in pages),
+                      'sixWsTunnelsStable': None if not phase.startswith('ws-') else before['activeTunnels'] == 6 and after['activeTunnels'] == 6 and after['upgrades'] == before['upgrades']},
+            'proxyWindowSec': round((after['at'] - before['at']) / 1000, 3),
             'finalFresh': browser.get('fresh'), 'durationSec': round(server['endedAt'] - server['startedAt'], 2),
             'latencyWindow': {'startMs': start, 'endMs': end, 'excludedStartMs': 1000, 'excludedEndMs': 3000},
             'realDialogs': server['realActiveDialogsAtStart'], 'sipCommands': server['generatedSipCommands'],

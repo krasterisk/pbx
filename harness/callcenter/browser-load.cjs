@@ -190,7 +190,8 @@ async function main() {
       await waitFile('end-' + phase + '.json');
       const end = Date.now();
       const freshDeadline = end + 25000;
-      while (pages.some(page => (receipts.get(page)?.browserAt || 0) < end) && Date.now() < freshDeadline) await sleep(250);
+      const settleUntil = end + 6000;
+      while ((Date.now() < settleUntil || pages.some(page => (receipts.get(page)?.browserAt || 0) < end)) && Date.now() < freshDeadline) await sleep(250);
       const final = await Promise.all(pages.map(trace));
       const fresh = final.every(item => item.browserAt >= end);
       const apiProbes = final.map(item => item.apiProbes);
