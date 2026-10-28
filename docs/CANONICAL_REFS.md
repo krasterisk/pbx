@@ -71,6 +71,8 @@ Dashboard binlog optimization: [PLAN D8](plans/pbx-dashboard/PLAN.md), [REPORT /
 
 Artifact storage maintenance: [PLAN](plans/artifact-storage/PLAN.md), [EXECUTION](plans/artifact-storage/EXECUTION.md); [REPORT](plans/artifact-storage/REPORT.md), codex-direct /root chat01a15cc9, storage migration completed; product initiatives unchanged.
 
+Нагрузочный прогон 50 операторских мест и 150 звонков, 28 октября 2026, 18:13–18:24 Красноярск: [отчёт](plans/operator-load-20261028/REPORT.md), [план оптимизаций](plans/operator-load-20261028/PLAN.md). Стенд этого прогона: PostgreSQL 16, Asterisk 20.6, backend 4.7.1.3. Это измерение, не назначение новой продуктовой фазы.
+
 
 ## Repository layout
 
