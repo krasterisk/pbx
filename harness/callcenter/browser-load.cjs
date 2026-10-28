@@ -146,6 +146,10 @@ async function main() {
       step = 'prepare-' + phase;
       await waitFile('prepare-' + phase + '.json');
       const transport = phase.startsWith('ws-') ? 'websocket' : 'sse';
+      // Six HTTP/1.1 SSE streams can block the next HTTP navigation itself.
+      // A local blank document needs no HTTP slot and unloads every old stream
+      // before loading the next candidate. Keep all six pages and the context.
+      await Promise.all(pages.map(page => page.goto('about:blank', { waitUntil: 'commit', timeout: 15000 })));
       // Prepare pages sequentially: concurrent cold loads of the same large
       // module hit Chromium ERR_CACHE_WRITE_FAILURE in the isolated profile.
       // This is outside the measured window; all six stay open during load.

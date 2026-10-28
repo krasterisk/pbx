@@ -92,3 +92,8 @@ Continue the remaining transport windows to collect the comparison; the final
 coordinator status is completed-with-failed-gates if any browser gate failed.
 Media population, call-set identity and initial six-table readiness remain
 mandatory and stop the run on failure. Record the actual common CPU budget.
+
+Before each candidate, navigate all six owned pages to about:blank. This closes
+the previous streams without needing an HTTP slot: direct HTTP navigation from
+six SSE documents can itself stall before the old document unloads. Keep the
+same browser context and six pages; this is outside measured windows.
