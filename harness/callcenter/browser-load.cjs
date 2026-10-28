@@ -59,7 +59,12 @@ async function main() {
   // No application storage, tokens, public collector route or repeated remote
   // evaluation is involved. All timings/rows originate in the actual page.
   await context.exposeBinding('__ccLoadReceipt', (source, receipt) => {
-    if (source.frame === source.page.mainFrame() && pages.includes(source.page)) receipts.set(source.page, receipt);
+    const index = pages.indexOf(source.page);
+    if (source.frame === source.page.mainFrame() && index >= 0) {
+      receipts.set(source.page, receipt);
+      // Retain evidence even when a freshness/consistency gate later fails.
+      save('latest-page-' + index + '.json', receipt);
+    }
   });
   await context.addInitScript(() => {
     if (window !== window.top || location.origin !== 'http://192.168.2.201:3010') return;
@@ -72,7 +77,8 @@ async function main() {
       catch (error) { item.error = error.name; }
       finally { clearTimeout(timer); item.endedAt = Date.now(); }
     };
-    setInterval(probe, 5000);
+    // Six pages =>36 reads/minute, below the real global60/minute route limit.
+    setInterval(probe, 10000);
     new MutationObserver(records => {
       const output = records.find(record => record.target instanceof HTMLElement && record.target.dataset.testid === 'callcenter-benchmark-results')?.target;
       if (!output?.textContent) return;
@@ -177,22 +183,24 @@ async function main() {
       const end = Date.now();
       const freshDeadline = end + 25000;
       while (pages.some(page => (receipts.get(page)?.browserAt || 0) < end) && Date.now() < freshDeadline) await sleep(250);
-      if (pages.some(page => (receipts.get(page)?.browserAt || 0) < end)) throw Error('Final browser DOM receipt is stale');
       const final = await Promise.all(pages.map(trace));
+      const fresh = final.every(item => item.browserAt >= end);
       const apiProbes = final.map(item => item.apiProbes);
       save('result-' + phase + '.json', {
-        phase, start, end, initial, final, apiProbes, framesBefore, framesAfter: frameTotals,
+        phase, start, end, fresh, initial, final, apiProbes, framesBefore, framesAfter: frameTotals,
         requests: requests.filter(item => item.at >= start && item.at <= end),
         failuresCompletedInWindow: requests.filter(item => item.failedAt >= start && item.failedAt <= end),
         connectionEvents: connections.filter(item => item.openedAt <= end && (!item.closedAt || item.closedAt >= start)),
         eventStreams: requests.filter(item => item.path === '/api/callcenter/events' && item.at <= end && (!item.finishedAt || item.finishedAt >= start) && (!item.failedAt || item.failedAt >= start)),
         errors: errors.filter(item => item.at >= start && item.at <= end),
       });
+      if (!fresh) throw Error('Final browser DOM receipt is stale');
       await pages[5].screenshot({ path: path.join(output, phase + '.png'), fullPage: false, timeout: 15000 }).catch(() => {});
       save('done-' + phase + '.json', { at: Date.now(), phase, pages: final.map(item => ({ rows: item.rows.length, talking: item.rows.filter(row => row.status === 'TALKING').length, transport: item.measurement?.transport, observerErrors: item.measurement?.observerErrors })) });
     }
     save('browser-finished.json', { at: Date.now(), pages: 6 });
   } finally {
+    save('latest-dom-receipts.json', { at: Date.now(), step, pages: pages.map((page, index) => ({ page: index, receipt: receipts.get(page) || null })) });
     save('network-all.json', { at: Date.now(), step, requests, connections, errors, frameTotals });
     await context.close();
     await browser.close();

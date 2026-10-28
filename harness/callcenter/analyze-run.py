@@ -130,7 +130,8 @@ def analyze(directory):
         statuses = collections.Counter(str(request['status']) for request in requests if 'status' in request)
         proxy_statuses = {key: count - before['responses'].get(key, 0) for key, count in after['responses'].items()}
         summary['phases'][phase] = {
-            'status': 'measured', 'durationSec': round(server['endedAt'] - server['startedAt'], 2),
+            'status': 'measured' if browser.get('fresh', True) else 'failed-final-freshness',
+            'finalFresh': browser.get('fresh'), 'durationSec': round(server['endedAt'] - server['startedAt'], 2),
             'latencyWindow': {'startMs': start, 'endMs': end, 'excludedStartMs': 1000, 'excludedEndMs': 3000},
             'realDialogs': server['realActiveDialogsAtStart'], 'sipCommands': server['generatedSipCommands'],
             'actualAmiStatusChanges': len(expected), 'pages': pages,
