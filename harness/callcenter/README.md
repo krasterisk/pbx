@@ -58,12 +58,16 @@ connections is diagnostic evidence, not an accepted six-tab comparison.
 Prepare the six pages sequentially and poll readiness on a timer: the first
 parallel cold run produced Chromium ERR_CACHE_WRITE_FAILURE for five copies of
 the main module, while frame-based readiness could time out on an already
-populated table. Readiness is now polled from the driver; these failed
+populated table. Pages now push their actual DOM rows and the opt-in timing
+receipt over a private Playwright binding. The driver polls cached receipts,
+never application auth storage. This avoids repeated synchronous DOM reads
+which also stalled the measurement start. Receipts must be fresh and match
+the selected transport; these failed
 preparations are preserved separately, outside measured windows. A preparation
 CPU-profile experiment stalled after all six tables were ready, so accepted
 runs collect CPU externally and launch the full Chromium headless channel,
-not the separate headless shell. The measured
-window also starts one public `/api/health` read per page every5seconds with a
+not the separate headless shell. Every test document also starts one public
+`/api/health` read per page every5seconds with a
 5second browser AbortController deadline, identically for both transports. This
 tests ordinary HTTP availability in the same browser connection pool without
 reading auth storage. `analyze-run.py --directory <external-run> --output
@@ -71,4 +75,6 @@ reading auth storage. `analyze-run.py --directory <external-run> --output
 to actual caller IDs, and reports per-page receipt/DOM/next-frame distributions,
 container/host resources, API availability and proxy errors. Coalesced transient
 states and unreceived events must be distinguished; do not label next-frame
-timestamps as physical paint.
+timestamps as physical paint. Latency analysis excludes identical1s start/3s
+end margins to avoid the2s receipt publication boundary, and counts the first
+receipt/DOM per AMI transition rather than repeated same-status refreshes.

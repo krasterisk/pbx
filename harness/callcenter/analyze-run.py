@@ -62,7 +62,9 @@ def analyze(directory):
         browser = load(result_path)
         server = load(directory / 'artifacts' / phase / 'phase.json')
         before, after = [load(directory / 'artifacts' / phase / 'proxy-boundaries.json')[key] for key in ['before', 'after']]
-        start, end = server['startedAt'] * 1000, server['endedAt'] * 1000
+        # The browser receipt is published every2s. Exclude identical boundary
+        # margins so a not-yet-flushed final receipt is not called packet loss.
+        start, end = server['startedAt'] * 1000 + 1000, server['endedAt'] * 1000 - 3000
         expected = {(key, stamp) for key, stamps in changes.items() for stamp in stamps if start <= stamp <= end}
         pages = []
         all_times = collections.defaultdict(list)
@@ -71,6 +73,7 @@ def analyze(directory):
             received, committed = set(), set()
             unmatched = 0
             measurement = final.get('measurement') or {}
+            grouped = {}
             for sample in measurement.get('samples', []):
                 if sample['receivedAt'] < start or sample['receivedAt'] > end + 10000:
                     continue
@@ -82,6 +85,16 @@ def analyze(directory):
                     continue
                 source = stamps[position]
                 identity = (key, source)
+                # Same-status refreshes are not new AMI transitions. Use the
+                # earliest receipt/DOM per source change, not a late periodic
+                # refresh incorrectly counted as seconds of transport latency.
+                item = grouped.setdefault(identity, {'source': source, 'receivedAt': sample['receivedAt']})
+                item['receivedAt'] = min(item['receivedAt'], sample['receivedAt'])
+                for target in ['domAt', 'frameAt']:
+                    if target in sample:
+                        item[target] = min(item.get(target, sample[target]), sample[target])
+            for identity, sample in grouped.items():
+                source = sample['source']
                 received.add(identity)
                 times['sourceToReceiptMs'].append(sample['receivedAt'] - source)
                 for target, label in [('domAt', 'sourceToDomMs'), ('frameAt', 'sourceToNextFrameMs')]:
@@ -118,6 +131,7 @@ def analyze(directory):
         proxy_statuses = {key: count - before['responses'].get(key, 0) for key, count in after['responses'].items()}
         summary['phases'][phase] = {
             'status': 'measured', 'durationSec': round(server['endedAt'] - server['startedAt'], 2),
+            'latencyWindow': {'startMs': start, 'endMs': end, 'excludedStartMs': 1000, 'excludedEndMs': 3000},
             'realDialogs': server['realActiveDialogsAtStart'], 'sipCommands': server['generatedSipCommands'],
             'actualAmiStatusChanges': len(expected), 'pages': pages,
             'timings': {key: distribution(values) for key, values in all_times.items()},

@@ -8,6 +8,7 @@ const output = process.env.BROWSER_OUTPUT || '/exchange';
 const phases = ['ws-normal', 'sse-normal', 'ws-stress', 'sse-stress'];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 let step = 'initialization';
+const receipts = new WeakMap();
 
 function save(file, data) {
   const target = path.join(output, file);
@@ -27,32 +28,21 @@ async function waitFile(file, seconds = 600) {
 }
 
 async function trace(page) {
-  return page.evaluate(() => {
-    const element = document.querySelector('[data-testid="callcenter-benchmark-results"]');
-    const measurement = element?.textContent ? JSON.parse(element.textContent) : null;
-    return {
-      browserAt: Date.now(), visibility: document.visibilityState,
-      rows: [...document.querySelectorAll('[data-call-id][data-status]')].map(row => ({ id: row.dataset.callId, status: row.dataset.status })),
-      measurement,
-    };
-  });
+  const receipt = receipts.get(page);
+  if (!receipt) throw Error('No browser DOM receipt');
+  return structuredClone(receipt);
 }
 
 async function waitTable(page, phase, index) {
-  const deadline = Date.now() + 120000;
+  const began = Date.now();
+  const deadline = began + 120000;
   while (Date.now() < deadline) {
-    // Poll from the driver rather than scheduling another page timer behind
-    // expensive React commits. Only used before the measured window.
-    const state = await Promise.race([
-      page.evaluate(() => {
-        const element = document.querySelector('[data-testid="callcenter-benchmark-results"]');
-        return { rows: document.querySelectorAll('[data-call-id][data-status]').length,
-          snapshotCalls: element?.textContent ? JSON.parse(element.textContent).snapshot?.calls : null };
-      }),
-      sleep(15000).then(() => { throw Error('DOM readiness evaluation timed out'); }),
-    ]);
+    const receipt = receipts.get(page);
+    const state = { rows: receipt?.rows.length || 0, snapshotCalls: receipt?.measurement?.snapshot?.calls ?? null,
+      receiptAt: receipt?.browserAt, transport: receipt?.measurement?.transport };
     save('preparation-state.json', { at: Date.now(), phase, page: index, ...state });
-    if (state.rows === 150 && state.snapshotCalls === 150) return;
+    if (state.rows === 150 && state.snapshotCalls === 150 && state.receiptAt >= began
+      && state.transport === (phase.startsWith('ws-') ? 'websocket' : 'sse')) return;
     await sleep(250);
   }
   throw Error('Table snapshot readiness timed out');
@@ -65,6 +55,33 @@ async function main() {
   const browser = await chromium.launch({ headless: true, channel: 'chromium' });
   const context = await browser.newContext({ locale: 'ru-RU', viewport: { width: 1440, height: 1000 }, colorScheme: 'light', reducedMotion: 'reduce' });
   const pages = [];
+  // Push only our opt-in DOM measurement over Playwright's private binding.
+  // No application storage, tokens, public collector route or repeated remote
+  // evaluation is involved. All timings/rows originate in the actual page.
+  await context.exposeBinding('__ccLoadReceipt', (source, receipt) => {
+    if (source.frame === source.page.mainFrame() && pages.includes(source.page)) receipts.set(source.page, receipt);
+  });
+  await context.addInitScript(() => {
+    if (window !== window.top || location.origin !== 'http://192.168.2.201:3010') return;
+    const probes = [];
+    const probe = async () => {
+      const item = { at: Date.now() }; probes.push(item);
+      if (probes.length > 1000) probes.shift();
+      const abort = new AbortController(); const timer = setTimeout(() => abort.abort(), 5000);
+      try { const response = await fetch('/api/health', { signal: abort.signal, cache: 'no-store' }); item.status = response.status; await response.text(); }
+      catch (error) { item.error = error.name; }
+      finally { clearTimeout(timer); item.endedAt = Date.now(); }
+    };
+    setInterval(probe, 5000);
+    new MutationObserver(records => {
+      const output = records.find(record => record.target instanceof HTMLElement && record.target.dataset.testid === 'callcenter-benchmark-results')?.target;
+      if (!output?.textContent) return;
+      const measurement = JSON.parse(output.textContent);
+      void window.__ccLoadReceipt({ browserAt: Date.now(), visibility: document.visibilityState,
+        rows: [...document.querySelectorAll('[data-call-id][data-status]')].map(row => ({ id: row.dataset.callId, status: row.dataset.status })),
+        measurement, apiProbes: probes }).catch(() => {});
+    }).observe(document, { childList: true, subtree: true });
+  });
   const requests = [];
   const connections = [];
   const errors = [];
@@ -132,6 +149,7 @@ async function main() {
         let readinessStep = 'navigation';
         save('preparation-state.json', { at: Date.now(), phase, page: index, readinessStep });
         try {
+          receipts.delete(page);
           await page.goto(base + '/callcenter/supervisor?view=calls&sort=name&ccTransport=' + transport, { waitUntil: 'domcontentloaded', timeout: 60000 });
           readinessStep = 'table-and-snapshot';
           save('preparation-state.json', { at: Date.now(), phase, page: index, readinessStep });
@@ -152,32 +170,16 @@ async function main() {
       await waitFile('start-' + phase + '.json');
       const start = Date.now();
       const initial = await Promise.all(pages.map(trace));
-      // Equal foreground API workload on the same browser HTTP/1.1 pool.
-      // Public health reads need no token extraction and expose slot starvation.
-      await Promise.all(pages.map(page => page.evaluate(() => {
-        const probes = [];
-        const probe = async () => {
-          const item = { at: Date.now() };
-          probes.push(item);
-          const abort = new AbortController();
-          const timeout = setTimeout(() => abort.abort(), 5000);
-          try { const response = await fetch('/api/health', { signal: abort.signal, cache: 'no-store' }); item.status = response.status; await response.text(); }
-          catch (error) { item.error = error.name; }
-          finally { clearTimeout(timeout); item.endedAt = Date.now(); }
-        };
-        window.__ccLoadProbes = { probes, timer: setInterval(probe, 5000) };
-        void probe();
-      })));
       const framesBefore = structuredClone(frameTotals);
       save('started-' + phase + '.json', { at: start, initial, framesBefore });
       step = 'measure-' + phase;
       await waitFile('end-' + phase + '.json');
       const end = Date.now();
+      const freshDeadline = end + 25000;
+      while (pages.some(page => (receipts.get(page)?.browserAt || 0) < end) && Date.now() < freshDeadline) await sleep(250);
+      if (pages.some(page => (receipts.get(page)?.browserAt || 0) < end)) throw Error('Final browser DOM receipt is stale');
       const final = await Promise.all(pages.map(trace));
-      const apiProbes = await Promise.all(pages.map(page => page.evaluate(() => {
-        clearInterval(window.__ccLoadProbes.timer);
-        return window.__ccLoadProbes.probes;
-      })));
+      const apiProbes = final.map(item => item.apiProbes);
       save('result-' + phase + '.json', {
         phase, start, end, initial, final, apiProbes, framesBefore, framesAfter: frameTotals,
         requests: requests.filter(item => item.at >= start && item.at <= end),

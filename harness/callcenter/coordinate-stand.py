@@ -82,7 +82,7 @@ def main():
             if result.returncode:
                 raise RuntimeError('SIP phase failed: ' + phase)
             write(exchange / ('end-' + phase + '.json'), {'at': time.time()})
-            done = wait_file(exchange / ('done-' + phase + '.json'), exchange, 45)
+            done = wait_file(exchange / ('done-' + phase + '.json'), exchange, 90)
             if any(page['rows'] != 150 or page['talking'] != 150 or page['observerErrors'] for page in done['pages']):
                 raise RuntimeError('Browser table consistency failed: ' + phase)
             summary['phases'].append({'phase': phase, 'dialogs': 150, 'callFingerprint': fingerprint, 'done': done, 'proxyBefore': before, 'proxyAfter': after})
