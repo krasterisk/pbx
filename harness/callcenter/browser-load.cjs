@@ -5,7 +5,7 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 const base = 'http://192.168.2.201:3010';
 const output = process.env.BROWSER_OUTPUT || '/exchange';
-const phases = ['ws-normal', 'sse-normal', 'ws-stress', 'sse-stress'];
+const phases = ['sse-normal', 'ws-normal', 'sse-stress', 'ws-stress'];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 let step = 'initialization';
 const receipts = new WeakMap();
@@ -194,9 +194,8 @@ async function main() {
         eventStreams: requests.filter(item => item.path === '/api/callcenter/events' && item.at <= end && (!item.finishedAt || item.finishedAt >= start) && (!item.failedAt || item.failedAt >= start)),
         errors: errors.filter(item => item.at >= start && item.at <= end),
       });
-      if (!fresh) throw Error('Final browser DOM receipt is stale');
       await pages[5].screenshot({ path: path.join(output, phase + '.png'), fullPage: false, timeout: 15000 }).catch(() => {});
-      save('done-' + phase + '.json', { at: Date.now(), phase, pages: final.map(item => ({ rows: item.rows.length, talking: item.rows.filter(row => row.status === 'TALKING').length, transport: item.measurement?.transport, observerErrors: item.measurement?.observerErrors })) });
+      save('done-' + phase + '.json', { at: Date.now(), phase, fresh, pages: final.map(item => ({ rows: item.rows.length, talking: item.rows.filter(row => row.status === 'TALKING').length, transport: item.measurement?.transport, observerErrors: item.measurement?.observerErrors })) });
     }
     save('browser-finished.json', { at: Date.now(), pages: 6 });
   } finally {

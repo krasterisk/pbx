@@ -55,7 +55,7 @@ def main():
     summary = {'startedAt': time.time(), 'phases': [], 'status': 'in_progress'}
     try:
         wait_file(exchange / 'browser-start.json', exchange, 90)
-        for phase, duration in [('ws-normal', 120), ('sse-normal', 120), ('ws-stress', 60), ('sse-stress', 60)]:
+        for phase, duration in [('sse-normal', 120), ('ws-normal', 120), ('sse-stress', 60), ('ws-stress', 60)]:
             stats = json.loads((directory / 'artifacts/sip-stats.json').read_text())
             if stats['dialogs'] != 150:
                 raise RuntimeError('Expected 150 real active dialogs')
@@ -83,12 +83,12 @@ def main():
                 raise RuntimeError('SIP phase failed: ' + phase)
             write(exchange / ('end-' + phase + '.json'), {'at': time.time()})
             done = wait_file(exchange / ('done-' + phase + '.json'), exchange, 90)
-            if any(page['rows'] != 150 or page['talking'] != 150 or page['observerErrors'] for page in done['pages']):
-                raise RuntimeError('Browser table consistency failed: ' + phase)
-            summary['phases'].append({'phase': phase, 'dialogs': 150, 'callFingerprint': fingerprint, 'done': done, 'proxyBefore': before, 'proxyAfter': after})
+            consistent = len(done['pages']) == 6 and all(page['rows'] == 150 and page['talking'] == 150 and not page['observerErrors'] for page in done['pages'])
+            phase_status = 'measured' if consistent and done.get('fresh', False) else 'failed-browser-gates'
+            summary['phases'].append({'phase': phase, 'status': phase_status, 'dialogs': 150, 'callFingerprint': fingerprint, 'done': done, 'proxyBefore': before, 'proxyAfter': after})
             write(exchange / 'coordinator-summary.json', summary)
-            print(json.dumps({'phase': phase, 'stage': 'completed', 'tables': 6}), flush=True)
-        summary['status'] = 'completed'
+            print(json.dumps({'phase': phase, 'stage': phase_status, 'tables': 6}), flush=True)
+        summary['status'] = 'completed' if all(phase['status'] == 'measured' for phase in summary['phases']) else 'completed-with-failed-gates'
     except Exception as error:
         summary.update(status='failed', error=type(error).__name__, detail=str(error))
         write(exchange / 'stop.json', {'at': time.time(), 'reason': summary['detail']})

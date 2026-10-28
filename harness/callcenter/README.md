@@ -86,3 +86,9 @@ Keep enough memory
 for six full pages: the3GiB browser cap was reached during the first measured
 window; the subsequent paired run uses6GiB without swap, identically for both
 transports. Persist latest per-page receipts even when a consistency gate fails.
+
+A stale final DOM receipt is a failed candidate gate, preserved in the result.
+Continue the remaining transport windows to collect the comparison; the final
+coordinator status is completed-with-failed-gates if any browser gate failed.
+Media population, call-set identity and initial six-table readiness remain
+mandatory and stop the run on failure. Record the actual common CPU budget.

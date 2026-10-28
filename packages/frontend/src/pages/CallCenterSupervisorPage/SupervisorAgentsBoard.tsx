@@ -13,6 +13,7 @@ import { SupervisorAgentStatusMenu } from './SupervisorAgentStatusMenu';
 import styles from './SupervisorPulse.module.scss';
 
 export type AgentBoardDensity = 'grid' | 'compact' | 'table';
+const EMPTY_BUSY_INTERFACES: readonly string[] = [];
 
 export interface SupervisorAgentsBoardProps {
   agents: readonly IAgent[];
@@ -49,7 +50,7 @@ export interface SupervisorAgentsBoardProps {
 export function SupervisorAgentsBoard({
   agents, watchedCount, queues, sortBy, agentAvatarSrc, renderElapsed,
   onOpenWatchlist, onClearQueueFilter, onOpenAgent, onOpenQueues,
-  onStartShift, onEndShift, onPause, onUnpause, busyInterfaces = [],
+  onStartShift, onEndShift, onPause, onUnpause, busyInterfaces = EMPTY_BUSY_INTERFACES,
 }: SupervisorAgentsBoardProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
@@ -108,6 +109,19 @@ export function SupervisorAgentsBoard({
     { id: 'queues', header: t('callcenter.supervisor.pulse.queueColumn', 'Queues'), cell: queueCell },
   ], [t, renderAgentNameCell, statusCell, queueCell, onOpenAgent]);
 
+  // Call-only events must not rebuild every operator cell. Avatar callbacks
+  // can retain their identity while their resolved version changes. Include
+  // those values so an uploaded photo still gets a fresh attempt.
+  const avatarVersions = JSON.stringify(visible.map(agentAvatarSrc));
+  const operatorTable = useMemo(() => (
+    <Table data={visible} columns={columns} getRowId={agent => agent.interface}
+        getRowTestId={agent => `supervisor-agent-row-${agent.interface}`}
+        className={styles.operatorTable} surface={false} showSearch={false} showExport={false}
+        emptyText={watchedCount === 0 ? t('callcenter.supervisor.pulse.emptyTeam') : t('callcenter.supervisor.queueOverview.noMatchingAgents', 'No operators found')} />
+  // Resolved URL values must invalidate JSX even with a stable callback.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [visible, columns, watchedCount, t, avatarVersions]);
+
   return <VStack gap="12" className={styles.team} data-testid="supervisor-agents-board">
     <Flex align="center" justify="between" gap="12" wrap="wrap">
       <HStack gap="12" wrap="wrap">
@@ -127,10 +141,7 @@ export function SupervisorAgentsBoard({
       </HStack>
     </Flex>
     <>
-      <Table data={visible} columns={columns} getRowId={agent => agent.interface}
-        getRowTestId={agent => `supervisor-agent-row-${agent.interface}`}
-        className={styles.operatorTable} surface={false} showSearch={false} showExport={false}
-        emptyText={watchedCount === 0 ? t('callcenter.supervisor.pulse.emptyTeam') : t('callcenter.supervisor.queueOverview.noMatchingAgents', 'No operators found')} />
+      {operatorTable}
       {watchedCount > 0 && agents.length === 0 && onClearQueueFilter && <Button variant="ghost" size="sm" onClick={onClearQueueFilter}>
         {t('callcenter.supervisor.pulse.clearQueueFilter')}
       </Button>}
