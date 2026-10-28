@@ -128,7 +128,7 @@ export function CurrentCallsTable() {
                   ? 'ringing'
                   : 'waiting';
           return (
-            <TableRow key={call.uniqueid} data-status={call.status}>
+            <TableRow key={call.uniqueid} data-call-id={call.uniqueid} data-status={call.status}>
               <TableCell>
                 <Party
                   name={callerDisplayName(call.callerIdName) || undefined}

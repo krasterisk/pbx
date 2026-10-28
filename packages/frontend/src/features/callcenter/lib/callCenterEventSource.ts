@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { benchmarkTransport, recordBenchmarkEvent } from './callCenterBenchmark';
 
 export interface CallCenterEventSource {
   readonly readyState: number;
@@ -14,6 +15,20 @@ export function createCallCenterEventSource(
   token: string,
 ): CallCenterEventSource {
   const base = new URL(apiBase, window.location.origin);
+  if (benchmarkTransport() === 'sse') {
+    const events = new EventSource(`${apiBase}/callcenter/events?token=${encodeURIComponent(token)}`);
+    events.addEventListener('callUpdate', (event: MessageEvent) => recordBenchmarkEvent('callUpdate', event.data));
+    const source: CallCenterEventSource = {
+      get readyState() { return events.readyState; },
+      onopen: null,
+      onerror: null,
+      addEventListener(type, listener) { events.addEventListener(type, listener as EventListener); },
+      close() { events.close(); },
+    };
+    events.onopen = () => source.onopen?.();
+    events.onerror = () => source.onerror?.();
+    return source;
+  }
   const listeners = new Map<string, Set<(event: MessageEvent) => void>>();
   let closed = false;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
@@ -66,6 +81,7 @@ export function createCallCenterEventSource(
   socket.on('connect_error', disconnected);
   socket.on('cc:event', (event: { type?: unknown; data?: unknown }) => {
     if (closed || typeof event?.type !== 'string') return;
+    recordBenchmarkEvent(event.type, event.data);
     const message = new MessageEvent(event.type, { data: event.data });
     listeners.get(event.type)?.forEach((listener) => listener(message));
   });

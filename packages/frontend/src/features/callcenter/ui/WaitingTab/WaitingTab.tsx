@@ -165,6 +165,7 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
                 return (
                   <TableRow
                     key={call.uniqueid}
+                    data-call-id={call.uniqueid}
                     className={isTalking ? styles.rowTalking : styles.rowWaiting}
                     data-status={call.status}
                   >
