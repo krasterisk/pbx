@@ -67,7 +67,7 @@ preparations are preserved separately, outside measured windows. A preparation
 CPU-profile experiment stalled after all six tables were ready, so accepted
 runs collect CPU externally and launch the full Chromium headless channel,
 not the separate headless shell. Every test document also starts one public
-`/api/health` read per page every10seconds with a
+`/api/health` read per page every30seconds with a
 5second browser AbortController deadline, identically for both transports. This
 tests ordinary HTTP availability in the same browser connection pool without
 reading auth storage. `analyze-run.py --directory <external-run> --output
@@ -78,9 +78,11 @@ states and unreceived events must be distinguished; do not label next-frame
 timestamps as physical paint. Latency analysis excludes identical1s start/3s
 end margins to avoid the2s receipt publication boundary, and counts the first
 receipt/DOM per AMI transition rather than repeated same-status refreshes.
-The first5s probe schedule exceeded health's real60/minute limit across six
-pages (72/minute) and produced harness-caused429s; keep that failed run separate.
-Use36/minute instead, without changing application limits. Keep enough memory
+The first5s probe schedule produced harness-caused429s. An intermediate10s
+schedule still exceeded the actual limit: the public health response headers
+show20/minute, despite a separate composition registering60/minute. Use12/minute
+instead, without changing application limits. Keep those failed runs separate.
+Keep enough memory
 for six full pages: the3GiB browser cap was reached during the first measured
 window; the subsequent paired run uses6GiB without swap, identically for both
 transports. Persist latest per-page receipts even when a consistency gate fails.

@@ -1,38 +1,12 @@
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  MoreHorizontal,
-  Phone,
-  PhoneIncoming,
-  PhoneOff,
-  Users,
-} from 'lucide-react';
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Flex,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Text,
-} from '@/shared/ui';
+import { ChevronDown, ChevronUp, Phone, PhoneIncoming, Users } from 'lucide-react';
+import { Button, Flex, Table, TableBody, TableHead, TableHeader, TableRow, Text } from '@/shared/ui';
 import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import type { IAgent, ICall, IQueueStats } from '@/features/callcenter/model/types/callCenterSchema';
 import { agentLabelWithExt, queueDisplayName } from '@/features/callcenter/lib/displayLabels';
-import { callStatusLabel, formatPhone } from '@/features/callcenter/lib/ccFormat';
-import { LiveDuration } from '@/features/callcenter/ui/LiveDuration';
-import {
-  TransferTargetPicker,
-  type TransferTargetOption,
-} from '@/features/callcenter/ui/TransferTargetPicker';
+import type { TransferTargetOption } from '@/features/callcenter/ui/TransferTargetPicker';
+import { SupervisorCallRow, type SupervisorCallRowActions } from './SupervisorCallRow';
 import styles from './CallCenterSupervisorPage.module.scss';
 
 export interface SupervisorCallsPanelProps {
@@ -80,18 +54,23 @@ export function SupervisorCallsPanel({
 }: SupervisorCallsPanelProps) {
   const { t } = useTranslation();
 
-  const callStatusBadge = (status: string): string => {
-    if (status === 'WAITING' || status === 'RINGING') return styles.badgeWaiting;
-    if (status === 'TALKING') return styles.badgeTalking;
-    if (status === 'HOLD') return styles.badgeHold;
-    return '';
-  };
-
-  const readyTargetOptions: TransferTargetOption[] = readyAgents.map((a) => ({
-    value: a.interface,
-    label: agentLabelWithExt(a),
-    group: 'agent',
-  }));
+  // Labels/availability are stable across queue counter and duration updates.
+  const transferKey = JSON.stringify(transferOptions);
+  const readyKey = JSON.stringify(readyAgents.map(a => ({ value: a.interface, label: agentLabelWithExt(a), group: 'agent' })));
+  const stableTransferOptions = useMemo(() => JSON.parse(transferKey) as TransferTargetOption[], [transferKey]);
+  const stableReadyOptions = useMemo(() => JSON.parse(readyKey) as TransferTargetOption[], [readyKey]);
+  const agentsByToken = useMemo(() => {
+    const map = new Map<string, IAgent>();
+    agents.forEach(agent => { const token = normalizeToken(agent.interface); if (!map.has(token)) map.set(token, agent); });
+    return map;
+  }, [agents]);
+  const latestActions = useRef({ onRedirect, onSpy, onRequestHangup });
+  useLayoutEffect(() => { latestActions.current = { onRedirect, onSpy, onRequestHangup }; }, [onRedirect, onSpy, onRequestHangup]);
+  const actions = useMemo<SupervisorCallRowActions>(() => ({
+    onRedirect: (call, target) => latestActions.current.onRedirect(call, target),
+    onSpy: iface => latestActions.current.onSpy(iface),
+    onRequestHangup: call => latestActions.current.onRequestHangup(call),
+  }), []);
 
   return (
     <div className={styles.callsPanel} data-testid="supervisor-calls-panel">
@@ -151,101 +130,12 @@ export function SupervisorCallsPanel({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {calls.map((call: ICall, i) => {
-                  const isWaiting = call.status === 'WAITING' || call.status === 'RINGING';
-                  const isActive = call.status === 'TALKING' || call.status === 'HOLD';
-                  const agentRow = call.agent
-                    ? agents.find(
-                        (a) =>
-                          a.interface === call.agent
-                          || normalizeToken(a.interface) === normalizeToken(call.agent!),
-                      )
-                    : undefined;
-                  const translateStatus = (key: string, fallback?: string) => t(key, fallback ?? key);
-
-                  return (
-                    <TableRow key={call.uniqueid} data-call-id={call.uniqueid} data-status={call.status} data-testid={`supervisor-call-row-${call.uniqueid}`}>
-                      <TableCell>{i + 1}</TableCell>
-                      <TableCell>
-                        <LiveDuration call={call} kind="wait" limitSec={maxWaitSec} />
-                      </TableCell>
-                      <TableCell>
-                        <LiveDuration call={call} kind="talk" />
-                      </TableCell>
-                      <TableCell>{formatPhone(call.callerIdNum)}</TableCell>
-                      <TableCell>{queueDisplayName(call.queue, queues)}</TableCell>
-                      <TableCell>
-                        <span className={`${styles.callStatusBadge} ${callStatusBadge(call.status)}`}>
-                          {callStatusLabel(call.status, translateStatus)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {agentRow
-                          ? agentLabelWithExt(agentRow)
-                          : call.agent
-                            ? interfaceToExtension(call.agent)
-                            : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Flex align="center" gap="6" wrap="wrap">
-                          {isWaiting && (
-                            <TransferTargetPicker
-                              options={(readyTargetOptions.length > 0 ? readyTargetOptions : transferOptions).filter((o) => o.value !== call.queue && o.value !== call.agent)}
-                              triggerLabel={t('callcenter.supervisor.pickup', 'Direct')}
-                              placeholder={t('callcenter.supervisor.transferTarget', 'Target...')}
-                              onSelect={(target) => onRedirect(call, target)}
-                              testId={`call-redirect-${call.uniqueid}`}
-                            />
-                          )}
-                          {isActive && call.agent && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => onSpy(call.agent!)}
-                              data-testid={`call-spy-${call.uniqueid}`}
-                            >
-                              <Eye className="w-3.5 h-3.5 mr-1" />
-                              {t('callcenter.supervisor.spy', 'Spy')}
-                            </Button>
-                          )}
-                          {isActive && (
-                            <>
-                              <TransferTargetPicker
-                                options={transferOptions.filter((o) => o.value !== call.queue && o.value !== call.agent)}
-                                triggerLabel={t('callcenter.supervisor.transfer', 'Transfer')}
-                                placeholder={t('callcenter.supervisor.transferTarget', 'Target...')}
-                                onSelect={(target) => onRedirect(call, target)}
-                                testId={`call-transfer-${call.uniqueid}`}
-                              />
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    aria-label={t('callcenter.supervisor.moreActions', 'Actions')}
-                                    data-testid={`call-more-${call.uniqueid}`}
-                                  >
-                                    <MoreHorizontal className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => onRequestHangup(call)}
-                                  >
-                                    <PhoneOff />
-                                    {t('callcenter.supervisor.hangupCall', 'Hang up')}
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </>
-                          )}
-                        </Flex>
-                      </TableCell>
-                    </TableRow>
-                  );
+                {calls.map((call, index) => {
+                  const agent = call.agent ? agentsByToken.get(normalizeToken(call.agent)) : undefined;
+                  return <SupervisorCallRow key={call.uniqueid} call={call} index={index}
+                    agentLabel={agent ? agentLabelWithExt(agent) : call.agent ? interfaceToExtension(call.agent) : '-'}
+                    queueLabel={queueDisplayName(call.queue, queues)} maxWaitSec={maxWaitSec}
+                    readyTargetOptions={stableReadyOptions} transferOptions={stableTransferOptions} actions={actions} />;
                 })}
               </TableBody>
             </Table>

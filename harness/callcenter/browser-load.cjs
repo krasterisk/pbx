@@ -77,8 +77,8 @@ async function main() {
       catch (error) { item.error = error.name; }
       finally { clearTimeout(timer); item.endedAt = Date.now(); }
     };
-    // Six pages =>36 reads/minute, below the real global60/minute route limit.
-    setInterval(probe, 10000);
+    // Six pages =>12 reads/minute, below the observed health20/minute limit.
+    setInterval(probe, 30000);
     new MutationObserver(records => {
       const output = records.find(record => record.target instanceof HTMLElement && record.target.dataset.testid === 'callcenter-benchmark-results')?.target;
       if (!output?.textContent) return;

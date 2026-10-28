@@ -24,7 +24,7 @@ import {
 } from '@/features/callcenter/lib/supervisorUrlState';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useCallCenterSSE } from '@/features/callcenter/lib/useCallCenterSSE';
-import { subscribeStatusClock } from '@/features/callcenter/lib/statusClock';
+import { useVisibleTick } from '@/features/callcenter/lib/useVisibleTick';
 import { resolveKpiThresholds } from '@/features/callcenter/lib/kpiThresholds';
 import { sortLiveCalls } from '@/features/callcenter/lib/liveCallTiming';
 import { filterAndSortAgents } from '@/features/callcenter/lib/agentBoard';
@@ -146,18 +146,12 @@ const AgentStatusElapsed = memo(function AgentStatusElapsed({
   status,
   statusSince,
 }: Pick<IAgent, 'status' | 'statusSince'>) {
-  const [now, setNow] = useState(() => Date.now());
   const ticking = status !== 'OFFLINE' && Boolean(statusSince);
-
-  useEffect(() => {
-    if (!ticking) return;
-    return subscribeStatusClock(() => setNow(Date.now()));
-  }, [ticking]);
-
-  if (status === 'OFFLINE' || !statusSince) return '-';
+  const { ref, now } = useVisibleTick(ticking);
+  if (status === 'OFFLINE' || !statusSince) return <span ref={ref}>-</span>;
   const sinceMs = Date.parse(statusSince);
-  if (!Number.isFinite(sinceMs)) return '-';
-  return formatStatusElapsed(Math.max(0, Math.floor((now - sinceMs) / 1000)));
+  return <span ref={ref}>{Number.isFinite(sinceMs)
+    ? formatStatusElapsed(Math.max(0, Math.floor((now - sinceMs) / 1000))) : '-'}</span>;
 });
 
 function queueMatchesFilter(queueName: string, filter: Set<string>): boolean {

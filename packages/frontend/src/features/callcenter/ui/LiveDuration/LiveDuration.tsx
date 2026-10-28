@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { Text } from '@/shared/ui';
 import type { ICall } from '../../model/types/callCenterSchema';
 import { callTalkSec, callWaitSec, formatClock, isActiveCall, isPendingCall } from '../../lib/liveCallTiming';
-import { useNowTick } from '../../lib/useNowTick';
+import { useVisibleTick } from '../../lib/useVisibleTick';
 import styles from './LiveDuration.module.scss';
 
 export interface LiveDurationProps {
@@ -20,13 +20,13 @@ export interface LiveDurationProps {
  */
 export const LiveDuration = memo(function LiveDuration({ call, kind, limitSec }: LiveDurationProps) {
   const ticking = kind === 'wait' ? isPendingCall(call) : isActiveCall(call);
-  const now = useNowTick(ticking);
+  const { ref, now } = useVisibleTick(ticking);
   const sec = kind === 'wait' ? callWaitSec(call, now) : callTalkSec(call, now);
   const over = (limitSec ?? 0) > 0 && sec > (limitSec as number);
   const visible = ticking || sec > 0;
 
   return (
-    <Text
+    <span ref={ref}><Text
       as="span"
       variant="small"
       className={clsx(styles.value, over && styles.over, !visible && styles.empty)}
@@ -34,6 +34,6 @@ export const LiveDuration = memo(function LiveDuration({ call, kind, limitSec }:
       data-over={over ? 'true' : 'false'}
     >
       {visible ? formatClock(sec) : '—'}
-    </Text>
+    </Text></span>
   );
 });
