@@ -147,6 +147,8 @@ export class CallCenterStateService implements OnModuleInit {
 
   /** Per-tenant agent states. Key = `${userUid}:${agentInterface}` */
   private readonly agents = new Map<string, AgentState>();
+  /** Last wire value, not an object reference: callers can hold mutable agent rows. */
+  private readonly emittedAgentPayloads = new Map<string, string>();
 
   /** Per-tenant queue states. Key = `${userUid}:${queueName}` */
   private readonly queues = new Map<string, QueueState>();
@@ -380,7 +382,15 @@ export class CallCenterStateService implements OnModuleInit {
       ...(!updated.currentCall ? { currentCall: '' } : {}),
       ...(!updated.directCallUniqueid ? { directCallUniqueid: '' } : {}),
     };
-    this.emitEvent('agentUpdate', userUid, payload);
+    // QueueStatus reconciliation writes every member several times. Publishing
+    // unchanged rows makes every connected panel rebuild a large operator table.
+    // Compare the normalized wire value so explicit clears and genuine KPI,
+    // membership/device/status changes are retained, including in-place writes.
+    const serialized = JSON.stringify(payload);
+    if (this.emittedAgentPayloads.get(key) !== serialized) {
+      this.emittedAgentPayloads.set(key, serialized);
+      this.emitEvent('agentUpdate', userUid, payload);
+    }
 
     // Keep queue free/paused/busy counts in sync (login/pause/dial often skip AMI recalc).
     const queuesChanged =
@@ -400,6 +410,7 @@ export class CallCenterStateService implements OnModuleInit {
     const key = this.agentKey(userUid, iface);
     const existing = this.agents.get(key);
     this.agents.delete(key);
+    this.emittedAgentPayloads.delete(key);
     this.emitEvent('agentUpdate', userUid, { interface: iface, status: 'OFFLINE', removed: true });
     if (existing?.queues?.length) {
       for (const queueName of existing.queues) {

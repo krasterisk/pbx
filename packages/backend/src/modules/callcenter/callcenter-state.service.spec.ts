@@ -30,6 +30,55 @@ describe('CallCenterStateService', () => {
   });
 
   describe('setAgent', () => {
+    it('does not flood panels with unchanged QueueStatus membership snapshots', () => {
+      const events: any[] = [];
+      service.getEventStream(7).subscribe(event => events.push(event));
+      const lastCallTime = new Date('2026-10-28T07:00:00Z');
+      service.setAgent(7, 'PJSIP/101', { name: 'Alice', userId: 42, status: 'READY', queues: ['q700_7'], lastCallTime });
+      for (let index = 0; index < 600; index++) {
+        service.setAgent(7, 'PJSIP/101', { status: 'READY', queues: ['q700_7'], lastCallTime: new Date(lastCallTime) });
+      }
+      expect(events.filter(event => event.type === 'agentUpdate')).toHaveLength(1);
+      expect(service.getAgent(7, 'PJSIP/101')?.queues).toEqual(['q700_7']);
+    });
+
+    it('still emits real counter, device, membership and status changes', () => {
+      service.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'READY', queues: ['q700_7'] });
+      const events: any[] = [];
+      service.getEventStream(7).subscribe(event => { if (event.type === 'agentUpdate') events.push(event); });
+      service.setAgent(7, 'PJSIP/101', { callsTaken: 1 });
+      service.setAgent(7, 'PJSIP/101', { phoneOnline: true });
+      service.setAgent(7, 'PJSIP/101', { queues: ['q700_7', 'q701_7'] });
+      service.setAgent(7, 'PJSIP/101', { status: 'PAUSED', pauseReason: 'Lunch' });
+      service.setAgent(7, 'PJSIP/101', { status: 'READY' });
+      expect(events).toHaveLength(5);
+      expect(events.at(-1).data.pauseReason).toBeNull();
+      expect(events.at(-1).data.callsTaken).toBe(1);
+    });
+
+    it('compares previous wire content even when a caller mutated a stored row', () => {
+      const agent = service.setAgent(7, 'PJSIP/101', { name: 'Alice', status: 'READY' });
+      const events: any[] = [];
+      service.getEventStream(7).subscribe(event => events.push(event));
+      agent.callsTaken = 2;
+      service.setAgent(7, 'PJSIP/101', {});
+      expect(events).toHaveLength(1);
+      expect(events[0].data.callsTaken).toBe(2);
+    });
+
+    it('publishes a recreated agent after removal even with identical content', () => {
+      jest.useFakeTimers();
+      const state = { name: 'Alice', status: 'READY' as const };
+      service.setAgent(7, 'PJSIP/101', state);
+      service.removeAgent(7, 'PJSIP/101');
+      const events: any[] = [];
+      service.getEventStream(7).subscribe(event => events.push(event));
+      service.setAgent(7, 'PJSIP/101', state);
+      expect(events).toHaveLength(1);
+      expect(events[0].data.name).toBe('Alice');
+      jest.useRealTimers();
+    });
+
     it('explicitly clears a finished call binding in SSE JSON for merging clients', () => {
       service.setAgent(7, 'PJSIP/101', { status: 'IN_CALL', currentCall: 'ended-call' });
       const received: any[] = [];
