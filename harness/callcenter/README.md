@@ -93,7 +93,9 @@ coordinator status is completed-with-failed-gates if any browser gate failed.
 Media population, call-set identity and initial six-table readiness remain
 mandatory and stop the run on failure. Record the actual common CPU budget.
 
-Before each candidate, navigate all six owned pages to about:blank. This closes
-the previous streams without needing an HTTP slot: direct HTTP navigation from
-six SSE documents can itself stall before the old document unloads. Keep the
-same browser context and six pages; this is outside measured windows.
+Before each candidate, close all six owned page targets without beforeunload
+and recreate six pages in the same authenticated browser context. Direct HTTP
+navigation can stall behind six SSE connections; a blank-document commit can
+also wait behind an overloaded renderer. Closing owned targets frees transport
+without either dependency. Use this identical policy outside every measured
+window, preserve context/login, and never read application auth storage.

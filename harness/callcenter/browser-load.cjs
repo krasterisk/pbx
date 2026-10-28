@@ -93,7 +93,7 @@ async function main() {
   const errors = [];
   const frameTotals = Array.from({ length: 6 }, () => ({ frames: 0, bytes: 0 }));
   try {
-    for (let index = 0; index < 6; index++) {
+    async function createPage(index) {
       const page = await context.newPage();
       pages.push(page);
       const pending = new Map();
@@ -135,6 +135,7 @@ async function main() {
         socket.on('socketerror', () => { item.socketErrorAt = Date.now(); });
       });
     }
+    for (let index = 0; index < 6; index++) await createPage(index);
     step = 'login';
     await pages[0].goto(base + '/login', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await pages[0].getByLabel('Логин', { exact: true }).fill(access.supervisor.login);
@@ -146,10 +147,13 @@ async function main() {
       step = 'prepare-' + phase;
       await waitFile('prepare-' + phase + '.json');
       const transport = phase.startsWith('ws-') ? 'websocket' : 'sse';
-      // Six HTTP/1.1 SSE streams can block the next HTTP navigation itself.
-      // A local blank document needs no HTTP slot and unloads every old stream
-      // before loading the next candidate. Keep all six pages and the context.
-      await Promise.all(pages.map(page => page.goto('about:blank', { waitUntil: 'commit', timeout: 15000 })));
+      // Close owned targets without beforeunload: HTTP navigation needs a free
+      // slot with SSE, and even a blank-document commit can wait behind an
+      // overloaded renderer. Keep the authenticated context; measure six fresh
+      // pages for every candidate, with identical cache and preparation policy.
+      await Promise.all(pages.map(page => page.close({ runBeforeUnload: false })));
+      pages.length = 0;
+      for (let index = 0; index < 6; index++) await createPage(index);
       // Prepare pages sequentially: concurrent cold loads of the same large
       // module hit Chromium ERR_CACHE_WRITE_FAILURE in the isolated profile.
       // This is outside the measured window; all six stay open during load.

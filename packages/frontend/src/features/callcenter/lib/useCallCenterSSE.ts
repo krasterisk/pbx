@@ -13,14 +13,10 @@ import {
   setConnected,
   touchSseHeartbeat,
   setMyAgentInterface,
-  updateAgent,
-  updateQueue,
-  addCall,
-  updateCall,
-  removeCall,
   chatMessageReceived,
   setMonitorSession,
 } from '../model/slice/callCenterSlice';
+import { updateAgent, updateQueue, addCall, updateCall, removeCall } from '../model/slice/callCenterEventActions';
 import type { IAgent } from '../model/types/callCenterSchema';
 import { createCallCenterEventSource, type CallCenterEventSource } from './callCenterEventSource';
 
