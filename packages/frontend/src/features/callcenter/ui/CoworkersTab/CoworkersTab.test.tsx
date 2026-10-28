@@ -50,10 +50,13 @@ describe('coworker workspace density', () => {
     expect(screen.getAllByRole('row')).toHaveLength(21);
     expect(screen.queryByText('Operator 2')).not.toBeInTheDocument();
   });
-  it('keeps a short list visible without a permanent search toolbar and with four columns', () => {
+  it('keeps a short list visible with separate queue and incoming/outgoing/unanswered columns', () => {
     render(<CoworkersTab hasActiveCall={false} />);
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('columnheader')).toHaveLength(4);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(7);
+    expect(screen.getByRole('columnheader', { name: /Входящие|Incoming|callcenter.kpi.inbound/ })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /Исходящие|Outgoing|callcenter.kpi.outbound/ })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /Без ответа|Unanswered|callcenter.kpi.missedOffersShort/ })).toBeInTheDocument();
     expect(screen.getByText('Operator 2')).toBeVisible();
   });
   it('uses compact rows in a narrow panel even on a desktop viewport', () => {

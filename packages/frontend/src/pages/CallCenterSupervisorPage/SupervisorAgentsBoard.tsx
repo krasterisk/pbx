@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CellContext, ColumnDef, RowSelectionState } from '@tanstack/react-table';
-import { ChevronRight, Search, UsersRound } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, UsersRound } from 'lucide-react';
 import { Avatar, Button, Flex, HStack, Input, Table, Text, Tooltip, VStack } from '@/shared/ui';
-import { agentLabelWithExt, queueDisplayName } from '@/features/callcenter/lib/displayLabels';
+import { agentDisplayName, agentLabelWithExt, queueDisplayName } from '@/features/callcenter/lib/displayLabels';
+import { interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
 import { filterAndSortAgents } from '@/features/callcenter/lib/agentBoard';
 import { supervisorQueueSummary } from '@/features/callcenter/lib/supervisorPulse';
 import type { IAgent, ICall, IPauseReason, IQueueStats } from '@/features/callcenter/model/types/callCenterSchema';
@@ -59,12 +60,18 @@ export function SupervisorAgentsBoard({
   // TanStack cell functions are component types. Preserve the avatar callback
   // across clock ticks (supervisor-avatar A2), including image-error fallback state.
   const renderAgentNameCell = useCallback(({ row }: CellContext<IAgent, unknown>) => (
-    <Button type="button" variant="unstyled" size="none" className={styles.agentName}
+    <Button type="button" variant="unstyled" size="none" className={styles.agentName} aria-label={agentLabelWithExt(row.original)}
       onClick={() => onOpenAgent(row.original)}>
       <Avatar name={agentLabelWithExt(row.original)} src={agentAvatarSrc(row.original)} size={28} />
-      <Text as="span">{agentLabelWithExt(row.original)}</Text>
+      <VStack as="span" gap="2" className={styles.person}>
+        <Text as="span" className={styles.personName}>{agentDisplayName(row.original)}</Text>
+        <Text as="span" variant="xs" className={styles.personExtension}>{row.original.interface.startsWith('user:')
+          ? t('callcenter.supervisor.pulse.noAssignedExtension')
+          : t('callcenter.supervisor.pulse.extension', { number: interfaceToExtension(row.original.interface) })}</Text>
+      </VStack>
+      <ChevronDown size={13} className={styles.detailsArrow} aria-hidden />
     </Button>
-  ), [agentAvatarSrc, onOpenAgent]);
+  ), [agentAvatarSrc, onOpenAgent, t]);
 
   const statusCell = useCallback(({ row }: CellContext<IAgent, unknown>) => (
     <SupervisorAgentStatusMenu agent={row.original} elapsed={renderElapsed(row.original)}
@@ -119,21 +126,17 @@ export function SupervisorAgentsBoard({
           className={styles.searchInput} data-testid="supervisor-board-search" />
       </HStack>
     </Flex>
-    {watchedCount === 0 ? <VStack gap="12" align="center" className={styles.empty}>
-      <Text variant="muted">{t('callcenter.supervisor.pulse.emptyTeam')}</Text>
-      <Button variant="outline" onClick={onOpenWatchlist}>{t('callcenter.supervisor.pulse.teamMembers')}</Button>
-    </VStack> : <>
+    <>
       <Table data={visible} columns={columns} getRowId={agent => agent.interface}
         getRowTestId={agent => `supervisor-agent-row-${agent.interface}`}
         className={styles.operatorTable} surface={false} showSearch={false} showExport={false}
-        emptyText={t('callcenter.supervisor.queueOverview.noMatchingAgents', 'No operators found')} />
-      {agents.length === 0 && onClearQueueFilter && <Button variant="ghost" size="sm" onClick={onClearQueueFilter}>
+        emptyText={watchedCount === 0 ? t('callcenter.supervisor.pulse.emptyTeam') : t('callcenter.supervisor.queueOverview.noMatchingAgents', 'No operators found')} />
+      {watchedCount > 0 && agents.length === 0 && onClearQueueFilter && <Button variant="ghost" size="sm" onClick={onClearQueueFilter}>
         {t('callcenter.supervisor.pulse.clearQueueFilter')}
       </Button>}
-      <Flex justify="between" gap="8" wrap="wrap" className={styles.tableNote}>
-        <Text variant="xs">{t('callcenter.supervisor.pulse.tableHint')}</Text>
+      <Flex justify="end" gap="8" wrap="wrap" className={styles.tableNote}>
         <Text variant="xs">{t('callcenter.supervisor.pulse.agentDayScope')}</Text>
       </Flex>
-    </>}
+    </>
   </VStack>;
 }

@@ -21,6 +21,16 @@ beforeEach(() => {
   data.unwrap.mockReset().mockResolvedValue({ success: true });
 });
 describe('queue pickup', () => {
+  it('filters current calls without hiding the queue summary or breaking pickup', () => {
+    render(<WaitingTab />);
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'no-such-caller' } });
+    expect(screen.getAllByRole('row')).toHaveLength(1);
+    expect(screen.getByRole('status')).toHaveTextContent('No results found');
+    expect(screen.queryByRole('button', { name: 'Pick' })).toBeNull();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '204' } });
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Pick' })).toBeEnabled();
+  });
   it('disables repeat actions until the server responds', async () => {
     let finish!: () => void;
     data.unwrap.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));

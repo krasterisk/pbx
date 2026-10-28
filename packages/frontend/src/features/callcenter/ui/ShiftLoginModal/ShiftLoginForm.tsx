@@ -6,7 +6,9 @@ import {
   Button,
   Label,
   Select,
-  Input,
+  VStack,
+  HStack,
+  SearchableSelect,
   Text,
   RadioCards,
   MultiSelect,
@@ -24,8 +26,11 @@ import {
   saveLastShiftQueues,
 } from '@/features/callcenter/lib/shiftLoginQueues';
 import type { IEndpointCredentials } from '@/shared/api/endpoints/endpointApi';
-import { buildWebrtcSipId, extractExtension, interfaceToExtension } from '@/features/endpoints/lib/endpointIds';
+import { extractExtension } from '@/features/endpoints/lib/endpointIds';
 import { selectCcAgents } from '@/features/callcenter/model/selectors/callCenterSelectors';
+import { useGetTransferDirectoryQuery } from '@/shared/api/endpoints/callCenterApi';
+import { shiftEndpointUnavailable } from '../../lib/shiftEndpointEligibility';
+import { Progress } from '@/shared/ui/Progress/Progress';
 import styles from './ShiftLoginModal.module.scss';
 
 export type SoftphoneMode = 'sip' | 'webrtc';
@@ -80,29 +85,38 @@ export function ShiftLoginForm({
   const agents = useSelector(selectCcAgents);
   const [mode, setMode] = useState<SoftphoneMode>('sip');
   const [sipId, setSipId] = useState('');
-  const [endpointSearch, setEndpointSearch] = useState('');
   const [queues, setQueues] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const micRunRef = useRef(0);
   const [micLevel, setMicLevel] = useState(0);
 
-  const { data: endpoints = [] } = useGetEndpointsQuery(undefined, { skip: !open });
+  // Six tabs at 15s exceed the API's 20/min limit; submission still rechecks live eligibility.
+  const { data: endpoints = [], isLoading: endpointsLoading, isError: endpointsError, refetch: refreshEndpoints } = useGetEndpointsQuery(undefined, { skip: !open, pollingInterval: 30_000, refetchOnFocus: true });
+  const { data: directory, isLoading: directoryLoading, isError: directoryError, refetch: refreshDirectory } = useGetTransferDirectoryQuery(undefined, { skip: !open, pollingInterval: 30_000, refetchOnFocus: true });
   const { data: queueList = [] } = useGetQueuesQuery(undefined, { skip: !open });
   const [fetchCredentials] = useLazyGetEndpointCredentialsQuery();
+  const agentsRef = useRef(agents);
+  agentsRef.current = agents;
+  const eligibilityPending = endpointsLoading || directoryLoading;
+  const eligibilityError = endpointsError || directoryError;
+  const unavailableLabel = useCallback((reason: string) => t(`callcenter.softphone.unavailable.${reason}`), [t]);
+  const endpointOptions = useMemo(() => endpoints
+    .filter(endpoint => shiftEndpointUnavailable(endpoint, mode, agents, directory?.endpoints) === null)
+    .map(endpoint => {
+    const name = (endpoint.callerid || '').match(/^"(.+?)"/)?.[1];
+    const extension = endpoint.extension || extractExtension(endpoint.id) || endpoint.id;
+    const label = name ? `${name} (${extension})` : extension;
+    return { value: endpoint.id, label };
+  }), [endpoints, mode, agents, directory?.endpoints]);
 
-  /** extension → display name of the operator currently on shift (SIP or WebRTC). */
-  const occupiedByExten = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const agent of agents) {
-      if (!agent.userId || agent.status === 'OFFLINE') continue;
-      if (!agent.interface || agent.interface.startsWith('user:')) continue;
-      const exten = interfaceToExtension(agent.interface) || extractExtension(agent.interface);
-      if (!exten) continue;
-      const name = (agent.name || '').trim() || `#${agent.userId}`;
-      map.set(exten, name);
+  useEffect(() => {
+    if (!sipId || eligibilityPending || eligibilityError) return;
+    if (!endpointOptions.some(endpoint => endpoint.value === sipId)) {
+      setSipId('');
     }
-    return map;
-  }, [agents]);
+  }, [sipId, endpointOptions, eligibilityPending, eligibilityError]);
   const {
     microphones,
     speakers,
@@ -171,6 +185,7 @@ export function ShiftLoginForm({
   );
 
   const stopMicMeter = useCallback(() => {
+    micRunRef.current += 1;
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -185,6 +200,7 @@ export function ShiftLoginForm({
 
   const startMicMeter = useCallback(async (deviceId: string) => {
     stopMicMeter();
+    const run = micRunRef.current;
     setMicError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -193,8 +209,10 @@ export function ShiftLoginForm({
           : true,
         video: false,
       });
+      if (run !== micRunRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
       streamRef.current = stream;
       await refresh();
+      if (run !== micRunRef.current) return;
 
       const ctx = new AudioContext();
       audioCtxRef.current = ctx;
@@ -215,6 +233,7 @@ export function ShiftLoginForm({
       };
       tick();
     } catch {
+      if (run !== micRunRef.current) return;
       setMicError(t('callcenter.softphone.micDenied'));
       stopMicMeter();
     }
@@ -256,46 +275,29 @@ export function ShiftLoginForm({
     });
   }, [open, queueOptions]);
 
-  const resolveWebrtcSipId = async (endpointId: string): Promise<string | null> => {
-    const fromList = endpoints.find((e) => e.id === endpointId);
-    if (fromList?.webrtc?.id) return fromList.webrtc.id;
-    const derived = buildWebrtcSipId(endpointId);
-    if (fromList?.webrtc_enabled && derived) return derived;
-    try {
-      const allCreds = await fetchCredentials(endpointId).unwrap();
-      return allCreds.webrtc?.sipId || null;
-    } catch {
-      return derived;
-    }
-  };
-
   const handleConfirm = async () => {
-    if (!sipId || submitting) return;
+    if (!open || !sipId || submitting || (mode === 'webrtc' && !remoteAgent && micError)) return;
     const endpoint = endpoints.find((e) => e.id === sipId);
     if (!endpoint) return;
 
-    if (!isQueuesSelectionValid(queues)) {
-      setMicError(t('callcenter.softphone.queuesRequired'));
-      return;
-    }
-
-    const selectedExten = endpoint.extension || extractExtension(endpoint.id) || endpoint.id;
-    const occupant = occupiedByExten.get(selectedExten);
-    if (occupant) {
-      setMicError(
-        t('callcenter.softphone.extensionInUse', {
-          exten: selectedExten,
-          name: occupant,
-          defaultValue:
-            'Номер {{exten}} уже занят оператором {{name}}. Завершите его смену или выберите другой номер.',
-        }),
-      );
+    if (!isQueuesSelectionValid(queues) || queues.some(queue => !queueOptions.some(option => option.value === queue))) {
+      setFormError(t('callcenter.softphone.queuesRequired'));
       return;
     }
 
     setSubmitting(true);
-    setMicError(null);
+    setFormError(null);
     try {
+      // Do not act on a cached choice: refresh registration and BLF before credentials/login.
+      const [freshEndpoints, freshDirectory] = await Promise.all([refreshEndpoints(), refreshDirectory()]);
+      if (!freshEndpoints.data || freshEndpoints.error || !freshDirectory.data || freshDirectory.error) {
+        setFormError(t('callcenter.softphone.availabilityFailed'));
+        return;
+      }
+      const current = freshEndpoints.data.find(item => item.id === sipId);
+      if (!current) { setFormError(t('callcenter.softphone.availabilityFailed')); return; }
+      const reason = shiftEndpointUnavailable(current, mode, agentsRef.current, freshDirectory.data.endpoints);
+      if (reason) { setFormError(unavailableLabel(reason)); return; }
       if (mode === 'sip') {
         await onConfirm({
           mode: 'sip',
@@ -305,9 +307,9 @@ export function ShiftLoginForm({
           endpointId: endpoint.id,
         });
       } else if (remoteAgent) {
-        const webrtcId = await resolveWebrtcSipId(endpoint.id);
+        const webrtcId = current.webrtc?.id;
         if (!webrtcId) {
-          setMicError(
+          setFormError(
             t(
               'callcenter.softphone.webrtcNotEnabled',
               'У абонента не включён WebRTC-клиент. Включите галку в карточке абонента.',
@@ -328,8 +330,8 @@ export function ShiftLoginForm({
           setSubmitting(false);
           return;
         }
-        if (!endpoint.webrtc_enabled && !endpoint.webrtc?.id) {
-          setMicError(
+        if (!current.webrtc_enabled && !current.webrtc?.id) {
+          setFormError(
             t(
               'callcenter.softphone.webrtcNotEnabled',
               'У абонента не включён WebRTC-клиент. Включите галку в карточке абонента.',
@@ -342,7 +344,7 @@ export function ShiftLoginForm({
         const allCreds = await fetchCredentials(endpoint.id).unwrap();
         const w = allCreds.webrtc;
         if (!w) {
-          setMicError(
+          setFormError(
             t(
               'callcenter.softphone.webrtcNotEnabled',
               'У абонента не включён WebRTC-клиент. Включите галку в карточке абонента.',
@@ -351,6 +353,8 @@ export function ShiftLoginForm({
           setSubmitting(false);
           return;
         }
+        const latestReason = shiftEndpointUnavailable(current, mode, agentsRef.current, freshDirectory.data.endpoints);
+        if (latestReason) { setFormError(unavailableLabel(latestReason)); return; }
         const webrtcId = w.sipId;
         await onConfirm({
           mode: 'webrtc',
@@ -375,149 +379,75 @@ export function ShiftLoginForm({
     } catch (err: unknown) {
       const data = (err as { data?: { message?: string | string[] }; message?: string })?.data;
       const raw = data?.message ?? (err as { message?: string })?.message;
+      const translateMessage = (message: string) =>
+        message === 'Disconnect the ordinary telephone session first'
+          ? t('callcenter.softphone.ordinaryPhoneSessionActive')
+          : message;
       const msg = Array.isArray(raw)
-        ? raw.join(', ')
-        : (raw || t('callcenter.softphone.extensionInUseFallback', 'Этот номер уже занят другим оператором'));
-      setMicError(String(msg));
+        ? raw.map(translateMessage).join(', ')
+        : (raw ? translateMessage(raw) : t('callcenter.softphone.extensionInUseFallback', 'Этот номер уже занят другим оператором'));
+      setFormError(String(msg));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const selectedEndpoint = endpoints.find((ep) => ep.id === sipId);
-  const incompatibleWebrtc = mode === 'webrtc' && !!selectedEndpoint && !selectedEndpoint.webrtc_enabled && !selectedEndpoint.webrtc?.id;
-  const canSubmit = Boolean(sipId) && !submitting && !incompatibleWebrtc && (mode !== 'webrtc' || remoteAgent || !micError);
+  const selectedEndpoint = endpoints.find(ep => ep.id === sipId);
+  const selectedUnavailable = selectedEndpoint ? shiftEndpointUnavailable(selectedEndpoint, mode, agents, directory?.endpoints) : null;
+  const canSubmit = !!selectedEndpoint && !submitting && !eligibilityPending && !eligibilityError && !selectedUnavailable
+    && isQueuesSelectionValid(queues) && queues.every(queue => queueOptions.some(option => option.value === queue)) && (mode !== 'webrtc' || remoteAgent || !micError);
 
   return (
-    <div className={styles.body} data-testid="shift-login-form">
-
-          {subtitle && (
-            <Text variant="muted" className="text-xs">
-              {subtitle}
-            </Text>
-          )}
-          {incompatibleWebrtc && <Text role="alert" variant="muted">{t('callcenter.softphone.webrtcNotEnabled')}</Text>}
-          <RadioCards
-            options={modeOptions}
-            value={mode}
-            onChange={(v) => {
-              setMode(v as SoftphoneMode);
-              setMicError(null);
-            }}
-          />
-
-          <Label className={styles.field}>
-            <Text variant="muted" className="text-xs mb-1">
-              {t('callcenter.softphone.selectExtension')}
-            </Text>
-            <Input value={endpointSearch} onChange={(e) => setEndpointSearch(e.target.value)} aria-label={t('callcenter.softphone.searchExtension', 'Search by name or extension')} placeholder={t('callcenter.softphone.searchExtension', 'Search by name or extension')} />
-            <Select
-              aria-label={t('callcenter.softphone.selectExtension')}
-              value={sipId}
-              onChange={(e) => {
-                setSipId(e.target.value);
-                setMicError(null);
-              }}
-            >
-              <option value="">{t('callcenter.softphone.selectExtension')}</option>
-              {endpoints.filter((ep) => ep.id === sipId || `${ep.extension} ${ep.callerid} ${ep.id}`.toLowerCase().includes(endpointSearch.toLowerCase())).map((ep) => {
-                const cidMatch = (ep.callerid || '').match(/^"(.+?)"/);
-                const cidName = cidMatch?.[1];
-                const exten = ep.extension || extractExtension(ep.id) || ep.id;
-                const baseLabel = cidName
-                  ? `${cidName} (${exten})`
-                  : exten;
-                const occupant = occupiedByExten.get(exten);
-                const label = occupant
-                  ? t('callcenter.softphone.extensionOccupiedOption', {
-                      label: baseLabel,
-                      name: occupant,
-                      defaultValue: '{{label}} - занят ({{name}})',
-                    })
-                  : baseLabel;
-                return (
-                  <option key={ep.id} value={ep.id} disabled={Boolean(occupant) || (mode === 'webrtc' && !ep.webrtc_enabled && !ep.webrtc?.id)}>
-                    {label}{mode === 'webrtc' && !ep.webrtc_enabled && !ep.webrtc?.id ? ` — ${t('callcenter.softphone.webrtcDisabledOption')}` : ''}
-                  </option>
-                );
-              })}
-            </Select>
-          </Label>
-
-          <Label className={styles.field}>
-            <Text variant="muted" className="text-xs mb-1">
-              {t('callcenter.softphone.selectQueues')}
-            </Text>
-            <MultiSelect
-              options={queueOptions}
-              value={queues}
-              onChange={(next) => {
-                setQueues(next);
-                setMicError(null);
-              }}
-              placeholder={t('callcenter.softphone.selectQueues')}
-            />
-          </Label>
-
-          {mode === 'webrtc' && !remoteAgent && (
-            <div className={styles.audioSection}>
-              <Label className={styles.field}>
-                <Text variant="muted" className="text-xs mb-1">
-                  {t('callcenter.softphone.microphone')}
-                </Text>
-                <Select
-                  value={selectedMic}
-                  onChange={(e) => setSelectedMic(e.target.value)}
-                >
-                  <option value="default">{t('callcenter.softphone.deviceN', { n: 1 })}</option>
-                  {microphones.map((d, i) => (
-                    <option key={d.deviceId || i} value={d.deviceId}>
-                      {audioDeviceLabel(d, i, 'mic')}
-                    </option>
-                  ))}
-                </Select>
-              </Label>
-
-              <div className={styles.micMeter}>
-                <Text variant="muted" className="text-xs mb-1">
-                  {t('callcenter.softphone.micLevel')}
-                </Text>
-                <div className={styles.micMeterTrack}>
-                  <div
-                    className={styles.micMeterFill}
-                    style={{ width: `${Math.round(micLevel * 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              <Label className={styles.field}>
-                <Text variant="muted" className="text-xs mb-1">
-                  {t('callcenter.softphone.speaker')}
-                </Text>
-                <Select
-                  value={selectedSpeaker}
-                  onChange={(e) => setSelectedSpeaker(e.target.value)}
-                >
-                  <option value="default">{t('callcenter.softphone.deviceN', { n: 1 })}</option>
-                  {speakers.map((d, i) => (
-                    <option key={d.deviceId || i} value={d.deviceId}>
-                      {audioDeviceLabel(d, i, 'speaker')}
-                    </option>
-                  ))}
-                </Select>
-              </Label>
-            </div>
-          )}
-
-          {micError && (
-            <Text className={styles.error}>{micError}</Text>
-          )}
-
+    <VStack align="stretch" max className={styles.body} data-testid="shift-login-form">
+      {subtitle && <Text variant="muted">{subtitle}</Text>}
+      <VStack align="stretch" gap="8" className={styles.section}>
+        <Text as="h2" className={styles.sectionTitle}>{t('callcenter.softphone.deviceTitle')}</Text>
+        <RadioCards options={modeOptions} disabled={submitting} value={mode} onChange={v => { setMode(v as SoftphoneMode); setMicError(null); setFormError(null); }} />
+      </VStack>
+      <VStack align="stretch" gap="16" className={styles.section}>
+        <VStack align="stretch" gap="8" max>
+          <Label htmlFor="shift-endpoint">{t('callcenter.softphone.selectExtension')}</Label>
+          <SearchableSelect id="shift-endpoint" value={sipId} onChange={value => { setSipId(value); setFormError(null); }}
+            options={endpointOptions} label={t('callcenter.softphone.selectExtension')}
+            searchLabel={t('callcenter.softphone.searchExtension')} emptyLabel={t('common.noResults')}
+            disabled={submitting || eligibilityPending || eligibilityError} />
+          {selectedUnavailable && <Text role="status" className={styles.error}>{unavailableLabel(selectedUnavailable)}</Text>}
+        </VStack>
+        <VStack align="stretch" gap="8" max>
+          <Text variant="small">{t('callcenter.softphone.selectQueues')}</Text>
+          <MultiSelect ariaLabel={t('callcenter.softphone.selectQueues')} options={queueOptions} value={queues} onChange={next => { if (!submitting) { setQueues(next); setFormError(null); } }}
+            placeholder={t('callcenter.softphone.selectQueues')} />
+        </VStack>
+      </VStack>
+      {eligibilityError && <HStack gap="8" wrap="wrap" role="alert">
+        <Text className={styles.error}>{t('callcenter.softphone.availabilityFailed')}</Text>
+        <Button type="button" variant="outline" size="sm" onClick={() => { void refreshEndpoints(); void refreshDirectory(); }}>{t('common.retry')}</Button>
+      </HStack>}
+      {mode === 'webrtc' && !remoteAgent && <VStack align="stretch" gap="12" className={styles.audioSection}>
+        <Text as="h2" className={styles.sectionTitle}>{t('callcenter.softphone.headsetTitle')}</Text>
+        <HStack gap="12" align="start" className={styles.audioFields}>
+          <VStack align="stretch" gap="8" className={styles.field}>
+            <Label htmlFor="shift-mic">{t('callcenter.softphone.microphone')}</Label>
+            <Select id="shift-mic" value={selectedMic} onChange={e => setSelectedMic(e.target.value)}
+              options={[{ value: 'default', label: t('callcenter.softphone.defaultDevice') }, ...microphones.map((device, index) => ({ value: device.deviceId, label: audioDeviceLabel(device, index, 'mic') }))]} />
+          </VStack>
+          <VStack align="stretch" gap="8" className={styles.field}>
+            <Label htmlFor="shift-speaker">{t('callcenter.softphone.speaker')}</Label>
+            <Select id="shift-speaker" value={selectedSpeaker} onChange={e => setSelectedSpeaker(e.target.value)}
+              options={[{ value: 'default', label: t('callcenter.softphone.defaultDevice') }, ...speakers.map((device, index) => ({ value: device.deviceId, label: audioDeviceLabel(device, index, 'speaker') }))]} />
+          </VStack>
+        </HStack>
+        <Progress value={Math.round(micLevel * 100)} tone="success" aria-label={t('callcenter.softphone.micLevel')} />
+      </VStack>}
+      {micError && mode === 'webrtc' && !remoteAgent && <Text role="alert" className={styles.error}>{micError}</Text>}
+      {formError && <Text role="alert" className={styles.error}>{formError}</Text>}
       {renderFooter ? renderFooter({ submit: () => void handleConfirm(), canSubmit, submitting }) : (
-        <Button onClick={() => void handleConfirm()} disabled={!canSubmit} data-testid="shift-login-submit">
-          {t('callcenter.softphone.startShift')}
+        <Button className={styles.submit} onClick={() => void handleConfirm()} disabled={!canSubmit} data-testid="shift-login-submit">
+          {t(submitting
+            ? mode === 'webrtc' && !remoteAgent ? 'callcenter.softphone.connecting' : 'callcenter.softphone.startingShift'
+            : 'callcenter.softphone.startShift')}
         </Button>
       )}
-    </div>
+    </VStack>
   );
 }

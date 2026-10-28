@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { PhoneIncoming, Phone, Users, Hand, Headphones } from 'lucide-react';
-import { Button, Text, Flex } from '@/shared/ui';
+import { Button, Text, Flex, Input } from '@/shared/ui';
 import {
   useAgentPickCallMutation,
   useGetMyOperatorSettingsQuery,
@@ -45,11 +45,25 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
   const pickingRef = useRef(false);
   const [picking, setPicking] = useState<string | null>(null);
   const [pickError, setPickError] = useState('');
+  const [search, setSearch] = useState('');
 
   const monitorCalls = useMemo(() => {
     if (!myAgent) return [];
     return allMonitorCalls.filter((c) => myAgent.queues.includes(c.queue));
   }, [allMonitorCalls, myAgent]);
+
+  const filteredCalls = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    if (!query) return monitorCalls;
+    return monitorCalls.filter(call => {
+      const agent = agents.find(item => item.interface === call.agent);
+      const status = call.status === 'HOLD' ? t('callcenter.agent.onHold', 'Hold')
+        : call.status === 'TALKING' ? t('callcenter.agent.talking', 'talking')
+          : call.status === 'RINGING' ? t('callcenter.agent.ringing', 'Ringing') : t('callcenter.agent.waiting_lbl', 'waiting');
+      return [callerDisplayLabel(call.callerIdNum, call.callerIdName), queueDisplayName(call.queue, queues),
+        agent ? agentDisplayName(agent) : interfaceToExtension(call.agent || ''), status].join(' ').toLocaleLowerCase().includes(query);
+    });
+  }, [search, monitorCalls, agents, queues, t]);
 
   const totalWaiting = useMemo(() => monitorCalls.filter((c) => c.status === 'WAITING' || c.status === 'RINGING').length, [monitorCalls]);
   const totalTalking = useMemo(() => monitorCalls.filter((c) => c.status === 'TALKING' || c.status === 'HOLD').length, [monitorCalls]);
@@ -104,7 +118,11 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
 
   return (
     <div className={styles.wrap} data-testid="waiting-tab">
-      {stats}
+      <Flex justify="between" align="center" wrap="wrap" gap="12" className={styles.toolbar}>
+        {stats}
+        {monitorCalls.length > 0 && <Input type="search" value={search} onChange={event => setSearch(event.target.value)}
+          aria-label={t('common.search', 'Search')} placeholder={t('common.search', 'Search')} className={styles.search} />}
+      </Flex>
 
       {(pickError || myAgent?.pickupFailed) && <Text variant="error" role="alert">{pickError || t('callcenter.agent.pickCallNoAnswer', 'Your phone did not answer. The caller is still waiting in the queue.')}</Text>}
 
@@ -118,7 +136,7 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
         </div>
       ) : (
         <div className={styles.tableWrap}>
-          <Table className={styles.table}>
+          <Table surface={false} className={styles.table} wrapperClassName={styles.tableSurface} showSearch={false} showExport={false}>
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
@@ -131,7 +149,7 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {monitorCalls.map((call, i) => {
+              {filteredCalls.map((call, i) => {
                 const isTalking = call.status === 'TALKING' || call.status === 'HOLD';
                 const waitSec = Math.floor((Date.now() - new Date(call.enterTime).getTime()) / 1000);
                 const canPick = !isTalking
@@ -196,6 +214,7 @@ export function WaitingTab({ summaryOnly = false }: { summaryOnly?: boolean } = 
               })}
             </TableBody>
           </Table>
+          {filteredCalls.length === 0 && <Text role="status" variant="muted">{t('common.noResults', 'No results found')}</Text>}
         </div>
       )}
     </div>

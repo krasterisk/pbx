@@ -91,6 +91,15 @@ function mockPhone(over: Record<string, unknown> = {}) {
 }
 
 describe('SoftphoneWidget', () => {
+  it('uses an external handset launcher without rendering another launcher and still opens the shared panel', () => {
+    const phone = mockPhone();
+    const view = render(<SoftphoneWidget phone={phone as any} hideLauncher panelOpen={false} />);
+    expect(screen.queryByTestId('softphone-widget-trigger')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('softphone-widget-panel')).not.toBeInTheDocument();
+    view.rerender(<SoftphoneWidget phone={phone as any} hideLauncher panelOpen />);
+    expect(screen.getByTestId('softphone-widget-panel')).toBeInTheDocument();
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+  });
   beforeEach(() => {
     vi.useRealTimers();
     vi.mocked(loadDialBuffer).mockReturnValue(null);
@@ -98,6 +107,84 @@ describe('SoftphoneWidget', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('embeds the same dial transport without a launcher or floating window', async () => {
+    const phone = mockPhone();
+    const started = vi.fn();
+    render(<SoftphoneWidget variant="embedded" phone={phone} mode="webrtc" onOutboundDialStarted={started} />);
+    expect(screen.getByTestId('softphone-embedded')).toBeInTheDocument();
+    expect(screen.queryByTestId('softphone-widget-trigger')).toBeNull();
+    expect(screen.queryByTestId('softphone-widget-sticky')).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'callcenter.softphone.dialPlaceholder' }), { target: { value: '202' } });
+    fireEvent.click(screen.getByRole('button', { name: 'callcenter.softphone.dial' }));
+    await act(async () => {});
+    expect(phone.makeCall).toHaveBeenCalledExactlyOnceWith('202');
+    expect(started).toHaveBeenCalledExactlyOnceWith('202');
+    expect(screen.queryByTestId('softphone-widget-panel')).toBeNull();
+  });
+
+  it('receives WebRTC calls in one inline answer area and uses the supplied handler', async () => {
+    const phone = mockPhone({ status: 'ringing', callInfo: { from: '202' } });
+    const view = render(<SoftphoneWidget variant="embedded" phone={phone} mode="webrtc" />);
+    expect(screen.getAllByRole('button', { name: 'callcenter.softphone.answer' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'callcenter.softphone.answer' }));
+    expect(phone.acceptCall).toHaveBeenCalledTimes(1);
+    view.rerender(<SoftphoneWidget variant="embedded" phone={phone} mode="webrtc" answering />);
+    expect(screen.getByRole('button', { name: 'callcenter.softphone.answer' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'callcenter.softphone.reject' })).toBeDisabled();
+  });
+
+  it('keeps SIP answer on the device and never exposes a WebRTC answer action', () => {
+    const phone = mockPhone({ status: 'ringing', callInfo: { from: '202' } });
+    render(<SoftphoneWidget variant="embedded" phone={phone} mode="sip" />);
+    expect(screen.getByText('callcenter.softphone.answerOnDeviceInboundHint')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'callcenter.softphone.answer' })).toBeNull();
+    expect(screen.queryByTestId('softphone-device-picker')).toBeNull();
+    expect(phone.acceptCall).not.toHaveBeenCalled();
+  });
+
+  it('retains controls, DTMF, conference and audio tools without duplicating answer or hangup', async () => {
+    const phone = mockPhone({ status: 'in-call', callInfo: { from: '202' } });
+    render(<SoftphoneWidget variant="embedded" phone={phone} mode="webrtc" activeCallUniqueid="call1"
+      callControls={<button onClick={phone.hangup}>Hang up here</button>} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Hang up here' }));
+    expect(phone.hangup).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Add to conference' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'callcenter.softphone.dtmf' }));
+    fireEvent.click(screen.getByRole('button', { name: '5' }));
+    expect(phone.sendDtmf).toHaveBeenCalledWith('5');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'callcenter.softphone.tools' }));
+    expect(await screen.findByTestId('softphone-device-picker')).toBeInTheDocument();
+    expect(screen.getByTestId('softphone-tab-contacts')).toBeInTheDocument();
+    expect(screen.getByTestId('softphone-tab-journal')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'callcenter.softphone.answer' })).toBeNull();
+  });
+
+  it('bridges pending click-to-call once and keeps the page open', async () => {
+    const phone = mockPhone();
+    const consumed = vi.fn();
+    const started = vi.fn();
+    render(<SoftphoneWidget variant="embedded" phone={phone} mode="sip" pendingOutboundDial="203"
+      onOutboundDialConsumed={consumed} onOutboundDialStarted={started} />);
+    await act(async () => {});
+    expect(phone.makeCall).toHaveBeenCalledExactlyOnceWith('203');
+    expect(consumed).toHaveBeenCalledTimes(1);
+    expect(started).toHaveBeenCalledExactlyOnceWith('203');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('does not dial pending targets during wrap-up and retries when dialing is allowed', async () => {
+    const phone = mockPhone();
+    const consumed = vi.fn();
+    const view = render(<SoftphoneWidget variant="embedded" phone={phone} dialAllowed={false} pendingOutboundDial="204" onOutboundDialConsumed={consumed} />);
+    expect(phone.makeCall).not.toHaveBeenCalled();
+    expect(consumed).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'callcenter.softphone.dial' })).toBeDisabled();
+    view.rerender(<SoftphoneWidget variant="embedded" phone={phone} dialAllowed pendingOutboundDial="204" onOutboundDialConsumed={consumed} />);
+    await act(async () => {});
+    expect(phone.makeCall).toHaveBeenCalledExactlyOnceWith('204');
   });
 
   it('renders chrome-only shell with three Tabs (no fab)', async () => {

@@ -1,0 +1,18 @@
+.root {
+  position: relative;
+  flex: 0 1 auto;
+  width: 44px;
+  min-width: 44px;
+  height: 42px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  transition: width 160ms ease;
+}
+
+.trigger.trigger { width: 42px; height: 40px; flex-shrink: 0; color: var(--color-muted-foreground); }
+.expanded { width: min(420px, 40vw); background: var(--color-card); border-color: var(--color-border); }
+.expanded:focus-within { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.expanded .trigger { background: transparent; }
+.field { flex: 1; min-width: 0; }
+
+@media (prefers-reduced-motion: reduce) { .root { transition: none; } }

@@ -1,279 +1,68 @@
-/* AgentStatusBar - operator cockpit (D-03/D-11/D-12/D-13/D-14).
-   Same shell as the legacy .statusBar in CallCenterAgentPage.module.scss;
-   design tokens: var(--color-*) from globals.css @theme. */
 
-.bar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 56px;
-  padding: 8px 20px;
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  overflow: visible;
-}
-
-.barMain {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  width: 100%;
-}
-
-.controlsRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding-top: 4px;
-  border-top: 1px solid var(--color-border);
-}
-
-.barWithControls {
-  min-height: auto;
-}
-
-/* ─── Status pill (9 statuses, D-13) ─── */
-
-.pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: var(--radius-lg);
-  font-weight: 600;
-  font-size: 0.875rem;
-  border: 1px solid transparent;
-}
-
-.pillDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  animation: agentStatusPulse 2s infinite;
-}
-
-@keyframes agentStatusPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.pill_success {
-  background: color-mix(in srgb, var(--color-success) 12%, transparent);
-  color: color-mix(in srgb, var(--color-success) 50%, var(--color-foreground));
-  border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
-
-  .pillDot { background: var(--color-success); }
-}
-
-.pill_warning {
-  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-  color: color-mix(in srgb, var(--color-warning) 50%, var(--color-foreground));
-  border-color: color-mix(in srgb, var(--color-warning) 25%, transparent);
-
-  .pillDot { background: var(--color-warning); animation: none; }
-}
-
-.pill_destructive {
-  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
-  color: color-mix(in srgb, var(--color-destructive) 50%, var(--color-foreground));
-  border-color: color-mix(in srgb, var(--color-destructive) 25%, transparent);
-
-  .pillDot { background: var(--color-destructive); }
-}
-
-.pill_info {
-  background: color-mix(in srgb, var(--color-info) 12%, transparent);
-  color: color-mix(in srgb, var(--color-info) 50%, var(--color-foreground));
-  border-color: color-mix(in srgb, var(--color-info) 25%, transparent);
-
-  .pillDot { background: var(--color-info); animation: none; }
-}
-
-.pill_muted {
-  background: color-mix(in srgb, var(--color-muted-foreground) 12%, transparent);
-  color: var(--color-muted-foreground);
-  border-color: color-mix(in srgb, var(--color-muted-foreground) 25%, transparent);
-
-  .pillDot { background: var(--color-muted-foreground); animation: none; }
-}
-
-.pauseReason {
-  font-size: 0.75rem;
-}
-
-/* ─── Active-call indicator (D-14, "maximally informative") — replaces the
-   pill area while a call is in progress. ─── */
-
-.activeCallIndicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-destructive) 25%, transparent);
-}
-
-.activeCallTag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--color-destructive) 50%, var(--color-foreground));
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.activeCallCaller {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-foreground);
-}
-
-/* ─── Name / timer / queue chips ─── */
-
-.agentName {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--color-foreground);
-}
-
-.agentExt {
-  font-size: 0.75rem;
-  color: var(--color-muted-foreground);
-  margin-left: 4px;
-}
-
-.statusTimer {
-  font-size: 0.8rem;
-  color: var(--color-muted-foreground);
-  font-variant-numeric: tabular-nums;
-}
-
-.detachedBadge {
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, #e8c96a 18%, transparent);
-  color: color-mix(in srgb, #9a7a28 55%, var(--color-foreground));
-  white-space: nowrap;
-}
-
-.kpiGroup {
-  display: flex;
-  align-items: center;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.kpiCounter {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 52px;
-}
-
-.kpiValue {
-  font-size: 0.875rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-foreground);
-  line-height: 1.2;
-}
-
-.kpiSep {
-  margin: 0 2px;
-  color: var(--color-muted-foreground);
-  font-weight: 500;
-}
-
-.kpiLabel {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--color-muted-foreground);
-  text-transform: lowercase;
-}
-
-.shiftActions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.shiftActions :global(button) {
-  flex: 0 1 auto;
-  white-space: nowrap;
-}
-
-.outboundToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 4px 10px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease;
-
-  &:hover {
-    background: var(--color-accent);
-  }
-
-  &:has(:global([data-state='checked'])) {
-    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-card));
-  }
-}
-
-.outboundToggleLabel {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--color-foreground);
-}
-
-.inlineControls {
-  margin-left: 4px;
-}
-
-/* ─── Right side: shift actions + trailing + connection ─── */
-
-.barRight {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-
-.timerWarn {
-  color: var(--color-warning, #b45309);
-  font-weight: 600;
-}
-
-.timerOver {
-  color: var(--color-destructive, #dc2626);
-  font-weight: 600;
-}
-
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+.bar { padding: 0; gap: 12px; width: 100%; }
+.bar.compact .barMain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.bar.compact .kpiGroup { display: flex; flex-wrap: wrap; align-items: baseline; width: auto; gap: 12px 24px; margin-left: auto; }
+.bar.compact .kpiCounter { flex-direction: row; align-items: baseline; gap: 8px; padding: 0; min-height: 0; border: 0; background: transparent; }
+.bar.compact .kpiValue { font-size: 16px; }
+.bar.compact .kpiPeriod { display: none; }
+@media (max-width: 767px) { .bar.compact .kpiGroup { width: 100%; margin: 4px 0 0; gap: 10px 18px; } }
+.bar .barMain { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 12px; width: 100%; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; min-height: 38px;
+ border: 1px solid transparent; border-radius: var(--radius-md); font-size: 14px; font-weight: 500; }
+.pillDot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.pillLabel { font-size: 14px; }
+.pill_success { color: color-mix(in srgb, var(--color-success) 55%, var(--color-foreground)); background: color-mix(in srgb, var(--color-success) 8%, var(--color-card)); border-color: color-mix(in srgb, var(--color-success) 25%, var(--color-border)); }
+.pill_warning { color: color-mix(in srgb, var(--color-warning) 70%, var(--color-foreground)); background: color-mix(in srgb, var(--color-warning) 8%, var(--color-card)); border-color: color-mix(in srgb, var(--color-warning) 25%, var(--color-border)); }
+.pill_destructive { color: var(--color-destructive); background: color-mix(in srgb, var(--color-destructive) 6%, var(--color-card)); border-color: color-mix(in srgb, var(--color-destructive) 25%, var(--color-border)); }
+.pill_info { color: var(--color-info); background: color-mix(in srgb, var(--color-info) 6%, var(--color-card)); border-color: color-mix(in srgb, var(--color-info) 25%, var(--color-border)); }
+.pill_muted { color: var(--color-muted-foreground); background: var(--color-muted); border-color: var(--color-border); }
+.pauseReason { font-size: 12px; }
+.activeCallIndicator { flex-wrap: wrap; gap: 8px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-info) 6%, var(--color-card)); min-width: 0; }
+.activeCallTag { font-size: 12px; font-weight: 500; color: var(--color-info); }
+.activeCallCaller { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.statusTimer { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-muted-foreground); font-variant-numeric: tabular-nums; }
+.bar .kpiGroup { grid-column: 1 / -1; order: 5; display: grid; align-items: stretch; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.bar .kpiCounter { align-items: flex-start; flex-direction: column; gap: 6px; min-width: 0; min-height: 116px; padding: 14px 16px;
+ border: 1px solid var(--color-border); border-top-width: 2px; border-radius: var(--radius-lg);
+ background: color-mix(in srgb, var(--color-muted) 55%, var(--color-card)); }
+.kpiValue { font-size: 28px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--color-foreground); }
+.kpiLabel { font-size: 13px; font-weight: 500; color: var(--color-muted-foreground); }
+.kpiPeriod { font-size: 11px; color: var(--color-muted-foreground); }
+.barCall .kpiGroup { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px 24px; }
+.barCall .kpiCounter { flex-direction: row; align-items: baseline; gap: 8px; padding: 0; min-height: 0; border: 0; border-radius: 0; background: transparent; }
+.barCall .kpiValue { font-size: 15px; }
+.barCall .kpiPeriod { display: none; }
+.bar .kpiCounter[data-tone='warning'] { border-top-color: var(--color-warning); }
+.bar .kpiCounter[data-tone='warning'] .kpiValue { color: color-mix(in srgb, var(--color-warning) 78%, var(--color-foreground)); }
+.barRight { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.controlsRow { width: 100%; padding: 12px 0; border-top: 1px solid var(--color-border); }
+.inlineControls { min-width: 0; }
+.endShift { color: var(--color-destructive); }
+.timerWarn { color: var(--color-warning); font-weight: 600; }
+.timerOver { color: var(--color-destructive); font-weight: 600; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.bar.headerStatus { width: auto; }
+.bar.headerStatus .barMain { display: flex; width: auto; gap: 10px; flex-wrap: wrap; }
+.bar.headerStatus .pill { min-height: 35px; padding: 7px 10px; border-radius: 7px; background: var(--color-card); border-color: var(--color-border); font-size: 13px; font-weight: 400; }
+.bar.headerStatus .pillLabel { font-size: 13px; }
+.bar.headerStatus .pillDot { width: 6px; height: 6px; }
+.bar.headerStatus .statusTimer { font-size: 11px; }
+.bar.metricsOnly.compact .kpiGroup { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; margin: 0; order: 0; gap: 8px 16px; }
+.bar.metricsOnly.compact .kpiCounter { flex-direction: column; align-items: flex-start; gap: 4px; }
+.bar.metricsOnly.compact .barRight { width: 100%; margin-left: 0; }
+.bar.metricsOnly .barRight { order: 1; }
+@media (max-width: 767px) { .headerStatus .statusTimer:not([data-testid='pause-limit-timer']) { display: none; } }
+.bar.metricsOnly.compact .kpiLabel { font-size: 12px; font-weight: 400; }
+.bar.metricsOnly.compact .kpiValue { font-size: 17px; font-weight: 600; }
+@media (max-width: 600px) {
+ .bar.metricsOnly.compact .kpiCounter { flex-direction: column; align-items: flex-start; gap: 4px; }
+ .bar .barMain { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+ .bar .kpiGroup { gap: 8px; }
+ .bar .kpiCounter { padding: 12px; min-height: 106px; }
+ .kpiValue { font-size: 24px; }
+ .kpiLabel { font-size: 12px; }
+ .barRight { grid-column: 1 / -1; }
+ .barCall .kpiCounter { padding: 0; min-height: 0; }
+ .controlsRow .inlineControls { gap: 6px; width: 100%; }
+ .controlsRow .inlineControls :global(button) { padding-inline: 0; width: 44px; min-width: 44px; }
 }

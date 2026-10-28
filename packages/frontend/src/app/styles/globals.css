@@ -205,3 +205,8 @@ body {
     transition: none !important;
   }
 }
+
+/* Font trial pairs body and heading families; default remains the shared sans token. */
+body :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-heading, var(--font-sans));
+}

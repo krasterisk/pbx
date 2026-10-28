@@ -4,7 +4,7 @@ import { loadDialBuffer, saveDialBuffer } from '@/features/callcenter/lib/shiftS
 import { SoftphoneJournal } from './SoftphoneJournal';
 import { SoftphoneContacts } from './SoftphoneContacts';
 export type { SoftphoneWidgetPhone, SoftphoneMode, SoftphoneVariant } from '@/shared/ui/SoftphoneWidget';
-export type SoftphoneWidgetProps = Omit<CommonProps, 'journalContent' | 'contactsContent' | 'renderConference' | 'dialBufferStorage' | 'sessionControls' | 'standaloneControls' | 'autoOpenIncoming' | 'dialAllowed'>;
+export type SoftphoneWidgetProps = Omit<CommonProps, 'journalContent' | 'contactsContent' | 'renderConference' | 'dialBufferStorage'>;
 const dialBufferStorage = {load:loadDialBuffer, save:saveDialBuffer};
 /** CC-only integration. Shift lifecycle and page-owned transport remain unchanged. */
 export function SoftphoneWidget(props: SoftphoneWidgetProps) {

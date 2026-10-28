@@ -135,6 +135,8 @@ export interface CallCenterState {
   calls: ICall[];
   connected: boolean;
   myAgentInterface: string | null;
+  /** An explicit inactive /agent/me response must not be undone by AMI presence. */
+  shiftSessionState?: 'unknown' | 'active' | 'inactive';
   chatUnreadByChannel: Record<string, number>;
   chatOpen: boolean;
   /** WebRTC softphone: number to dial once registered (click-to-call / history). */

@@ -4,6 +4,7 @@
  * Implements agent/supervisor actions by calling AMI commands
  * and updating the in-memory state store.
  */
+import { missedCallerVariants } from './missed-call-identities';
 import {
   Injectable,
   Logger,
@@ -152,8 +153,10 @@ export class CallCenterService {
       if (related.has(iface)) return true;
       const otherRelated = CallCenterService.relatedQueueInterfaces(iface);
       if (otherRelated.some((i) => related.has(i))) return true;
-      const otherExt = interfaceToExtension(iface);
-      return Boolean(exten && otherExt && otherExt === exten && !iface.startsWith('user:'));
+      // Extension alone is not an identity across the global agent snapshot.
+      // e201_362 and e201_7 are different phones; related interfaces above
+      // retain the tenant suffix while still matching SIP/WebRTC twins.
+      return false;
     };
 
     const liveOccupant = this.stateService.getAllAgentsGlobal().find((agent) => {
@@ -2895,7 +2898,7 @@ export class CallCenterService {
         ? (this.stateService.findTenantForOnlineUser(userId) ?? userUid)
         : userUid;
     const where: any = { user_uid: tenant };
-    if (!includeHandled) where.called_back = false;
+    if (!includeHandled) { where.called_back = false; where.client_called_back = false; }
     const rows = await this.missedCallModel.findAll({
       where,
       order: [['created_at', 'DESC']],
@@ -3041,14 +3044,15 @@ export class CallCenterService {
    * client_called_back so it drops out of the active worklist.
    */
   async autoResolveOnAnswer(userUid: number, callerIdNum: string): Promise<void> {
-    if (!callerIdNum) return;
+    const variants = missedCallerVariants(callerIdNum || '');
+    if (!variants.length) return;
     try {
       const [affected] = await this.missedCallModel.update(
         { client_called_back: true },
         {
           where: {
             user_uid: userUid,
-            caller_id_num: callerIdNum,
+            caller_id_num: variants.length === 1 ? variants[0] : { [Op.in]: variants },
             called_back: false,
             client_called_back: false,
           },

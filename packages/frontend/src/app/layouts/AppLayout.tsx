@@ -12,6 +12,7 @@ import { TablePageSizeProvider } from '@/features/tenant-settings/ui/TablePageSi
 import { classNames } from '@/shared/lib/classNames/classNames';
 import cls from './AppLayout.module.scss';
 import { PhoneSessionHost } from '@/features/phone/PhoneSessionHost';
+import { CallCenterSessionProvider } from '@/features/callcenter/model/session/CallCenterSessionProvider';
 
 /**
  * Tenant shell: ModuleShell A+C hybrid (desktop sidebar, no header crumbs).
@@ -48,5 +49,5 @@ export const AppLayout = () => {
     if (!isAuthenticated) rememberLoginReturn(location.pathname + location.search + location.hash, user);
   }, [isAuthenticated, user, location.pathname, location.search, location.hash]);
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <ModuleNavProvider><PhoneSessionHost><AppLayoutBody /></PhoneSessionHost></ModuleNavProvider>;
+  return <ModuleNavProvider><CallCenterSessionProvider><PhoneSessionHost><AppLayoutBody /></PhoneSessionHost></CallCenterSessionProvider></ModuleNavProvider>;
 };

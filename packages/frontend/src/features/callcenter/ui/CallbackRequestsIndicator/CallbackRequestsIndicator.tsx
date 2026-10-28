@@ -12,22 +12,22 @@ import styles from './CallbackRequestsIndicator.module.scss';
 type ViewMode = 'active' | 'completed';
 
 /** Operator badge + dropdown for callback requests (D-42 / D-50 Surface M). */
-export function CallbackRequestsIndicator() {
+export function CallbackRequestsIndicator({ inline = false }: { inline?: boolean } = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ViewMode>('active');
   const { data: active = [] } = useGetCallbackRequestsQuery('active');
-  const { data: completed = [] } = useGetCallbackRequestsQuery('completed', { skip: !open });
+  const { data: completed = [] } = useGetCallbackRequestsQuery('completed', { skip: !inline && !open });
 
   const count = active.length;
-  if (count === 0 && !open) return null;
+  if (count === 0 && !open && !inline) return null;
 
   const urgent = active.some((row) => isCallbackUrgent(row));
   const rows = view === 'active' ? active : completed;
 
   return (
-    <div className={styles.wrap} data-testid="callback-requests-indicator">
-      <Button
+    <div className={`${styles.wrap}${inline ? ` ${styles.inline}` : ''}`} data-testid="callback-requests-indicator">
+      {!inline && <Button
         type="button"
         variant="unstyled"
         size="none"
@@ -41,16 +41,16 @@ export function CallbackRequestsIndicator() {
       >
         <PhoneOutgoing className="w-4 h-4" />
         <span className={styles.count}>{count}</span>
-      </Button>
+      </Button>}
 
-      {open && (
+      {(inline || open) && (
         <div className={styles.dropdown}>
           <div className={styles.header}>
             <Text className={styles.title}>
               <PhoneOutgoing className="w-4 h-4 inline mr-1.5" />
               {t('callcenter.callback.title', 'Callbacks')}
             </Text>
-            <Button
+            {!inline && <Button
               type="button"
               variant="unstyled"
               size="none"
@@ -59,7 +59,7 @@ export function CallbackRequestsIndicator() {
               aria-label={t('callcenter.callback.close', 'Close')}
             >
               <X className="w-4 h-4" />
-            </Button>
+            </Button>}
           </div>
           <SegmentedControl<ViewMode>
             className={styles.viewToggle}

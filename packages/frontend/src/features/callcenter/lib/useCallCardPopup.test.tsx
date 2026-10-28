@@ -18,6 +18,32 @@ beforeEach(() => {
   state.load.mockImplementation(() => ({ unwrap: () => Promise.resolve({ template_id: 1, field_values: { name: 'Saved' } }) }));
 });
 describe('call card lifecycle', () => {
+  it('uses the originating queue for an answered callback and waits for the configured trigger', async () => {
+    const original = state.templates;
+    state.templates = [{ ...original[0], uid: 2, queue_names: ['support'], auto_open_on: 'answer' }];
+    state.agent = { interface: 'PJSIP/e203_0', directCallUniqueid: 'callback.real', dialTarget: '+7 (900) 123-45-67', status: 'DIALING' };
+    const view = renderHook(() => useCallCardPopup({ outboundContext: { target: '79001234567', queue: 'support' } }));
+    expect(view.result.current.open).toBe(false);
+    state.agent = { ...state.agent, status: 'IN_CALL' }; view.rerender();
+    await waitFor(() => expect(view.result.current.open).toBe(true));
+    expect(view.result.current.callContext).toEqual({ uniqueid: 'callback.real', callerId: '+7 (900) 123-45-67', queue: 'support' });
+    expect(view.result.current.template?.uid).toBe(2);
+    state.agent = { ...state.agent, status: 'READY', currentCall: 'call.1' }; view.rerender();
+    expect(view.result.current.open).toBe(false);
+    state.templates = original;
+  });
+  it('does not borrow a callback queue for another target or bypass a manual template', async () => {
+    const original = state.templates;
+    state.templates = [{ ...original[0], queue_names: ['support'], auto_open_on: 'manual' }];
+    state.agent = { interface: 'PJSIP/e203_0', directCallUniqueid: 'direct.real', dialTarget: '201', status: 'IN_CALL' };
+    const view = renderHook(() => useCallCardPopup({ outboundContext: { target: '1201', queue: 'support' } }));
+    expect(view.result.current.availableTemplate).toBeNull();
+    expect(view.result.current.open).toBe(false);
+    state.agent = { ...state.agent, dialTarget: '1201' }; view.rerender();
+    expect(view.result.current.availableTemplate?.uid).toBe(1);
+    expect(view.result.current.open).toBe(false);
+    state.templates = original;
+  });
   it('keeps the same card through callEnd then WRAPUP and closes only on READY', async () => {
     const { result, rerender } = renderHook(() => useCallCardPopup());
     await waitFor(() => expect(result.current.open).toBe(true));

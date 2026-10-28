@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { supervisorQueueAllowed, supervisorQueueSummary, supervisorStatusActions } from './supervisorPulse';
+import { supervisorNamedQueues, supervisorQueueAllowed, supervisorQueueSummary, supervisorStatusActions } from './supervisorPulse';
+import type { IQueueStats } from '../model/types/callCenterSchema';
 
 describe('supervisor Pulse contracts', () => {
+  it('enriches live queue names without replacing figures or inventing live queues', () => {
+    const live = [{ name: 'q700_8', waiting: 2, calls: { answered: 7 } }, { name: 'q701_8', waiting: 0 }] as IQueueStats[];
+    const result = supervisorNamedQueues(live, [
+      { name: 'q700_8', display_name: 'Customer support' }, { name: 'q702_8', display_name: 'Not live' },
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ ...live[0], displayName: 'Customer support' });
+    expect(result[0].calls).toBe(live[0].calls);
+    expect(result[1]).toBe(live[1]);
+    expect(live[0].displayName).toBeUndefined();
+  });
   it('retains full short names, truncates Unicode characters including ellipsis, and leaves the source intact', () => {
     expect(supervisorQueueSummary('Sales, Support')).toBe('Sales, Support');
     const full = 'Support, Sales, Corporate accounts, Partners';

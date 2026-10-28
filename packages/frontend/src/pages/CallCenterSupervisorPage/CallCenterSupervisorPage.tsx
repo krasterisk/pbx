@@ -4,11 +4,10 @@ import { useDispatch, useSelector, useStore } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import type { RowSelectionState } from '@tanstack/react-table';
-import { BookOpen, History, PhoneOutgoing, BarChart3, LayoutGrid, List, MoreHorizontal } from 'lucide-react';
+import { BarChart3, LayoutGrid, List } from 'lucide-react';
 import {
   VStack, Flex, Text, Button, Skeleton, Sheet, SheetContent, SheetHeader, SheetTitle,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@/shared/ui';
 import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { CcPageHeader } from '@/features/callcenter/ui/CcPageHeader';
@@ -29,7 +28,6 @@ import { subscribeStatusClock } from '@/features/callcenter/lib/statusClock';
 import { resolveKpiThresholds } from '@/features/callcenter/lib/kpiThresholds';
 import { sortLiveCalls } from '@/features/callcenter/lib/liveCallTiming';
 import { filterAndSortAgents } from '@/features/callcenter/lib/agentBoard';
-import { myQueueNames } from '@/features/callcenter/lib/watchlistGroups';
 import { AttentionFeed } from '@/features/callcenter/ui/AttentionFeed';
 import { QueueTiles } from '@/features/callcenter/ui/QueueTiles';
 import { useGetRecentQueueSlaQuery } from '@/shared/api/endpoints/callCenterReportsApi';
@@ -38,7 +36,8 @@ import { QueueIntradayPanel } from '@/features/callcenter/ui/QueueIntradayPanel'
 import { ChatPanelHost } from '@/features/callcenter/ui/ChatPanel/ChatPanel';
 import { BulkActionsBar } from '@/features/callcenter/ui/BulkActionsBar/BulkActionsBar';
 import { setMonitorSession, updateAgent } from '@/features/callcenter/model/slice/callCenterSlice';
-import { supervisorStatusActions } from '@/features/callcenter/lib/supervisorPulse';
+import { supervisorNamedQueues, supervisorStatusActions } from '@/features/callcenter/lib/supervisorPulse';
+import { useGetQueuesQuery } from '@/shared/api/endpoints/queueApi';
 import {
   selectCcAgents,
   selectCcQueues,
@@ -85,6 +84,7 @@ import { SupervisorQueueFilter } from './SupervisorQueueFilter';
 import { SupervisorJournalSheet, type JournalSection } from './SupervisorJournalSheet';
 import styles from './CallCenterSupervisorPage.module.scss';
 import pulseStyles from './SupervisorPulse.module.scss';
+import { SupervisorJournalsMenu } from './SupervisorJournalsMenu';
 
 const VIEW_STORAGE_KEY = 'cc:supervisor:view';
 const CALLS_COLLAPSED_KEY = 'cc:supervisor:callsCollapsed';
@@ -183,7 +183,7 @@ export function CallCenterSupervisorPage() {
   // URL view: agents/calls/queues = mobile segment, history/callbacks = journal sheet.
   const [view, setView] = useState<SupervisorViewId>(initialUrl.view);
   const [groupBy, setGroupBy] = useState<SupervisorGroupBy>(initialUrl.group);
-  const [sortBy, setSortBy] = useState<SupervisorSortBy>(initialUrl.sort);
+  const [sortBy, setSortBy] = useState<SupervisorSortBy>(() => searchParams.has('sort') ? initialUrl.sort : 'name');
   const [density, setDensity] = useState<AgentBoardDensity>(readStoredDensity);
   const [queueLayout, setQueueLayout] = useState<'compact' | 'cards'>('compact');
   const [selectedRef, setSelectedRef] = useState<SelectedAgentRef | null>(
@@ -226,7 +226,9 @@ export function CallCenterSupervisorPage() {
   useCallCenterSSE(true);
 
   const agents = useSelector(selectCcAgents);
-  const queues = useSelector(selectCcQueues);
+  const liveQueues = useSelector(selectCcQueues);
+  const { data: queueDirectory = [] } = useGetQueuesQuery();
+  const queues = useMemo(() => supervisorNamedQueues(liveQueues, queueDirectory), [liveQueues, queueDirectory]);
   const calls = useSelector(selectCcCalls);
   const accessToken = useAppSelector((s) => s.auth.accessToken);
 
@@ -476,11 +478,6 @@ export function CallCenterSupervisorPage() {
         label: queueDisplayName(q.name, filterableQueues),
       })),
     [filterableQueues],
-  );
-
-  const mineQueueTokens = useMemo(
-    () => myQueueNames(watchedAgents).map((q) => normalizeToken(q) || q.toLowerCase()),
-    [watchedAgents],
   );
 
   /** The intraday chart follows the page filter only when exactly one queue is selected. */
@@ -756,7 +753,7 @@ export function CallCenterSupervisorPage() {
   );
 
   return (
-    <VStack gap="8" className={styles.wrapper} data-testid="cc-supervisor-responsive">
+    <VStack gap="8" className={`${styles.wrapper} ${pulseStyles.root}`} data-testid="cc-supervisor-responsive">
       <CcConnectionBanner />
       <CcPageHeader
         title={t('callcenter.supervisor.title', 'Supervisor Dashboard')}
@@ -766,36 +763,12 @@ export function CallCenterSupervisorPage() {
             options={queueFilterOptions}
             value={queueFilter}
             onChange={applyQueueFilter}
-            mineTokens={mineQueueTokens}
           />
         )}
         actions={(
           <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" size="sm" variant="outline" data-testid="cc-journal-menu">
-                  <BookOpen size={14} />
-                  {t('callcenter.supervisor.cockpit.journal', 'Journal')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => openJournal('history')} data-testid="cc-journal-history">
-                  <History />
-                  {t('callcenter.supervisor.cockpit.journalHistory', 'Call history')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openJournal('callbacks')} data-testid="cc-journal-callbacks">
-                  <PhoneOutgoing />
-                  {t('callcenter.supervisor.cockpit.journalCallbacks', 'Callback requests')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={t('common.more', 'More')}><MoreHorizontal size={16} /></Button></DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => { setCallsCollapsed(false); setView('calls'); }}>{t('callcenter.supervisor.pulse.liveCalls')}</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setView('queues')}>{t('callcenter.supervisor.pulse.queueState')}</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <SupervisorJournalsMenu onHistory={() => openJournal('history')} onCallbacks={() => openJournal('callbacks')}
+              onCalls={() => { setCallsCollapsed(false); setView('calls'); }} onQueues={() => setView('queues')} />
             <ChatPanelHost />
           </>
         )}
@@ -809,6 +782,7 @@ export function CallCenterSupervisorPage() {
           periodMeta={kpiPeriodMeta}
           thresholds={kpiThresholds}
           calls={filteredCalls}
+          queueCount={filteredQueues.length}
           onSelect={openMetric}
         />
       </Flex>

@@ -2,6 +2,7 @@ import { autodialWorkspaceRu, autodialWorkspaceErrorsRu } from './autodialWorksp
 import { aiVoiceDesignerRu } from './aiVoiceDesigner';
 import { callsRu } from './calls';
 import { supervisorPulseRu } from './supervisorPulse';
+import { operatorWorklistRu } from './operatorWorklist';
 export const ru = {
   calls: callsRu,
   modal: { defaultOption: "По умолчанию", errors: {"save":"Не удалось сохранить. Проверьте настройки и повторите попытку.","upload":"Не удалось загрузить файл. Повторите попытку.","remove":"Не удалось удалить файл. Повторите попытку."}, sections: {report: 'Отчёт', filters: 'Фильтры', delivery: 'Доставка', "identity":"Основные сведения","connection":"Подключение","account":"Учётные данные","access":"Права доступа","settings":"Параметры","timing":"Ожидание и таймеры"} },
@@ -20,6 +21,9 @@ export const ru = {
   aiVoiceDesigner: aiVoiceDesignerRu,
   // Common
   common: {
+    noResults: "Ничего не найдено",
+    loadFailed: "Не удалось загрузить данные",
+    saveFailed: "Не удалось сохранить изменения",
     statusUnavailable: "Статус недоступен",
     selectRowAria: "Выбрать строку {{index}}",
     confirmBulkDeleteOne: "Удалить «{{label}}»?",
@@ -91,6 +95,7 @@ export const ru = {
 
   // Auth
   auth: {
+    fontTrial: { title: 'Примерить шрифт', hint: 'Только эта вкладка · на всех страницах', inter: 'Inter · по умолчанию', system: 'Системный шрифт' },
     signIn: "Войти",
     companyName: "Организация",
     adminName: "Имя администратора",
@@ -4377,6 +4382,7 @@ export const ru = {
 
   // Call Center Module
   callcenter: {
+    worklist: operatorWorklistRu,
     metricHelp: {
       queueFree: "Участники этой очереди, доступные для звонка, включая сотрудников вне вашего списка наблюдения. Один сотрудник может учитываться в нескольких очередях.",
       longestWait: "Самое длительное текущее ожидание среди звонящих, которые ещё стоят в очереди. Растёт до ответа или выхода звонящего.",
@@ -4435,16 +4441,19 @@ export const ru = {
     },
     // ─── KPI-группа в статус-баре (D-11/D-12) - счётчики смена · день ──
     kpi: {
+      inbound: "Входящие",
+      outbound: "Исходящие",
+      missedOffersShort: "Без ответа",
       missedOffers: "Не отвечено на попытки",
       answered: "Принял",
       made: "Совершил",
       missed: "Пропустил",
-      hint: "Слева: за смену · Справа: с полуночи",
-      tooltipDay: "С полуночи: {{day}} · за смену: {{shift}}",
-      tooltipShift: "За смену: {{shift}} · с полуночи: {{day}}",
+      hint: "Слева: за смену · Справа: за день",
+      tooltipDay: "За день: {{day}} · за смену: {{shift}}",
+      tooltipShift: "За смену: {{shift}} · за день: {{day}}",
       groupLabel: "Показатели оператора",
       shift: "За смену",
-      day: "С полуночи",
+      day: "За день",
       modeDay: "За сутки",
       modeShift: "За смену",
       modeBoth: "Оба",
@@ -4486,8 +4495,9 @@ export const ru = {
     // ─── Phone tabs (D-04/D-13, shared/ui/Tabs, consumed by 09-08) ──
     tabs: {
       coworkers: "Коллеги",
+      tasks: "К работе",
       queues: "Очереди",
-      waiting: "Текущие",
+      waiting: "Текущие звонки",
       history: "История",
     },
     queuesTab: {
@@ -4572,6 +4582,9 @@ export const ru = {
     },
     // ─── Agent Panel ───────────────────────────────
     agent: {
+      statusMenu: "Управление статусом",
+      statusChangeFailed: "Не удалось изменить статус. Повторите действие.",
+
       title: "Панель оператора",
       dragCall: "Перетащить звонок на коллегу",
       statusBar: "Статус",
@@ -4673,8 +4686,8 @@ export const ru = {
       secShort: "с",
     },
     waitingTab: {
-      emptyTitle: "Нет звонков в очереди",
-      emptyBody: "Звонки появятся здесь, когда клиенты встанут в очередь",
+      emptyTitle: "Нет текущих звонков",
+      emptyBody: "Здесь появятся ожидающие вызовы и разговоры в ваших очередях",
     },
     header: {
       statusLive: "Вижу очередь",
@@ -5935,6 +5948,7 @@ export const ru = {
       handledInHoursMinutes: "Отработан за {{hours}} ч {{minutes}} мин",
     },
     parked: {
+      rateLimited: "Проверки парковки временно ограничены. Повторим автоматически.",
       loadError: "Не удалось проверить парковку. Обновите список.",
       title: "Запаркованные",
       empty: "Нет запаркованных звонков",
@@ -5981,6 +5995,15 @@ export const ru = {
       draftSaved: "Карточка сохранена",
     },
     softphone: {
+      tools: "Клавиатура, контакты и звук",
+      incoming: "Входящий звонок",
+      readyForCall: "Готов к звонку",
+      prepareShift: "Перед началом работы",
+      deviceTitle: "Устройство для звонков",
+      headsetTitle: "Гарнитура",
+      availabilityFailed: "Не удалось проверить доступность телефонов. Обновите список и повторите.",
+      unavailable: {"occupied":"Занят другим оператором","busy":"Сейчас разговаривает","webrtcDisabled":"WebRTC не включён","unregistered":"Не зарегистрирован"},
+
       backspaceHint: "Удалить последний символ",
       clearDialHint: "Очистить весь номер",
       moveWindow: "Переместить окно: перетащите или используйте стрелки",
@@ -5995,9 +6018,11 @@ export const ru = {
       modeWebrtcDesc: "Звонки прямо в браузере через гарнитуру",
       modeWebrtcDescRemote:
         "Оператор работает в браузере (WebRTC); гарнитуру подключает у себя",
-      selectExtension: "Добавочный",
+      selectExtension: "Внутренний",
+      startingShift: "Начинаем смену…",
       selectQueues: "Очереди",
       queuesRequired: "Выберите хотя бы одну очередь для начала смены",
+      ordinaryPhoneSessionActive: "Подключён обычный рабочий телефон. Откройте софтфон → «Сменить номер или устройство» → «Отключить телефон и перейти к смене».",
       extensionInUseFallback: "Этот номер уже занят другим оператором",
       extensionInUse:
         "Номер {{exten}} уже занят оператором {{name}}. Завершите его смену или выберите другой номер.",

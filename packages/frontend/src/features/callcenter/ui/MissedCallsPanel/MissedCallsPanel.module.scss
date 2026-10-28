@@ -2,6 +2,17 @@
   position: relative;
 }
 
+.inline { width: 100%; min-width: 0; }
+.inline .dropdown { position: static; width: 100%; max-width: none; border: 0; box-shadow: none; padding: 0; }
+.inline .list { max-height: none; overflow: visible; }
+.inline .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 20px; padding: 16px 8px; border-radius: 0; border-bottom: 1px solid var(--color-border); }
+.inline .row + .row { border-top: 0; }
+.inline .rowMain { grid-column: 1; align-items: flex-start; justify-content: center; }
+.inline .rowActions { grid-column: 2; grid-row: 1; }
+.inline .attemptHistory { grid-column: 1 / -1; }
+.inline .errorFlash { grid-column: 1 / -1; }
+@media (max-width: 600px) { .inline .row { grid-template-columns: minmax(0, 1fr); } .inline .rowActions { grid-column: 1; grid-row: auto; justify-content: flex-start; flex-wrap: wrap; } }
+
 .badge {
   display: inline-flex;
   align-items: center;

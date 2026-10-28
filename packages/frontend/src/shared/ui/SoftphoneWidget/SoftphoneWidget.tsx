@@ -4,7 +4,7 @@ import type { TranslateFn } from '@/shared/lib/translateFn';
 import { toast } from 'react-toastify';
 import {
   Phone, PhoneOff, Users, Pause, Play, Mic, MicOff,
-  BookUser, History, RotateCcw, Eraser, Grip, X, MoveDiagonal2, Delete as DeleteIcon,
+  BookUser, History, RotateCcw, Eraser, Grip, X, MoveDiagonal2, SlidersHorizontal, Headphones, Delete as DeleteIcon,
 } from 'lucide-react';
 import {
   Button, Input, Label, Text, HStack, VStack, Tooltip, Select, Tabs, TabsList, TabsTrigger, TabsContent,
@@ -24,7 +24,7 @@ import styles from './SoftphoneWidget.module.scss';
 import handsetImage from './assets/softphone-handset.png';
 
 /** Chrome-only softphone shell (D-26). */
-export type SoftphoneVariant = 'chrome';
+export type SoftphoneVariant = 'chrome' | 'embedded';
 export type SoftphoneMode = 'webrtc' | 'sip';
 type SoftphoneTab = 'dial' | 'journal' | 'contacts';
 
@@ -76,13 +76,19 @@ export interface SoftphoneWidgetProps {
   queueLabel?: string;
   /** Elapsed call seconds, owned by the page orchestrator's timer. */
   callSeconds?: number;
-  /** @deprecated Always chrome (D-26). Kept so call sites compiling against old props stay green. */
+  /** Presentation only; both variants use the same supplied phone/session. */
   variant?: SoftphoneVariant;
+  /** Operator-owned controls (transfer, hold, park, etc.) in the integrated call row. */
+  callControls?: ReactNode;
+  idleLabel?: string;
+  idleHint?: string;
+  answering?: boolean;
   /** Show text label next to the chrome trigger (e.g. "Softphone"). */
   showLabel?: boolean;
   /** Movable launcher for the ordinary-user phone; operator chrome stays docked. */
   floating?: boolean;
   visible?: boolean;
+  hideLauncher?: boolean;
   onOpenCard?: () => void;
   /**
    * uniqueid of the operator's own active call - required for the built-in
@@ -255,9 +261,15 @@ export function SoftphoneWidget({
   callerName,
   queueLabel,
   callSeconds = 0,
+  variant = 'chrome',
+  callControls,
+  idleLabel,
+  idleHint,
+  answering = false,
   showLabel = false,
   floating = false,
   visible = true,
+  hideLauncher = false,
   onOpenCard,
   activeCallUniqueid,
   onRecover,
@@ -268,6 +280,7 @@ export function SoftphoneWidget({
   onOutboundDialStarted,
 }: SoftphoneWidgetProps) {
   const { t } = useTranslation();
+  const embedded = variant === 'embedded';
   const isMobile = useIsMobile(768);
   const mobileFloating = useFloatingWindow(60, () => 60, 'softphone-widget-geometry', 768, 168);
   const [windowWidth, setWindowWidth] = useState(() => {
@@ -290,11 +303,11 @@ export function SoftphoneWidget({
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyOpen = useRef(open);
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || embedded) return;
     if (open) panelRef.current?.focus();
     else if (previouslyOpen.current) launcherRef.current?.focus();
     previouslyOpen.current = open;
-  }, [open, isMobile]);
+  }, [open, isMobile, embedded]);
   const panelState = useRef({ open, onPanelOpenChange });
   panelState.current = { open, onPanelOpenChange };
   const setOpen = useCallback((next: boolean | ((previous: boolean) => boolean)) => {
@@ -379,21 +392,21 @@ export function SoftphoneWidget({
     const message = dialFailureMessage(failure, t);
     setDialError(message);
     setActiveTab('dial');
-    setOpen(true);
-    if (isMobile) setMobileDialOpen(true);
+    if (!embedded) setOpen(true);
+    if (!embedded && isMobile) setMobileDialOpen(true);
     toast.error(message);
     phone.clearLastDialFailure?.();
-  }, [phone.lastDialFailure, phone, t, isMobile, setOpen, setMobileDialOpen]);
+  }, [phone.lastDialFailure, phone, t, isMobile, embedded, setOpen, setMobileDialOpen]);
 
   // Auto-expand only for outbound dialing (already interacting with softphone).
   // Incoming ring: toast only - softphone opens manually (avoids duplicate UI).
   useEffect(() => {
-    if (isDialing || (isRinging && autoOpenIncoming)) {
+    if (!embedded && (isDialing || (isRinging && autoOpenIncoming))) {
       setOpen(true);
       setActiveTab('dial');
       if (isMobile) setMobileDialOpen(true);
     }
-  }, [isDialing, isRinging, autoOpenIncoming, isMobile, setOpen, setMobileDialOpen]);
+  }, [isDialing, isRinging, autoOpenIncoming, isMobile, embedded, setOpen, setMobileDialOpen]);
 
   // Once connected, reveal the client workspace. The operator can reopen the dialpad for DTMF.
   useEffect(() => { if (isInCall && !standaloneControls) { setOpen(false); setMobileDialOpen(false); } }, [isInCall, standaloneControls, setOpen, setMobileDialOpen]);
@@ -415,21 +428,25 @@ export function SoftphoneWidget({
   }, [open, mobileDialOpen, phone.status]);
 
   // Click-to-call / history → WebRTC INVITE bridge
+  const consumedDialRef = useRef<string | null>(null);
   useEffect(() => {
+    if (!pendingOutboundDial) { consumedDialRef.current = null; return; }
     if (!pendingOutboundDial || !canDial) return;
     const target = pendingOutboundDial;
+    if (consumedDialRef.current === target) return;
+    consumedDialRef.current = target;
     onOutboundDialConsumed?.();
     setDialNumber(target);
     setDialError(null);
-    setOpen(true);
+    if (!embedded) setOpen(true);
     setActiveTab('dial');
-    if (isMobile) setMobileDialOpen(true);
+    if (!embedded && isMobile) setMobileDialOpen(true);
     void phone.makeCall(target).then(() => {
-      /* dial buffer already shows the target */
+      onOutboundDialStarted?.(target);
     }).catch(() => {
       setDialError(t('callcenter.softphone.dialFailed', 'Could not place call'));
     });
-  }, [pendingOutboundDial, canDial, phone, onOutboundDialConsumed, t, isMobile, setOpen, setMobileDialOpen]);
+  }, [pendingOutboundDial, canDial, phone, onOutboundDialConsumed, onOutboundDialStarted, t, isMobile, embedded, setOpen, setMobileDialOpen]);
 
   // Hardware keyboard → dial buffer while idle / DTMF while in-call (Dial tab only)
   useEffect(() => {
@@ -606,11 +623,11 @@ export function SoftphoneWidget({
 
   const ringingActions = showWebRtcRingActions ? (
     <div className={styles.ringingActions}>
-      <Button size="lg" className={styles.ringingBtn} onClick={() => void phone.acceptCall?.()}>
+      <Button size="lg" className={styles.ringingBtn} disabled={answering} onClick={() => void phone.acceptCall?.()}>
         <Phone className="w-4 h-4 mr-1" />
         {t('callcenter.softphone.answer')}
       </Button>
-      <Button variant="destructive" size="lg" className={styles.ringingBtn} onClick={() => void phone.rejectCall?.()}>
+      <Button variant="destructive" size="lg" className={styles.ringingBtn} disabled={answering} onClick={() => void phone.rejectCall?.()}>
         <PhoneOff className="w-4 h-4 mr-1" />
         {t('callcenter.softphone.reject')}
       </Button>
@@ -709,7 +726,7 @@ export function SoftphoneWidget({
           {t('callcenter.softphone.cancelDial', 'Cancel')}
         </Button>
       ) : null}
-      {isInCall ? controlsRow : null}
+      {isInCall ? <>{callControls}{controlsRow}</> : null}
       {isInCall && onOpenCard ? (
         <Button variant="outline" size="sm" onClick={onOpenCard}>
           {t('callcenter.cards.popup.openManual')}
@@ -741,7 +758,10 @@ export function SoftphoneWidget({
             {t('callcenter.softphone.tabContacts', 'Contacts')}
           </TabsTrigger>) : null}
         </TabsList>
-        <TabsContent value="dial" className={styles.tabPanel}>{connectionContent ?? dialTabContent}</TabsContent>
+        <TabsContent value="dial" className={styles.tabPanel}>{connectionContent ?? (embedded ? isIdle ? dialPadBlock : <VStack gap="12" align="stretch">
+          <DialpadGrid onDigit={handleDigit} disabled={!isInCall} className={styles.dialGrid} />
+          {qualityBlock}{devicePicker}
+        </VStack> : dialTabContent)}</TabsContent>
         <TabsContent value="journal" className={styles.tabPanel} data-testid="softphone-journal-panel">
           {journalContent}
         </TabsContent>
@@ -773,11 +793,55 @@ export function SoftphoneWidget({
           ? styles.stickyDotRegistering
           : styles.stickyDotOffline;
 
+  if (embedded) {
+    const hasCall = isInCall || isRinging || isDialing || Boolean(callControls);
+    const partyNumber = phone.callInfo?.to || phone.callInfo?.from;
+    return <VStack align="stretch" className={`${styles.embedded} ${className ?? ''}`} data-testid="softphone-embedded" data-idle={!hasCall}>
+      {registrationBanner}
+      <HStack gap="16" max className={styles.embeddedRow}>
+        <HStack gap="12" className={styles.embeddedIdentity}>
+          <HStack justify="center" className={styles.embeddedIcon}><Headphones size={20} aria-hidden /></HStack>
+          <VStack gap="4" className={styles.embeddedCaller}>
+            <Text className={styles.embeddedTitle}>{hasCall ? callerLabel : (idleLabel || t('callcenter.softphone.readyForCall'))}</Text>
+            <Text variant="muted" className={styles.embeddedHint}>
+              {showSipDeviceHint ? (isDialing ? t('callcenter.softphone.answerOnDeviceHint') : t('callcenter.softphone.answerOnDeviceInboundHint'))
+                : hasCall ? [partyNumber !== callerLabel ? partyNumber : null, queueLabel, isRinging ? t('callcenter.softphone.incoming') : isDialing ? t('callcenter.softphone.calling') : formatCallTime(callSeconds)].filter(Boolean).join(' · ')
+                  : idleHint || t('callcenter.softphone.panelTitle')}
+            </Text>
+          </VStack>
+        </HStack>
+        {!hasCall && <HStack gap="8" className={styles.embeddedDial}>
+          <Input value={dialNumber} inputMode="tel" autoComplete="off" disabled={!canDial}
+            aria-label={t('callcenter.softphone.dialPlaceholder')} placeholder={t('callcenter.softphone.dialPlaceholder')}
+            onChange={event => { setDialNumber(event.target.value.replace(/[^\d+*#]/g, '')); setDialError(null); }}
+            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void handleDial(); } }} />
+          <Button disabled={!canDial || !dialNumber.trim()} onClick={() => void handleDial()}><Phone size={16} aria-hidden />{t('callcenter.softphone.dial')}</Button>
+        </HStack>}
+        <HStack gap="8" className={styles.embeddedActions}>
+          {ringingActions}
+          {callControls}
+          {isInCall && controlsRow}
+          {(isDialing || (mode === 'sip' && isRinging)) && !callControls && <Button variant="destructive" onClick={() => void phone.hangup()}><PhoneOff size={16} aria-hidden />{t('callcenter.softphone.cancelDial')}</Button>}
+          <Tooltip content={t('callcenter.softphone.tools')}><Button variant="ghost" size="icon" aria-label={t('callcenter.softphone.tools')}
+            onClick={() => setOpen(true)}><SlidersHorizontal size={18} aria-hidden /></Button></Tooltip>
+        </HStack>
+      </HStack>
+      {dialError && <Text variant="error" role="alert">{dialError}</Text>}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent className={styles.embeddedTools}>
+          <SheetHeader><SheetTitle>{t('callcenter.softphone.tools')}</SheetTitle></SheetHeader>
+          {panelBody}
+        </SheetContent>
+      </Sheet>
+      {conferenceSheet}
+    </VStack>;
+  }
+
   // Phone (<768): compact floating launcher and dial sheet.
   if (isMobile) {
     return (
       <>
-        {!mobileDialOpen && <Button ref={launcherRef} className={`${styles.mobileLauncher} ${isRinging ? styles.mobileLauncherRinging : ''} ${isInCall ? styles.mobileLauncherActive : ''} ${className ?? ''}`} style={mobileFloating.style}
+        {!mobileDialOpen && !hideLauncher && <Button ref={launcherRef} className={`${styles.mobileLauncher} ${isRinging ? styles.mobileLauncherRinging : ''} ${isInCall ? styles.mobileLauncherActive : ''} ${className ?? ''}`} style={mobileFloating.style}
           {...mobileFloating.controls('launcher')} data-testid="softphone-widget-sticky"
           aria-label={t('callcenter.softphone.panelTitle')} aria-haspopup="dialog" aria-expanded={mobileDialOpen}
           onClick={event => mobileFloating.activateLauncher(() => setMobileDialOpen(true), event.detail === 0)}>
@@ -824,7 +888,7 @@ export function SoftphoneWidget({
             {...desktopWindow.controls('resize')} data-testid="softphone-window-resize"><MoveDiagonal2 size={16} aria-hidden /></Button>
         </div>
       ) : null}
-      {!open && <Button
+      {!open && !hideLauncher && <Button
         ref={launcherRef}
         type="button"
         variant="unstyled"

@@ -24,6 +24,8 @@ import styles from './CallControlBar.module.scss';
 export type CallControlBarVariant = 'compact' | 'full' | 'extended';
 
 export interface CallControlBarProps {
+  /** Embedded workspace: accessible icon controls also on desktop; labels stay in tooltips. */
+  iconOnly?: boolean;
   /** compact = mute/hold/transfer/hangup (status bar); full = primary + park/conference/warm/zombie; extended = park/warm/zombie only (softphone slot). */
   variant?: CallControlBarVariant;
   isMuted: boolean;
@@ -58,6 +60,7 @@ export interface CallControlBarProps {
 const noop = () => {};
 
 export function CallControlBar({
+  iconOnly: forceIconOnly = false,
   variant = 'compact',
   isMuted,
   isHeld,
@@ -79,7 +82,8 @@ export function CallControlBar({
 }: CallControlBarProps) {
   const { t } = useTranslation();
   // Icon+label >=768px, icon-only+tooltip <768px, per UI-SPEC Surface 1.
-  const iconOnly = useIsMobile(768);
+  const mobile = useIsMobile(768);
+  const iconOnly = forceIconOnly || mobile;
 
   const [parkCall, { isLoading: isParking }] = useParkCallMutation();
   const [warmTransferToQueue, { isLoading: isTransferring }] = useWarmTransferToQueueMutation();

@@ -2,8 +2,16 @@ import { QueryErrorState } from '@/shared/ui/QueryErrorState';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
-  Tabs, TabsList, TabsTrigger, TabsContent,
-  Label, Switch, Text, Skeleton, Tooltip, SegmentedControl,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Label,
+  Switch,
+  Text,
+  Skeleton,
+  Tooltip,
+  SegmentedControl,
 } from '@/shared/ui';
 import {
   useGetMyUiCustomizationQuery,
@@ -17,11 +25,14 @@ import {
   loadKpiDisplay,
   saveKpiDisplay,
   type KpiDisplayMode,
-  loadAgentPanelPrefs, saveAgentPanelPrefs,
 } from '@/features/callcenter/lib/agentPanelPrefs';
 import { NotificationMatrix } from '@/features/callcenter/ui/NotificationMatrix';
 import { useEffect, useState } from 'react';
 import styles from './CallCenterSettings.module.scss';
+import type { AgentHotkeyMap } from '@krasterisk/shared';
+import { HotkeysList } from '../HotkeysHelp/HotkeysHelp';
+
+export type PersonalSettingsTab = 'panels' | 'notifications' | 'hotkeys';
 
 /** D-05: keys applied live by CallCenterAgentPage. */
 const PANEL_KEYS = ['coworkers', 'queues', 'waiting', 'history'] as const;
@@ -33,16 +44,32 @@ type PanelKey = (typeof PANEL_KEYS)[number];
  * center settings page. The softphone journal depth is a tenant policy and lives in
  * "Operators and shifts".
  */
-export function CallCenterSettings() {
+export function CallCenterSettings({
+  tab,
+  onTabChange,
+  hotkeyMap,
+  sip,
+}: {
+  tab?: PersonalSettingsTab;
+  onTabChange?: (tab: PersonalSettingsTab) => void;
+  hotkeyMap?: Readonly<AgentHotkeyMap>;
+  sip?: boolean;
+} = {}) {
   const { t } = useTranslation();
-  const [kpiDisplay, setKpiDisplay] = useState<KpiDisplayMode>(() => loadKpiDisplay());
-  const [desktopTabs, setDesktopTabs] = useState(() => loadAgentPanelPrefs().desktopTabs);
+  const [kpiDisplay, setKpiDisplay] = useState<KpiDisplayMode>(() =>
+    loadKpiDisplay(),
+  );
 
   useEffect(() => {
     setKpiDisplay(loadKpiDisplay());
   }, []);
 
-  const { data: ui, isLoading: uiLoading, isError: uiError, refetch: refetchUi } = useGetMyUiCustomizationQuery();
+  const {
+    data: ui,
+    isLoading: uiLoading,
+    isError: uiError,
+    refetch: refetchUi,
+  } = useGetMyUiCustomizationQuery();
   const [updateUi] = useUpdateMyUiCustomizationMutation();
 
   const {
@@ -55,7 +82,9 @@ export function CallCenterSettings() {
 
   const handleVisibilityToggle = (key: PanelKey, checked: boolean) => {
     if (ui?.locks?.[key]) return;
-    updateUi({ ui_visibility: { ...(ui?.ui_visibility ?? {}), [key]: checked } })
+    updateUi({
+      ui_visibility: { ...(ui?.ui_visibility ?? {}), [key]: checked },
+    })
       .unwrap()
       .catch(() => toast.error(t('common.error', 'Ошибка сохранения')));
   };
@@ -65,22 +94,49 @@ export function CallCenterSettings() {
     saveKpiDisplay(mode);
   };
 
-  const handleChannelToggle = (event: NotificationEvent, channel: NotificationChannel, enabled: boolean) => {
+  const handleChannelToggle = (
+    event: NotificationEvent,
+    channel: NotificationChannel,
+    enabled: boolean,
+  ) => {
     if ((notifications?.locks?.[event]?.length ?? 0) > 0) return;
-    const current = notifications?.matrix?.[event] ?? notifications?.defaults?.[event] ?? [];
+    const current =
+      notifications?.matrix?.[event] ?? notifications?.defaults?.[event] ?? [];
     const nextChannels = enabled
       ? Array.from(new Set([...current, channel]))
       : current.filter((c) => c !== channel);
-    updateNotifications({ notification_matrix: { ...(notifications?.matrix ?? {}), [event]: nextChannels } })
+    updateNotifications({
+      notification_matrix: {
+        ...(notifications?.matrix ?? {}),
+        [event]: nextChannels,
+      },
+    })
       .unwrap()
       .catch(() => toast.error(t('common.error', 'Ошибка сохранения')));
   };
 
   return (
-    <Tabs defaultValue="panels" className={styles.wrapper}>
-      <TabsList aria-label={t('callcenter.settings.customize.title', 'Panel customization')}>
-        <TabsTrigger value="panels">{t('callcenter.settings.customize.title', 'Panel customization')}</TabsTrigger>
-        <TabsTrigger value="notifications">{t('callcenter.settings.notifications.title', 'Notifications')}</TabsTrigger>
+    <Tabs
+      defaultValue="panels"
+      value={tab}
+      onValueChange={(value) => onTabChange?.(value as PersonalSettingsTab)}
+      className={styles.wrapper}
+    >
+      <TabsList
+        aria-label={t(
+          'callcenter.settings.customize.title',
+          'Panel customization',
+        )}
+      >
+        <TabsTrigger value="panels">
+          {t('callcenter.worklist.panelSettings', 'Panel')}
+        </TabsTrigger>
+        <TabsTrigger value="notifications">
+          {t('callcenter.settings.notifications.title', 'Notifications')}
+        </TabsTrigger>
+        <TabsTrigger value="hotkeys">
+          {t('callcenter.settings.hotkeys.helpTitle', 'Hotkeys')}
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="panels">
@@ -91,20 +147,27 @@ export function CallCenterSettings() {
             <Skeleton height="2.5rem" width="100%" />
           </div>
         ) : uiError ? (
-          <QueryErrorState message={t('callcenter.settings.loadError')} onRetry={() => void refetchUi()} retryLabel={t('callcenter.settings.retry')} />
+          <QueryErrorState
+            message={t('callcenter.settings.loadError')}
+            onRetry={() => void refetchUi()}
+            retryLabel={t('callcenter.settings.retry')}
+          />
         ) : (
           <div className={styles.section}>
-            <div className={styles.row}>
-              <Label htmlFor="cc-desktop-tabs">{t('callcenter.desktopTabs', 'Use tabs on desktop')}</Label>
-              <Switch id="cc-desktop-tabs" checked={desktopTabs} onCheckedChange={(next) => { setDesktopTabs(next); saveAgentPanelPrefs({ desktopTabs: next }); }} />
-            </div>
-            <Text variant="muted" className={styles.hint}>{t('callcenter.browserLayoutPrefs', 'View and desktop tabs are saved in this browser. Mobile always uses tabs.')}</Text>
-            <Text className={styles.sectionTitle}>{t('callcenter.settings.customize.visibilitySection', 'Panel visibility')}</Text>
+            <Text className={styles.sectionTitle}>
+              {t(
+                'callcenter.settings.customize.visibilitySection',
+                'Panel visibility',
+              )}
+            </Text>
             {PANEL_KEYS.map((key) => {
               const isLocked = Boolean(ui?.locks?.[key]);
               const checked = ui?.ui_visibility?.[key] ?? true;
               const row = (
-                <div className={`${styles.row}${isLocked ? ` ${styles.rowLocked}` : ''}`} key={key}>
+                <div
+                  className={`${styles.row}${isLocked ? ` ${styles.rowLocked}` : ''}`}
+                  key={key}
+                >
                   <Label htmlFor={`cc-vis-${key}`} className={styles.label}>
                     {t(`callcenter.settings.customize.visibility.${key}`)}
                   </Label>
@@ -112,19 +175,32 @@ export function CallCenterSettings() {
                     id={`cc-vis-${key}`}
                     checked={checked}
                     disabled={isLocked}
-                    onCheckedChange={(next) => handleVisibilityToggle(key, next)}
+                    onCheckedChange={(next) =>
+                      handleVisibilityToggle(key, next)
+                    }
                   />
                 </div>
               );
               return isLocked ? (
-                <Tooltip key={key} content={t('callcenter.settings.lockedHint', 'Set by administrator')}>
+                <Tooltip
+                  key={key}
+                  content={t(
+                    'callcenter.settings.lockedHint',
+                    'Set by administrator',
+                  )}
+                >
                   {row}
                 </Tooltip>
-              ) : row;
+              ) : (
+                row
+              );
             })}
 
             <Text className={styles.sectionTitle}>
-              {t('callcenter.settings.customize.kpiSection', 'Panel KPI period')}
+              {t(
+                'callcenter.settings.customize.kpiSection',
+                'Panel KPI period',
+              )}
             </Text>
             <Text variant="muted" className={styles.hint}>
               {t(
@@ -133,11 +209,17 @@ export function CallCenterSettings() {
               )}
             </Text>
             <SegmentedControl
-              ariaLabel={t('callcenter.settings.customize.kpiSection', 'Panel KPI period')}
+              ariaLabel={t(
+                'callcenter.settings.customize.kpiSection',
+                'Panel KPI period',
+              )}
               value={kpiDisplay === 'day' ? 'day' : 'shift'}
               onChange={(v) => handleKpiChange(v as KpiDisplayMode)}
               options={[
-                { value: 'shift', label: t('callcenter.kpi.modeShift', 'Shift') },
+                {
+                  value: 'shift',
+                  label: t('callcenter.kpi.modeShift', 'Shift'),
+                },
                 { value: 'day', label: t('callcenter.kpi.modeDay', 'Day') },
               ]}
             />
@@ -152,11 +234,18 @@ export function CallCenterSettings() {
             <Skeleton height="8rem" width="100%" />
           </div>
         ) : notifError ? (
-          <QueryErrorState message={t('callcenter.settings.loadError')} onRetry={() => void refetchNotifications()} retryLabel={t('callcenter.settings.retry')} />
+          <QueryErrorState
+            message={t('callcenter.settings.loadError')}
+            onRetry={() => void refetchNotifications()}
+            retryLabel={t('callcenter.settings.retry')}
+          />
         ) : (
           <div className={styles.section}>
             <Text variant="muted" className={styles.hint}>
-              {t('callcenter.settings.notifications.subtitle', 'Choose how you want to be notified for each event')}
+              {t(
+                'callcenter.settings.notifications.subtitle',
+                'Choose how you want to be notified for each event',
+              )}
             </Text>
             <NotificationMatrix
               matrix={notifications?.matrix ?? {}}
@@ -166,6 +255,11 @@ export function CallCenterSettings() {
             />
           </div>
         )}
+      </TabsContent>
+      <TabsContent value="hotkeys">
+        <div className={styles.section}>
+          <HotkeysList map={hotkeyMap} sip={sip} />
+        </div>
       </TabsContent>
     </Tabs>
   );

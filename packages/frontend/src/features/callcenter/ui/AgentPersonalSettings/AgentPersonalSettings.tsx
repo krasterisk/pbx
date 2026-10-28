@@ -1,38 +1,87 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Settings } from 'lucide-react';
-import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, Tooltip } from '@/shared/ui';
+import {
+  Button,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Tooltip,
+} from '@/shared/ui';
 import { CallCenterSettings } from '../CallCenterSettings';
+import type { PersonalSettingsTab } from '../CallCenterSettings/CallCenterSettings';
+import type { AgentHotkeyMap } from '@krasterisk/shared';
+import styles from './AgentPersonalSettings.module.scss';
+
+export function AgentSettingsTrigger({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  const label = t('callcenter.agent.personalSettings', 'My settings');
+  return (
+    <Tooltip content={label}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={label}
+        data-testid="agent-personal-settings-trigger"
+        onClick={onClick}
+      >
+        <Settings size={17} aria-hidden />
+      </Button>
+    </Tooltip>
+  );
+}
 
 /**
  * Personal settings of the operator (panel visibility, KPI period, notifications) as a Sheet
  * opened from the workspace header (U5.3). Does not require access to the call-center settings page.
  */
-export function AgentPersonalSettings() {
+export function AgentPersonalSettings({
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger,
+  tab,
+  onTabChange,
+  hotkeyMap,
+  sip,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+  tab?: PersonalSettingsTab;
+  onTabChange?: (tab: PersonalSettingsTab) => void;
+  hotkeyMap?: Readonly<AgentHotkeyMap>;
+  sip?: boolean;
+} = {}) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = (value: boolean) => {
+    setLocalOpen(value);
+    onOpenChange?.(value);
+  };
   const label = t('callcenter.agent.personalSettings', 'My settings');
 
   return (
     <>
-      <Tooltip content={label}>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-label={label}
-          data-testid="agent-personal-settings-trigger"
-          onClick={() => setOpen(true)}
-        >
-          <Settings className="w-4 h-4" aria-hidden="true" />
-        </Button>
-      </Tooltip>
+      {!hideTrigger && <AgentSettingsTrigger onClick={() => setOpen(true)} />}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent data-testid="agent-personal-settings-sheet">
+        <SheetContent
+          className={styles.sheet}
+          data-testid="agent-personal-settings-sheet"
+        >
           <SheetHeader>
             <SheetTitle>{label}</SheetTitle>
           </SheetHeader>
-          <CallCenterSettings />
+          <div className={styles.body}>
+            <CallCenterSettings
+              tab={tab}
+              onTabChange={onTabChange}
+              hotkeyMap={hotkeyMap}
+              sip={sip}
+            />
+          </div>
         </SheetContent>
       </Sheet>
     </>

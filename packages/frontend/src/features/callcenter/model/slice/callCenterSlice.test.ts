@@ -8,8 +8,20 @@ import reducer, {
   addCall,
   updateCall,
   removeCall,
+  resetCallCenter,
+  requestOutboundDial,
 } from './callCenterSlice';
 import type { IAgent, IQueueStats, ICall } from '../types/callCenterSchema';
+
+it('clears the old tenant shift, calls and pending dial at an authentication identity boundary', () => {
+  let state = reducer(undefined, setSnapshot({ agents: [agent()], queues: [], calls: [] }));
+  state = reducer(state, setMyAgentInterface('PJSIP/101'));
+  state = reducer(state, requestOutboundDial('201'));
+  const reset = reducer(state, resetCallCenter());
+  expect(reset.agents).toEqual([]);
+  expect(reset.myAgentInterface).toBeNull();
+  expect(reset.pendingOutboundDial).toBeNull();
+});
 
 const agent = (over: Partial<IAgent> = {}): IAgent => ({
   interface: 'PJSIP/101',

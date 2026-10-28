@@ -9,12 +9,14 @@
 }
 
 .stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
   padding: 0;
   flex-shrink: 0;
 }
+.toolbar { width: 100%; min-width: 0; }
+.search { width: min(280px, 100%); }
 
 /* Compact single-row chips for collapsed panel header */
 .statsInline {
@@ -44,10 +46,7 @@
   align-items: center;
   gap: 8px;
   font-size: 0.8rem;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-muted) 55%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  padding: 4px 0;
 }
 
 .statValue {
@@ -82,8 +81,8 @@
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--color-muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: normal;
   border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
@@ -100,32 +99,34 @@
 }
 
 .rowWaiting {
-  background: color-mix(in srgb, var(--color-warning, #d97706) 8%, transparent);
+  background: transparent;
 }
 
 .rowTalking {
-  background: color-mix(in srgb, var(--color-success, #16a34a) 10%, transparent);
+  background: transparent;
 }
+
+.tableSurface > :first-child { background: transparent; border: 0; box-shadow: none; padding: 0 0 12px; }
+.tableSurface .table th { text-transform: none; letter-spacing: normal; font-size: 12px; }
+.tableSurface :global([data-table-tools][aria-hidden='true']) { display: none; }
+.tableSurface :global([data-table-search]) { flex: 1 1 240px; }
+.stats .stat { gap: 6px; }
+.stats .statValue, .stats .statLabel { font-size: 13px; }
 
 .badgeWaiting,
 .badgeTalking {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: var(--radius-md, 6px);
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  padding: 2px 0;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .badgeWaiting {
-  color: color-mix(in srgb, var(--color-warning, #d97706) 90%, #000);
-  background: color-mix(in srgb, var(--color-warning, #d97706) 18%, transparent);
+  color: color-mix(in srgb, var(--color-warning) 65%, var(--color-foreground));
 }
 
 .badgeTalking {
-  color: color-mix(in srgb, var(--color-success, #16a34a) 90%, #000);
-  background: color-mix(in srgb, var(--color-success, #16a34a) 18%, transparent);
+  color: color-mix(in srgb, var(--color-success) 65%, var(--color-foreground));
 }
 
 .waitTime {

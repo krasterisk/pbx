@@ -7,6 +7,7 @@ import { setRuntimeApiBase } from '@/shared/api/apiBase';
 import { getRuntimeApiUrlOverride } from '@/shared/lib/capacitor/envUrls';
 import { hideNativeSplash } from '@/shared/lib/capacitor/hideSplash';
 import { isNativePlatform } from '@/shared/lib/capacitor/isNative';
+import { applyFontTrial } from '@/shared/lib/typography/fontTrial';
 
 async function bootstrapNative(): Promise<void> {
   if (!isNativePlatform()) return;
@@ -15,6 +16,7 @@ async function bootstrapNative(): Promise<void> {
   await hideNativeSplash();
 }
 
+applyFontTrial();
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);
 

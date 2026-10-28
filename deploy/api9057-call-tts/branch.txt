@@ -1,0 +1,15 @@
+}elseif ($action==='call_tts'){
+    try {
+        $callTts = api9057_call_tts_normalize($request);
+    } catch (InvalidArgumentException $exception) {
+        error('400', $exception->getMessage());
+    }
+    try {
+        $bitrixCallId = api9057_call_tts_register($callTts['inner_id'], $callTts['phone']);
+    } catch (RuntimeException $exception) {
+        error('502', 'Could not register TTS call in Bitrix24');
+    }
+    $params = api9057_call_tts_params($callTts, $user_uid, $bitrixCallId);
+    $resp = asterisk_req($params, true);
+    if (($resp[0]['response'] ?? '') !== 'Success') answer(array('status'=>'error','data'=>$resp[0] ?? array()));
+    answer(array('status'=>'ok','action'=>$action,'bitrix_call_id'=>$bitrixCallId,'data'=>$resp[0]));

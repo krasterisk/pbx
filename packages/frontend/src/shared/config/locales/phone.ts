@@ -1,4 +1,9 @@
 export const phoneNumberRu = {
+  operatorEntry: 'Устройство оператора',
+  operatorEntryHint: 'Номер, устройство и очереди выбираются в форме начала смены на панели оператора.',
+  operatorEntryConnected: 'Сейчас подключён обычный рабочий телефон. Чтобы перейти в смену, отключите его и выберите устройство в форме начала работы. Во время звонка переход недоступен.',
+  disconnectAndStartShift: 'Отключить телефон и перейти к смене',
+  goToShift: 'Перейти к началу смены',
   authorizationRequired: 'Сессия истекла. Войдите в систему заново.',
   accessDenied: 'Нет доступа к выбранному телефону.', invalidNumber: 'Проверьте номер телефона.',
   telephoneNotFound: 'Телефон не найден. Обновите список номеров.',
@@ -37,6 +42,11 @@ export const phoneNumberRu = {
   copied: 'Номер скопирован', copyFailed: 'Не удалось скопировать номер', callFailed: 'Не удалось начать звонок',
 };
 export const phoneNumberEn = {
+  operatorEntry: 'Operator device',
+  operatorEntryHint: 'Choose your extension, device and queues in the operator shift entry form.',
+  operatorEntryConnected: 'An ordinary work phone is connected. Disconnect it and choose your device in the shift entry form. Switching is unavailable during a call.',
+  disconnectAndStartShift: 'Disconnect phone and go to shift entry',
+  goToShift: 'Go to shift entry',
   authorizationRequired: 'Your session expired. Sign in again.',
   accessDenied: 'You do not have access to this phone.', invalidNumber: 'Check the telephone number.',
   telephoneNotFound: 'Telephone not found. Refresh the extension list.',

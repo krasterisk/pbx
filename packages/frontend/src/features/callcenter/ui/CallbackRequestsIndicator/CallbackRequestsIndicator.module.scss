@@ -2,6 +2,10 @@
   position: relative;
 }
 
+.inline { width: 100%; min-width: 0; }
+.inline .dropdown { position: static; width: 100%; max-width: none; border: 0; box-shadow: none; padding: 0; }
+.inline :global([data-testid='callback-requests-list']) { max-height: none; overflow: visible; }
+
 .badge {
   display: inline-flex;
   align-items: center;

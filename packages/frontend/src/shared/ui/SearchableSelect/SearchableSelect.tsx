@@ -8,7 +8,7 @@ interface Props {
   id?: string;
   value: string;
   onChange: (value: string) => void;
-  options: ReadonlyArray<{ value: string; label: string }>;
+  options: ReadonlyArray<{ value: string; label: string; disabled?: boolean }>;
   label: string;
   searchLabel: string;
   emptyLabel: string;
@@ -29,7 +29,10 @@ export function SearchableSelect({ id, value, onChange, options, label, searchLa
   useEffect(() => {
     listRef.current?.querySelector(`[data-option-index="${active}"]`)?.scrollIntoView?.({ block: 'nearest' });
   }, [active, open]);
-  const select = (next: string) => { onChange(next); setOpen(false); };
+  const select = (next: string) => {
+    if (options.find(option => option.value === next)?.disabled) return;
+    onChange(next); setOpen(false);
+  };
   return <Popover open={open && !disabled} onOpenChange={next => { setOpen(next); setQuery(''); setActive(Math.max(0, options.findIndex(option => option.value === value))); }}>
     <PopoverTrigger asChild>
       <Button id={id} type="button" variant="outline" className="h-10 w-full min-w-0 justify-between font-normal" disabled={disabled} aria-label={label} aria-haspopup="listbox" aria-expanded={open && !disabled}>
@@ -43,7 +46,13 @@ export function SearchableSelect({ id, value, onChange, options, label, searchLa
         onKeyDown={event => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault();
-            setActive(index => Math.max(0, Math.min(filtered.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1))));
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            setActive(index => {
+              for (let next = index + step; next >= 0 && next < filtered.length; next += step) {
+                if (!filtered[next].disabled) return next;
+              }
+              return index;
+            });
           } else if (event.key === 'Enter') {
             event.preventDefault();
             if (filtered[active]) select(filtered[active].value);
@@ -51,7 +60,8 @@ export function SearchableSelect({ id, value, onChange, options, label, searchLa
         }} />
       <div ref={listRef} id={listId} role="listbox" aria-label={label} className="mt-2 max-h-60 overflow-y-auto">
         {filtered.map((option, index) => <button key={option.value} id={`${listId}-${index}`} type="button" role="option" aria-selected={option.value === value} tabIndex={-1} data-option-index={index}
-          className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent ${index === active ? 'bg-accent text-accent-foreground' : ''}`}
+          disabled={option.disabled} aria-disabled={option.disabled || undefined}
+          className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 ${index === active ? 'bg-accent text-accent-foreground' : ''}`}
           onMouseMove={() => setActive(index)} onClick={() => select(option.value)}>
           <Check size={14} className={option.value === value ? 'shrink-0' : 'invisible shrink-0'} aria-hidden="true" />{option.label}
         </button>)}

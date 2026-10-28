@@ -38,7 +38,7 @@ function startOfLocalDayMs(): number {
  * success. Auto-refreshes on the existing `missedCallNew`/`missedCallUpdate`
  * SSE window events (useCallCenterSSE.ts) by invalidating the MissedCalls tag.
  */
-export function MissedCallsPanel() {
+export function MissedCallsPanel({ inline = false }: { inline?: boolean } = {}) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
@@ -206,8 +206,8 @@ export function MissedCallsPanel() {
   const badgeClass = count > 0 ? styles.badgeAlert : '';
 
   return (
-    <div className={styles.wrap}>
-      <Button
+    <div className={`${styles.wrap}${inline ? ` ${styles.inline}` : ''}`}>
+      {!inline && <Button
         type="button"
         variant="unstyled"
         size="none"
@@ -218,16 +218,16 @@ export function MissedCallsPanel() {
       >
         <PhoneMissed className="w-4 h-4" />
         <span className={styles.count}>{count}</span>
-      </Button>
+      </Button>}
 
-      {open && (
+      {(inline || open) && (
         <div className={styles.dropdown}>
           <div className={styles.header}>
             <Text className={styles.title}>
               <PhoneMissed className="w-4 h-4 inline mr-1.5" />
               {t('callcenter.missed.title')}
             </Text>
-            <Button
+            {!inline && <Button
               type="button"
               variant="unstyled"
               size="none"
@@ -236,7 +236,7 @@ export function MissedCallsPanel() {
               aria-label={t('common.close', 'Close')}
             >
               <X className="w-4 h-4" />
-            </Button>
+            </Button>}
           </div>
 
           <SegmentedControl

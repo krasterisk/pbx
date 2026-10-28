@@ -1,5 +1,11 @@
 # Навигация приложения — r7 (N15 resizable accordion sidebar)
 
+## Current assignment N22 / r14 — topbar live search (2026-10-26)
+
+Explicit user follow-up supersedes the desktop modal-only search interaction: collapsed icon by default; desktop focus/click or Ctrl/⌘K expands a real input with immediate existing-catalog filtering and selectable dropdown underneath; small screens use a fullscreen search sheet. Preserve licensed/RBAC-filtered global page catalog, aliases, keyboard arrows/Enter/Escape, focus return, outside/Tab dismissal and route-change cleanup. `/root` chat01a16857-c4aa-7e10-a3cf-3b61a35d84de, codex-direct, sole writer; prior N21 writer explicitly idle. Baseline main/f646e20 + existing supervisor/tsbuildinfo/unrelated dirty files preserved.
+
+N22.1 implement bounded responsive search in ModuleShell and shared CommandPalette, using shared primitives/theme tokens. N22.2 verify filtering/navigation/keyboard/outside/empty/IME and mobile focus lifecycle; scoped types/lint/tests and live desktop/mobile screenshots, report full-suite environment limits separately. Owned paths: ModuleShell.tsx/.module.scss/.test.tsx plus new TopbarSearch files; shared/ui/CommandPalette/**; this PLAN/EXECUTION and own registry pointer. No changes to sidebar/footer/access/catalog APIs, backend, credentials, supervisor or deployment. Artifact outputs through tools/artifacts outputPath, outside repo. No subagents, service restart, dependency installation or new execution chain.
+
 Ревизия: **2026-10-10-r7**. Режим: **codex-direct**. Координатор: текущая задача навигации `/root`.
 Статус: **N15 r7 implemented / automated-tests-passed / local-browser-verified (mock API)**. N5-N14 historical, current scope N15; human/device/UAT pending.
 

@@ -1,7 +1,19 @@
-import type { AgentStatus, IAgent } from '../model/types/callCenterSchema';
+import type { AgentStatus, IAgent, IQueueStats } from '../model/types/callCenterSchema';
 import { queueNumberFromName } from './displayLabels';
 
 export const SUPERVISOR_QUEUE_LABEL_LIMIT = 32;
+
+/** Queue events carry live figures, while the tenant directory owns human names. */
+export function supervisorNamedQueues(
+  live: readonly IQueueStats[],
+  directory: readonly { name: string; display_name?: string | null }[],
+): IQueueStats[] {
+  const names = new Map(directory.map(queue => [queue.name, queue.display_name?.trim()]));
+  return live.map(queue => {
+    const displayName = names.get(queue.name);
+    return displayName ? { ...queue, displayName } : queue;
+  });
+}
 
 /** null is unrestricted; an empty access list grants no queues. */
 export function supervisorQueueAllowed(name: string, exten: string | undefined, allowed: readonly string[] | null): boolean {

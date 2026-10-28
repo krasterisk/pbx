@@ -1,6 +1,7 @@
-.queueFilterSelect {
-  display: block;
-  min-width: 200px;
-  max-width: 320px;
-  flex: 1 1 200px;
-}
+.selection { display: block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit; }
+.menu { width: min(340px, calc(100vw - 32px)); padding: 12px; }
+.options { max-height: min(360px, 50dvh); overflow-y: auto; }
+.option { display: flex; align-items: flex-start; gap: 9px; padding: 9px 6px; border-radius: var(--radius-sm); cursor: pointer; }
+.option > input { margin-top: 3px; accent-color: var(--color-primary); }
+.option > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; font-weight: 400; }
+.option:hover { background: var(--color-muted); }

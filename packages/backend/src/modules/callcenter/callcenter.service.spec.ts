@@ -308,6 +308,17 @@ describe('CallCenterService', () => {
       expect(state.getQueue(0, 'q700_0')?.agents.available).toBe(0);
     });
 
+    it.each(['PJSIP/e201_7', 'PJSIP/ew201_7', 'SIP/e201_7'])(
+      'does not block cabinet362 login because a foreign cabinet has %s on shift', async (foreignInterface) => {
+        state.setAgent(7, foreignInterface, { name: 'Other tenant', userId: 99, status: 'IN_CALL', queues: ['q700_7'] });
+        userModel.findOne.mockResolvedValue({ getDataValue: (key: string) => ({ name: 'Current tenant', vpbx_user_uid: 362 } as any)[key] });
+        ami.isPjsipEndpointReachable.mockResolvedValueOnce(true);
+        await expect(service.agentLogin('PJSIP/e201_362', ['q8601_362'], 362, 42)).resolves.toMatchObject({ success: true });
+        expect(state.getAgent(362, 'PJSIP/e201_362')?.userId).toBe(42);
+        expect(state.getAgent(7, foreignInterface)?.userId).toBe(99);
+      },
+    );
+
     it('rejects login when another operator already uses the same extension', async () => {
       await service.agentLogin('PJSIP/e201_0', ['sales'], 7, 42);
 
@@ -1011,7 +1022,7 @@ describe('CallCenterService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             user_uid: 7,
-            caller_id_num: '79990001122',
+            caller_id_num: { [Op.in]: ['79990001122', '+79990001122'] },
             called_back: false,
             client_called_back: false,
           }),

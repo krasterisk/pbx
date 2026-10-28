@@ -1,5 +1,5 @@
 /**
- * Per-browser operator presentation: KPI period, table/cards and optional desktop tabs.
+ * Per-browser operator presentation: KPI period and table/cards (desktopTabs is legacy).
  * Panel order is fixed (`DEFAULT_PANEL_ORDER`), collapse is gone and panel visibility lives in
  * the server-side personal settings (`ui_visibility`, with admin `locks`). Stale `order` /
  * `collapsed` / `visibility` values left in localStorage by older builds are ignored and
@@ -20,6 +20,7 @@ export const DEFAULT_PANEL_ORDER: readonly CcPanelKey[] = ['coworkers', 'queues'
 export interface AgentPanelPrefs {
   /** Default: this shift (same counters as Coworkers). */
   kpiDisplay: KpiDisplayMode;
+  /** Legacy storage field. Workspace now always shows one active section. */
   desktopTabs: boolean;
   coworkersView: AgentPanelView;
   queuesView: AgentPanelView;
@@ -64,9 +65,9 @@ export function loadAgentPanelPrefs(): AgentPanelPrefs {
   const { parsed } = readRaw();
   const prefs: AgentPanelPrefs = {
     kpiDisplay: normalizeKpi(parsed?.kpiDisplay),
-    desktopTabs: parsed?.desktopTabs === true,
-    coworkersView: parsed?.coworkersView === 'table' ? 'table' : 'cards',
-    queuesView: parsed?.queuesView === 'table' ? 'table' : 'cards',
+    desktopTabs: parsed?.desktopTabs !== false,
+    coworkersView: parsed?.coworkersView === 'cards' ? 'cards' : 'table',
+    queuesView: parsed?.queuesView === 'cards' ? 'cards' : 'table',
   };
   if (parsed && ('order' in parsed || 'collapsed' in parsed || 'visibility' in parsed || parsed.kpiDisplay === 'both')) {
     write(prefs); // drop stale keys once

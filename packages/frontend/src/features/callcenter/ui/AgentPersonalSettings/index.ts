@@ -1,1 +1,4 @@
-export { AgentPersonalSettings } from './AgentPersonalSettings';
+export {
+  AgentPersonalSettings,
+  AgentSettingsTrigger,
+} from './AgentPersonalSettings';

@@ -3,8 +3,13 @@ import { renderHook, act } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import React from 'react';
-import callCenterReducer from '../model/slice/callCenterSlice';
+import callCenterReducer, { setMyAgentInterface } from '../model/slice/callCenterSlice';
 import { useCallCenterSSE } from './useCallCenterSSE';
+
+vi.mock('./callCenterEventSource', () => ({
+  createCallCenterEventSource: (base: string, token: string) =>
+    new MockEventSource(`${base}/callcenter/events?token=${encodeURIComponent(token)}`),
+}));
 
 /**
  * Mock EventSource that lets us drive the test by emitting events
@@ -50,12 +55,12 @@ const makeStore = (opts?: {
       callCenter: callCenterReducer,
       auth: (state = {
         user: opts?.user ?? null,
-        accessToken: null,
+        accessToken: null as string | null,
         refreshToken: null,
         isAuthenticated: false,
         isLoading: false,
         error: null,
-      }) => state,
+      }, action: { type: string; payload?: string }) => action.type === 'test-token' ? { ...state, accessToken: action.payload || null } : state,
     } as any,
     preloadedState: opts?.myAgentInterface !== undefined || opts?.agents
       ? {
@@ -89,6 +94,36 @@ const currentUser: AuthUser = {
 describe('useCallCenterSSE', () => {
   let originalES: any;
   let store: ReturnType<typeof makeStore>;
+
+  it('reconnects once with a refreshed Redux token without retaining an expired URL', () => {
+    const first = renderHook(() => useCallCenterSSE(), { wrapper: wrapper(store) });
+    const second = renderHook(() => useCallCenterSSE(), { wrapper: wrapper(store) });
+    act(() => { store.dispatch({ type: 'test-token', payload: 'new-test-token' }); });
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(MockEventSource.instances[0].closed).toBe(true);
+    expect(MockEventSource.instances[1].url).toContain('new-test-token');
+    first.unmount(); expect(MockEventSource.instances[1].closed).toBe(false); second.unmount();
+  });
+  it('does not resurrect an authoritatively inactive shift from stale presence events', () => {
+    store = makeStore({ user: currentUser });
+    store.dispatch(setMyAgentInterface(null));
+    renderHook(() => useCallCenterSSE(), { wrapper: wrapper(store) });
+    act(() => MockEventSource.instances[0].emit('agentUpdate', { interface: 'PJSIP/e110_1', userId: 42, status: 'PAUSED', queues: [], name: 'Old shift' }));
+    expect(store.getState().callCenter.myAgentInterface).toBeNull();
+    expect(store.getState().callCenter.shiftSessionState).toBe('inactive');
+  });
+  it('shares one source across routes and closes it only after the last consumer leaves', () => {
+    const first = renderHook(() => useCallCenterSSE(), { wrapper: wrapper(store) });
+    const second = renderHook(() => useCallCenterSSE(), { wrapper: wrapper(store) });
+    expect(MockEventSource.instances).toHaveLength(1);
+    first.unmount();
+    expect(MockEventSource.instances[0].closed).toBe(false);
+    act(() => second.result.current.reconnect());
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(MockEventSource.instances[0].closed).toBe(true);
+    second.unmount();
+    expect(MockEventSource.instances[1].closed).toBe(true);
+  });
 
   beforeEach(() => {
     originalES = (globalThis as any).EventSource;

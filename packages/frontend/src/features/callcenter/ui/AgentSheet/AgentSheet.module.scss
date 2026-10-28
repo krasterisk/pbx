@@ -1,11 +1,15 @@
 .sheet {
-  width: 460px;
+  width: 100vw;
   max-width: 100vw;
   box-shadow: -8px 0 28px color-mix(in srgb, var(--color-foreground) 12%, transparent);
 }
 
 .headerRow {
   width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .sheet { width: 40vw; }
 }
 
 .body {

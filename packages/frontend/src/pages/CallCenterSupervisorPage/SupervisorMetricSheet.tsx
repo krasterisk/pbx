@@ -24,9 +24,9 @@ export function SupervisorMetricSheet({ metric, rollup, periodMeta, queues, onCl
     ? t('callcenter.supervisor.pulse.businessDay', { time: periodMeta.boundaryTime })
     : t('callcenter.supervisor.pulse.calendarDay');
   const title = metric === 'sla' ? 'SLA' : metric === 'answered'
-    ? t('callcenter.supervisor.answered', 'Answered') : t('callcenter.supervisor.abandoned', 'Lost');
+    ? t('callcenter.supervisor.pulse.answered') : t('callcenter.supervisor.pulse.lost');
   const columns = useMemo<ColumnDef<IQueueStats>[]>(() => [
-    { id: 'queue', header: t('callcenter.supervisor.queueOverview.title', 'Queue'), cell: ({ row }) => queueDisplayName(row.original.name, queues) },
+    { id: 'queue', header: t('callcenter.supervisor.pulse.queueColumn'), cell: ({ row }) => queueDisplayName(row.original.name, queues) },
     { id: 'value', header: title, cell: ({ row }) => metric === 'sla'
       ? (row.original.calls.total - (row.original.calls.shortAbandoned ?? 0) > 0 ? `${row.original.sla}%` : '—')
       : metric === 'answered' ? row.original.calls.answered : row.original.calls.abandoned },

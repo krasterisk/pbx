@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ParkingCircle, X, PhoneCall } from 'lucide-react';
 import { Button, Text } from '@/shared/ui';
@@ -17,21 +17,63 @@ import { toast } from 'react-toastify';
  * through the parkedCallsUpdate SSE event (useCallCenterSSE.ts).
  * Hidden when the lot is empty.
  */
-export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolean } = {}) {
+export function ParkedCallsIndicator({
+  showLabel = false,
+}: { showLabel?: boolean } = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [failureStatus, setFailureStatus] = useState<string | null>(null);
+  const [pageVisible, setPageVisible] = useState(
+    () => document.visibilityState !== 'hidden',
+  );
 
-  const { data: parked = [], isError, error, refetch } = useGetParkedCallsQuery(undefined, { pollingInterval: 5000 });
-  const [retrieveParkedCall, { isLoading: isRetrieving }] = useRetrieveParkedCallMutation();
+  const {
+    data: parked = [],
+    isError,
+    isSuccess,
+    isFetching,
+    error,
+    refetch,
+  } = useGetParkedCallsQuery(undefined, {
+    pollingInterval: pageVisible
+      ? failureStatus === '429'
+        ? 60000
+        : 30000
+      : 0,
+  });
+  const currentFailure = isError
+    ? error && 'status' in error
+      ? String(error.status)
+      : 'ERROR'
+    : null;
+  const displayedFailure = currentFailure ?? failureStatus;
+  useEffect(() => {
+    if (currentFailure) setFailureStatus(currentFailure);
+    else if (isSuccess && !isFetching) setFailureStatus(null);
+  }, [currentFailure, isSuccess, isFetching]);
+  useEffect(() => {
+    const update = () => setPageVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+  const [retrieveParkedCall, { isLoading: isRetrieving }] =
+    useRetrieveParkedCallMutation();
 
   const handleRetrieve = async (parkingSpace: string) => {
     try {
       await retrieveParkedCall({ parkingSpace }).unwrap();
-    } catch { toast.error(t('callcenter.parked.retrieveError', 'Could not retrieve the parked call. Refresh the list and try again.')); }
+    } catch {
+      toast.error(
+        t(
+          'callcenter.parked.retrieveError',
+          'Could not retrieve the parked call. Refresh the list and try again.',
+        ),
+      );
+    }
   };
 
   const count = parked.length;
-  if (count === 0 && !isError) return null;
+  if (count === 0 && !displayedFailure && !open) return null;
 
   return (
     <div className={styles.wrap}>
@@ -47,9 +89,11 @@ export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolea
       >
         <ParkingCircle className={showLabel ? 'w-5 h-5' : 'w-4 h-4'} />
         {showLabel ? (
-          <span className={styles.badgeLabel}>{t('callcenter.parked.title')}</span>
+          <span className={styles.badgeLabel}>
+            {t('callcenter.parked.title')}
+          </span>
         ) : null}
-        <span className={styles.count}>{isError ? '!' : count}</span>
+        <span className={styles.count}>{displayedFailure ? '!' : count}</span>
       </Button>
 
       {open && (
@@ -72,10 +116,38 @@ export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolea
           </div>
 
           <div className={styles.list}>
-            {isError && <div className={styles.row} role="alert" data-error-status={error && 'status' in error ? String(error.status) : undefined}>
-              <Text>{t('callcenter.parked.loadError', 'Could not check parked calls')}</Text>
-              <Button size="sm" variant="outline" onClick={() => void refetch()}>{t('common.retry', 'Retry')}</Button>
-            </div>}
+            {displayedFailure && (
+              <div
+                className={styles.row}
+                role="alert"
+                data-error-status={displayedFailure}
+              >
+                <Text>
+                  {displayedFailure === '429'
+                    ? t(
+                        'callcenter.parked.rateLimited',
+                        'Parking checks are temporarily limited. We will retry automatically.',
+                      )
+                    : t(
+                        'callcenter.parked.loadError',
+                        'Could not check parked calls',
+                      )}
+                </Text>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isFetching}
+                  onClick={() => void refetch()}
+                >
+                  {t('common.retry', 'Retry')}
+                </Button>
+              </div>
+            )}
+            {!displayedFailure && count === 0 && (
+              <Text variant="muted" role="status">
+                {t('callcenter.parked.empty', 'No parked calls')}
+              </Text>
+            )}
             {parked.map((p) => (
               <div key={p.parkingSpace} className={styles.row}>
                 <div className={styles.rowMain}>
@@ -83,10 +155,14 @@ export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolea
                     {p.callerIdNum || t('callcenter.missed.unknown')}
                   </Text>
                   {p.callerIdName && (
-                    <Text variant="muted" className="text-xs">{p.callerIdName}</Text>
+                    <Text variant="muted" className="text-xs">
+                      {p.callerIdName}
+                    </Text>
                   )}
                   <Text variant="muted" className="text-xs">
-                    {t('callcenter.parked.spaceLabel', 'Space {{space}}', { space: p.parkingSpace })}
+                    {t('callcenter.parked.spaceLabel', 'Space {{space}}', {
+                      space: p.parkingSpace,
+                    })}
                   </Text>
                 </div>
 
@@ -98,7 +174,9 @@ export function ParkedCallsIndicator({ showLabel = false }: { showLabel?: boolea
                     onClick={() => handleRetrieve(p.parkingSpace)}
                   >
                     <PhoneCall className="w-3.5 h-3.5 mr-1" />
-                    {isRetrieving ? t('callcenter.parked.retrieving') : t('callcenter.parked.retrieve')}
+                    {isRetrieving
+                      ? t('callcenter.parked.retrieving')
+                      : t('callcenter.parked.retrieve')}
                   </Button>
                 </div>
               </div>

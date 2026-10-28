@@ -1,0 +1,18 @@
+.sheet {
+  width: 40vw;
+  min-width: 440px;
+  max-width: 100vw;
+}
+.body {
+  padding: 20px;
+}
+.body :global([role='tab']) { font-size: 12px; padding-inline: 10px; }
+@media (max-width: 767px) {
+  .sheet {
+    width: 100vw;
+    min-width: 0;
+  }
+  .body {
+    padding: 16px;
+  }
+}

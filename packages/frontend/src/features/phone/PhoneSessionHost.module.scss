@@ -9,5 +9,7 @@
 .connection { padding: .25rem 0; flex: 1; min-height: 0; overflow-y: auto; }
 .session { padding: .45rem .6rem; border: 1px solid var(--color-border); border-radius: .6rem; background: color-mix(in srgb, var(--color-primary) 7%, var(--color-card)); }
 .sessionNumber { flex: 1; font-size: .8rem; }
+.shiftEntry { padding: 12px 0; }
+.shiftEntry :global(button) { min-height: 44px; white-space: normal; text-align: center; }
 @media (max-width: 768px) { .dock { position: static; } }
 @media (max-width: 768px) { .ordinaryWidget { bottom: 5rem; } }

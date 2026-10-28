@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Settings2, RefreshCw, HelpCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { PhoneActionsProvider, dialableNumber } from '@/entities/phone';
+import { PhoneActionsProvider, dialableNumber, useOperatorPhone } from '@/entities/phone';
 import { useAppSelector } from '@/shared/hooks/useAppStore';
 import { useWebRTCPhone } from '@/shared/lib/telephony/useWebRTCPhone';
 import { usePhoneEndpointsQuery, useConnectPhoneMutation, useDisconnectPhoneMutation, usePhoneHeartbeatMutation,
@@ -17,6 +17,8 @@ import cls from './PhoneSessionHost.module.scss';
 /** Auth identity is a remount boundary: never reuse a phone/password across users or tenants. */
 export function PhoneSessionHost({ children }: { children: ReactNode }) {
   const user = useAppSelector((state) => state.auth.user);
+  const operator = useOperatorPhone();
+  if (operator?.active) return <PhoneActionsProvider value={{ canCall: operator.canDial, call: operator.dial, configure: operator.open }}>{children}</PhoneActionsProvider>;
   if (!user || ![0, 1, 2, 3].includes(Number(user.level))) return children;
   return <PhoneOwner key={`${user.vpbx_user_uid}:${user.uniqueid}`} identity={`${user.vpbx_user_uid}:${user.uniqueid}`}>{children}</PhoneOwner>;
 }
@@ -24,6 +26,7 @@ export function PhoneSessionHost({ children }: { children: ReactNode }) {
 function PhoneOwner({ children, identity }: { children: ReactNode; identity: string }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const operatorEntry = useLocation().pathname.replace(/\/$/, '') === '/callcenter/agent';
   const { data, refetch, isLoading, isError } = usePhoneEndpointsQuery(identity, { pollingInterval: 30_000, refetchOnFocus: true });
   const [acquire, acquireState] = useConnectPhoneMutation();
   const [release] = useDisconnectPhoneMutation();
@@ -197,14 +200,22 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
   const disconnect = async () => {
     setError('');
     try {
-      if (busy || switchingRef.current) return;
+      if (busy || switchingRef.current) return false;
       await release({ owner }).unwrap();
       await phone.disconnect();
       setConnection(null);
       setConfiguring(true);
       runtimeState.reset();
       void refetch();
-    } catch (reason) { showError(reason); }
+      return true;
+    } catch (reason) { showError(reason); return false; }
+  };
+  const openShiftEntry = async () => {
+    if (connection && !await disconnect()) return;
+    setOpen(false);
+    setConfiguring(false);
+    navigate('/callcenter/agent');
+    document.getElementById('shift-endpoint')?.focus();
   };
   const ccDeskPhone = data?.callCenterActive && data.callCenterPhone?.mode === 'sip';
   const canCall = Boolean(ccDeskPhone ? !ccDialState.isLoading : tabOwned && connection && !data?.callCenterActive && !dialState.isLoading && !busy
@@ -273,6 +284,16 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
     </HStack>}
   </VStack>;
 
+  const shiftEntryContent = <VStack gap="12" align="stretch" className={cls.shiftEntry}>
+    <Text className="font-medium">{t('phoneNumber.operatorEntry')}</Text>
+    <Text variant="muted">{t(connection ? 'phoneNumber.operatorEntryConnected' : 'phoneNumber.operatorEntryHint')}</Text>
+    {error && <Text role="alert">{t(error)}</Text>}
+    <Button disabled={connectionBusy} onClick={() => void openShiftEntry()}>
+      {t(connection ? 'phoneNumber.disconnectAndStartShift' : 'phoneNumber.goToShift')}
+    </Button>
+    {connection && <Button variant="ghost" onClick={() => setConfiguring(false)}>{t('phoneNumber.back')}</Button>}
+  </VStack>;
+
   return <PhoneActionsProvider value={{ canCall, call, configure }}>
     {children}
     <audio ref={remoteAudioRef} autoPlay />
@@ -281,7 +302,7 @@ function PhoneOwner({ children, identity }: { children: ReactNode; identity: str
         panelOpen={open} onPanelOpenChange={value => { setOpen(value); if (value) { setWantsPhone(true); void refetch(); } }}
         mode={connection?.mode || mode} dialAllowed={canCall} callSeconds={callSeconds} standaloneControls autoOpenIncoming
         onRecover={() => connect(connection?.endpoint, connection?.mode)}
-        connectionContent={!connection || configuring ? connectionForm : undefined}
+        connectionContent={!connection || configuring ? operatorEntry ? shiftEntryContent : connectionForm : undefined}
         journalContent={<PhoneJournal key={connection?.extension || 'disconnected'} identity={identity} extension={connection?.extension} canCall={canCall} onCall={number => void call(number).catch(() => toast.error(t('phoneNumber.callFailed')))}/>}
         contactsContent={<PhoneContacts identity={identity} canCall={canCall} onCall={number => void call(number).catch(() => toast.error(t('phoneNumber.callFailed')))}/>}
         sessionControls={connection && <HStack gap="8" max className={cls.session}>

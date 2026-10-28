@@ -521,6 +521,7 @@ export class CallCenterAmiService implements OnModuleInit {
       && !pendingNonQueue.answerTime
     ) {
       pendingNonQueue.answerTime = new Date();
+      void this.getCcService()?.autoResolveOnAnswer(userUid, pendingNonQueue.callerIdNum);
     }
     // Queue-paused "outbound work" mode must survive AMI QueueMemberPause remap to PAUSED
     // (including the brief window before setAgent(OUTBOUND_WORK), via pausedreason).
@@ -541,7 +542,10 @@ export class CallCenterAmiService implements OnModuleInit {
       && ['PAUSED', 'OUTBOUND_WORK'].includes(pendingNonQueue.resumeStatus || '')) {
       status = ['2', '3', '8'].includes(amiStatusCode) ? 'IN_CALL'
         : ['6', '7'].includes(amiStatusCode) ? 'RINGING' : existing.status;
-      if (status === 'IN_CALL' && !pendingNonQueue.answerTime) pendingNonQueue.answerTime = new Date();
+      if (status === 'IN_CALL' && !pendingNonQueue.answerTime) {
+        pendingNonQueue.answerTime = new Date();
+        void this.getCcService()?.autoResolveOnAnswer(userUid, pendingNonQueue.callerIdNum);
+      }
     }
     // Asterisk QueueMemberPause / QueueMember use PausedReason > pausedreason
     const amiReason = amiReasonEarly;

@@ -25,6 +25,7 @@ import {
 } from '@/features/callcenter/model/selectors/callCenterSelectors';
 import {
   agentDisplayName,
+  queueDisplayName,
   agentStatusColorFamily,
   coworkerActivityLabel,
   formatStatusElapsed,
@@ -501,9 +502,10 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp, view }
             <TableRow>
               <TableHead>{t('callcenter.coworkersTab.colAgent', 'Agent')}</TableHead>
               <TableHead>{t('callcenter.coworkersTab.colStatus', 'Status')}</TableHead>
-              <TableHead>
-                {periodHint}
-              </TableHead>
+              <TableHead>{t('callcenter.tabs.queues', 'Queues')}</TableHead>
+              <TableHead title={periodHint} className={styles.numeric}>{t('callcenter.kpi.inbound')}</TableHead>
+              <TableHead title={periodHint} className={styles.numeric}>{t('callcenter.kpi.outbound')}</TableHead>
+              <TableHead title={periodHint} className={styles.numeric}>{t('callcenter.kpi.missedOffersShort')}</TableHead>
               <TableHead aria-label={t('callcenter.coworkersTab.colActions', 'Actions')} />
             </TableRow>
           </TableHeader>
@@ -548,13 +550,12 @@ export function CoworkersTab({ hasActiveCall, kpiDisplay: kpiDisplayProp, view }
                     {activity.text}
                     <div className={styles.meta}>{formatStatusElapsed(elapsed)}</div>
                   </TableCell>
-                  <TableCell className={styles.kpiCell}>
-                    <div className={styles.kpiLine}>
-                      <span>{t('callcenter.kpi.answered', 'Answered')}: {kpi.answered}</span>
-                      <span>· {t('callcenter.kpi.made', 'Made')}: {kpi.made}</span>
-                      <span>· {t('callcenter.kpi.missed', 'Missed')}: {kpi.missed}</span>
-                    </div>
-                  </TableCell>
+                  <TableCell className={styles.queueCell}><Tooltip content={agent.queues.map(queue => queueDisplayName(queue, queues)).join(', ')}>
+                    <Text className={styles.queueNames}>{agent.queues.map(queue => queueDisplayName(queue, queues)).join(', ') || '—'}</Text>
+                  </Tooltip></TableCell>
+                  <TableCell className={styles.numeric}>{kpi.answered}</TableCell>
+                  <TableCell className={styles.numeric}>{kpi.made}</TableCell>
+                  <TableCell className={styles.numeric}>{kpi.missed}</TableCell>
                   <TableCell className={styles.actionsCell}>{renderActions(agent, isSelf)}</TableCell>
                 </DroppableColleague>
               );

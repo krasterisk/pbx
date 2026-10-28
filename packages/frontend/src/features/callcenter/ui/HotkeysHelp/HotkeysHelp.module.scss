@@ -2,6 +2,7 @@
   padding: 6px 0;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
 }
+.row > * { font-size: 13px; }
 
 .kbd {
   font-family: var(--font-mono, ui-monospace, monospace);

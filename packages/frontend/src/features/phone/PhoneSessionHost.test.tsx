@@ -1,9 +1,9 @@
 import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { Link, MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PhoneSessionHost } from './PhoneSessionHost';
-import { PhoneNumber } from '@/entities/phone';
+import { PhoneNumber, OperatorPhoneProvider } from '@/entities/phone';
 import { SoftphoneWidget } from '@/shared/ui/SoftphoneWidget';
 
 const mocks = vi.hoisted(() => {
@@ -76,6 +76,15 @@ describe('ordinary-user work phone', () => {
       request: vi.fn((_name, _options, fn) => fn(mocks.owned ? {} : null)),
     } });
   });
+  it('routes application phone actions to the existing operator session without acquiring another owner', async () => {
+    const dial = vi.fn(async () => undefined), open = vi.fn();
+    render(<MemoryRouter><OperatorPhoneProvider value={{ active: true, canDial: true, dial, open, startOutbound: vi.fn() }}><PhoneSessionHost><PhoneNumber number="123" /></PhoneSessionHost></OperatorPhoneProvider></MemoryRouter>);
+    await userEvent.click(screen.getByRole('button', { name: 'phoneNumber.actionsFor' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'phoneNumber.call' }));
+    expect(dial).toHaveBeenCalledWith('123');
+    expect(mocks.acquire).not.toHaveBeenCalled(); expect(mocks.runtime).not.toHaveBeenCalled();
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
   it('connects a desk phone without creating a browser transport', async () => {
     mount(); await choose();
     await waitFor(() => expect(screen.getByTestId('softphone-widget-chrome')).toBeInTheDocument());
@@ -85,6 +94,41 @@ describe('ordinary-user work phone', () => {
     await userEvent.click(screen.getByRole('button', { name: 'callcenter.softphone.dial' }));
     expect(mocks.dial).toHaveBeenCalledWith(expect.objectContaining({ number: '123' }));
     expect(mocks.makeCall).not.toHaveBeenCalled();
+  });
+  it('uses shift entry as the single device selector on the operator page', async () => {
+    render(<MemoryRouter initialEntries={['/callcenter/agent']}><PhoneSessionHost><span>operator entry</span></PhoneSessionHost></MemoryRouter>);
+    await open();
+    expect(screen.getByText('phoneNumber.operatorEntryHint')).toBeInTheDocument();
+    expect(screen.queryByLabelText('phoneNumber.subscriber')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'phoneNumber.goToShift' }));
+    expect(mocks.navigate).toHaveBeenCalledWith('/callcenter/agent');
+    expect(mocks.acquire).not.toHaveBeenCalled();
+    expect(mocks.release).not.toHaveBeenCalled();
+  });
+  it('explicitly disconnects an idle ordinary phone before opening shift entry', async () => {
+    render(<MemoryRouter><Link to="/callcenter/agent">Operator page</Link><PhoneSessionHost><span>entry</span></PhoneSessionHost></MemoryRouter>);
+    await choose();
+    await userEvent.click(screen.getByRole('link', { name: 'Operator page' }));
+    await userEvent.click(screen.getByRole('button', { name: 'phoneNumber.change' }));
+    expect(screen.queryByLabelText('phoneNumber.subscriber')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'phoneNumber.disconnectAndStartShift' }));
+    expect(mocks.release).toHaveBeenCalledTimes(1);
+    expect(mocks.disconnect).toHaveBeenCalled();
+    expect(mocks.navigate).toHaveBeenCalledWith('/callcenter/agent');
+    expect(mocks.acquire).toHaveBeenCalledTimes(1);
+  });
+  it('preserves the connected phone when the server refuses the shift-entry disconnect', async () => {
+    render(<MemoryRouter><Link to="/callcenter/agent">Operator page</Link><PhoneSessionHost><span>entry</span></PhoneSessionHost></MemoryRouter>);
+    await choose();
+    await userEvent.click(screen.getByRole('link', { name: 'Operator page' }));
+    await userEvent.click(screen.getByRole('button', { name: 'phoneNumber.change' }));
+    mocks.disconnect.mockClear();
+    mocks.release.mockImplementationOnce(() => ({ unwrap: async () => { throw { status: 409 }; } }));
+    await userEvent.click(screen.getByRole('button', { name: 'phoneNumber.disconnectAndStartShift' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText('phoneNumber.workingNumber')).toBeInTheDocument();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
   });
   it('uses one common widget before login and filters WebRTC-capable available numbers', async () => {
     mocks.data.endpoints.push({id:'e102_7',extension:'102',name:'Desk',webrtc:false,available:true},

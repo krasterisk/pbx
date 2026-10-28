@@ -1,10 +1,10 @@
 .screen {
-  max-width: 720px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
 }
 
 .title {
@@ -14,16 +14,14 @@
 }
 
 .lastShift {
-  padding: 12px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
 }
 
 .lastShiftTitle {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--color-muted-foreground);
 }
+
+@media (max-width: 480px) { .screen { padding: 16px; } }

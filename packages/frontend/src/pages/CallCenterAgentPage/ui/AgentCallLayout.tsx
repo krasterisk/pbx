@@ -1,7 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
+  VStack,
+  HStack,
+  Text,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -30,14 +33,15 @@ export interface AgentCallLayoutProps {
 export function AgentCallLayout({ isMobile, children, visibility, bodies, waitingCount }: AgentCallLayoutProps) {
   const { t } = useTranslation();
   const [openPanel, setOpenPanel] = useState<CcPanelKey | null>(null);
+  const panelTitleRef = useRef<HTMLHeadingElement>(null);
   const keys = DEFAULT_PANEL_ORDER.filter((key) => visibility[key]);
   const openMeta = openPanel ? PANEL_META[openPanel] : null;
 
   return (
-    <div className={`${styles.callLayout}${isMobile ? ` ${styles.callLayoutPhone}` : ''}`} data-testid="cc-agent-call-layout">
-      <div className={styles.callMain}>{children}</div>
+    <VStack align="stretch" max className={`${styles.callLayout}${isMobile ? ` ${styles.callLayoutPhone}` : ''}`} data-testid="cc-agent-call-layout">
+      <VStack align="stretch" max className={styles.callMain}>{children}</VStack>
 
-      <nav
+      <HStack as="nav"
         className={styles.rail}
         aria-label={t('callcenter.agent.sections', 'Sections')}
         data-testid="cc-agent-rail"
@@ -51,32 +55,32 @@ export function AgentCallLayout({ isMobile, children, visibility, bodies, waitin
             <Button
               key={key}
               type="button"
-              variant="outline"
+              variant="unstyled"
               size="sm"
               className={styles.railButton}
               onClick={() => setOpenPanel(key)}
               aria-label={badge ? `${label}: ${badge}` : label}
-              title={label}
               data-testid={`cc-rail-${key}`}
             >
-              <Icon className="w-4 h-4" aria-hidden="true" />
-              {badge ? <span className={styles.railBadge} aria-hidden="true">{badge}</span> : null}
+              <Icon size={16} aria-hidden="true" />
+              <Text as="span" className={styles.railLabel}>{label}</Text>
+              {badge ? <Text as="span" className={styles.railBadge} aria-hidden="true">{badge}</Text> : null}
             </Button>
           );
         })}
-      </nav>
+      </HStack>
 
       <Sheet open={openPanel !== null} onOpenChange={(o) => !o && setOpenPanel(null)}>
-        <SheetContent side={isMobile ? 'bottom' : 'right'}>
+        <SheetContent side="right" className={styles.panelSheet} onOpenAutoFocus={event => { event.preventDefault(); panelTitleRef.current?.focus(); }}>
           <SheetHeader>
-            <SheetTitle>{openMeta ? t(openMeta.labelKey, openMeta.fallback) : ''}</SheetTitle>
-            <SheetDescription className="sr-only">
+            <SheetTitle ref={panelTitleRef} tabIndex={-1}>{openMeta ? t(openMeta.labelKey, openMeta.fallback) : ''}</SheetTitle>
+            <SheetDescription className={styles.srOnly}>
               {t('callcenter.agent.railDescription', 'Workspace panel')}
             </SheetDescription>
           </SheetHeader>
-          {openPanel ? bodies[openPanel] : null}
+          <VStack align="stretch" max className={styles.sheetBody}>{openPanel ? bodies[openPanel] : null}</VStack>
         </SheetContent>
       </Sheet>
-    </div>
+    </VStack>
   );
 }

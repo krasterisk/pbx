@@ -51,7 +51,7 @@ dist-mpbx-standalone/
 *.tsbuildinfo
 
 # Local agent workspaces and generated evidence (see docs/development/REPOSITORY-LAYOUT.md)
-/.planning/
+.planning/
 /.artifacts/
 __pycache__/
 *.pyc

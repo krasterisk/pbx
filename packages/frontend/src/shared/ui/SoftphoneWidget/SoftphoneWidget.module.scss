@@ -1,5 +1,40 @@
 /* SoftphoneWidget - chrome shell (desktop) + sticky bar (phone), D-26 chrome-only */
 
+.panelBody :global(button) { gap: 8px; }
+.softphoneTabs :global([role='tablist']) { gap: 0; padding-inline: 0; }
+.softphoneTabs :global([role='tab']) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 1 1 0; min-width: 0; padding: 10px 6px; font-size: 13px; }
+.panelBody :global(button svg) { flex-shrink: 0; }
+
+.embedded { width: 100%; min-width: 0; gap: 12px; padding: 18px 20px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-card); }
+.embedded .embeddedRow { flex-wrap: wrap; min-width: 0; }
+.embeddedIdentity { flex: 1; min-width: 160px; }
+.embeddedIcon { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, var(--color-card)); }
+.embeddedCaller { min-width: 0; }
+.embeddedTitle { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.embeddedHint { font-size: 12px; overflow-wrap: anywhere; }
+.embeddedDial { flex: 0 1 380px; min-width: 0; }
+.embeddedDial > :first-child { min-width: 0; }
+.embeddedDial :global(button) { gap: 8px; flex-shrink: 0; }
+.embedded .embeddedActions { flex-wrap: wrap; gap: 8px; }
+.embedded .controlsRow { margin: 0; padding: 0; gap: 8px; }
+.embedded .ringingActions { margin: 0; gap: 8px; }
+.embedded .ringingBtn { min-height: 38px; padding: 8px 12px; }
+.embeddedTools { width: min(440px, 100vw); }
+.embeddedTools .panelBody { padding: 16px; }
+.embeddedTools .dialGrid { margin-inline: auto; }
+@media (max-width: 767px) {
+  .embedded { padding: 14px; }
+  .embedded .embeddedRow { gap: 12px; position: relative; }
+  .embeddedIdentity { flex-basis: 100%; }
+  .embeddedCaller { padding-right: 32px; }
+  .embeddedDial { flex: 1; }
+  .embedded .embeddedActions { width: 100%; }
+  .embedded .embeddedActions :global(button) { min-width: 44px; min-height: 44px; }
+  .embedded .embeddedActions > :last-child { margin-left: auto; }
+  .embedded[data-idle='true'] .embeddedActions { position: absolute; top: 0; right: 0; width: auto; }
+  .embeddedTools { width: 100vw; }
+}
+
 @keyframes softphonePulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }

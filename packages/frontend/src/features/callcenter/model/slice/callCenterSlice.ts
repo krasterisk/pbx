@@ -16,6 +16,7 @@ const initialState: CallCenterState = {
   calls: [],
   connected: false,
   myAgentInterface: null,
+  shiftSessionState: 'unknown',
   chatUnreadByChannel: {},
   chatOpen: false,
   pendingOutboundDial: null,
@@ -28,6 +29,7 @@ export const callCenterSlice = createSlice({
   name: 'callCenter',
   initialState,
   reducers: {
+    resetCallCenter: () => initialState,
     // ─── Full snapshot (on SSE connect) ────────────────────
     setSnapshot(state, action: PayloadAction<ICcSnapshot>) {
       state.lastEventAt = Date.now();
@@ -70,6 +72,7 @@ export const callCenterSlice = createSlice({
 
     setMyAgentInterface(state, action: PayloadAction<string | null>) {
       state.myAgentInterface = action.payload;
+      state.shiftSessionState = action.payload ? 'active' : 'inactive';
     },
 
     // ─── Agent updates ────────────────────────────────────
@@ -254,6 +257,7 @@ export const callCenterSlice = createSlice({
 });
 
 export const {
+  resetCallCenter,
   setSnapshot,
   setConnected,
   touchSseHeartbeat,

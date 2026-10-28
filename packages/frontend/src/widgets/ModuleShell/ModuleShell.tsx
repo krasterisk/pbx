@@ -1,14 +1,13 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Sparkles } from 'lucide-react';
-import { AppBrand, Button, Text, Tooltip } from '@/shared/ui';
+import { Sparkles } from 'lucide-react';
+import { AppBrand, Button, Tooltip } from '@/shared/ui';
 import { Flex, HStack } from '@/shared/ui/Stack';
 import { AssistantPanel, type AssistantPanelMode } from '@/widgets/AssistantPanel';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useAppStore';
 import { aiChatActions } from '@/features/ai-chat/model/slice/aiChatSlice';
 import {
-  CommandPalette,
   buildPaletteItems,
 } from '@/shared/ui/CommandPalette';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
@@ -29,6 +28,7 @@ import { MobileModuleMenu } from './MobileModuleMenu';
 import { ModuleShellSidebar } from './ModuleShellSidebar';
 import { OfflineBanner } from './OfflineBanner';
 import { useSidebarWidth } from './useSidebarWidth';
+import { TopbarSearch } from './TopbarSearch';
 import cls from './ModuleShell.module.scss';
 
 const COLLAPSE_KEY = 'krasterisk.moduleShell.collapsed';
@@ -60,18 +60,11 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
   const blocked = useModuleLicenseGate();
 
   const [isDark, setIsDark] = useState(() => { try { return localStorage.getItem('theme') !== 'light'; } catch { return !document.documentElement.classList.contains('light'); } });
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
   const [agentMinimized, setAgentMinimized] = useState(false);
   const agentTriggerRef = useRef<HTMLButtonElement>(null);
-  const paletteReturnFocus = useRef<HTMLElement | null>(null);
-  const openPalette = useCallback(() => {
-    paletteReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setPaletteOpen(true);
-  }, []);
   const shortcutMod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
   const agentShortcutHint = t('aiChat.shortcutHint', { mod: shortcutMod });
-  const searchShortcutHint = `${t('commandPalette.placeholder')} (${shortcutMod}+K)`;
   const [collapsed, setCollapsed] = useState<boolean | null>(() => {
     try {
       const stored = localStorage.getItem(COLLAPSE_KEY);
@@ -109,17 +102,6 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
 
     return buildPaletteItems(licensed, pages);
   }, [licensedModules, level, getDestination, t]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== 'k') return;
-      if (!(e.metaKey || e.ctrlKey)) return;
-      e.preventDefault();
-      if (!paletteOpen) openPalette(); else setPaletteOpen(false);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [openPalette, paletteOpen]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -210,20 +192,7 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
           </Button>
         </Tooltip>
 
-        <Tooltip content={searchShortcutHint}>
-            <Button
-              type="button"
-              variant="ghost"
-              id="shell-cmdk-trigger"
-              className={cls.searchTrigger}
-              onClick={openPalette}
-              aria-label={t('commandPalette.placeholder')}
-            >
-              <Search key="icon" size={16} aria-hidden />
-              <Text key="label" as="span" className={cls.searchLabel}>{t('commandPalette.placeholder')}</Text>
-              <Text key="kbd" as="span" className={cls.searchKbd}>{shortcutMod}+K</Text>
-            </Button>
-          </Tooltip>
+        <TopbarSearch items={paletteItems} />
 
         <HStack gap="8" align="center">
           <UserBlock
@@ -263,13 +232,6 @@ export const ModuleShell = memo(function ModuleShell({ children, mobileMenuOpen,
           {blocked ? <ModuleAccessScreen block={blocked} /> : children}
         </Flex>
       </Flex>
-
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        items={paletteItems}
-        returnFocusRef={paletteReturnFocus}
-      />
 
       <AssistantPanel
         open={agentOpen}

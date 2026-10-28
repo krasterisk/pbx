@@ -28,15 +28,20 @@ import { timeGroupsReducer } from '@/features/timeGroups';
 import { directoriesReducer } from '@/features/directories';
 import { tenantsPageReducer } from '@/features/cloud-admin';
 import { aiChatReducer } from '@/features/ai-chat/model/slice/aiChatSlice';
-import callCenterReducer from '@/features/callcenter/model/slice/callCenterSlice';
+import callCenterReducer, { resetCallCenter } from '@/features/callcenter/model/slice/callCenterSlice';
 import conferenceSessionReducer from '@/features/conferences/model/slice/conferenceSessionSlice';
 import { conferencesPageReducer } from '@/features/conferences/model/slice/conferencesPageSlice';
 import { autodialPageReducer } from '@/features/autodial/model/slice/autodialPageSlice';
 import '@/shared/api/endpoints/cdrApi';
 
 const resetApiOnLogout: Middleware = (api) => (next) => (action) => {
+  const previousUser = api.getState().auth.user;
   const result = next(action);
-  if (logout.match(action) || authLogout.fulfilled.match(action)) {
+  const user = api.getState().auth.user;
+  const identityChanged = previousUser?.uniqueid !== user?.uniqueid
+    || previousUser?.vpbx_user_uid !== user?.vpbx_user_uid;
+  if (identityChanged || logout.match(action) || authLogout.fulfilled.match(action)) {
+    api.dispatch(resetCallCenter());
     api.dispatch(rtkApi.util.resetApiState());
   }
   return result;

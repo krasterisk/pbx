@@ -5,7 +5,15 @@ import {
   describeHotkey,
   type AgentHotkeyMap,
 } from '@krasterisk/shared';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Flex, Text, VStack } from '@/shared/ui';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Flex,
+  Text,
+  VStack,
+} from '@/shared/ui';
 import styles from './HotkeysHelp.module.scss';
 
 export interface HotkeysHelpProps {
@@ -16,29 +24,59 @@ export interface HotkeysHelpProps {
 }
 
 /** Cheat sheet of the agent hotkeys, opened with "?" or from the header (U2.4). */
-export function HotkeysHelp({ open, onOpenChange, map, sip = false }: HotkeysHelpProps) {
+export function HotkeysHelp({
+  open,
+  onOpenChange,
+  map,
+  sip = false,
+}: HotkeysHelpProps) {
   const { t } = useTranslation();
-  const effective = map ?? DEFAULT_AGENT_HOTKEYS;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="default" data-testid="cc-hotkeys-help">
         <DialogHeader>
-          <DialogTitle>{t('callcenter.settings.hotkeys.helpTitle', 'Hotkeys')}</DialogTitle>
+          <DialogTitle>
+            {t('callcenter.settings.hotkeys.helpTitle', 'Hotkeys')}
+          </DialogTitle>
         </DialogHeader>
-        <VStack gap="8">
-          {AGENT_HOTKEY_ACTIONS.map((action) => (
-            <Flex key={action} justify="between" align="center" gap="12" className={styles.row}>
-              <Text>{t(`callcenter.settings.hotkeys.action.${action}`, action)}</Text>
-              <Text as="span" className={styles.kbd}>{sip && ['answer', 'mute', 'hold'].includes(action)
-                ? t('callcenter.settings.hotkeys.onDevice', 'On SIP phone')
-                : describeHotkey(effective[action])}</Text>
-            </Flex>
-          ))}
-          <Text variant="muted" className={styles.hint}>
-            {t('callcenter.settings.hotkeys.helpHint', 'They work in the Russian layout too and do not fire while you type in a field.')}
-          </Text>
-        </VStack>
+        <HotkeysList map={map} sip={sip} />
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function HotkeysList({
+  map,
+  sip = false,
+}: Pick<HotkeysHelpProps, 'map' | 'sip'>) {
+  const { t } = useTranslation();
+  const effective = map ?? DEFAULT_AGENT_HOTKEYS;
+  return (
+    <VStack gap="8">
+      {AGENT_HOTKEY_ACTIONS.map((action) => (
+        <Flex
+          key={action}
+          justify="between"
+          align="center"
+          gap="12"
+          className={styles.row}
+        >
+          <Text>
+            {t(`callcenter.settings.hotkeys.action.${action}`, action)}
+          </Text>
+          <Text as="span" className={styles.kbd}>
+            {sip && ['answer', 'mute', 'hold'].includes(action)
+              ? t('callcenter.settings.hotkeys.onDevice', 'On SIP phone')
+              : describeHotkey(effective[action])}
+          </Text>
+        </Flex>
+      ))}
+      <Text variant="muted" className={styles.hint}>
+        {t(
+          'callcenter.settings.hotkeys.helpHint',
+          'They work in the Russian layout too and do not fire while you type in a field.',
+        )}
+      </Text>
+    </VStack>
   );
 }

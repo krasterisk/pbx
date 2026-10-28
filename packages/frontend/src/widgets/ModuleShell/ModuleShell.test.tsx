@@ -378,7 +378,8 @@ describe('ModuleShell (global accordion sidebar)', () => {
     const cmdkTrigger = document.getElementById('shell-cmdk-trigger');
     expect(agentTrigger).toBeTruthy();
     expect(cmdkTrigger).toBeTruthy();
-    expect(agentTrigger?.nextElementSibling).toBe(cmdkTrigger);
+    expect(agentTrigger?.nextElementSibling).toBe(screen.getByTestId('shell-search'));
+    expect(screen.getByTestId('shell-search')).toContainElement(cmdkTrigger);
   });
 
   it('does not render the former floating agent trigger anywhere in the shell', () => {

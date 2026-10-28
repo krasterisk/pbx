@@ -18,27 +18,30 @@
   font-size: 0.85rem;
 }
 
-.table th {
+.table.table th {
   text-align: left;
-  padding: 8px 10px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--color-muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  text-transform: none;
+  letter-spacing: normal;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
   position: sticky;
   top: 0;
   background: var(--color-card);
-  z-index: 1;
+  z-index: var(--z-index-dropdown);
 }
 
-.table td {
-  padding: 8px 10px;
+.table.table td {
+  padding: 16px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
   vertical-align: middle;
 }
+.table .numeric { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.queueCell { max-width: 200px; }
+.queueNames { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--color-muted-foreground); }
 
 .nameCell {
   display: flex;
@@ -69,7 +72,7 @@
 }
 
 .selfRow {
-  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  background: transparent;
 }
 
 .rowClickable {

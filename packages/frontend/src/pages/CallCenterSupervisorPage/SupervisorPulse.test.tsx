@@ -31,6 +31,9 @@ describe('Pulse table and single status control', () => {
     expect(screen.getByRole('columnheader', { name: 'Outbound' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '7' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '3' })).toBeInTheDocument();
+    expect(screen.getByText('Synthetic Anna')).toBeInTheDocument();
+    expect(screen.getByText('callcenter.supervisor.pulse.extension')).toBeInTheDocument();
+    expect(screen.queryByText('callcenter.supervisor.pulse.tableHint')).not.toBeInTheDocument();
     expect(screen.queryByText('500')).not.toBeInTheDocument();
     const queues = screen.getByRole('button', { name: 'callcenter.supervisor.pulse.manageQueuesFor' });
     expect(Array.from(queues.textContent ?? '')).toHaveLength(32);
@@ -61,5 +64,11 @@ describe('Pulse table and single status control', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'End shift' }));
     expect(actions.onEndShift).toHaveBeenCalledTimes(1);
     expect(actions.onPause).not.toHaveBeenCalled();
+  });
+
+  it('shows a human-readable automatic pause reason instead of the engine code', () => {
+    render(<SupervisorAgentStatusMenu agent={{ ...agent, status: 'PAUSED', pauseReason: 'auto_pause:rona' }} {...handlers()} />);
+    expect(screen.getByText(/Auto-pause: no answer/)).toBeInTheDocument();
+    expect(screen.queryByText(/auto_pause:rona/)).not.toBeInTheDocument();
   });
 });

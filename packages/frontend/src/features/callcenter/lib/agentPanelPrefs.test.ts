@@ -13,7 +13,7 @@ describe('agentPanelPrefs (U2.8)', () => {
   });
 
   it('defaults kpi to shift and has a fixed panel order', () => {
-    expect(loadAgentPanelPrefs()).toEqual({ kpiDisplay: 'shift', desktopTabs: false, coworkersView: 'cards', queuesView: 'cards' });
+    expect(loadAgentPanelPrefs()).toEqual({ kpiDisplay: 'shift', desktopTabs: true, coworkersView: 'table', queuesView: 'table' });
     expect(DEFAULT_PANEL_ORDER).toEqual(['coworkers', 'queues', 'waiting', 'history']);
   });
 
@@ -45,8 +45,8 @@ describe('agentPanelPrefs (U2.8)', () => {
       }),
     );
     const prefs = loadAgentPanelPrefs();
-    expect(prefs).toEqual({ kpiDisplay: 'day', desktopTabs: false, coworkersView: 'cards', queuesView: 'cards' });
-    expect(JSON.parse(localStorage.getItem(KEY) as string)).toEqual({ kpiDisplay: 'day', desktopTabs: false, coworkersView: 'cards', queuesView: 'cards' });
+    expect(prefs).toEqual({ kpiDisplay: 'day', desktopTabs: true, coworkersView: 'table', queuesView: 'table' });
+    expect(JSON.parse(localStorage.getItem(KEY) as string)).toEqual({ kpiDisplay: 'day', desktopTabs: true, coworkersView: 'table', queuesView: 'table' });
   });
 
   it('removes legacy v1 keys', () => {

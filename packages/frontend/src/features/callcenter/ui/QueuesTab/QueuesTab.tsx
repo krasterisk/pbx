@@ -92,27 +92,24 @@ export function QueuesTab({ activeCallUniqueid, currentQueue, view = 'cards' }: 
   ) : null;
 
   if (view === 'table' && !isMobile) return <div className={styles.wrap} data-testid="queues-tab">
-    <Table surface={false} showSearch={false} showExport={false}>
+    <Table className={styles.table} surface={false} showSearch={false} showExport={false}>
       <TableHeader><TableRow>
         <TableHead>{t('callcenter.tabs.queues', 'Queues')}</TableHead>
-        <TableHead>{t('callcenter.supervisor.kpi.now', 'Now')}</TableHead>
-        <TableHead>{t('callcenter.kpi.modeDay', 'Day')}</TableHead>
+        <TableHead>{t('callcenter.queuesTab.colWaiting')}</TableHead>
+        <TableHead>{t('callcenter.queuesTab.colTalking')}</TableHead>
+        <TableHead>{t('callcenter.queuesTab.colFree')}</TableHead>
+        <TableHead>{t('callcenter.queuesTab.answeredDay')}</TableHead>
+        <TableHead>{t('callcenter.queuesTab.missedDay')}</TableHead>
         <TableHead><CcMetricLabel metric="sla">SLA</CcMetricLabel></TableHead>
         {activeCallUniqueid && <TableHead>{t('common.actions', 'Actions')}</TableHead>}
       </TableRow></TableHeader>
       <TableBody>{rows.map((row) => <TableRow key={row.queueName}>
         <TableCell>{row.label}</TableCell>
-        <TableCell>
-          <div className={styles.tableMetrics}>
-            <span>{row.waiting} {t('callcenter.queuesTab.waiting', 'waiting')}</span>
-            <span>{row.talking} {t('callcenter.queuesTab.talking', 'talking')}</span>
-            <span className={row.freeClass}>{row.available} {t('callcenter.queuesTab.free', 'free')}</span>
-          </div>
-        </TableCell>
-        <TableCell><div className={styles.tableMetrics}>
-          <span>{t('callcenter.queuesTab.answered', 'Answered')}: {row.dayAnswered}</span>
-          <span>{t('callcenter.queuesTab.missed', 'Missed')}: {row.dayAbandoned}</span>
-        </div></TableCell>
+        <TableCell>{row.waiting}</TableCell>
+        <TableCell>{row.talking}</TableCell>
+        <TableCell className={row.freeClass}>{row.available}</TableCell>
+        <TableCell>{row.dayAnswered}</TableCell>
+        <TableCell>{row.dayAbandoned}</TableCell>
         <TableCell>{row.sla}%</TableCell>
         {activeCallUniqueid && <TableCell>{transferButton(row)}</TableCell>}
       </TableRow>)}</TableBody>

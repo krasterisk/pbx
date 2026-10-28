@@ -11,9 +11,10 @@ export type CommandPaletteProps = {
   onOpenChange: (open: boolean) => void;
   items: PaletteItem[];
   returnFocusRef?: RefObject<HTMLElement | null>;
+  presentation?: 'dialog' | 'inline' | 'fullscreen';
 };
 
-export function CommandPalette({ open, onOpenChange, items, returnFocusRef }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, items, returnFocusRef, presentation = 'dialog' }: CommandPaletteProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const listId = useId();
@@ -41,6 +42,7 @@ export function CommandPalette({ open, onOpenChange, items, returnFocusRef }: Co
 
   const select = (item: PaletteItem) => { onOpenChange(false); navigate(item.path); };
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (filtered.length) {
@@ -50,39 +52,52 @@ export function CommandPalette({ open, onOpenChange, items, returnFocusRef }: Co
     } else if (event.key === 'Enter') {
       event.preventDefault();
       if (current) select(current);
+    } else if (event.key === 'Escape' && presentation === 'inline') {
+      event.preventDefault();
+      event.stopPropagation();
+      onOpenChange(false);
     }
   };
 
+  const content = <>
+    <Input ref={inputRef} className={`${cls.input} ${presentation === 'inline' ? cls.inlineInput : ''}`} value={query}
+      onChange={(event) => { setQuery(event.target.value); setActiveId(null); }}
+      onKeyDown={onKeyDown} role='combobox' aria-label={t('commandPalette.placeholder')}
+      aria-expanded={filtered.length > 0} aria-controls={filtered.length ? listId : undefined}
+      aria-activedescendant={activeOptionId} aria-autocomplete='list' autoComplete='off'
+      placeholder={t('commandPalette.placeholder')} id='command-palette-input' />
+    <div className={presentation === 'inline' ? cls.dropdown : cls.results}>
+      {filtered.length === 0 ? (
+        <div role='status' className={cls.empty} data-testid='command-palette-empty'>{t('commandPalette.empty')}</div>
+      ) : (
+        <ul id={listId} className={cls.list} role='listbox' aria-label={t('commandPalette.results')}>
+          {filtered.map((item, index) => (
+            <li key={item.id} role='presentation'>
+              <button type='button' role='option' tabIndex={-1} id={listId + '-' + index}
+                ref={index === activeIndex ? optionRef : undefined} aria-selected={index === activeIndex}
+                className={cls.item + (index === activeIndex ? ' ' + cls.itemActive : '')}
+                onMouseDown={event => event.preventDefault()}
+                onClick={() => select(item)} onMouseEnter={() => setActiveId(item.id)}>
+                <span className={cls.label}>{item.label}</span><span className={cls.path}>{item.section ?? item.path}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </>;
+
+  if (presentation === 'inline') return open ? <div className={cls.inline} data-testid='command-palette'>{content}</div> : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cls.dialog} data-testid='command-palette' aria-describedby={undefined}
+      <DialogContent className={`${cls.dialog} ${presentation === 'fullscreen' ? cls.fullscreen : ''}`} data-testid='command-palette' aria-describedby={undefined}
         onCloseAutoFocus={(event) => {
           const target = returnFocusRef?.current;
           if (target?.isConnected && target.getClientRects().length) { event.preventDefault(); target.focus(); }
         }}>
         <DialogHeader className={cls.header}><DialogTitle>{t('commandPalette.title')}</DialogTitle></DialogHeader>
-        <Input ref={inputRef} className={cls.input} value={query}
-          onChange={(event) => { setQuery(event.target.value); setActiveId(null); }}
-          onKeyDown={onKeyDown} role='combobox' aria-label={t('commandPalette.placeholder')}
-          aria-expanded={filtered.length > 0} aria-controls={filtered.length ? listId : undefined}
-          aria-activedescendant={activeOptionId} aria-autocomplete='list' autoComplete='off'
-          placeholder={t('commandPalette.placeholder')} id='command-palette-input' />
-        {filtered.length === 0 ? (
-          <div role='status' className={cls.empty} data-testid='command-palette-empty'>{t('commandPalette.empty')}</div>
-        ) : (
-          <ul id={listId} className={cls.list} role='listbox' aria-label={t('commandPalette.results')}>
-            {filtered.map((item, index) => (
-              <li key={item.id} role='presentation'>
-                <button type='button' role='option' tabIndex={-1} id={listId + '-' + index}
-                  ref={index === activeIndex ? optionRef : undefined} aria-selected={index === activeIndex}
-                  className={cls.item + (index === activeIndex ? ' ' + cls.itemActive : '')}
-                  onClick={() => select(item)} onMouseEnter={() => setActiveId(item.id)}>
-                  <span className={cls.label}>{item.label}</span><span className={cls.path}>{item.section ?? item.path}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        {content}
       </DialogContent>
     </Dialog>
   );

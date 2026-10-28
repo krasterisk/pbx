@@ -13,7 +13,8 @@ vi.mock('@/shared/api/endpoints/cloudAdminApi', () => ({ useGetRoleStartQuery: (
 vi.mock('@/features/modules/hooks/useHubModules', () => ({ ModuleNavProvider: ({ children }: { children: ReactNode }) => children,
   useHubModules: () => ({ navigation: BASELINE_MODULES.map((m) => ({ ...m, licenseStatus: m.code === 'autodial' && !mocks.allowed ? 'locked' : 'active' })), active: [], marketplace: [], isLoading: false, isError: false }) }));
 vi.mock('@/widgets/ModuleShell', () => ({ ModuleShell: ({ children }: { children: ReactNode }) => children }));
-// Login navigation uses an auth-only store; the phone owner's API and transport have their own integration tests.
+// Login navigation uses an auth-only store; the global phone/session owners have separate integration tests.
+vi.mock('@/features/callcenter/model/session/CallCenterSessionProvider', () => ({ CallCenterSessionProvider: ({ children }: { children: ReactNode }) => children }));
 vi.mock('@/features/phone/PhoneSessionHost', () => ({ PhoneSessionHost: ({ children }: { children: ReactNode }) => children }));
 vi.mock('@/widgets/MobileBottomBar', () => ({ MobileBottomBar: () => null }));
 vi.mock('@/features/tenant-settings/ui/TablePageSizeProvider/TablePageSizeProvider', () => ({ TablePageSizeProvider: ({ children }: { children: ReactNode }) => children }));

@@ -39,12 +39,16 @@ export function AgentStartScreen({ onConfirm, lastShift }: AgentStartScreenProps
   const { t, i18n } = useTranslation();
   const when = lastShift ? shiftWhen(lastShift.logoutTime, i18n.language ?? 'ru') : '';
   return (
-    <VStack gap="16" max className={styles.screen} data-testid="agent-start-screen">
+    <VStack gap="20" align="stretch" max className={styles.screen} data-testid="agent-start-screen">
+      <VStack gap="8" align="stretch" max>
+      <Text as="h2" className={styles.title}>{t('callcenter.softphone.prepareShift')}</Text>
       <Text variant="muted">
         {t('callcenter.agent.startScreenHint', 'Choose the phone you will answer on and the queues that should send you calls.')}
       </Text>
+      </VStack>
+      <ShiftLoginForm active onConfirm={onConfirm} />
       {lastShift ? (
-        <section className={styles.lastShift} data-testid="agent-last-shift" aria-label={t('callcenter.agent.lastShiftTitle', 'Previous shift')}>
+        <VStack as="section" gap="8" align="stretch" max className={styles.lastShift} data-testid="agent-last-shift" aria-label={t('callcenter.agent.lastShiftTitle', 'Previous shift')}>
           <Text className={styles.lastShiftTitle}>{t('callcenter.agent.lastShiftTitle', 'Previous shift')}</Text>
           <Text variant="small">
             {[
@@ -54,9 +58,8 @@ export function AgentStartScreen({ onConfirm, lastShift }: AgentStartScreenProps
               `${t('callcenter.agent.lastShiftPause', 'Pauses')} ${formatCcDuration(lastShift.totalPauseSec ?? 0)}`,
             ].filter(Boolean).join(' · ')}
           </Text>
-        </section>
+        </VStack>
       ) : null}
-      <ShiftLoginForm active onConfirm={onConfirm} />
     </VStack>
   );
 }

@@ -7,6 +7,7 @@ import {
 } from '@/shared/ui';
 import { StatusPill } from '@/features/callcenter/ui/StatusPill';
 import { supervisorStatusActions } from '@/features/callcenter/lib/supervisorPulse';
+import { formatPauseReason } from '@/features/callcenter/lib/displayLabels';
 import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './SupervisorPulse.module.scss';
 
@@ -32,7 +33,8 @@ export function SupervisorAgentStatusMenu({ agent, elapsed, busy, ...actions }: 
             disabled={busy} aria-label={t('callcenter.supervisor.pulse.changeStatus', { name: agent.name })}
             data-testid={`supervisor-status-${agent.interface}`}>
             <StatusPill status={agent.status} phoneOnline={agent.phoneOnline}
-              queuesDetached={agent.queuesDetached} className={styles.plainStatus} />
+              queuesDetached={agent.queuesDetached} className={styles.plainStatus}
+              label={agent.status === 'READY' ? t('callcenter.supervisor.pulse.available') : undefined} />
             <ChevronDown size={13} aria-hidden />
           </Button>
         </DropdownMenuTrigger>
@@ -61,7 +63,7 @@ export function SupervisorAgentStatusMenu({ agent, elapsed, busy, ...actions }: 
         </DropdownMenuContent>
       </DropdownMenu>
       {(agent.pauseReason || elapsed) && <Text variant="xs" className={styles.statusMeta}>
-        {agent.status === 'PAUSED' && agent.pauseReason ? `${agent.pauseReason} · ` : ''}{elapsed}
+        {agent.status === 'PAUSED' && agent.pauseReason ? `${formatPauseReason(agent.pauseReason, t)} · ` : ''}{elapsed}
       </Text>}
     </VStack>
   );

@@ -1227,6 +1227,8 @@ describe('CallCenterAmiService', () => {
       expect(state.getAgent(7, 'PJSIP/101')?.status).toBe('RINGING');
       service.handleDialBegin({ channel: 'PJSIP/external-abc', destchannel: 'PJSIP/101-abc', destuniqueid: 'personal.paused', calleridnum: '202' });
       if (answered) service.handleAgentStatusEvent({ queue: 'sales_7', interface: 'PJSIP/101', status: '2', paused: '1' });
+      if (answered) expect(fakeCcService.autoResolveOnAnswer).toHaveBeenCalledWith(7, '202');
+      else expect(fakeCcService.autoResolveOnAnswer).not.toHaveBeenCalled();
       service.handleAgentHangup({ channel: 'PJSIP/101-abc' });
       expect(state.getAgent(7, 'PJSIP/101')).toMatchObject({ status: 'PAUSED', pauseReason: 'Break', statusOrigin: 'manual' });
     });
@@ -1357,6 +1359,7 @@ describe('CallCenterAmiService', () => {
       expect(agent?.status).toBe('IN_CALL');
       expect(agent?.peerNumber).toBe('201');
       expect(agent?.dialTarget).toBeUndefined();
+      expect(fakeCcService.autoResolveOnAnswer).toHaveBeenCalledWith(0, '201');
     });
 
     it('does not reclaim answered personal IN_CALL back to outbound DIALING', () => {

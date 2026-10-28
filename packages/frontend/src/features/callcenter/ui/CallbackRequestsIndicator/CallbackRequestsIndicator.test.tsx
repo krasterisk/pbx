@@ -87,4 +87,14 @@ describe('CallbackRequestsIndicator (D-50 Surface M)', () => {
     expect(screen.getByTestId('callback-requests-list')).toBeInTheDocument();
     expect(screen.getByText('79001112233')).toBeInTheDocument();
   });
+
+  it('renders inline without a badge or close control, including the empty state', () => {
+    const view = render(<CallbackRequestsIndicator inline />);
+    expect(screen.getByTestId('callback-requests-empty')).toBeInTheDocument();
+    expect(screen.queryByTestId('callback-requests-badge')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+    active.push(row());
+    view.rerender(<CallbackRequestsIndicator inline />);
+    expect(screen.getByText('79001112233')).toBeVisible();
+  });
 });

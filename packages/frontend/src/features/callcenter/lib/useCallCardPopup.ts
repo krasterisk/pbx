@@ -26,6 +26,12 @@ export function resolveTemplate(templates: ICardTemplate[], queue: string): ICar
   ) ?? templates.find((tpl) => tpl.is_active && !(tpl.queue_names ?? []).length) ?? null;
 }
 
+/** Compare complete dial targets; never match extensions by suffix across tenants. */
+export function sameDialTarget(left?: string | null, right?: string | null): boolean {
+  const normalize = (value: string) => value.trim().replace(/[\s().-]/g, '').replace(/^\+/, '');
+  return Boolean(left && right && normalize(left) === normalize(right));
+}
+
 function shouldAutoOpen(
   autoOpenOn: ICardTemplate['auto_open_on'],
   agentStatus: string | undefined,
@@ -70,7 +76,7 @@ function buildAutoPopulateValues(
   return values;
 }
 
-export function useCallCardPopup() {
+export function useCallCardPopup({ outboundContext }: { outboundContext?: { target: string; queue: string } | null } = {}) {
   const { t } = useTranslation();
   const myAgent = useSelector(selectMyAgent);
   const calls = useSelector(selectCcCalls);
@@ -89,13 +95,15 @@ export function useCallCardPopup() {
 
   const activeCall: ICall | null = useMemo(() => {
     if (!myAgent) return null;
+    if (!['IN_CALL', 'RINGING', 'DIALING', 'CONSULT'].includes(myAgent.status)) return null;
     if (myAgent.currentCall) {
       const bound = calls.find((c) => c.uniqueid === myAgent.currentCall);
-      if (bound) return bound;
+      if (bound) return outboundContext && sameDialTarget(myAgent.dialTarget, outboundContext.target)
+        ? { ...bound, queue: outboundContext.queue } : bound;
     }
     if (myAgent.directCallUniqueid && ['IN_CALL', 'RINGING', 'DIALING', 'CONSULT'].includes(myAgent.status)) {
       return {
-        uniqueid: myAgent.directCallUniqueid, queue: '', agent: myAgent.interface,
+        uniqueid: myAgent.directCallUniqueid, queue: outboundContext && sameDialTarget(myAgent.dialTarget, outboundContext.target) ? outboundContext.queue : '', agent: myAgent.interface,
         callerIdNum: myAgent.dialTarget || myAgent.peerNumber || '', callerIdName: '',
         status: myAgent.status === 'IN_CALL' || myAgent.status === 'CONSULT' ? 'TALKING' : 'RINGING',
         enterTime: myAgent.statusSince || new Date().toISOString(), holdTime: 0, talkTime: 0, userUid: myAgent.userUid,
@@ -106,7 +114,7 @@ export function useCallCardPopup() {
         (c) => c.status === 'RINGING' && c.agent === myAgent.interface,
       ) ?? null
     );
-  }, [myAgent, calls]);
+  }, [myAgent, calls, outboundContext]);
 
   const populateAndOpen = useCallback(async (tpl: ICardTemplate, call: CallCardContext) => {
     const request = ++requestRef.current;
@@ -217,6 +225,7 @@ export function useCallCardPopup() {
   return {
     open,
     template,
+    availableTemplate: activeCall ? resolveTemplate(templates, activeCall.queue) : null,
     initialValues,
     callContext,
     isVip,

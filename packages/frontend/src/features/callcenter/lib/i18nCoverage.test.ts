@@ -46,7 +46,7 @@ describe('Call Center i18n coverage (U0.2)', () => {
 
   const files = roots.flatMap(walkTsFiles);
   const keys = new Set<string>();
-  const keyRegex = /\bt\(\s*['"](callcenter\.[a-zA-Z0-9_.]+)['"]/g;
+  const keyRegex = /\bt\(\s*['"]((?:callcenter|common)\.[a-zA-Z0-9_.]+)['"]/g;
   const mapKeyRegex = /\b(?:key|labelKey|titleKey):\s*['"](callcenter\.[a-zA-Z0-9_.]+)['"]/g;
 
   for (const file of files) {
@@ -63,7 +63,7 @@ describe('Call Center i18n coverage (U0.2)', () => {
     expect(keys.size).toBeGreaterThan(50);
   });
 
-  it('has non-empty Russian and English translations for every static callcenter.* key', () => {
+  it('has non-empty Russian and English translations for every static callcenter.* and common.* key', () => {
     const missingRu: string[] = [];
     const missingEn: string[] = [];
     for (const key of [...keys].sort()) {

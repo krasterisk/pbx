@@ -1,5 +1,9 @@
 /* Compact entity cards; table mode reuses the surrounding panel without another surface. */
 
+.table.table th { font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: normal; background: var(--color-card); }
+.table th:not(:first-child), .table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.table.table td { padding-block: 16px; }
+
 .wrap {
   display: flex;
   flex-direction: column;

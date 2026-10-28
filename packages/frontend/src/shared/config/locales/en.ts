@@ -2,6 +2,7 @@ import { autodialWorkspaceEn, autodialWorkspaceErrorsEn } from './autodialWorksp
 import { aiVoiceDesignerEn } from './aiVoiceDesigner';
 import { callsEn } from './calls';
 import { supervisorPulseEn } from './supervisorPulse';
+import { operatorWorklistEn } from './operatorWorklist';
 export const en = {
   calls: callsEn,
   modal: { defaultOption: "Default", errors: {"save":"Could not save. Check the settings and try again.","upload":"Could not upload the file. Try again.","remove":"Could not delete the file. Try again."}, sections: {report: 'Report', filters: 'Filters', delivery: 'Delivery', "identity":"General information","connection":"Connection","account":"Credentials","access":"Access permissions","settings":"Settings","timing":"Waiting and timers"} },
@@ -20,6 +21,9 @@ export const en = {
   aiVoiceDesigner: aiVoiceDesignerEn,
   // Common
   common: {
+    noResults: "No results found",
+    loadFailed: "Could not load data",
+    saveFailed: "Could not save changes",
     statusUnavailable: "Status unavailable",
     selectRowAria: "Select row {{index}}",
     confirmBulkDeleteOne: "Delete \"{{label}}\"?",
@@ -91,6 +95,7 @@ export const en = {
 
   // Auth
   auth: {
+    fontTrial: { title: 'Try a font', hint: 'This tab only · across all pages', inter: 'Inter · default', system: 'System font' },
     signIn: "Sign in",
     companyName: "Organization",
     adminName: "Administrator name",
@@ -4295,6 +4300,7 @@ export const en = {
 
   // Call Center Module
   callcenter: {
+    worklist: operatorWorklistEn,
     metricHelp: {
       queueFree: "Members of this queue available for a call, including people outside your watchlist. A person can appear in several queue counts.",
       longestWait: "Longest current wait among callers still in the queue; grows until answer or departure.",
@@ -4351,16 +4357,19 @@ export const en = {
     },
     // ─── Status bar KPI group (D-11/D-12) - shift · day counters ──
     kpi: {
+      inbound: "Incoming",
+      outbound: "Outgoing",
+      missedOffersShort: "Unanswered",
       missedOffers: "Missed offers",
       answered: "Answered",
       made: "Made",
       missed: "Missed",
-      hint: "Left: this shift · Right: since midnight",
-      tooltipDay: "Since midnight: {{day}} · this shift: {{shift}}",
-      tooltipShift: "This shift: {{shift}} · since midnight: {{day}}",
+      hint: "Left: this shift · Right: today",
+      tooltipDay: "Today: {{day}} · this shift: {{shift}}",
+      tooltipShift: "This shift: {{shift}} · today: {{day}}",
       groupLabel: "Operator metrics",
       shift: "This shift",
-      day: "Since midnight",
+      day: "Today",
       modeDay: "Day",
       modeShift: "Shift",
       modeBoth: "Both",
@@ -4402,8 +4411,9 @@ export const en = {
     // ─── Phone tabs (D-04/D-13, shared/ui/Tabs, consumed by 09-08) ──
     tabs: {
       coworkers: "Coworkers",
+      tasks: "To do",
       queues: "Queues",
-      waiting: "Waiting",
+      waiting: "Current calls",
       history: "History",
     },
     queuesTab: {
@@ -4486,6 +4496,9 @@ export const en = {
       transferred: "Transferred",
     },
     agent: {
+      statusMenu: "Manage status",
+      statusChangeFailed: "Could not change status. Please try again.",
+
       title: "Operator Panel",
       dragCall: "Drag call to a colleague",
       statusBar: "Status",
@@ -4587,8 +4600,8 @@ export const en = {
       secShort: "s",
     },
     waitingTab: {
-      emptyTitle: "No calls waiting",
-      emptyBody: "Calls will appear here as customers wait in queue",
+      emptyTitle: "No current calls",
+      emptyBody: "Waiting calls and conversations in your queues will appear here",
     },
     header: {
       statusLive: "Queue on screen",
@@ -5834,6 +5847,7 @@ export const en = {
       handledInHoursMinutes: "Handled in {{hours}} h {{minutes}} min",
     },
     parked: {
+      rateLimited: "Parking checks are temporarily limited. We will retry automatically.",
       loadError: "Could not check parked calls. Refresh the list.",
       retrieveError: 'Could not retrieve the call. Check that it is still parked and try again.',
       title: "Parked calls",
@@ -5880,6 +5894,15 @@ export const en = {
       draftSaved: "Call card saved",
     },
     softphone: {
+      tools: "Keypad, contacts and audio",
+      incoming: "Incoming call",
+      readyForCall: "Ready for a call",
+      prepareShift: "Before you start",
+      deviceTitle: "Calling device",
+      headsetTitle: "Headset",
+      availabilityFailed: "Could not check phone availability. Refresh and try again.",
+      unavailable: {"occupied":"Used by another operator","busy":"On a call","webrtcDisabled":"WebRTC is disabled","unregistered":"Not registered"},
+
       backspaceHint: "Delete the last character",
       clearDialHint: "Clear the entire number",
       moveWindow: "Move window: drag or use arrow keys",
@@ -5895,8 +5918,10 @@ export const en = {
       modeWebrtcDescRemote:
         "Operator works in the browser (WebRTC); headset is set up on their side",
       selectExtension: "Extension",
+      startingShift: "Starting shift…",
       selectQueues: "Queues",
       queuesRequired: "Select at least one queue to start the shift",
+      ordinaryPhoneSessionActive: "An ordinary work phone is connected. Open the softphone → Change extension or device → Disconnect phone and go to shift entry.",
       extensionInUseFallback:
         "This extension is already in use by another operator",
       extensionInUse:

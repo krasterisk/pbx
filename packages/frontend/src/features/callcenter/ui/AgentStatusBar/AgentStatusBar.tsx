@@ -1,7 +1,25 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Clock } from 'lucide-react';
-import { HStack, Text, Button, Tooltip, Switch, Label } from '@/shared/ui';
+import {
+  Clock,
+  ChevronDown,
+  Pause,
+  Play,
+  PhoneOutgoing,
+  LogOut,
+} from 'lucide-react';
+import { toast } from 'react-toastify';
+import {
+  HStack,
+  VStack,
+  Text,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/shared/ui';
 import { useGetAgentKpiQuery } from '@/shared/api/endpoints/callCenterApi';
 import {
   callerDisplayName,
@@ -13,8 +31,14 @@ import {
 } from '@/features/callcenter/lib/displayLabels';
 import { CallControlBar } from '@/features/callcenter/ui/CallControlBar/CallControlBar';
 import type { KpiDisplayMode } from '@/features/callcenter/lib/agentPanelPrefs';
-import { pauseLimitState, type PauseLimitLevel } from '@/features/callcenter/lib/pauseLimit';
-import type { IAgent, IQueueStats } from '@/features/callcenter/model/types/callCenterSchema';
+import {
+  pauseLimitState,
+  type PauseLimitLevel,
+} from '@/features/callcenter/lib/pauseLimit';
+import type {
+  IAgent,
+  IQueueStats,
+} from '@/features/callcenter/model/types/callCenterSchema';
 import styles from './AgentStatusBar.module.scss';
 import { CcMetricLabel } from '../CcMetricLabel/CcMetricLabel';
 
@@ -41,19 +65,21 @@ export interface AgentStatusBarCallControls {
   uniqueid?: string;
   isZombie?: boolean;
   /** Hotkey hints shown in the button tooltips (U2.4). */
-  hotkeyHints?: Partial<Record<'mute' | 'hold' | 'transfer' | 'hangup', string>>;
+  hotkeyHints?: Partial<
+    Record<'mute' | 'hold' | 'transfer' | 'hangup', string>
+  >;
 }
 
 export interface AgentStatusBarShiftActions {
-  onPause?: () => void;
-  onResume?: () => void;
-  onEndShift?: () => void;
-  onStartShift?: () => void;
+  onPause?: () => void | Promise<unknown>;
+  onResume?: () => void | Promise<unknown>;
+  onEndShift?: () => void | Promise<unknown>;
+  onStartShift?: () => void | Promise<unknown>;
   /**
    * Toggle queue-paused outbound work (checked = OUTBOUND_WORK).
    * Called with the desired next state.
    */
-  onOutboundWorkChange?: (active: boolean) => void;
+  onOutboundWorkChange?: (active: boolean) => void | Promise<unknown>;
   /** Whether outbound-work mode is currently active. */
   outboundWorkActive?: boolean;
   /** Show the outbound-work toggle (READY / PAUSED / OUTBOUND_WORK). */
@@ -65,6 +91,9 @@ export interface AgentStatusBarShiftActions {
 }
 
 export interface AgentStatusBarProps {
+  section?: 'all' | 'status' | 'metrics';
+  compact?: boolean;
+  shiftLocked?: boolean;
   agent: IAgent | null;
   queues: IQueueStats[];
   /** Panel KPI period preference (day / shift / both). */
@@ -95,20 +124,49 @@ function KpiCounter({
 }) {
   const { t } = useTranslation();
   const primary = mode === 'day' ? day : shift;
-  const title = mode === 'day'
-    ? t('callcenter.kpi.tooltipDay', 'Since midnight: {{day}} · this shift: {{shift}}', { day, shift })
-    : t('callcenter.kpi.tooltipShift', 'This shift: {{shift}} · since midnight: {{day}}', { day, shift });
+  const title =
+    mode === 'day'
+      ? t(
+          'callcenter.kpi.tooltipDay',
+          'Today: {{day}} · this shift: {{shift}}',
+          { day, shift },
+        )
+      : t(
+          'callcenter.kpi.tooltipShift',
+          'This shift: {{shift}} · today: {{day}}',
+          { day, shift },
+        );
 
   return (
-    <div className={styles.kpiCounter} title={title} data-testid={`kpi-${label}`}>
+    <HStack
+      className={styles.kpiCounter}
+      title={title}
+      data-testid={`kpi-${label}`}
+      data-tone={
+        metric === 'missedAttempt' && primary > 0 ? 'warning' : 'neutral'
+      }
+    >
+      <Text className={styles.kpiLabel}>
+        <CcMetricLabel metric={metric} period={title}>
+          {label}
+        </CcMetricLabel>
+      </Text>
       <Text className={styles.kpiValue}>{primary}</Text>
-      <Text className={styles.kpiLabel}><CcMetricLabel metric={metric} period={title}>{label}</CcMetricLabel></Text>
-    </div>
+      <Text className={styles.kpiPeriod}>
+        {t(mode === 'day' ? 'callcenter.kpi.day' : 'callcenter.kpi.shift')}
+      </Text>
+    </HStack>
   );
 }
 
 /** Pause timer against the reason limit: "07:12 of 30:00", warning one minute before, then "over limit +2:10". */
-function PauseLimitTimer({ elapsed, maxDurationMin }: { elapsed: number; maxDurationMin: number }) {
+function PauseLimitTimer({
+  elapsed,
+  maxDurationMin,
+}: {
+  elapsed: number;
+  maxDurationMin: number;
+}) {
   const { t } = useTranslation();
   const state = pauseLimitState(elapsed, maxDurationMin);
   const announced = useRef<PauseLimitLevel>('none');
@@ -118,20 +176,27 @@ function PauseLimitTimer({ elapsed, maxDurationMin }: { elapsed: number; maxDura
     if (state.level === announced.current) return;
     announced.current = state.level;
     if (state.level === 'warn') {
-      setAnnouncement(t('callcenter.agent.pauseLimitWarn', 'Pause limit ends in one minute'));
+      setAnnouncement(
+        t('callcenter.agent.pauseLimitWarn', 'Pause limit ends in one minute'),
+      );
     } else if (state.level === 'over') {
-      setAnnouncement(t('callcenter.agent.pauseLimitOver', 'Pause limit exceeded'));
+      setAnnouncement(
+        t('callcenter.agent.pauseLimitOver', 'Pause limit exceeded'),
+      );
     } else {
       setAnnouncement('');
     }
   }, [state.level, t]);
 
-  const text = state.level === 'over'
-    ? t('callcenter.agent.pauseOver', 'over limit +{{over}}', { over: formatStatusElapsed(state.overSec) })
-    : t('callcenter.agent.pauseOf', '{{elapsed}} of {{limit}}', {
-      elapsed: formatStatusElapsed(elapsed),
-      limit: formatStatusElapsed(state.limitSec),
-    });
+  const text =
+    state.level === 'over'
+      ? t('callcenter.agent.pauseOver', 'over limit +{{over}}', {
+          over: formatStatusElapsed(state.overSec),
+        })
+      : t('callcenter.agent.pauseOf', '{{elapsed}} of {{limit}}', {
+          elapsed: formatStatusElapsed(elapsed),
+          limit: formatStatusElapsed(state.limitSec),
+        });
 
   return (
     <Text
@@ -140,9 +205,16 @@ function PauseLimitTimer({ elapsed, maxDurationMin }: { elapsed: number; maxDura
       data-testid="pause-limit-timer"
       data-level={state.level}
     >
-      <Clock className="w-3.5 h-3.5 inline mr-1" />
+      <Clock size={14} aria-hidden />
       {text}
-      <span className={styles.srOnly} role="status" aria-live="polite">{announcement}</span>
+      <Text
+        as="span"
+        className={styles.srOnly}
+        role="status"
+        aria-live="polite"
+      >
+        {announcement}
+      </Text>
     </Text>
   );
 }
@@ -151,6 +223,9 @@ function PauseLimitTimer({ elapsed, maxDurationMin }: { elapsed: number; maxDura
  * in-call controls. Softphone/chat live in the page header.
  */
 export function AgentStatusBar({
+  section = 'all',
+  compact = false,
+  shiftLocked = false,
   agent,
   queues,
   kpiDisplay = 'shift',
@@ -181,11 +256,14 @@ export function AgentStatusBar({
   }
 
   useEffect(() => {
+    if (section === 'metrics') return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [section]);
 
-  const startMs = Number.isFinite(serverSinceMs) ? serverSinceMs : fallbackStartRef.current;
+  const startMs = Number.isFinite(serverSinceMs)
+    ? serverSinceMs
+    : fallbackStartRef.current;
   const elapsed = Math.max(0, Math.floor((now - startMs) / 1000));
 
   const inCall = !!activeCall;
@@ -202,95 +280,83 @@ export function AgentStatusBar({
   })();
 
   const activeCallCaller = activeCall
-    ? (callerDisplayName(activeCall.callerIdName) || callerDisplayName(activeCall.callerIdNum) || t('callcenter.agent.unknown', 'Unknown'))
+    ? callerDisplayName(activeCall.callerIdName) ||
+      callerDisplayName(activeCall.callerIdNum) ||
+      t('callcenter.agent.unknown', 'Unknown')
     : '';
 
-  const shiftActionsNode = shiftActions && !callControls ? (
-    <div className={styles.shiftActions}>
-      {!shiftActions.isLoggedIn && shiftActions.onStartShift && (
-        <Button size="sm" onClick={shiftActions.onStartShift}>
-          {t('callcenter.softphone.startShift')}
-        </Button>
-      )}
-      {shiftActions.isLoggedIn && shiftActions.showOutboundWork && shiftActions.onOutboundWorkChange && (
-        <Tooltip
-          content={shiftActions.outboundWorkActive
-            ? t('callcenter.agent.leaveOutboundWorkHint', 'Return to waiting for inbound calls')
-            : t('callcenter.agent.outboundWorkHint', 'Pause queues and work on outbound calls')}
-        >
-          <Label className={styles.outboundToggle}>
-            <Switch
-              checked={!!shiftActions.outboundWorkActive}
-              onCheckedChange={shiftActions.onOutboundWorkChange}
-              aria-label={t('callcenter.agent.outboundWork', 'Outbound work')}
-            />
-            <span className={styles.outboundToggleLabel}>
-              {t('callcenter.agent.outboundWork', 'Outbound work')}
-            </span>
-          </Label>
-        </Tooltip>
-      )}
-      {shiftActions.isLoggedIn && shiftActions.showPause && shiftActions.onPause && (
-        <Tooltip content={t('callcenter.agent.pauseHint', 'Pause yourself in all queues')}>
-          <Button variant="outline" size="sm" onClick={shiftActions.onPause}>
-            {shiftActions.pauseLabel || t('callcenter.agent.pause', 'Pause')}
-          </Button>
-        </Tooltip>
-      )}
-      {shiftActions.isLoggedIn && shiftActions.showResume && shiftActions.onResume && (
-        <Tooltip content={t('callcenter.agent.unpauseHint', 'Return to waiting for calls')}>
-          <Button variant="outline" size="sm" onClick={shiftActions.onResume}>
-            {t('callcenter.agent.unpause', 'Resume')}
-          </Button>
-        </Tooltip>
-      )}
-      {shiftActions.isLoggedIn && shiftActions.onEndShift && (
-        <Tooltip content={t('callcenter.agent.endShiftHint', 'Log out of all queues and end the shift')}>
-          <Button variant="destructive" size="sm" onClick={shiftActions.onEndShift}>
-            {t('callcenter.softphone.endShift')}
-          </Button>
-        </Tooltip>
-      )}
-    </div>
-  ) : null;
-
   return (
-    <div
-      className={`${styles.bar}${callControls ? ` ${styles.barWithControls}` : ''}${className ? ` ${className}` : ''}`}
+    <VStack
+      align="stretch"
+      max
+      className={`${styles.bar}${compact ? ` ${styles.compact}` : ''}${section === 'status' ? ` ${styles.headerStatus}` : section === 'metrics' ? ` ${styles.metricsOnly}` : ''}${inCall || agent?.status === 'WRAPUP' ? ` ${styles.barCall}` : ''}${className ? ` ${className}` : ''}`}
       data-testid="agent-status-bar"
     >
-      <div className={styles.barMain}>
-        {inCall ? (
-          <div className={styles.activeCallIndicator}>
-            <span className={styles.activeCallTag}>{activeCallTag}</span>
-            <Text className={styles.activeCallCaller}>{activeCallCaller}</Text>
-          </div>
-        ) : (
-          <div className={`${styles.pill} ${pillColorClass}`}>
-            <span className={styles.pillDot} />
-            <Text className={styles.pillLabel}>
-              {agent?.status === 'READY' && agent.phoneOnline === false
-                ? t('callcenter.status.phoneUnavailable', 'Phone unavailable · cannot receive calls')
-                : agent ? agentStatusLabel(agent.status, tLabel) : t('callcenter.status.offline', 'Offline')}
-            </Text>
-            {agent?.pauseReason && agent.status !== 'OUTBOUND_WORK' && formatPauseReason(agent.pauseReason, t) && (
-              <Text variant="muted" className={styles.pauseReason}>
-                ({formatPauseReason(agent.pauseReason, t)})
-              </Text>
+      <HStack className={styles.barMain}>
+        {section !== 'metrics' && (
+          <>
+            {inCall ? (
+              <HStack className={styles.activeCallIndicator}>
+                <Text as="span" className={styles.activeCallTag}>
+                  {activeCallTag}
+                </Text>
+                <Text className={styles.activeCallCaller}>
+                  {activeCallCaller}
+                </Text>
+              </HStack>
+            ) : (
+              <AgentShiftMenu
+                actions={shiftActions}
+                disabled={shiftLocked || !!callControls}
+                className={`${styles.pill} ${pillColorClass}`}
+              >
+                <Text as="span" className={styles.pillDot} />
+                <Text as="span" className={styles.pillLabel}>
+                  {agent?.status === 'READY' && agent.phoneOnline === false
+                    ? t(
+                        'callcenter.status.phoneUnavailable',
+                        'Phone unavailable · cannot receive calls',
+                      )
+                    : agent
+                      ? agentStatusLabel(agent.status, tLabel)
+                      : t('callcenter.status.offline', 'Offline')}
+                </Text>
+                {agent?.pauseReason &&
+                  agent.status !== 'OUTBOUND_WORK' &&
+                  formatPauseReason(agent.pauseReason, t) && (
+                    <Text
+                      as="span"
+                      variant="muted"
+                      className={styles.pauseReason}
+                    >
+                      ({formatPauseReason(agent.pauseReason, t)})
+                    </Text>
+                  )}
+              </AgentShiftMenu>
             )}
-          </div>
+
+            {agent &&
+              (agent.status === 'PAUSED' && (pauseLimitMin ?? 0) > 0 ? (
+                <PauseLimitTimer
+                  elapsed={elapsed}
+                  maxDurationMin={pauseLimitMin ?? 0}
+                />
+              ) : (
+                <Text
+                  className={styles.statusTimer}
+                  title={t(
+                    'callcenter.statusBar.statusDuration',
+                    'Time in current status',
+                  )}
+                >
+                  <Clock className="w-3.5 h-3.5 inline mr-1" />
+                  {formatStatusElapsed(elapsed)}
+                </Text>
+              ))}
+          </>
         )}
 
-        {agent && (agent.status === 'PAUSED' && (pauseLimitMin ?? 0) > 0 ? (
-          <PauseLimitTimer elapsed={elapsed} maxDurationMin={pauseLimitMin ?? 0} />
-        ) : (
-          <Text className={styles.statusTimer} title={t('callcenter.statusBar.statusDuration', 'Time in current status')}>
-            <Clock className="w-3.5 h-3.5 inline mr-1" />
-            {formatStatusElapsed(elapsed)}
-          </Text>
-        ))}
-
-        {agent && (
+        {agent && section !== 'status' && (
           <HStack
             gap="12"
             className={styles.kpiGroup}
@@ -299,21 +365,32 @@ export function AgentStatusBar({
           >
             <KpiCounter
               metric="answered"
-              label={t('callcenter.kpi.answered', 'Answered')}
+              label={
+                compact
+                  ? t('callcenter.kpi.inbound')
+                  : t('callcenter.kpi.answered', 'Answered')
+              }
               shift={Math.max(agent.callsTaken ?? 0, kpi?.answered.shift ?? 0)}
-              day={Math.max(agent.kpiDay?.answered ?? 0, kpi?.answered.day ?? 0)}
+              day={Math.max(
+                agent.kpiDay?.answered ?? 0,
+                kpi?.answered.day ?? 0,
+              )}
               mode={kpiDisplay}
             />
             <KpiCounter
               metric="outbound"
-              label={t('callcenter.kpi.made', 'Made')}
+              label={
+                compact
+                  ? t('callcenter.kpi.outbound')
+                  : t('callcenter.kpi.made', 'Made')
+              }
               shift={Math.max(agent.callsMade ?? 0, kpi?.made.shift ?? 0)}
               day={Math.max(agent.kpiDay?.made ?? 0, kpi?.made.day ?? 0)}
               mode={kpiDisplay}
             />
             <KpiCounter
               metric="missedAttempt"
-              label={t('callcenter.kpi.missedOffers', 'Missed offers')}
+              label={t('callcenter.kpi.missedOffersShort', 'Unanswered')}
               shift={Math.max(agent.callsMissed ?? 0, kpi?.missed.shift ?? 0)}
               day={Math.max(agent.kpiDay?.missed ?? 0, kpi?.missed.day ?? 0)}
               mode={kpiDisplay}
@@ -321,16 +398,11 @@ export function AgentStatusBar({
           </HStack>
         )}
 
-        {(shiftActionsNode || trailing) && (
-          <div className={styles.barRight}>
-            {shiftActionsNode}
-            {trailing}
-          </div>
-        )}
-      </div>
+        {trailing && <HStack className={styles.barRight}>{trailing}</HStack>}
+      </HStack>
 
       {inCall && callControls && (
-        <div className={styles.controlsRow}>
+        <HStack className={styles.controlsRow}>
           <CallControlBar
             variant="full"
             uniqueid={callControls.uniqueid}
@@ -346,8 +418,93 @@ export function AgentStatusBar({
             onTransferClick={callControls.onTransferClick}
             className={styles.inlineControls}
           />
-        </div>
+        </HStack>
       )}
-    </div>
+    </VStack>
+  );
+}
+
+function AgentShiftMenu({
+  actions,
+  disabled,
+  children,
+  className,
+}: {
+  actions?: AgentStatusBarShiftActions;
+  disabled: boolean;
+  children: ReactNode;
+  className: string;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const run = async (action: (() => void | Promise<unknown>) | undefined) => {
+    if (!action || busy) return;
+    setBusy(true);
+    try {
+      await action();
+    } catch {
+      toast.error(t('callcenter.agent.statusChangeFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!actions?.isLoggedIn)
+    return <HStack className={className}>{children}</HStack>;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="unstyled"
+          size="none"
+          className={className}
+          disabled={disabled || busy}
+          aria-label={t('callcenter.agent.statusMenu')}
+          data-testid="cc-agent-status-menu"
+        >
+          {children}
+          <ChevronDown size={14} aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {actions.showResume && (
+          <DropdownMenuItem onSelect={() => void run(actions.onResume)}>
+            <Play aria-hidden />
+            {t('callcenter.agent.unpause', 'Resume')}
+          </DropdownMenuItem>
+        )}
+        {actions.showOutboundWork && actions.onOutboundWorkChange && (
+          <DropdownMenuItem
+            onSelect={() =>
+              void run(() =>
+                actions.onOutboundWorkChange!(!actions.outboundWorkActive),
+              )
+            }
+          >
+            <PhoneOutgoing aria-hidden />
+            {t(
+              actions.outboundWorkActive
+                ? 'callcenter.agent.leaveOutboundWork'
+                : 'callcenter.agent.outboundWork',
+            )}
+          </DropdownMenuItem>
+        )}
+        {actions.showPause && (
+          <DropdownMenuItem onSelect={() => void run(actions.onPause)}>
+            <Pause aria-hidden />
+            {actions.pauseLabel || t('callcenter.agent.pause', 'Pause')}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={!actions.onEndShift}
+          className={styles.endShift}
+          onSelect={() => void run(actions.onEndShift)}
+        >
+          <LogOut aria-hidden />
+          {t('callcenter.softphone.endShift')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

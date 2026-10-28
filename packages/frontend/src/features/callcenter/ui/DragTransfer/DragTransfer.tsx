@@ -52,7 +52,7 @@ export function DragTransferProvider({ onTransfer, activeCall, children }: Provi
   } | null>(null);
 
   const openConfirm = useCallback((agent: IAgent) => {
-    if (!activeCall || agent.status !== 'READY' || agent.phoneOnline === false) return;
+    if (!activeCall || !['READY', 'OUTBOUND_WORK'].includes(agent.status) || agent.phoneOnline === false) return;
     const ext = agent.interface.split('/').pop() || agent.interface;
     setConfirmTarget({ iface: agent.interface, name: agent.name, ext });
   }, [activeCall]);
@@ -65,7 +65,7 @@ export function DragTransferProvider({ onTransfer, activeCall, children }: Provi
     setActiveId(null);
     if (!e.over || !activeCall) return;
     const data = e.over.data.current as { iface?: string; name?: string; status?: string; phoneOnline?: boolean } | undefined;
-    if (!data?.iface || data.status !== 'READY' || data.phoneOnline === false) return;
+    if (!data?.iface || !['READY', 'OUTBOUND_WORK'].includes(data.status || '') || data.phoneOnline === false) return;
     const ext = data.iface.split('/').pop() || data.iface;
     setConfirmTarget({ iface: data.iface, name: data.name || data.iface, ext });
   }, [activeCall]);

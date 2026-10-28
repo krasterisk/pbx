@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import userEvent from '@testing-library/user-event';
 import type { IAgent } from '@/features/callcenter/model/types/callCenterSchema';
 
 vi.mock('react-i18next', () => ({
@@ -36,6 +37,34 @@ const baseAgent = (over: Partial<IAgent>): IAgent => ({
 } as IAgent);
 
 describe('AgentStatusBar (U2.6/U2.7)', () => {
+  it('splits the header status from the metric row without duplicating either', () => {
+    const view = render(<AgentStatusBar section="status" compact agent={baseAgent({})} queues={[]} shiftActions={{ isLoggedIn: true }} />);
+    expect(screen.getByTestId('cc-agent-status-menu')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Shift counters' })).toBeNull();
+    view.rerender(<AgentStatusBar section="metrics" compact agent={baseAgent({})} queues={[]} />);
+    expect(screen.queryByTestId('cc-agent-status-menu')).toBeNull();
+    expect(screen.getByRole('group', { name: 'Shift counters' })).toBeInTheDocument();
+  });
+  it('combines pause, outbound work and end shift in one status menu', async () => {
+    const user = userEvent.setup(), onPause = vi.fn(), onEndShift = vi.fn(), onOutboundWorkChange = vi.fn();
+    render(<AgentStatusBar agent={baseAgent({})} queues={[]} shiftActions={{ isLoggedIn: true, showPause: true, showOutboundWork: true, onPause, onEndShift, onOutboundWorkChange }} />);
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    await user.click(screen.getByTestId('cc-agent-status-menu'));
+    await user.click(screen.getByRole('menuitem', { name: 'Pause' }));
+    expect(onPause).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByTestId('cc-agent-status-menu'));
+    await user.click(screen.getByRole('menuitem', { name: 'callcenter.agent.outboundWork' }));
+    expect(onOutboundWorkChange).toHaveBeenCalledWith(true);
+    await user.click(screen.getByTestId('cc-agent-status-menu'));
+    await user.click(screen.getByRole('menuitem', { name: 'callcenter.softphone.endShift' }));
+    expect(onEndShift).toHaveBeenCalledTimes(1);
+  });
+  it('does not offer end shift when the lifecycle guard omits the action', async () => {
+    const user = userEvent.setup();
+    render(<AgentStatusBar agent={baseAgent({ status: 'WRAPUP' })} queues={[]} shiftActions={{ isLoggedIn: true }} />);
+    await user.click(screen.getByTestId('cc-agent-status-menu'));
+    expect(screen.getByRole('menuitem', { name: 'callcenter.softphone.endShift' })).toHaveAttribute('aria-disabled', 'true');
+  });
   it('shows one number per KPI (the shift value) with the day value only in the tooltip', () => {
     render(<AgentStatusBar agent={baseAgent({})} queues={[]} kpiDisplay="shift" />);
     const answered = screen.getByTestId('kpi-Answered');

@@ -41,6 +41,8 @@ import { CallCenterShiftRestoreService } from './callcenter-shift-restore.servic
 import { CallCenterShiftJanitorService } from './callcenter-shift-janitor.service';
 import { CallCenterController } from './callcenter.controller';
 import { CallCenterSseController } from './callcenter-sse.controller';
+import { CallCenterEventsService } from './callcenter-events.service';
+import { CallCenterEventsGateway } from './callcenter-events.gateway';
 import { CallCenterSettingsController } from './callcenter-settings.controller';
 import { CallCenterCardsController } from './callcenter-cards.controller';
 import { CallCenterChatController } from './callcenter-chat.controller';
@@ -136,6 +138,8 @@ import { queueLogReaderProvider } from './queuelog/queue-log-reader.factory';
     DirectoriesModule,
   ],
   providers: [
+    CallCenterEventsService,
+    CallCenterEventsGateway,
     CallCenterStateService,
     CallCenterHistoryWriterService,
     CallCenterPresenceService,
