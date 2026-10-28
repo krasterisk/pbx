@@ -17,6 +17,7 @@ export function createCallCenterEventSource(
   const base = new URL(apiBase, window.location.origin);
   if (benchmarkTransport() === 'sse') {
     const events = new EventSource(`${apiBase}/callcenter/events?token=${encodeURIComponent(token)}`);
+    events.addEventListener('fullSnapshot', (event: MessageEvent) => recordBenchmarkEvent('fullSnapshot', event.data));
     events.addEventListener('callUpdate', (event: MessageEvent) => recordBenchmarkEvent('callUpdate', event.data));
     const source: CallCenterEventSource = {
       get readyState() { return events.readyState; },

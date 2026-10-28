@@ -75,7 +75,21 @@ async function main() {
         const item = { page: index, openedAt: Date.now(), path: new URL(socket.url()).pathname };
         connections.push(item);
         socket.on('close', () => { item.closedAt = Date.now(); });
-        socket.on('framereceived', frame => { frameTotals[index].frames++; frameTotals[index].bytes += Buffer.byteLength(frame.payload); });
+        socket.on('framereceived', frame => {
+          frameTotals[index].frames++; frameTotals[index].bytes += Buffer.byteLength(frame.payload);
+          if (frame.payload === '2') item.lastPingAt = Date.now();
+          if (typeof frame.payload === 'string' && frame.payload.startsWith('42/callcenter-events,')) {
+            try {
+              const event = JSON.parse(frame.payload.slice(frame.payload.indexOf('[')))[1];
+              if (event?.type === 'fullSnapshot') {
+                const data = JSON.parse(event.data);
+                (item.snapshots ||= []).push({ at: Date.now(), agents: data.agents?.length, calls: data.calls?.length, queues: data.queues?.length });
+              }
+            } catch { /* Count-only diagnostics must not affect the application. */ }
+          }
+        });
+        socket.on('framesent', frame => { if (frame.payload === '3') item.lastPongAt = Date.now(); });
+        socket.on('socketerror', () => { item.socketErrorAt = Date.now(); });
       });
     }
     step = 'login';
@@ -89,18 +103,31 @@ async function main() {
       step = 'prepare-' + phase;
       await waitFile('prepare-' + phase + '.json');
       const transport = phase.startsWith('ws-') ? 'websocket' : 'sse';
-      const results = await Promise.all(pages.map(async (page, index) => {
+      // Prepare pages sequentially: concurrent cold loads of the same large
+      // module hit Chromium ERR_CACHE_WRITE_FAILURE in the isolated profile.
+      // This is outside the measured window; all six stay open during load.
+      const results = [];
+      for (const [index, page] of pages.entries()) {
         const before = Date.now();
+        let readinessStep = 'navigation';
         try {
           await page.goto(base + '/callcenter/supervisor?view=calls&sort=name&ccTransport=' + transport, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          readinessStep = 'rows';
           await page.waitForFunction(() => document.querySelectorAll('[data-call-id][data-status]').length === 150, undefined, { timeout: 90000 });
+          readinessStep = 'snapshot-receipt';
           await page.waitForFunction(() => {
             const element = document.querySelector('[data-testid="callcenter-benchmark-results"]');
             return element?.textContent && JSON.parse(element.textContent).snapshot?.calls === 150;
           }, undefined, { timeout: 30000 });
-          return { page: index, ready: true, readyMs: Date.now() - before, trace: await trace(page) };
-        } catch (error) { return { page: index, ready: false, error: error.name, elapsedMs: Date.now() - before }; }
-      }));
+          results.push({ page: index, ready: true, readyMs: Date.now() - before, trace: await trace(page) });
+        } catch (error) {
+          const diagnostic = await trace(page).catch(() => null);
+          const text = await page.locator('body').innerText({ timeout: 5000 }).catch(() => 'unavailable');
+          await page.screenshot({ path: path.join(output, phase + '-failure-page-' + index + '.png'), timeout: 10000 }).catch(() => {});
+          results.push({ page: index, ready: false, error: error.name, readinessStep, elapsedMs: Date.now() - before, trace: diagnostic, url: page.url(), text: text.slice(0, 4000) });
+          break;
+        }
+      }
       save('ready-' + phase + '.json', { at: Date.now(), transport, pages: results });
       step = 'warmup-' + phase;
       await waitFile('start-' + phase + '.json');
@@ -125,6 +152,7 @@ async function main() {
     }
     save('browser-finished.json', { at: Date.now(), pages: 6 });
   } finally {
+    save('network-all.json', { at: Date.now(), step, requests, connections, errors, frameTotals });
     await context.close();
     await browser.close();
   }

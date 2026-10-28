@@ -51,10 +51,10 @@ def main():
     if str(directory) != '/opt/krasterisk-deploys/supervisor-pulse/a13-9c948aa3-20261028':
         raise ValueError('Only the owned A13 stand directory is supported')
     exchange = directory / 'headless-run'
-    wait_file(exchange / 'browser-start.json', exchange, 90)
     fingerprint = None
     summary = {'startedAt': time.time(), 'phases': [], 'status': 'in_progress'}
     try:
+        wait_file(exchange / 'browser-start.json', exchange, 90)
         for phase, duration in [('ws-normal', 120), ('sse-normal', 120), ('ws-stress', 60), ('sse-stress', 60)]:
             stats = json.loads((directory / 'artifacts/sip-stats.json').read_text())
             if stats['dialogs'] != 150:

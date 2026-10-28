@@ -7,14 +7,18 @@ const mocks = vi.hoisted(() => ({
   connect: vi.fn(),
   disconnect: vi.fn(),
   removeAllListeners: vi.fn(),
+  benchmarkTransport: vi.fn(),
+  recordBenchmarkEvent: vi.fn(),
 }));
 vi.mock('socket.io-client', () => ({ io: mocks.io }));
+vi.mock('./callCenterBenchmark', () => ({ benchmarkTransport: mocks.benchmarkTransport, recordBenchmarkEvent: mocks.recordBenchmarkEvent }));
 
 describe('call center WebSocket event transport', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     mocks.handlers.clear();
+    mocks.benchmarkTransport.mockReturnValue('websocket');
     mocks.io.mockReturnValue({
       on: (name: string, fn: (...args: any[]) => void) =>
         mocks.handlers.set(name, fn),
@@ -25,6 +29,29 @@ describe('call center WebSocket event transport', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('measures SSE snapshots and updates through the same benchmark contract', () => {
+    mocks.benchmarkTransport.mockReturnValue('sse');
+    const events = new EventTarget();
+    const close = vi.fn();
+    vi.stubGlobal('EventSource', class {
+      readyState = 1;
+      addEventListener = events.addEventListener.bind(events);
+      close = close;
+    });
+    const source = createCallCenterEventSource('/api', 'fixture-token');
+    const listener = vi.fn();
+    source.addEventListener('fullSnapshot', listener);
+    events.dispatchEvent(new MessageEvent('fullSnapshot', { data: '{"calls":[]}' }));
+    events.dispatchEvent(new MessageEvent('callUpdate', { data: '{"status":"HOLD"}' }));
+    expect(mocks.recordBenchmarkEvent).toHaveBeenCalledWith('fullSnapshot', '{"calls":[]}');
+    expect(mocks.recordBenchmarkEvent).toHaveBeenCalledWith('callUpdate', '{"status":"HOLD"}');
+    expect(listener).toHaveBeenCalledOnce();
+    expect(mocks.io).not.toHaveBeenCalled();
+    source.close();
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it('retries a rejected namespace at most once per ten seconds and cancels on close', () => {
