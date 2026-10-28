@@ -103,5 +103,15 @@ window, preserve context/login, and never read application auth storage.
 Wait at least6seconds after the measured window before capturing final probe
 outcomes, while retaining the original interval bounds; fresh-DOM wait remains
 bounded25seconds. Analysis exposes DOM/table/WS continuity gates separately.
-A WS window needs exactly six proxy tunnels at both boundaries and no upgrade
-inside the window to pass continuity, even if all six final tables look current.
+WS continuity is checked for six CC connections identified by fullSnapshot
+metadata, filtered by this candidate preparation marker, with no in-window CC
+reconnect. Generic proxy tunnel counts include other app namespaces (for example
+the login dashboard), so they are a lower-bound cross-check rather than an exact
+six-client count. Preserve raw counters and the original coordinator summary;
+postprocessing may correct this classification without changing the workload.
+
+After the four-window comparison, a separately labelled selected-transport
+verification can set `CC_PHASES=ws-normal,ws-stress` on both the browser and
+coordinator. This does not replace the common-baseline comparison. Final capture
+also waits, within the same bounded deadline, for sampled DOM statuses to match
+the last received wire statuses; it records that gate even if settlement fails.

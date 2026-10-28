@@ -152,6 +152,7 @@ export class CallCenterStateService implements OnModuleInit {
 
   /** Per-tenant queue states. Key = `${userUid}:${queueName}` */
   private readonly queues = new Map<string, QueueState>();
+  private readonly emittedQueuePayloads = new Map<string, string>();
 
   /** Active calls. Key = uniqueid */
   private readonly activeCalls = new Map<string, CallState>();
@@ -487,7 +488,13 @@ export class CallCenterStateService implements OnModuleInit {
       ...state,
     };
     this.queues.set(key, updated);
-    this.emitEvent('queueUpdate', userUid, updated);
+    // QueueStatus and derived-count sweeps also write unchanged queue rows.
+    // Cache the wire value so mutable nested counters cannot hide a real change.
+    const serialized = JSON.stringify(updated);
+    if (!existing || this.emittedQueuePayloads.get(key) !== serialized) {
+      this.emittedQueuePayloads.set(key, serialized);
+      this.emitEvent('queueUpdate', userUid, updated);
+    }
     return updated;
   }
 

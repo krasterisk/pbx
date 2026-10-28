@@ -10,6 +10,7 @@ import signal
 import subprocess
 import time
 from pathlib import Path
+from stream_gate import websocket_continuity
 
 
 def write(target, value):
@@ -53,9 +54,15 @@ def main():
     exchange = directory / 'headless-run'
     fingerprint = None
     summary = {'startedAt': time.time(), 'phases': [], 'status': 'in_progress'}
+    durations = {'sse-normal': 120, 'ws-normal': 120, 'sse-stress': 60, 'ws-stress': 60}
+    selected = os.environ.get('CC_PHASES', ','.join(durations)).split(',')
+    summary['selectedPhases'] = selected
     try:
+        if not selected or len(set(selected)) != len(selected) or any(phase not in durations for phase in selected):
+            raise ValueError('Invalid bounded phase selection')
         wait_file(exchange / 'browser-start.json', exchange, 90)
-        for phase, duration in [('sse-normal', 120), ('ws-normal', 120), ('sse-stress', 60), ('ws-stress', 60)]:
+        for phase in selected:
+            duration = durations[phase]
             stats = json.loads((directory / 'artifacts/sip-stats.json').read_text())
             if stats['dialogs'] != 150:
                 raise RuntimeError('Expected 150 real active dialogs')
@@ -84,7 +91,7 @@ def main():
             write(exchange / ('end-' + phase + '.json'), {'at': time.time()})
             done = wait_file(exchange / ('done-' + phase + '.json'), exchange, 90)
             consistent = len(done['pages']) == 6 and all(page['rows'] == 150 and page['talking'] == 150 and not page['observerErrors'] for page in done['pages'])
-            transport_stable = not phase.startswith('ws-') or (before['activeTunnels'] == 6 and after['activeTunnels'] == 6 and after['upgrades'] == before['upgrades'])
+            transport_stable = not phase.startswith('ws-') or websocket_continuity(json.loads((exchange / ('result-' + phase + '.json')).read_text()), before, after, json.loads((exchange / ('prepare-' + phase + '.json')).read_text())['at'] * 1000)['passed']
             phase_status = 'measured' if consistent and done.get('fresh', False) and transport_stable else 'failed-browser-gates'
             summary['phases'].append({'phase': phase, 'status': phase_status, 'transportStable': transport_stable, 'dialogs': 150, 'callFingerprint': fingerprint, 'done': done, 'proxyBefore': before, 'proxyAfter': after})
             write(exchange / 'coordinator-summary.json', summary)

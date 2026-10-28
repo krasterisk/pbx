@@ -213,6 +213,46 @@ describe('CallCenterStateService', () => {
   // ─── Queue state ────────────────────────────────────────
 
   describe('setQueue', () => {
+    it('suppresses unchanged partial and equivalent nested queue updates', () => {
+      const received: any[] = [];
+      service.getEventStream(7).subscribe(e => received.push(e));
+      service.setQueue(7, 'sales', { waiting: 3, calls: { answered: 2, abandoned: 1, total: 3 } });
+      service.setQueue(7, 'sales', {});
+      const updated = service.setQueue(7, 'sales', { waiting: 3, calls: { answered: 2, abandoned: 1, total: 3 } });
+      expect(received).toHaveLength(1);
+      expect(updated.waiting).toBe(3);
+      expect(service.getQueue(7, 'sales')).toBe(updated);
+    });
+
+    it('publishes real KPI and queue configuration changes including zero values', () => {
+      const received: any[] = [];
+      service.getEventStream(7).subscribe(e => received.push(e));
+      service.setQueue(7, 'sales', { waiting: 3, sla: 90 });
+      service.setQueue(7, 'sales', { waiting: 0, sla: 0, displayName: 'Support', strategy: 'rrmemory' });
+      expect(received).toHaveLength(2);
+      expect(received[1].data).toMatchObject({ waiting: 0, sla: 0, displayName: 'Support', strategy: 'rrmemory' });
+    });
+
+    it('detects changes made through a mutable nested queue row', () => {
+      const received: any[] = [];
+      service.getEventStream(7).subscribe(e => received.push(e));
+      const queue = service.setQueue(7, 'sales', { calls: { answered: 2, abandoned: 1, total: 3 } });
+      queue.calls.answered = 4;
+      service.setQueue(7, 'sales', {});
+      expect(received).toHaveLength(2);
+      expect(received[1].data.calls.answered).toBe(4);
+    });
+
+    it('isolates the queue wire cache between tenants with the same queue name', () => {
+      const received: any[] = [];
+      service.getEventStream(7).subscribe(e => received.push(e));
+      service.getEventStream(8).subscribe(e => received.push(e));
+      service.setQueue(7, 'sales', { waiting: 3 });
+      service.setQueue(8, 'sales', { waiting: 3 });
+      service.setQueue(7, 'sales', { waiting: 3 });
+      expect(received.map(e => e.userUid)).toEqual([7, 8]);
+    });
+
     it('emits queueUpdate scoped to the tenant', () => {
       const received: any[] = [];
       service.getEventStream(7).subscribe(e => received.push(e));

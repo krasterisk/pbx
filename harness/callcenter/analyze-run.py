@@ -10,6 +10,7 @@ import json
 import math
 import re
 from pathlib import Path
+from stream_gate import websocket_continuity
 
 
 def load(path):
@@ -126,14 +127,17 @@ def analyze(directory):
                     host_cpu.append(100 * (elapsed - idle) / elapsed)
             prior = ticks
         probes = [probe for page in browser.get('apiProbes', []) for probe in page if browser['start'] <= probe['at'] <= browser['end']]
+        successful_probes = [probe for probe in probes if probe.get('status') == 200 and not probe.get('error') and 'endedAt' in probe]
         requests = browser['requests']
         statuses = collections.Counter(str(request['status']) for request in requests if 'status' in request)
         proxy_statuses = {key: count - before['responses'].get(key, 0) for key, count in after['responses'].items()}
+        ws_gate = websocket_continuity(browser, before, after, load(directory / ('headless-run/prepare-' + phase + '.json'))['at'] * 1000) if phase.startswith('ws-') else None
         summary['phases'][phase] = {
             'status': 'measured' if browser.get('fresh', True) else 'failed-final-freshness',
             'gates': {'freshDom': bool(browser.get('fresh')),
                       'sixTablesConsistent': len(pages) == 6 and all(page['rows'] == 150 and page['talking'] == 150 and not page['observerErrors'] for page in pages),
-                      'sixWsTunnelsStable': None if not phase.startswith('ws-') else before['activeTunnels'] == 6 and after['activeTunnels'] == 6 and after['upgrades'] == before['upgrades']},
+                      'sixCallcenterWsStreamsStable': None if ws_gate is None else ws_gate['passed']},
+            'websocketContinuity': ws_gate,
             'proxyWindowSec': round((after['at'] - before['at']) / 1000, 3),
             'finalFresh': browser.get('fresh'), 'durationSec': round(server['endedAt'] - server['startedAt'], 2),
             'latencyWindow': {'startMs': start, 'endMs': end, 'excludedStartMs': 1000, 'excludedEndMs': 3000},
@@ -150,7 +154,9 @@ def analyze(directory):
                      'proxyUpstreamErrors': after['upstreamErrors'] - before['upstreamErrors'],
                      'activeWsTunnelsBefore': before['activeTunnels'], 'activeWsTunnelsAfter': after['activeTunnels'],
                      'apiProbes': len(probes), 'apiProbeErrors': sum('error' in probe for probe in probes),
-                     'apiProbeCompletedMs': distribution([probe['endedAt'] - probe['at'] for probe in probes if probe.get('status') == 200 and 'endedAt' in probe]),
+                     'apiProbeSuccess': len(successful_probes),
+                     'apiProbeHttpErrors': sum('endedAt' in probe and not probe.get('error') and probe.get('status') != 200 for probe in probes),
+                     'apiProbeCompletedMs': distribution([probe['endedAt'] - probe['at'] for probe in successful_probes]),
                      'apiProbePending': sum('endedAt' not in probe for probe in probes)},
             'browserErrors': browser['errors'],
             'wsReceivedFrames': sum(after['frames'] - before['frames'] for before, after in zip(browser['framesBefore'], browser['framesAfter'])),

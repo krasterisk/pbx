@@ -33,6 +33,12 @@ async function trace(page) {
   return structuredClone(receipt);
 }
 
+function wireMatchesDom(receipt) {
+  if (!receipt?.measurement) return false;
+  const last = new Map(receipt.measurement.samples.map(sample => [sample.id, sample.status]));
+  return receipt.rows.every(row => !last.has(row.id) || last.get(row.id) === row.status);
+}
+
 async function waitTable(page, phase, index) {
   const began = Date.now();
   const deadline = began + 120000;
@@ -49,6 +55,9 @@ async function waitTable(page, phase, index) {
 }
 
 async function main() {
+  const selectedPhases = (process.env.CC_PHASES || phases.join(',')).split(',');
+  if (!selectedPhases.length || new Set(selectedPhases).size !== selectedPhases.length
+    || selectedPhases.some(phase => !phases.includes(phase))) throw Error('Invalid bounded phase selection');
   if (!path.isAbsolute(output) || fs.existsSync(path.join(output, 'browser-start.json'))) throw Error('Fresh absolute output directory required');
   const access = JSON.parse(fs.readFileSync(process.env.PRIVATE_RECEIPT || '/private/cabinet-private.json', 'utf8'));
   if (access.tenant !== 5 || access.agents.length !== 200 || access.queues.length !== 12) throw Error('Owned A13 fixture required');
@@ -143,7 +152,7 @@ async function main() {
     await pages[0].getByRole('button', { name: 'Войти', exact: true }).click();
     await pages[0].locator('#user-block-trigger').waitFor({ timeout: 60000 });
     save('browser-start.json', { at: Date.now(), version: browser.version(), channel: 'chromium', pages: 6, origin: base, viewport: { width: 1440, height: 1000 }, headless: true, tenant: access.tenant });
-    for (const phase of phases) {
+    for (const phase of selectedPhases) {
       step = 'prepare-' + phase;
       await waitFile('prepare-' + phase + '.json');
       const transport = phase.startsWith('ws-') ? 'websocket' : 'sse';
@@ -191,12 +200,13 @@ async function main() {
       const end = Date.now();
       const freshDeadline = end + 25000;
       const settleUntil = end + 6000;
-      while ((Date.now() < settleUntil || pages.some(page => (receipts.get(page)?.browserAt || 0) < end)) && Date.now() < freshDeadline) await sleep(250);
+      while ((Date.now() < settleUntil || pages.some(page => (receipts.get(page)?.browserAt || 0) < end || !wireMatchesDom(receipts.get(page)))) && Date.now() < freshDeadline) await sleep(250);
       const final = await Promise.all(pages.map(trace));
       const fresh = final.every(item => item.browserAt >= end);
       const apiProbes = final.map(item => item.apiProbes);
       save('result-' + phase + '.json', {
         phase, start, end, fresh, initial, final, apiProbes, framesBefore, framesAfter: frameTotals,
+        latestWireMatchesDom: final.map(wireMatchesDom),
         requests: requests.filter(item => item.at >= start && item.at <= end),
         failuresCompletedInWindow: requests.filter(item => item.failedAt >= start && item.failedAt <= end),
         connectionEvents: connections.filter(item => item.openedAt <= end && (!item.closedAt || item.closedAt >= start)),
