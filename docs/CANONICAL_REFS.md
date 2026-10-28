@@ -73,6 +73,8 @@ Artifact storage maintenance: [PLAN](plans/artifact-storage/PLAN.md), [EXECUTION
 
 Нагрузочный прогон 50 операторских мест и 150 звонков, 28 октября 2026, 18:13–18:24 Красноярск: [отчёт](plans/operator-load-20261028/REPORT.md), [план оптимизаций](plans/operator-load-20261028/PLAN.md). Стенд этого прогона: PostgreSQL 16, Asterisk 20.6, backend 4.7.1.3. Это измерение, не назначение новой продуктовой фазы.
 
+Повтор по ТЗ 150×50 (`079e55f2`, `docs/plans/supervisor-pulse/LOAD-150x50-SPEC.md` на main) на том же стенде, 28 октября 2026, 20:11–20:32 Красноярск: [отчёт](plans/supervisor-pulse/A14-REPORT.md), [узкие места](plans/supervisor-pulse/A14-BOTTLENECKS.md), [план](plans/supervisor-pulse/A14-OPTIMIZATION-PLAN.md), [карта ресурсов](plans/supervisor-pulse/A14-CAPACITY.md). Матрица ТЗ не принята: шесть панелей вместо 52, WebSocket в этой сборке нет.
+
 
 ## Repository layout
 
