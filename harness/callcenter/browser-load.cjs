@@ -38,11 +38,31 @@ async function trace(page) {
   });
 }
 
+async function waitTable(page, phase, index) {
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    // Poll from the driver rather than scheduling another page timer behind
+    // expensive React commits. Only used before the measured window.
+    const state = await Promise.race([
+      page.evaluate(() => {
+        const element = document.querySelector('[data-testid="callcenter-benchmark-results"]');
+        return { rows: document.querySelectorAll('[data-call-id][data-status]').length,
+          snapshotCalls: element?.textContent ? JSON.parse(element.textContent).snapshot?.calls : null };
+      }),
+      sleep(15000).then(() => { throw Error('DOM readiness evaluation timed out'); }),
+    ]);
+    save('preparation-state.json', { at: Date.now(), phase, page: index, ...state });
+    if (state.rows === 150 && state.snapshotCalls === 150) return;
+    await sleep(250);
+  }
+  throw Error('Table snapshot readiness timed out');
+}
+
 async function main() {
   if (!path.isAbsolute(output) || fs.existsSync(path.join(output, 'browser-start.json'))) throw Error('Fresh absolute output directory required');
   const access = JSON.parse(fs.readFileSync(process.env.PRIVATE_RECEIPT || '/private/cabinet-private.json', 'utf8'));
   if (access.tenant !== 5 || access.agents.length !== 200 || access.queues.length !== 12) throw Error('Owned A13 fixture required');
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, channel: 'chromium' });
   const context = await browser.newContext({ locale: 'ru-RU', viewport: { width: 1440, height: 1000 }, colorScheme: 'light', reducedMotion: 'reduce' });
   const pages = [];
   const requests = [];
@@ -98,7 +118,7 @@ async function main() {
     await pages[0].getByLabel('Пароль', { exact: true }).fill(access.supervisor.password);
     await pages[0].getByRole('button', { name: 'Войти', exact: true }).click();
     await pages[0].locator('#user-block-trigger').waitFor({ timeout: 60000 });
-    save('browser-start.json', { at: Date.now(), version: browser.version(), pages: 6, origin: base, viewport: { width: 1440, height: 1000 }, headless: true, tenant: access.tenant });
+    save('browser-start.json', { at: Date.now(), version: browser.version(), channel: 'chromium', pages: 6, origin: base, viewport: { width: 1440, height: 1000 }, headless: true, tenant: access.tenant });
     for (const phase of phases) {
       step = 'prepare-' + phase;
       await waitFile('prepare-' + phase + '.json');
@@ -110,16 +130,15 @@ async function main() {
       for (const [index, page] of pages.entries()) {
         const before = Date.now();
         let readinessStep = 'navigation';
+        save('preparation-state.json', { at: Date.now(), phase, page: index, readinessStep });
         try {
           await page.goto(base + '/callcenter/supervisor?view=calls&sort=name&ccTransport=' + transport, { waitUntil: 'domcontentloaded', timeout: 60000 });
-          readinessStep = 'rows';
-          await page.waitForFunction(() => document.querySelectorAll('[data-call-id][data-status]').length === 150, undefined, { timeout: 90000 });
-          readinessStep = 'snapshot-receipt';
-          await page.waitForFunction(() => {
-            const element = document.querySelector('[data-testid="callcenter-benchmark-results"]');
-            return element?.textContent && JSON.parse(element.textContent).snapshot?.calls === 150;
-          }, undefined, { timeout: 30000 });
+          readinessStep = 'table-and-snapshot';
+          save('preparation-state.json', { at: Date.now(), phase, page: index, readinessStep });
+          await waitTable(page, phase, index);
           results.push({ page: index, ready: true, readyMs: Date.now() - before, trace: await trace(page) });
+          save('progress-' + phase + '.json', { at: Date.now(), pages: results.map(item => ({ page: item.page, ready: item.ready, readyMs: item.readyMs })) });
+          console.info(JSON.stringify({ phase, page: index, readyMs: Date.now() - before }));
         } catch (error) {
           const diagnostic = await trace(page).catch(() => null);
           const text = await page.locator('body').innerText({ timeout: 5000 }).catch(() => 'unavailable');
@@ -133,14 +152,34 @@ async function main() {
       await waitFile('start-' + phase + '.json');
       const start = Date.now();
       const initial = await Promise.all(pages.map(trace));
+      // Equal foreground API workload on the same browser HTTP/1.1 pool.
+      // Public health reads need no token extraction and expose slot starvation.
+      await Promise.all(pages.map(page => page.evaluate(() => {
+        const probes = [];
+        const probe = async () => {
+          const item = { at: Date.now() };
+          probes.push(item);
+          const abort = new AbortController();
+          const timeout = setTimeout(() => abort.abort(), 5000);
+          try { const response = await fetch('/api/health', { signal: abort.signal, cache: 'no-store' }); item.status = response.status; await response.text(); }
+          catch (error) { item.error = error.name; }
+          finally { clearTimeout(timeout); item.endedAt = Date.now(); }
+        };
+        window.__ccLoadProbes = { probes, timer: setInterval(probe, 5000) };
+        void probe();
+      })));
       const framesBefore = structuredClone(frameTotals);
       save('started-' + phase + '.json', { at: start, initial, framesBefore });
       step = 'measure-' + phase;
       await waitFile('end-' + phase + '.json');
       const end = Date.now();
       const final = await Promise.all(pages.map(trace));
+      const apiProbes = await Promise.all(pages.map(page => page.evaluate(() => {
+        clearInterval(window.__ccLoadProbes.timer);
+        return window.__ccLoadProbes.probes;
+      })));
       save('result-' + phase + '.json', {
-        phase, start, end, initial, final, framesBefore, framesAfter: frameTotals,
+        phase, start, end, initial, final, apiProbes, framesBefore, framesAfter: frameTotals,
         requests: requests.filter(item => item.at >= start && item.at <= end),
         failuresCompletedInWindow: requests.filter(item => item.failedAt >= start && item.failedAt <= end),
         connectionEvents: connections.filter(item => item.openedAt <= end && (!item.closedAt || item.closedAt >= start)),

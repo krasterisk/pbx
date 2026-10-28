@@ -64,7 +64,7 @@ def main():
             if current != fingerprint:
                 raise RuntimeError('Call set changed between phases')
             write(exchange / ('prepare-' + phase + '.json'), {'at': time.time()})
-            ready = wait_file(exchange / ('ready-' + phase + '.json'), exchange, 160)
+            ready = wait_file(exchange / ('ready-' + phase + '.json'), exchange, 600)
             if len(ready['pages']) != 6 or any(not page['ready'] for page in ready['pages']):
                 write(exchange / 'readiness-failure.json', {'phase': phase, 'ready': ready})
                 raise RuntimeError('Not all six real browser tables became ready')
