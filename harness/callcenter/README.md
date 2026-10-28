@@ -41,3 +41,16 @@ table-render evidence. Restore the ordinary build after measurement.
 
 Additional checks: `python -B -m unittest discover -s harness/callcenter -p
 'test_*.py'`; frontend callCenterBenchmark/callCenterEventSource tests.
+
+The user explicitly authorized the later headless Playwright run on the stand
+after the desktop browser became slow and its approval/control channel timed out.
+`browser-load.cjs` runs a separate Chromium with six real pages and ordinary UI
+login to the owned cabinet. It records sanitized HTTP metadata, actual DOM rows,
+the opt-in browser timing receipt and screenshots; it never exports auth storage,
+request bodies, tokens or WebSocket payloads. `coordinate-stand.py` coordinates
+through a private mounted directory, requires all six 150-row tables, warms each
+phase for60seconds, keeps the exact same real SIP dialogs across all four phases,
+captures proxy/host/container metrics and stops the owned generator at the end.
+No Docker socket is exposed to the browser container. Keep its CPU/RAM budget and
+Chromium version identical between transports. A desktop attempt that lost browser
+connections is diagnostic evidence, not an accepted six-tab comparison.

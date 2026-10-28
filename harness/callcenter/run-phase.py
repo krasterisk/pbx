@@ -4,6 +4,7 @@ No application API shortcuts or fabricated events. Requires 150 existing dialogs
 """
 import argparse
 import json
+import os
 import socket
 import subprocess
 import threading
@@ -43,13 +44,18 @@ def main():
     time.sleep(3)
     stop = threading.Event()
     def telemetry():
+        containers = ['krasterisk-chat-r29-backend', 'krasterisk-chat-r29-web',
+                      'krasterisk-a13-asterisk', 'krasterisk-a13-sip']
+        if os.environ.get('CC_BROWSER_CONTAINER') == 'krasterisk-a13-browser':
+            containers.append('krasterisk-a13-browser')
         with (output / 'telemetry.jsonl').open('w', buffering=1) as file:
             while not stop.is_set():
                 result = subprocess.run(['docker', 'stats', '--no-stream', '--format', '{{json .}}',
-                                         'krasterisk-chat-r29-backend', 'krasterisk-chat-r29-web',
-                                         'krasterisk-a13-asterisk', 'krasterisk-a13-sip'], capture_output=True, text=True, timeout=10)
+                                         *containers], capture_output=True, text=True, timeout=10)
                 file.write(json.dumps({'at': time.time(), 'exit': result.returncode,
                                        'containers': [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')],
+                                       'hostCpuTicks': Path('/proc/stat').read_text().splitlines()[0],
+                                       'hostMemory': {line.split(':')[0]: int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith(('MemTotal:', 'MemAvailable:', 'SwapTotal:', 'SwapFree:'))},
                                        'media': json.loads((directory / 'artifacts/sip-stats.json').read_text())}) + '\n')
                 stop.wait(1)
     worker = threading.Thread(target=telemetry, daemon=True)
