@@ -2,6 +2,8 @@
 
 Supervisor Pulse: [accepted PLAN r1](plans/supervisor-pulse/PLAN.md), [EXECUTION](plans/supervisor-pulse/EXECUTION.md). Explicit user assignment for the minimal supervisor UI, personal team, unified status menu and queue-management Sheet; `/root` chat01a16857, codex-direct.
 
+Нагрузочная проверка панелей: [ТЗ CC-LOAD-150x50 r1.0](plans/supervisor-pulse/LOAD-150x50-SPEC.md), [назначение A14](plans/supervisor-pulse/PLAN.md), [состояние](plans/supervisor-pulse/EXECUTION.md). 50 отдельных операторских панелей + 2 супервизора, раздельные Q150/M150, SSE/WS, метрики/SLO, план оптимизации и калибруемая модель ресурсов. Подготовка ТЗ не означает запуска нового прогона или закрытия capacity gates A13.
+
 **Обязательно для всех GSD-фаз** (discuss → plan → execute). Downstream-агенты MUST READ перед планированием и реализацией.
 
 **Порядок управления:** [HYBRID-WORKFLOW](development/HYBRID-WORKFLOW.md), [EXECUTION-REGISTRY](plans/EXECUTION-REGISTRY.md). Один координатор и явно назначенный PLAN на задание; Codex-direct и GSD-workflow не запускают независимые цепочки одной фазы. AI-продукты: [текущее назначение](plans/initiatives/ai-products/EXECUTION.md).

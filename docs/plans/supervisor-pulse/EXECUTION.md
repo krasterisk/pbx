@@ -1,5 +1,11 @@
 # Supervisor Pulse — EXECUTION
 
+## A14 — подготовка ТЗ,2026-10-28
+
+/root chat01a16857, codex-direct, sole writer/no delegates. PLAN A14 выполнен в документационном scope: [LOAD-150x50-SPEC r1.0](LOAD-150x50-SPEC.md),14разделов; отдельные50операторских учётных записей/панелей подтверждены пользователем,2супервизора сверх них явно заданы. Q150/M150, SIP/WebRTC/запись/NAT/MULTI6, парные SSE/WS/H1/H2, clocks/coverage/SLO, bottleneck/optimization deliverables и ресурсная модель с unknown CPU/RAMкоэффициентами зафиксированы. SUTкандидат192.168.2.201; клиенты/генераторы отдельно. Baseline main6f54b037; изменены только этот SPEC и scoped PLAN/EXECUTION/registry/index, scratch исключён. Приложение/harness/stand не изменялись, новые прогоны не запускались.
+
+Проверки подготовки PASS: 14 последовательных разделов, 8 локальных ссылок SPEC/индекса/coordination, balanced code fences, численные примеры RTP/записи/интенсивности и популяция 52/57; git diff --check. Команда `node .planning/supervisor-pulse/a14-check-spec.cjs`, evidence через artifact helper `runs/supervisor-pulse/a14-load-spec-20261028/document-check.json`. Проверены 24 Mbit/s TX/RX, 30000 pps, 864 GB/30 дней для 50×10ч mono 8kHz PCM16, 2.592 TB для 150, 720 обработанных/час и 36 средних разговоров в примере. Это арифметика/ссылки документа, не измеренная capacity. Product tests not-applicable: documentation-only; независимое review не заявлено. Первое сохранение receipt потребовало создания внешней директории, исправлено и rerun PASS. Нагрузка/CPU/RAM калибровка/аппаратная приёмка planned, A13 fail gates сохранены. Next action при отдельном назначении исполнения: заполнить manifest/hosts/resources/versions/auth/recording, preflight, затем матрица по этому SPEC; автоматически не запускать. Активных writers/нагрузки A14 нет, документ готов к рассмотрению.
+
 ## A13 current assignment (2026-10-28)
 
 ### Final bounded-run handoff — published, measured, capacity gates failed

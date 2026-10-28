@@ -1,5 +1,11 @@
 # Supervisor Pulse — PLAN r1
 
+## A14 — ТЗ нагрузочной проверки150звонков /50операторских панелей (2026-10-28)
+
+Результат редакционного назначения: [LOAD-150x50-SPEC r1.0](LOAD-150x50-SPEC.md) подготовлен; ссылки/структура/размерности и численные примеры проверены, evidence в EXECUTION. Нагрузочная реализация и калибровка planned, этим назначением не запускались; прежние A13capacity gates не закрыты.
+
+Назначение /root, codex-direct, без делегирования: подготовить один канонический LOAD-150x50-SPEC.md с методикой SSE/WS, реальными50учётными записями/браузерными панелями (подтверждено пользователем), измерениями150звонков, поиском bottleneck, требованиями к плану оптимизации и калибруемой моделью ресурсов. Входы: A13-RESULTS.md и внешний REPORT/PLAN707d803b ветки cursor/operator-load-report-f4a6. Владение только LOAD-150x50-SPEC.md, собственными A14строками PLAN/EXECUTION/EXECUTION-REGISTRY и ссылкой CANONICAL_REFS. Это подготовка ТЗ: нагрузку/изменения приложения/deploy не запускать автоматически. Проверки: внутренние ссылки, размерности/численные примеры формул, согласованность сценариев/приёмки и git diff. Продуктовые тесты not-applicable для documentation-only. Следующее действие: составить ТЗ с явными допущениями и честной маркировкой planned/unmeasured; не закрывать A13capacity gates.
+
 ## A13 — Publish current workspace, update stand, compare150-call transports (2026-10-28)
 
 Bounded-run disposition: source published, stand updated/populated, common-baseline comparison and selected-WS implementation/rerun completed; see [A13-RESULTS](A13-RESULTS.md) and final EXECUTION handoff. Six-stream/final-table consistency passed; p95<=250ms/p99<=500ms and zero-error capacity gates failed. No load remains active. Do not interpret test-stand release as strict150-call performance acceptance or auto-resume a historical checkpoint below.
