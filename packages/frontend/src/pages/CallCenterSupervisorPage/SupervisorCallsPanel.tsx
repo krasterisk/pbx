@@ -164,7 +164,7 @@ export function SupervisorCallsPanel({
                   const translateStatus = (key: string, fallback?: string) => t(key, fallback ?? key);
 
                   return (
-                    <TableRow key={call.uniqueid} data-testid={`supervisor-call-row-${call.uniqueid}`}>
+                    <TableRow key={call.uniqueid} data-call-id={call.uniqueid} data-status={call.status} data-testid={`supervisor-call-row-${call.uniqueid}`}>
                       <TableCell>{i + 1}</TableCell>
                       <TableCell>
                         <LiveDuration call={call} kind="wait" limitSec={maxWaitSec} />

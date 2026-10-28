@@ -73,7 +73,10 @@ function createStandWebServer({ root, backendHost = 'backend', backendPort = 501
 
 if (require.main === module) {
   const web = createStandWebServer({ root: process.env.WEB_ROOT || '/app/packages/frontend/dist', backendHost: process.env.BACKEND_HOST || 'backend', backendPort: Number(process.env.BACKEND_PORT || 5010) });
-  const timer = setInterval(() => console.info(JSON.stringify({ type: 'stand-web-metrics', at: Date.now(), ...web.metrics, activeTunnels: web.activeTunnels() })), 10000);
+  const dumpMetrics = () => console.info(JSON.stringify({ type: 'stand-web-metrics', at: Date.now(), ...web.metrics, activeTunnels: web.activeTunnels() }));
+  const timer = setInterval(dumpMetrics, 10000);
+  // Local Docker/process control only; no unauthenticated metrics route.
+  process.on('SIGUSR2', dumpMetrics);
   web.server.listen(Number(process.env.PORT || 8080), '0.0.0.0');
   for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => { clearInterval(timer); void web.close().then(() => process.exit(0)); });
 }
