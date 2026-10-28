@@ -1,12 +1,15 @@
 /** Opt-in benchmark build only. Never includes tokens, names or telephone numbers. */
 const enabled = import.meta.env.VITE_CC_BENCHMARK === 'true';
+// Page filter normalization may replace search parameters before the effect
+// opens its stream. Capture the explicitly selected A/B transport at page load.
+const requestedTransport = new URLSearchParams(window.location.search).get('ccTransport');
 const samples: Array<{ id: string; status: string; receivedAt: number; domAt?: number; frameAt?: number }> = [];
 const pending = new Map<string, (typeof samples)[number]>();
 const resources: Array<{ path: string; duration: number; status: number }> = [];
 let started = false;
 
 export function benchmarkTransport(): 'sse' | 'websocket' {
-  return enabled && new URLSearchParams(window.location.search).get('ccTransport') === 'sse'
+  return enabled && requestedTransport === 'sse'
     ? 'sse' : 'websocket';
 }
 

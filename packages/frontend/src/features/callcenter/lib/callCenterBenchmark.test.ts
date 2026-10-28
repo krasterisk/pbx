@@ -15,7 +15,7 @@ describe('transport benchmark isolation', () => {
     window.history.replaceState(null, '', '/?ccTransport=sse');
     const { benchmarkTransport } = await import('./callCenterBenchmark');
     expect(benchmarkTransport()).toBe('sse');
-    window.history.replaceState(null, '', '/?ccTransport=invalid');
-    expect(benchmarkTransport()).toBe('websocket');
+    window.history.replaceState(null, '', '/?sort=name');
+    expect(benchmarkTransport()).toBe('sse');
   });
 });

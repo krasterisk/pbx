@@ -19,12 +19,14 @@ def prepare(receipt_path, directory, peer_ip):
     directory.mkdir(mode=0o700)
     secret = secrets.token_urlsafe(32)
     configs = {
-        'asterisk.conf': '[directories]\nastetcdir => /etc/asterisk\nastmoddir => /usr/lib/asterisk/modules\nastvarlibdir => /var/lib/asterisk\nastdbdir => /var/lib/asterisk\nastkeydir => /var/lib/asterisk\nastdatadir => /var/lib/asterisk\nastagidir => /usr/share/asterisk/agi-bin\nastspooldir => /var/spool/asterisk\nastrundir => /var/run/asterisk\nastlogdir => /var/log/asterisk\n[options]\nverbose=0\ndebug=0\nmaxcalls=650\n',
+        'asterisk.conf': '[directories]\nastetcdir => /etc/asterisk\nastmoddir => /usr/lib/asterisk/modules\nastvarlibdir => /var/lib/asterisk\nastdbdir => /var/lib/asterisk\nastkeydir => /var/lib/asterisk\nastdatadir => /usr/share/asterisk\nastagidir => /usr/share/asterisk/agi-bin\nastspooldir => /var/spool/asterisk\nastrundir => /var/run/asterisk\nastlogdir => /var/log/asterisk\n[options]\nverbose=0\ndebug=0\nmaxcalls=650\n',
         'modules.conf': '[modules]\nautoload=yes\nnoload=chan_sip.so\nnoload=res_config_odbc.so\nnoload=res_odbc.so\nnoload=cdr_odbc.so\nnoload=cdr_adaptive_odbc.so\nnoload=cel_odbc.so\n',
         'manager.conf': f'[general]\nenabled=yes\nport=5038\nbindaddr=0.0.0.0\ntimestampevents=yes\ndisplayconnects=no\n[krasterisk]\nsecret={secret}\ndeny=0.0.0.0/0.0.0.0\npermit=172.20.0.0/255.255.0.0\nread=all\nwrite=all\n',
         'rtp.conf': '[general]\nrtpstart=10000\nrtpend=14000\nstrictrtp=yes\n',
         'logger.conf': '[general]\n[logfiles]\nconsole => warning,error\n',
-        'musiconhold.conf': '[default]\nmode=files\ndirectory=/var/lib/asterisk/sounds/bench\n',
+        'musiconhold.conf': '[default]\nmode=files\ndirectory=/usr/share/asterisk/sounds/bench\n',
+        'http.conf': '[general]\nenabled=yes\nbindaddr=0.0.0.0\nbindport=8088\n',
+        'ari.conf': f'[general]\nenabled=yes\npretty=no\n[krasterisk]\ntype=user\nread_only=no\npassword={secret}\n',
         'extensions.conf': '[general]\nstatic=yes\nwriteprotect=yes\n[bench-source]\nexten => _q.,1,Answer()\n same => n,Queue(${EXTEN})\n same => n,Hangup()\n[bench-media]\nexten => s,1,Answer()\n same => n,Playback(bench/silence,noanswer)\n same => n,Goto(s,2)\n[bench-reject]\nexten => _.,1,Hangup()\n',
     }
     queues = '[general]\npersistentmembers=no\nautofill=yes\n'
